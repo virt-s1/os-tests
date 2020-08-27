@@ -159,22 +159,22 @@ def run_cmd(test_instance,
             if key_word in output:
                 cancel_yes = False
         if cancel_yes:
-            test_instance.skip("None of %s found, cancel case" % cancel_kw)
+            test_instance.skipTest("None of %s found, cancel case" % cancel_kw)
     if cancel_not_kw is not None:
         for key_word in cancel_not_kw.split(','):
             if key_word in output:
-                test_instance.skip("%s found, cancel case" % key_word)
+                test_instance.skipTest("%s found, cancel case" % key_word)
     if cancel_ret is not None:
         cancel_yes = True
         for ret in cancel_ret.split(','):
             if int(ret) == int(status):
                 cancel_yes = False
         if cancel_yes:
-            test_instance.skip("None of %s ret code found, cancel case" % cancel_kw)
+            test_instance.skipTest("None of %s ret code found, cancel case" % cancel_kw)
     if cancel_not_ret is not None:
         for ret in cancel_not_kw.split(','):
             if int(ret) == int(status):
-                test_instance.skip("%s ret code found, cancel case" % key_word)
+                test_instance.skipTest("%s ret code found, cancel case" % key_word)
     return output
 
 def compare_nums(test_instance, num1=None, num2=None, ratio=0, msg='Compare 2 nums'):

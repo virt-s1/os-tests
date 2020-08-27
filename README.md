@@ -6,7 +6,20 @@ os-tests is a lightweight, fast check and tests collection for Linux OS.
 
 ## Installation
 
+### Install from pip
+
 `# pip install os-tests`
+
+### Install from source code
+
+`# python3 setup.py install`
+
+### Build wheel from source code and install it
+
+```bash
+# python3 setup.py sdist bdist_wheel
+# pip install -U dist/os_tests-0.0.3-py3-none-any.whl
+```
 
 ## Run test
 
