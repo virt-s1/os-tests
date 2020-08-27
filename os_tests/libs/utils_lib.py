@@ -86,7 +86,7 @@ def run_cmd(test_instance,
     exception_hit = False
 
     try:
-        ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+        ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout, encoding='utf-8')
         status = ret.returncode
         if ret.stdout is not None:
             output = ret.stdout
@@ -99,19 +99,17 @@ def run_cmd(test_instance,
         test_instance.log.info("Try again")
         test_instance.log.info("Test via uname, if still fail, please make sure no hang or panic in sys")
         try:
-            ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+            ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout, encoding='utf-8')
             status = ret.returncode
             if ret.stdout is not None:
                output = ret.stdout
             test_instance.log.info("Return: {}".format(output.decode("utf-8")))
-            ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+            ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout, encoding='utf-8')
             status = ret.returncode
             if ret.stdout is not None:
                output = ret.stdout
         except Exception as err:
             test_instance.log.error("Run cmd failed again {}".format(err))
-    if output is not None:
-        output = output.decode("utf-8")
     test_instance.log.info("CMD out:%s" % output)
     if expect_ret is not None:
         test_instance.assertEqual(status,
@@ -126,16 +124,30 @@ def run_cmd(test_instance,
             (status, expect_not_ret))
     if expect_kw is not None:
         for key_word in expect_kw.split(','):
-            test_instance.assertIn(key_word,
-                          output,
-                          msg='expcted %s not found in output' %
-                          (key_word))
+            if output.count('\n') > 5:
+                find_list = re.findall('\n.*{}.*\n'.format(key_word), output)
+            else:
+                find_list = re.findall('.*{}.*'.format(key_word), output)
+            if len(find_list) > 0:
+                test_instance.log.info('expcted "{}" found in "{}"'.format(key_word, ''.join(find_list)))
+            else:
+                if output.count('\n') > 5:
+                    test_instance.fail('expcted "{}" not found in output(check debug log as too many lines)'.format(key_word))
+                else:
+                    test_instance.fail('expcted "{}" not found in "{}"'.format(key_word,output))
     if expect_not_kw is not None:
         for key_word in expect_not_kw.split(','):
-            test_instance.assertNotIn(key_word,
-                             output,
-                             msg='Unexpcted %s found in output' %
-                             (key_word))
+            if output.count('\n') > 5:
+                find_list = re.findall('\n.*{}.*\n'.format(key_word), output)
+            else:
+                find_list = re.findall('.*{}.*'.format(key_word), output)
+            if len(find_list) == 0:
+                test_instance.log.info('Unexpcted "{}" not found in output'.format(key_word))
+            else:
+                if output.count('\n') > 5:
+                    test_instance.fail('Unexpcted "{}" found in {}'.format(key_word, ''.join(find_list)))
+                else:
+                    test_instance.fail('Unexpcted "{}" found in "{}"'.format(key_word,output))
     if expect_output is not None:
         test_instance.assertEqual(expect_output,
                          output,

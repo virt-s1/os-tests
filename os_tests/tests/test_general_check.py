@@ -12,6 +12,36 @@ class TestGeneralCheck(unittest.TestCase):
         cmd = "sudo ausearch -m AVC -ts today"
         utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='Checking avc log!')
 
+    def test_check_avclog_nfs(self):
+        '''
+        polarion_id: N/A
+        bz#: 1771856
+        '''
+        self.log.info("Check no permission denied at nfs server - bug1655493")
+        cmd = 'sudo yum install -y nfs-utils'
+        utils_lib.run_cmd(self, cmd, msg='Install nfs-utils')
+        output = utils_lib.run_cmd(self, 'uname -r', expect_ret=0)
+
+        if 'el7' in output or 'el6' in output:
+            cmd = "sudo systemctl start nfs"
+        else:
+            cmd = 'sudo systemctl start nfs-server.service'
+
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        utils_lib.run_cmd(self, "sudo mkdir /tmp/testrw")
+        cmd = "sudo chmod -R 777 /tmp/testrw"
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        cmd = "sudo exportfs -o rw,insecure_locks,all_squash,fsid=1 \
+*:/tmp/testrw"
+
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        cmd = "sudo mount -t nfs 127.0.0.1:/tmp/testrw /mnt"
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        utils_lib.run_cmd(self, "sudo umount /mnt")
+
+        cmd = "sudo ausearch -m AVC -ts today"
+        utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='Checking avc log!')
+
     def test_check_available_clocksource(self):
         '''
         polarion_id:
@@ -46,6 +76,24 @@ available_clocksource'
         max_boot_time = self.params.get('max_boot_time')
         boot_time_sec = utils_lib.getboottime(self)
         utils_lib.compare_nums(self, num1=boot_time_sec, num2=max_boot_time, ratio=0, msg="Compare with cfg specified max_boot_time")
+
+    def test_check_dmesg_calltrace(self):
+        '''
+        polarion_id: RHEL7-103851
+        bz#: 1777179
+        '''
+        utils_lib.run_cmd(self, 'dmesg', expect_ret=0, expect_not_kw='Call Trace', msg="Check there is no call trace in dmesg")
+
+    def test_check_dmesg_unknownsymbol(self):
+        '''
+        polarion_id:
+        bz#: 1649215
+        '''
+        utils_lib.run_cmd(self,
+                    'dmesg',
+                    expect_ret=0,
+                    expect_not_kw='Unknown symbol',
+                    msg='Check there is no Unknown symbol in dmesg')
 
     def test_check_journal_calltrace(self):
         '''

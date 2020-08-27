@@ -76,5 +76,34 @@ current_clocksource'
         cmd = "sudo cpupower frequency-info"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='core dumped')
 
+    def test_xenfs_write_inability(self):
+        '''
+        polarion_id:
+        BZ# 1663266
+        '''
+        utils_lib.run_cmd(self,
+                    'lscpu',
+                    expect_ret=0,
+                    cancel_kw="Xen",
+                    msg="Only run in xen instance")
+
+        utils_lib.run_cmd(self, 'sudo umount /proc/xen')
+        cmd = r'sudo mount -t xenfs xenfs /proc/xen/'
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        script_str = '''
+#!/usr/bin/env python
+
+import os
+import struct
+
+if __name__ == "__main__":
+    fd = os.open("/proc/xen/xenbus", os.O_RDWR)
+    # end a fake transaction
+    os.write(fd, struct.pack("<IIII", 7, 2, 1234, 0))
+        '''
+        utils_lib.run_cmd(self, "echo '%s' > t.py" % script_str, expect_ret=0)
+        utils_lib.run_cmd(self, 'sudo python3 t.py')
+        utils_lib.run_cmd(self, "dmesg", expect_not_kw='Call Trace')
+
 if __name__ == '__main__':
     unittest.main()
