@@ -21,6 +21,10 @@ os-tests is a lightweight, fast check and tests collection for Linux OS.
 # pip install -U dist/os_tests-0.0.3-py3-none-any.whl
 ```
 
+### Public new wheels on [pypi](https://pypi.org/project/os-tests/) (only for author)
+
+`# python3 -m twine upload  dist/*`
+
 ## Run test
 
 ### Run all os_tests supported cases
