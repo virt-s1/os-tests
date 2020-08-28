@@ -80,7 +80,7 @@ def run_cmd(test_instance,
     """
     if msg is not None:
         test_instance.log.info(msg)
-    test_instance.log.info("\nCMD: %s", cmd)
+    test_instance.log.info("CMD: %s", cmd)
     status = None
     output = None
     exception_hit = False
@@ -110,7 +110,7 @@ def run_cmd(test_instance,
                output = ret.stdout
         except Exception as err:
             test_instance.log.error("Run cmd failed again {}".format(err))
-    test_instance.log.info("CMD out:%s" % output)
+    test_instance.log.info("CMD ret: {} out:{}".format(status, output))
     if expect_ret is not None:
         test_instance.assertEqual(status,
                          expect_ret,
@@ -170,9 +170,9 @@ def run_cmd(test_instance,
             if int(ret) == int(status):
                 cancel_yes = False
         if cancel_yes:
-            test_instance.skipTest("None of %s ret code found, cancel case" % cancel_kw)
+            test_instance.skipTest("ret code {} not match, cancel case".format(cancel_ret))
     if cancel_not_ret is not None:
-        for ret in cancel_not_kw.split(','):
+        for ret in cancel_not_ret.split(','):
             if int(ret) == int(status):
                 test_instance.skipTest("%s ret code found, cancel case" % key_word)
     return output
