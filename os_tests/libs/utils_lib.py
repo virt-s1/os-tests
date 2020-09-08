@@ -52,6 +52,7 @@ def run_cmd(test_instance,
             cancel_ret=None,
             cancel_not_ret=None,
             timeout=60,
+            ret_status=False
             ):
     """run cmd with/without check return status/keywords and save log
 
@@ -74,6 +75,7 @@ def run_cmd(test_instance,
         cancel_not_ret {string} -- cancel case if ret code found, seperate by ','
                               if check multi rets
         msg {string} -- addtional info to mark cmd run.
+        ret_status {bool} -- return ret code instead of output
 
     Keyword Arguments:
         check_ret {bool} -- [whether check return] (default: {False})
@@ -175,6 +177,8 @@ def run_cmd(test_instance,
         for ret in cancel_not_ret.split(','):
             if int(ret) == int(status):
                 test_instance.skipTest("%s ret code found, cancel case" % key_word)
+    if ret_status:
+        return status
     return output
 
 def compare_nums(test_instance, num1=None, num2=None, ratio=0, msg='Compare 2 nums'):
@@ -246,4 +250,153 @@ def get_all_systemd_service():
     '''
     systemd_dir = "/usr/lib/systemd/system"
     return os.listdir(systemd_dir)
-    
+
+def is_aarch64(test_instance, action=None):
+    '''
+    Check whether system is a arm system.
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+        action {string} -- cancel case if it is arm
+    Return:
+        arm: return True
+        other: return False
+    '''
+    output = run_cmd(test_instance, "lscpu", expect_ret=0)
+    if 'aarch64' in output:
+        test_instance.log.info("Arm detected.")
+        if action == "cancel":
+            test_instance.cancel("Cancel it in arm platform.")
+        return True
+    test_instance.log.info("Not an arm instance.")
+    return False
+
+def is_aws(test_instance, action=None):
+    '''
+    Check whether system is a aws system.
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+        action {string} -- cancel case if it is not a aws system
+    Return:
+        aws: return True
+        other: return False
+    '''
+    output = run_cmd(test_instance, "dmesg", expect_ret=0)
+    if 'Amazon' in output or 'amazon' in output:
+        test_instance.log.info("AWS system.")
+        if action == "cancel":
+            test_instance.cancel("Cancel it in non aws system.")
+        return True
+    test_instance.log.info("Not an aws system.")
+    return False
+
+def is_metal(test_instance, action=None):
+    '''
+    Check whether system is a baremetal system.
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+        action {string} -- cancel case if it is a bare metal system
+    Return:
+        metal: return True
+        other: return False
+    '''
+    output_lscpu = run_cmd(test_instance, "lscpu", expect_ret=0)
+    if "x86_64" in output_lscpu and "Hypervisor" not in output_lscpu:
+        test_instance.log.info("It is a bare metal instance.")
+        return True
+    elif "x86_64" in output_lscpu and "Hypervisor" in output_lscpu:
+        test_instance.log.info("It is a virtual guest.")
+        return False
+    output_dmesg = run_cmd(test_instance, "dmesg", expect_ret=0)
+
+    if 'HYP mode not available' in output_dmesg:
+        test_instance.log.info("It is a virtual guest.")
+        return False
+    else:
+        test_instance.log.info("It is a bare metal instance.")
+        return True
+
+def get_memsize(test_instance, action=None):
+    '''
+    Check whether system is a aws system.
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+        action {string} -- cancel case if it is not a aws system
+    Return:
+        aws: return True
+        other: return False
+    '''
+    output = run_cmd(test_instance, "cat /proc/meminfo |grep MemTotal", expect_ret=0)
+
+    mem_kb = int(re.findall('\d+', output)[0])
+    mem_gb = (mem_kb/1024/1024)
+    test_instance.log.info("Total memory: {:0,.1f}G".format(mem_gb))
+    return mem_gb
+
+def ltp_check(test_instance):
+    """
+    Check whether ltp installed.
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+    """
+    test_instance.log.info("Check ltp installation status")
+    status = run_cmd( test_instance, 'sudo ls -l /opt/ltp/runltp', ret_status=True)
+    if status == 0:
+        test_instance.log.info("Fould /opt/ltp/runltp!")
+        return True
+    else:
+        test_instance.log.info("/opt/ltp/runltp not found")
+        return False
+
+def ltp_install(test_instance):
+    """
+    Install ltp in target system.
+    ltp_url is defined in configuration file.
+    I use pre compiled pkgs for saving time in run.
+    eg.
+    ltp_url : https://github.com/liangxiao1/rpmbuild_specs/releases/download/ltp-master-20200514/ltp-master-20200514.x86_64.rpm
+    or
+    ltp_url : https://github.com/liangxiao1/rpmbuild_specs/releases/download/ltp-master-20200514/ltp-master-20200514.aarch64.rpm
+    Arguments:
+        test_instance {avocado Test instance} -- avocado test instance
+    """
+    if not ltp_check(test_instance):
+        test_instance.log.info("Try install ltp automatically!")
+        if is_aarch64(test_instance):
+            ltp_url = test_instance.params.get('ltp_url_aarch64')
+        else:
+            ltp_url = test_instance.params.get('ltp_url_x86_64')
+        test_instance.log.info("Install ltp from %s", ltp_url)
+        cmd = 'sudo yum -y install %s' % ltp_url
+        run_cmd(test_instance, cmd)
+    if not ltp_check(test_instance):
+        test_instance.log.info('Install without dependences!')
+        cmd = 'sudo rpm -ivh %s --nodeps' % ltp_url
+        run_cmd(test_instance, cmd)
+    if not ltp_check(test_instance):
+        test_instance.skipTest("Cannot install ltp automatically!")
+
+def ltp_run(test_instance, case_name=None, file_name=None):
+    '''
+    Run specify ltp test case.
+    Arguments:
+        test_instance {avocado Test instance} -- avocado test instance
+    '''
+    run_cmd(test_instance, 'sudo rm -rf /opt/ltp/results/*')
+    if file_name is not None and case_name is not None:
+        ltp_cmd = 'sudo /opt/ltp/runltp -f %s -s %s > ltplog 2>&1' % (
+            file_name, case_name)
+    elif file_name is None and case_name is not None:
+        ltp_cmd = 'sudo /opt/ltp/runltp -s %s > ltplog 2>&1' % case_name
+    elif file_name is not None and case_name is None:
+        ltp_cmd = 'sudo /opt/ltp/runltp -f %s > ltplog 2>&1' % file_name
+    if not ltp_check(test_instance):
+        ltp_install(test_instance)
+    if not ltp_check(test_instance):
+        test_instance.fail("LTP is not installed!")
+    test_instance.log.info("LTP cmd: %s" % ltp_cmd)
+    run_cmd(test_instance, '\n')
+    run_cmd(test_instance, ltp_cmd, timeout=600)
+    time.sleep(5)
+    run_cmd(test_instance,
+                'sudo cat /opt/ltp/results/*',
+                expect_kw='Total Failures: 0')

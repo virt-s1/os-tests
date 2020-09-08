@@ -1,2 +1,4 @@
 results_dir: "/tmp/os_tests_result"
 max_boot_time: 40
+ltp_url_x86_64: https://github.com/liangxiao1/rpmbuild_specs/releases/download/ltp-master-20200514/ltp-master-20200514.x86_64.rpm
+ltp_url_aarch64: https://github.com/liangxiao1/rpmbuild_specs/releases/download/ltp-master-20200514/ltp-master-20200514.aarch64.rpm
