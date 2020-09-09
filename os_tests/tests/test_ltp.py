@@ -5,6 +5,7 @@ class TestLTP(unittest.TestCase):
     def setUp(self):
         utils_lib.init_case(self)
         utils_lib.ltp_install(self)
+        self.cursor = utils_lib.get_journal_cursor(self)
 
     def test_ltp_cpuhotplug(self):
         '''
@@ -48,6 +49,9 @@ at least which ltp not handle')
                       file_name='net_stress.ipsec_icmp')
         self.log.info("Try to remove ccm module after test.")
         utils_lib.run_cmd(self, 'sudo modprobe -r ccm', expect_ret=0)
+
+    def tearDown(self):
+        utils_lib.check_log(self, "error,warn,fail,trace", cursor=self.cursor)
 
 if __name__ == '__main__':
     unittest.main()

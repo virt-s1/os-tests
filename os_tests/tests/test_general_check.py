@@ -77,6 +77,35 @@ available_clocksource'
         boot_time_sec = utils_lib.getboottime(self)
         utils_lib.compare_nums(self, num1=boot_time_sec, num2=max_boot_time, ratio=0, msg="Compare with cfg specified max_boot_time")
 
+    def test_check_dmesg_error(self):
+        '''
+        :avocado: tags=test_check_dmesg_error,fast_check
+        polarion_id: RHEL7-103851
+        '''
+        utils_lib.check_log(self, 'error', log_cmd='dmesg')
+
+    def test_check_dmesg_fail(self):
+        '''
+        :avocado: tags=test_check_dmesg_fail,fast_check
+        polarion_id: RHEL7-103851
+        '''
+        utils_lib.check_log(self, 'fail', log_cmd='dmesg')
+
+    def test_check_dmesg_warn(self):
+        '''
+        :avocado: tags=test_check_dmesg_warn,fast_check
+        polarion_id: RHEL7-103851
+        '''
+        utils_lib.check_log(self, 'warn', log_cmd='dmesg')
+
+    def test_check_dmesg_unable(self):
+        '''
+        :avocado: tags=test_check_dmesg_unable,fast_check
+        polarion_id:
+        bz#: 1779454
+        '''
+        utils_lib.check_log(self, 'unable', log_cmd='dmesg')
+
     def test_check_dmesg_calltrace(self):
         '''
         polarion_id: RHEL7-103851
@@ -120,6 +149,23 @@ available_clocksource'
         cmd = 'cat /tmp/journalctl.log'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='dumped core',
                         msg = "Check no dumped core in journal log")
+    def test_check_journalctl_error(self):
+        '''
+        polarion_id: RHEL7-103851
+        '''
+        utils_lib.check_log(self, 'error')
+
+    def test_check_journalctl_fai(self):
+        '''
+        polarion_id: RHEL7-103851
+        '''
+        utils_lib.check_log(self, 'fail')
+
+    def test_check_journalctl_warn(self):
+        '''
+        polarion_id: RHEL7-103851
+        '''
+        utils_lib.check_log(self, 'warn')
 
     def test_check_journalctl_invalid(self):
         '''

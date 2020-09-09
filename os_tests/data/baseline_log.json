@@ -1,0 +1,218 @@
+{
+    "msg_1": {
+        "content": "NMI watchdog: Perf event create on CPU 0 failed with -2",
+        "analyze": "No such file or directory, it maybe expected as cpu not support",
+        "branch": "rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_2": {
+        "content": "acpi PNP0A03:00: fail to add MMCONFIG information, can't access extended PCI configuration space under this bridge.",
+        "analyze": "Xen specified",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_3": {
+        "content": "[    9.054125] acpi PNP0A03:00: _OSC failed (AE_NOT_FOUND); disabling ASPM",
+        "analyze": "Both in xen and kvm, it mostly like a information to disable aspm",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_4": {
+        "content": " [    8.064191] systemd[1]: Failed to insert module 'ip_tables': Operation not permitted",
+        "analyze": "bz#:1600903",
+        "branch": "rhel8",
+        "status": "inactive",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1600903",
+        "path": "dmesg or journal"
+    },
+    "msg_5": {
+        "content": "[    1.816618] RAS: Correctable Errors collector initialized.",
+        "analyze": "It is only a information with error keyword",
+        "branch": "rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_6": {
+        "content": "[    2.557543] i8042: Warning: Keylock active",
+        "analyze": "It is mostly like a warning without any impact",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_7": {
+        "content": "[   11.798475] random: 7 urandom warning(s) missed due to ratelimiting",
+        "analyze": "Frequently seeing, no ec2 specified",
+        "branch": "rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_9": {
+        "content": "[  227.323761] nvmet: failed to open block device /home/ec2-user/blktests/results/tmpdir.nvme.028.NcS/img: (-15)",
+        "analyze": "blktests generated",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_10": {
+        "content": "ena 0000:00:05.0: Elastic Network Adapter (ENA) v2.0.2K",
+        "analyze": "ena msg",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_11": {
+        "content": "ena: ena device version: 0.10",
+        "analyze": "ena msg",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_12": {
+        "content": "ena: ena controller version: 0.0.1 implementation version 1",
+        "analyze": "ena msg",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_13": {
+        "content": "ena 0000:00:05.0: creating 8 io queues. queue size: 1024. LLQ is ENABLED",
+        "analyze": "ena msg",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_14": {
+        "content": "ena 0000:00:05.0: Elastic Network Adapter (ENA) found at mem febf4000, mac addr 0a:6c:ef:80:b2:be Queues 8, Placement policy: Low Latency",
+        "analyze": "ena msg",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_15": {
+        "content": "[    2.075162] ena 0000:00:05.0: enabling device (0010 -> 0012)",
+        "analyze": "ena arm msg",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_16": {
+        "content": "[    0.000000] ACPI: NUMA: Failed to initialise from firmware",
+        "analyze": "arm specified msg",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_17": {
+        "content": "[    6.423303] ena 0000:00:05.0: irq 45 for MSI/MSI-X",
+        "analyze": "ena message in i3en.6xlarge",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_18": {
+        "content": "[    4.192357] ERST: Error Record Serialization Table (ERST) support is initialized.",
+        "analyze": "information only",
+        "branch": "rhel7",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_19": {
+        "content": "[    3.246036] ena 0000:00:05.0: LLQ is not supported Fallback to host mode policy.",
+        "analyze": "t3",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_20": {
+        "content": "[    3.148425] pci 0000:00:02.0: BAR 13: failed to assign [io  size 0x10000]",
+        "analyze": "appears in bare metal instance",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_21": {
+        "content": "[    8.226235] ipmi_si dmi-ipmi-si.0: Interface detection failed",
+        "analyze": "appears in bare metal instance",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_22": {
+        "content": "[    2.791129] ena 0002:04:00.0: Adding to iommu group 53",
+        "analyze": "appears in arm bare metal instance",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_23": {
+        "content": "[    2.791654] ena 0002:04:00.0: Linked as a consumer to arm-smmu.0.auto",
+        "analyze": "appears in arm bare metal instance",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_24": {
+        "content": "[    1.981712] BERT: Boot Error Record Table support is disabled. Enable it by using bert_enable as kernel parameter.",
+        "analyze": "information only",
+        "branch": "rhel7",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_25": {
+        "content": "[    4.935904] arm_spe_pmu arm,spe-v1: profiling buffer inaccessible. Try passing  kpti=off  on the kernel command line",
+        "analyze": "information only, manually set and pass",
+        "branch": "rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_26": {
+        "content": "[    4.937070] arm_spe_pmu: probe of arm,spe-v1 failed with error -1",
+        "analyze": "information only, manually set and pass",
+        "branch": "rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_27": {
+        "content": "Sep 07 01:26:19 localhost.localdomain mcelog[873]: mcelog: ERROR: AMD Processor family 21: mcelog does not support this processor.  Please use the edac_mce_amd module instead.",
+        "analyze": "information only",
+        "branch": "rhel8",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    },
+    "msg_28": {
+        "content": "Sep 07 01:26:26 vm-198-41.lab.eng.pek2.redhat.com kdumpctl[1108]: Warning: There might not be enough space to save a vmcore.",
+        "analyze": "information only",
+        "branch": "rhel8,rhel7",
+        "status": "active",
+        "link": "",
+        "path": "dmesg or journal"
+    }
+}

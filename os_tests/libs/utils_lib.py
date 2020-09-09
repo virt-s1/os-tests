@@ -5,6 +5,8 @@ import logging
 import decimal
 import subprocess
 import os_tests
+import json
+import difflib
 from yaml import load, dump
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -331,6 +333,116 @@ def get_memsize(test_instance, action=None):
     mem_gb = (mem_kb/1024/1024)
     test_instance.log.info("Total memory: {:0,.1f}G".format(mem_gb))
     return mem_gb
+
+def get_journal_cursor(test_instance):
+    '''
+    Get journal cursor for checking new generated log during test
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+    Return:
+        journal_cursor {string}
+    '''
+    output = run_cmd(test_instance, "journalctl --show-cursor -n0 -o cat | sed 's/^.*cursor: *//'", expect_ret=0)
+    test_instance.log.info("Get cursor: {}".format(output))
+    return output
+
+def check_log(test_instance, log_keyword, log_cmd="journalctl", match_word_exact=False, cursor=None):
+    '''
+    check journal log
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+        log_keyword: which keywords to check, eg error, warn, fail
+        match_word_exact: is macthing word exactly
+        cursor: where to start to check journal log, only for journal log
+    '''
+     # Baseline data file
+    baseline_file = os.path.dirname(os_tests.__file__) + "/data/baseline_log.json"
+    # Result dir
+    with open(baseline_file,'r') as fh:
+        test_instance.log.info("Loading baseline data file from {}".format(baseline_file))
+        baseline_dict = json.load(fh)
+    run_cmd(test_instance, '\n')
+    journal_compare = None
+    if "journalctl" in log_cmd:
+        if cursor is not None:
+            check_cmd = 'journalctl -o cat --after-cursor "{}"'.format(cursor)
+        else:
+            check_cmd = 'journalctl'
+    elif "dmesg" in log_cmd:
+        check_cmd = 'dmesg'
+    else:
+        check_cmd = log_cmd
+
+    if match_word_exact:
+        check_cmd = check_cmd + '|grep -iw %s' % log_keyword
+    ret = False
+    out = run_cmd(test_instance,
+                  check_cmd,
+                  expect_ret=0,
+                  msg='Get log......')
+
+    for keyword in log_keyword.split(','):
+        ret = (find_word(test_instance, out, keyword, baseline_dict=baseline_dict) | ret)
+        if ret and baseline_dict is not None:
+            test_instance.fail("New %s in journal log" % keyword)
+        elif ret:
+            test_instance.fail("Found %s in journal log!" % keyword)
+        else:
+            test_instance.log.info("No %s in journal log!" % keyword)
+
+
+def find_word(test_instance, check_str, log_keyword, baseline_dict=None):
+    """find words in content
+
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+        check_str {[string]} -- [string to look]
+        baseline_dict {[dict]} -- [baseline dict to compare]
+        match_word_exact: is macthing word exactly
+
+    Returns:
+        [Bool] -- [True|False]
+    """
+    ret = False
+    tmp_list = re.findall('.*%s.*\n' % log_keyword, check_str, flags=re.I)
+    if len(tmp_list) == 0:
+        test_instance.log.info("No %s found!", log_keyword)
+        return ret
+    else:
+        test_instance.log.info("%s found!", log_keyword)
+    # compare 2 string, if similary over fail_rate, consider it as same.
+    fail_rate = 60
+    for line1 in tmp_list:
+        find_it = False
+        if baseline_dict is not None:
+            for basekey in baseline_dict:
+                seq = difflib.SequenceMatcher(
+                    None, a=line1, b=baseline_dict[basekey]["content"])
+                same_rate = seq.ratio() * 100
+                if same_rate > fail_rate:
+                    test_instance.log.info(
+                        "Compare result rate: %d same, maybe it is not a \
+new one", same_rate)
+                    test_instance.log.info("Guest: %s Baseline: %s", line1,
+                             baseline_dict[basekey]["content"])
+                    test_instance.log.info("ID:%s Baseline analyze: %s Branch:%s Status: %s Link: %s Path: %s" %
+                             (basekey,
+                              baseline_dict[basekey]["analyze"],
+                              baseline_dict[basekey]["branch"],
+                              baseline_dict[basekey]["status"],
+                              baseline_dict[basekey]["link"],
+                              baseline_dict[basekey]["path"]))
+                    find_it = True
+                    break
+        if not find_it and baseline_dict is not None:
+            test_instance.log.info("This is a new failure!\n%s", line1)
+            test_instance.log.info("%s: %s", log_keyword, line1)
+            ret = True
+        elif not find_it:
+            test_instance.log.info("%s: %s", log_keyword, line1)
+            ret = True
+
+    return ret
 
 def ltp_check(test_instance):
     """
