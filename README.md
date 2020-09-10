@@ -65,9 +65,9 @@ total 8
 All test files are located in "os_tests/tests" directory.
 
 ```bash
-# pip3 show -f os_tests
+# pip3 show -f os-tests
 Name: os-tests
-Version: 0.0.1
+Version: 0.0.5
 Summary: Lightweight, fast check and tests collection for Linux OS
 Home-page: https://github.com/liangxiao1/os-tests
 Author: Xiao Liang
@@ -76,26 +76,16 @@ License: GPLv3+
 Location: /usr/local/lib/python3.6/site-packages
 Requires: PyYAML
 Files:
-  os_tests-0.0.1.dist-info/INSTALLER
-  os_tests-0.0.1.dist-info/METADATA
-  os_tests-0.0.1.dist-info/RECORD
-  os_tests-0.0.1.dist-info/WHEEL
-  os_tests-0.0.1.dist-info/top_level.txt
   os_tests/__init__.py
-  os_tests/__pycache__/__init__.cpython-36.pyc
-  os_tests/__pycache__/os_tests_all.cpython-36.pyc
   os_tests/cfg/os-tests.yaml
-  os_tests/data/base.json
+  os_tests/data/baseline_log.json
   os_tests/libs/__init__.py
-  os_tests/libs/__pycache__/__init__.cpython-36.pyc
-  os_tests/libs/__pycache__/utils_lib.cpython-36.pyc
   os_tests/libs/utils_lib.py
   os_tests/os_tests_all.py
   os_tests/tests/__init__.py
-  os_tests/tests/__pycache__/__init__.cpython-36.pyc
-  os_tests/tests/__pycache__/test_general_check.cpython-36.pyc
-  os_tests/tests/__pycache__/test_general_test.cpython-36.pyc
+  os_tests/tests/test_cloud_init.py
   os_tests/tests/test_general_check.py
   os_tests/tests/test_general_test.py
+  os_tests/tests/test_ltp.py
 
 ```

@@ -352,6 +352,7 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl", match_word_exact
     Arguments:
         test_instance {Test instance} -- unittest.TestCase instance
         log_keyword: which keywords to check, eg error, warn, fail
+        log_cmd: the command to get log
         match_word_exact: is macthing word exactly
         cursor: where to start to check journal log, only for journal log
     '''
@@ -368,8 +369,6 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl", match_word_exact
             check_cmd = 'journalctl -o cat --after-cursor "{}"'.format(cursor)
         else:
             check_cmd = 'journalctl'
-    elif "dmesg" in log_cmd:
-        check_cmd = 'dmesg'
     else:
         check_cmd = log_cmd
 
