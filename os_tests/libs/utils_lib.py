@@ -389,6 +389,43 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl", match_word_exact
         else:
             test_instance.log.info("No %s in journal log!" % keyword)
 
+def clean_sentence(test_instance, line1, line2):
+    """only keep neccessary words
+    eg.
+    line1: Sep 10 05:42:38 ip-172-31-1-196.us-west-2.compute.internal augenrules[783]: failure 1
+    line2: augenrules[681]: failure 1
+
+    return:
+    line1: augenrules[681]: failure 1
+    line2: augenrules[783]: failure 1
+
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+        line1 {string} -- string 1
+        line2 {string} -- string 2
+    Returns:
+        line1
+        line2
+    """
+    tmpline = ''
+    line1_longer = True
+    if len(line1) > len(line2):
+        tmpline = line2
+    else:
+        tmpline = line1
+        line1_longer = False
+    for i in re.findall("\w+",tmpline):
+        if len(i) >= 3:
+            if i not in line1 or i not in line2:
+                return line1, line2
+            #test_instance.log.info("got start word {}".format(i))
+            if line1_longer:
+                line1 = line1[line1.index(i):]
+            else:
+                line2 = line2[line2.index(i):]
+            #test_instance.log.info("return line1:{} line2:{}".format(line1, line2))
+            return line1, line2
+    return line1, line2
 
 def find_word(test_instance, check_str, log_keyword, baseline_dict=None):
     """find words in content
@@ -410,13 +447,16 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None):
     else:
         test_instance.log.info("%s found!", log_keyword)
     # compare 2 string, if similary over fail_rate, consider it as same.
-    fail_rate = 60
+    fail_rate = 70
     for line1 in tmp_list:
         find_it = False
         if baseline_dict is not None:
             for basekey in baseline_dict:
+                line1_tmp = line1
+                line2_tmp = baseline_dict[basekey]["content"]
+                line1_tmp, line2_tmp = clean_sentence(test_instance, line1_tmp, line2_tmp)
                 seq = difflib.SequenceMatcher(
-                    None, a=line1, b=baseline_dict[basekey]["content"])
+                    None, a=line1_tmp, b=line2_tmp)
                 same_rate = seq.ratio() * 100
                 if same_rate > fail_rate:
                     test_instance.log.info(

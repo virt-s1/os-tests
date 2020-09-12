@@ -32,7 +32,7 @@
         "path": "dmesg or journal"
     },
     "msg_5": {
-        "content": "[    1.816618] RAS: Correctable Errors collector initialized.",
+        "content": "RAS: Correctable Errors collector initialized.",
         "analyze": "It is only a information with error keyword",
         "branch": "rhel8",
         "status": "active",
@@ -112,7 +112,7 @@
         "path": "dmesg or journal"
     },
     "msg_16": {
-        "content": "[    0.000000] ACPI: NUMA: Failed to initialise from firmware",
+        "content": "ACPI: NUMA: Failed to initialise from firmware",
         "analyze": "arm specified msg",
         "branch": "rhel7,rhel8",
         "status": "active",
@@ -200,7 +200,7 @@
         "path": "dmesg or journal"
     },
     "msg_27": {
-        "content": "Sep 07 01:26:19 localhost.localdomain mcelog[873]: mcelog: ERROR: AMD Processor family 21: mcelog does not support this processor.  Please use the edac_mce_amd module instead.",
+        "content": "mcelog[873]: mcelog: ERROR: AMD Processor family 21: mcelog does not support this processor.  Please use the edac_mce_amd module instead.",
         "analyze": "information only",
         "branch": "rhel8",
         "status": "active",
@@ -214,5 +214,53 @@
         "status": "active",
         "link": "",
         "path": "dmesg or journal"
+    },
+    "msg_29": {
+        "content": "augenrules[681]: failure 1",
+        "analyze": "information only",
+        "branch": "rhel8,rhel7",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/3343401",
+        "path": "journal"
+    },
+    "msg_30": {
+        "content": "dbus-daemon[767]: [system] Activation via systemd failed for unit 'dbus-org.freedesktop.resolve1.service': Unit dbus-org.freedesktop.resolve1.service not found.",
+        "analyze": "information only",
+        "branch": "rhel8,rhel7",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1855252",
+        "path": "journal"
+    },
+    "msg_31": {
+        "content": "systemd-vconsole-setup[316]: KD_FONT_OP_GET failed while trying to get the font metadata: Function not implemented",
+        "analyze": "know bug before RHEL-8.4",
+        "branch": "rhel8.4-",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/4907991",
+        "path": "journal"
+    },
+    "msg_32": {
+        "content": "rngd[780]: Failed to init entropy source hwrng",
+        "analyze": "Expected if no hwrng device present, cat /dev/hwrng, /sys/devices/virtual/misc/hw_random/rng_available",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1679010",
+        "path": "journal"
+    },
+    "msg_33": {
+        "content": "sshd[5433]: error: kex_exchange_identification: banner line contains invalid characters",
+        "analyze": "Maybe triggered by some scan software, will research more",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "journal"
+    },
+    "msg_34": {
+        "content": "sshd[5433]: error: send_error: write: Connection reset by peer",
+        "analyze": "Maybe triggered by some scan software, will research more",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "journal"
     }
 }
