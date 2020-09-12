@@ -351,7 +351,7 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl", match_word_exact
     check journal log
     Arguments:
         test_instance {Test instance} -- unittest.TestCase instance
-        log_keyword: which keywords to check, eg error, warn, fail
+        log_keyword: which keywords to check, eg error, warn, fail, default is checking journal log happened in today.
         log_cmd: the command to get log
         match_word_exact: is macthing word exactly
         cursor: where to start to check journal log, only for journal log
@@ -368,7 +368,7 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl", match_word_exact
         if cursor is not None:
             check_cmd = 'journalctl -o cat --after-cursor "{}"'.format(cursor)
         else:
-            check_cmd = 'journalctl'
+            check_cmd = 'journalctl --since today'
     else:
         check_cmd = log_cmd
 
@@ -471,7 +471,11 @@ new one", same_rate)
                               baseline_dict[basekey]["status"],
                               baseline_dict[basekey]["link"],
                               baseline_dict[basekey]["path"]))
-                    find_it = True
+                    if baseline_dict[basekey]["status"] == 'active':
+                        find_it = True
+                    else:
+                        test_instance.log.info("Find a similar issue which should be already fixed, please check manually.")
+                        find_it = False
                     break
         if not find_it and baseline_dict is not None:
             test_instance.log.info("This is a new failure!\n%s", line1)

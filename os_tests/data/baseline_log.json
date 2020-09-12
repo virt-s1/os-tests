@@ -25,7 +25,7 @@
     },
     "msg_4": {
         "content": " [    8.064191] systemd[1]: Failed to insert module 'ip_tables': Operation not permitted",
-        "analyze": "bz#:1600903",
+        "analyze": "Known issue",
         "branch": "rhel8",
         "status": "inactive",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1600903",
@@ -261,6 +261,14 @@
         "branch": "rhel7,rhel8",
         "status": "active",
         "link": "",
+        "path": "journal"
+    },
+    "msg_35": {
+        "content": "dbus-daemon[8161]: [system] Failed to reset fd limit before activating service: org.freedesktop.DBus.Error.AccessDenied: Failed to restore old fd limit: Operation not permitted",
+        "analyze": "Known issue",
+        "branch": "rhel8",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1839753",
         "path": "journal"
     }
 }
