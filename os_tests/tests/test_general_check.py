@@ -191,7 +191,42 @@ available_clocksource'
             utils_lib.run_cmd(self, cmd)
             cmd = "journalctl --unit {}".format(service)
             utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='Unknown lvalue')
-        
+
+    def test_check_nouveau(self):
+        '''
+        polarion_id: N/A
+        BZ#: 1349927, 1645772
+        '''
+        utils_lib.is_aws(self, action='cancel')
+        self.log.info("nouveau is not required in ec2, make sure it is \
+in blacklist and not loaded bug1645772")
+        utils_lib.run_cmd(self,
+                    "sudo lsmod",
+                    expect_ret=0,
+                    expect_not_kw="nouveau",
+                    msg="Checking lsmod")
+        utils_lib.run_cmd(self,
+                    "sudo cat /proc/cmdline",
+                    expect_ret=0,
+                    expect_kw="rd.blacklist=nouveau",
+                    msg="Checking cmdline")
+
+    def test_check_nvme_io_timeout(self):
+        '''
+        polarion_id: N/A
+        bz#: 1859088
+        '''
+        utils_lib.is_aws(self, action='cancel')
+        self.log.info("nvme_core.io_timeout=4294967295 is recommended in ec2, make sure it is \
+in cmdline as bug1859088")
+        utils_lib.run_cmd(self,
+                    "sudo cat /sys/module/nvme_core/parameters/io_timeout",
+                    msg="Checking actual value")
+        utils_lib.run_cmd(self,
+                    "sudo cat /proc/cmdline",
+                    expect_ret=0,
+                    expect_kw="nvme_core.io_timeout=4294967295",
+                    msg="Checking cmdline")
 
 if __name__ == '__main__':
     unittest.main()

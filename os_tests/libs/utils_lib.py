@@ -258,7 +258,7 @@ def is_aarch64(test_instance, action=None):
     Check whether system is a arm system.
     Arguments:
         test_instance {Test instance} -- unittest.TestCase instance
-        action {string} -- cancel case if it is arm
+        action {string} -- cancel case if it is not arm
     Return:
         arm: return True
         other: return False
@@ -266,9 +266,10 @@ def is_aarch64(test_instance, action=None):
     output = run_cmd(test_instance, "lscpu", expect_ret=0)
     if 'aarch64' in output:
         test_instance.log.info("Arm detected.")
-        if action == "cancel":
-            test_instance.cancel("Cancel it in arm platform.")
         return True
+    else:
+        if action == "cancel":
+            test_instance.skipTest("Cancel it in non arm platform.")
     test_instance.log.info("Not an arm instance.")
     return False
 
@@ -285,10 +286,11 @@ def is_aws(test_instance, action=None):
     output = run_cmd(test_instance, "dmesg", expect_ret=0)
     if 'Amazon' in output or 'amazon' in output:
         test_instance.log.info("AWS system.")
-        if action == "cancel":
-            test_instance.cancel("Cancel it in non aws system.")
         return True
-    test_instance.log.info("Not an aws system.")
+    else:
+        if action == "cancel":
+            test_instance.skipTest("Cancel it in non aws system.")
+        test_instance.log.info("Not an aws system.")
     return False
 
 def is_metal(test_instance, action=None):
@@ -381,13 +383,13 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl", match_word_exact
                   msg='Get log......')
 
     for keyword in log_keyword.split(','):
-        ret = (find_word(test_instance, out, keyword, baseline_dict=baseline_dict) | ret)
-        if ret and baseline_dict is not None:
-            test_instance.fail("New %s in journal log" % keyword)
-        elif ret:
-            test_instance.fail("Found %s in journal log!" % keyword)
+        ret = find_word(test_instance, out, keyword, baseline_dict=baseline_dict)
+        if not ret and baseline_dict is not None:
+            test_instance.fail("New {} in {} log".format(keyword, check_cmd))
+        elif not ret:
+            test_instance.fail("Found {} in {} log!".format(keyword, check_cmd))
         else:
-            test_instance.log.info("No %s in journal log!" % keyword)
+            test_instance.log.info("No unexpected {} in {} log!".format(keyword, check_cmd))
 
 def clean_sentence(test_instance, line1, line2):
     """only keep neccessary words
@@ -443,11 +445,12 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None):
     tmp_list = re.findall('.*%s.*\n' % log_keyword, check_str, flags=re.I)
     if len(tmp_list) == 0:
         test_instance.log.info("No %s found!", log_keyword)
-        return ret
+        return True
     else:
         test_instance.log.info("%s found!", log_keyword)
     # compare 2 string, if similary over fail_rate, consider it as same.
     fail_rate = 70
+    has_fail = True
     for line1 in tmp_list:
         find_it = False
         if baseline_dict is not None:
@@ -464,28 +467,29 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None):
 new one", same_rate)
                     test_instance.log.info("Guest: %s Baseline: %s", line1,
                              baseline_dict[basekey]["content"])
-                    test_instance.log.info("ID:%s Baseline analyze: %s Branch:%s Status: %s Link: %s Path: %s" %
+                    test_instance.log.info("ID:%s Baseline analyze:%s Branch:%s Status:%s Link:%s Path:%s" %
                              (basekey,
                               baseline_dict[basekey]["analyze"],
                               baseline_dict[basekey]["branch"],
                               baseline_dict[basekey]["status"],
                               baseline_dict[basekey]["link"],
                               baseline_dict[basekey]["path"]))
+                    if baseline_dict[basekey]["trigger"] in check_str and len(baseline_dict[basekey]["trigger"]) > 2:
+                        test_instance.log.info("Maybe it is expected because found '{}' too".format(baseline_dict[basekey]["trigger"]))
+                        find_it = True
                     if baseline_dict[basekey]["status"] == 'active':
                         find_it = True
                     else:
                         test_instance.log.info("Find a similar issue which should be already fixed, please check manually.")
                         find_it = False
+                        has_fail = False
                     break
-        if not find_it and baseline_dict is not None:
-            test_instance.log.info("This is a new failure!\n%s", line1)
-            test_instance.log.info("%s: %s", log_keyword, line1)
-            ret = True
-        elif not find_it:
-            test_instance.log.info("%s: %s", log_keyword, line1)
-            ret = True
+        if not find_it:
+            test_instance.log.info("This is a new exception!")
+            test_instance.log.info("{}".format(line1))
+        ret = find_it
 
-    return ret
+    return ret and has_fail
 
 def ltp_check(test_instance):
     """
