@@ -352,7 +352,7 @@ def get_journal_cursor(test_instance):
     test_instance.log.info("Get cursor: {}".format(output))
     return output
 
-def check_log(test_instance, log_keyword, log_cmd="journalctl", match_word_exact=False, cursor=None):
+def check_log(test_instance, log_keyword, log_cmd="journalctl", match_word_exact=False, cursor=None, skip_words=None):
     '''
     check journal log
     Arguments:
@@ -361,6 +361,7 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl", match_word_exact
         log_cmd: the command to get log
         match_word_exact: is macthing word exactly
         cursor: where to start to check journal log, only for journal log
+        skip_words: skip words as you want, split by ","
     '''
      # Baseline data file
     baseline_file = os.path.dirname(os_tests.__file__) + "/data/baseline_log.json"
@@ -387,7 +388,7 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl", match_word_exact
                   msg='Get log......')
 
     for keyword in log_keyword.split(','):
-        ret = find_word(test_instance, out, keyword, baseline_dict=baseline_dict)
+        ret = find_word(test_instance, out, keyword, baseline_dict=baseline_dict, skip_words=skip_words)
         if not ret and baseline_dict is not None:
             test_instance.fail("New {} in {} log".format(keyword, check_cmd))
         elif not ret:
@@ -433,7 +434,7 @@ def clean_sentence(test_instance, line1, line2):
             return line1, line2
     return line1, line2
 
-def find_word(test_instance, check_str, log_keyword, baseline_dict=None):
+def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_words=None):
     """find words in content
 
     Arguments:
@@ -441,6 +442,7 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None):
         check_str {[string]} -- [string to look]
         baseline_dict {[dict]} -- [baseline dict to compare]
         match_word_exact: is macthing word exactly
+        skip_words: skip words as you want, split by ","
 
     Returns:
         [Bool] -- [True|False]
@@ -452,6 +454,12 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None):
         return True
     else:
         test_instance.log.info("%s found!", log_keyword)
+    if skip_words is not None:
+        for skip_word in skip_words.split(','):
+            tmp_list = [x for x in tmp_list if skip_word not in x]
+    if len(tmp_list) == 0:
+        test_instance.log.info("No {} found after skipped {}!".format(log_keyword, skip_words))
+        return True
     # compare 2 string, if similary over fail_rate, consider it as same.
     fail_rate = 70
     has_fail = True

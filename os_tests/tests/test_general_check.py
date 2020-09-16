@@ -179,7 +179,7 @@ available_clocksource'
         #utils_lib.run_cmd(self, cmd, expect_ret=0)
         #cmd = 'cat /tmp/journalctl.log'
         #utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='invalid,Invalid')
-        utils_lib.check_log(self, 'invalid')
+        utils_lib.check_log(self, 'invalid', skip_words="Invalid user,invalid user")
 
     def test_check_journalctl_service_unknown_lvalue(self):
         '''
