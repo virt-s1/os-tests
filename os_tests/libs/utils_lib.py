@@ -370,7 +370,7 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl", match_word_exact
         baseline_dict = json.load(fh)
     run_cmd(test_instance, '\n')
     journal_compare = None
-    if "journalctl" in log_cmd:
+    if "journalctl" == log_cmd:
         if cursor is not None:
             check_cmd = 'journalctl -o cat --after-cursor "{}"'.format(cursor)
         else:

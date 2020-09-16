@@ -322,5 +322,23 @@
         "link": "",
         "path": "journal",
         "trigger": ""
+    },
+    "msg_38": {
+        "content": "systemd[1]: /usr/lib/systemd/system/systemd-resolved.service:33: Unknown lvalue 'ProtectSystems' in section 'Service'",
+        "analyze": "Known bug",
+        "branch": "rhel8.3",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1871139",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_39": {
+        "content": "crond[1100]: (root) FAILED (loading cron table)",
+        "analyze": "Known bug",
+        "branch": "rhel8.3",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1879368",
+        "path": "journal",
+        "trigger": ""
     }
 }

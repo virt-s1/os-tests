@@ -191,7 +191,7 @@ available_clocksource'
             cmd = "systemctl status {}".format(service)
             utils_lib.run_cmd(self, cmd)
             cmd = "journalctl --unit {}".format(service)
-            utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='Unknown lvalue')
+            utils_lib.check_log(self,'Unknown lvalue', log_cmd=cmd)
 
     def test_check_nouveau(self):
         '''
