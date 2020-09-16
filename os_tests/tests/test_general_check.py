@@ -175,10 +175,11 @@ available_clocksource'
         # redirect journalctl output to a file as it is not get return
         # normally in RHEL7
         # skip sshd to filter out invalid user message
-        cmd = 'journalctl|grep -v sshd|grep -v MTU > /tmp/journalctl.log'
-        utils_lib.run_cmd(self, cmd, expect_ret=0)
-        cmd = 'cat /tmp/journalctl.log'
-        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='invalid,Invalid')
+        #cmd = 'journalctl|grep -v sshd|grep -v MTU > /tmp/journalctl.log'
+        #utils_lib.run_cmd(self, cmd, expect_ret=0)
+        #cmd = 'cat /tmp/journalctl.log'
+        #utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='invalid,Invalid')
+        utils_lib.check_log(self, 'invalid')
 
     def test_check_journalctl_service_unknown_lvalue(self):
         '''
@@ -227,6 +228,31 @@ in cmdline as bug1859088")
                     expect_ret=0,
                     expect_kw="nvme_core.io_timeout=4294967295",
                     msg="Checking cmdline")
+
+    def test_check_tsc_deadline_timer(self):
+        '''
+        polarion_id: RHEL7-111006
+        des: check TSC deadline timer enabled in dmesg
+        BZ#: 1503160
+        '''
+        utils_lib.run_cmd(self,
+                    'lscpu',
+                    expect_ret=0,
+                    cancel_not_kw="Xen,aarch64,AuthenticAMD")
+
+        cmd = "grep tsc_deadline_timer /proc/cpuinfo"
+        utils_lib.run_cmd(self, cmd, cancel_ret='0', msg="check cpu flag has tsc_deadline_timer")
+        cmd = "dmesg|grep 'TSC deadline timer enabled'"
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+
+        cmd = "sudo cat /sys/devices/system/clockevents/clockevent0/\
+current_device"
+
+        utils_lib.run_cmd(self,
+                    cmd,
+                    expect_ret=0,
+                    expect_kw='lapic-deadline',
+                    msg='Check guest timer')
 
 if __name__ == '__main__':
     unittest.main()

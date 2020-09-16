@@ -27,7 +27,7 @@
         "trigger": ""
     },
     "msg_4": {
-        "content": " [    8.064191] systemd[1]: Failed to insert module 'ip_tables': Operation not permitted",
+        "content": "systemd[1]: Failed to insert module 'ip_tables': Operation not permitted",
         "analyze": "Known issue",
         "branch": "rhel8",
         "status": "inactive",
@@ -46,7 +46,7 @@
     },
     "msg_6": {
         "content": "i8042: Warning: Keylock active",
-        "analyze": "It is mostly like a warning without any impact",
+        "analyze": "It is mostly like a warning without any function impact, same in Amazon Linux 2",
         "branch": "rhel7,rhel8",
         "status": "active",
         "link": "",
@@ -63,7 +63,7 @@
         "trigger": ""
     },
     "msg_9": {
-        "content": "[  227.323761] nvmet: failed to open block device /home/ec2-user/blktests/results/tmpdir.nvme.028.NcS/img: (-15)",
+        "content": "nvmet: failed to open block device /home/ec2-user/blktests/results/tmpdir.nvme.028.NcS/img: (-15)",
         "analyze": "blktests generated",
         "branch": "rhel7,rhel8",
         "status": "active",
@@ -117,7 +117,7 @@
         "trigger": ""
     },
     "msg_15": {
-        "content": "[    2.075162] ena 0000:00:05.0: enabling device (0010 -> 0012)",
+        "content": "ena 0000:00:05.0: enabling device (0010 -> 0012)",
         "analyze": "ena arm msg",
         "branch": "rhel7,rhel8",
         "status": "active",
@@ -135,7 +135,7 @@
         "trigger": ""
     },
     "msg_17": {
-        "content": "[    6.423303] ena 0000:00:05.0: irq 45 for MSI/MSI-X",
+        "content": "ena 0000:00:05.0: irq 45 for MSI/MSI-X",
         "analyze": "ena message in i3en.6xlarge",
         "branch": "rhel7,rhel8",
         "status": "active",
@@ -144,7 +144,7 @@
         "trigger": ""
     },
     "msg_18": {
-        "content": "[    4.192357] ERST: Error Record Serialization Table (ERST) support is initialized.",
+        "content": "ERST: Error Record Serialization Table (ERST) support is initialized.",
         "analyze": "information only",
         "branch": "rhel7",
         "status": "active",
@@ -153,7 +153,7 @@
         "trigger": ""
     },
     "msg_19": {
-        "content": "[    3.246036] ena 0000:00:05.0: LLQ is not supported Fallback to host mode policy.",
+        "content": "ena 0000:00:05.0: LLQ is not supported Fallback to host mode policy.",
         "analyze": "t3",
         "branch": "rhel7,rhel8",
         "status": "active",
@@ -162,7 +162,7 @@
         "trigger": ""
     },
     "msg_20": {
-        "content": "[    3.148425] pci 0000:00:02.0: BAR 13: failed to assign [io  size 0x10000]",
+        "content": "pci 0000:00:02.0: BAR 13: failed to assign [io  size 0x10000]",
         "analyze": "appears in bare metal instance",
         "branch": "rhel7,rhel8",
         "status": "active",
@@ -171,7 +171,7 @@
         "trigger": ""
     },
     "msg_21": {
-        "content": "[    8.226235] ipmi_si dmi-ipmi-si.0: Interface detection failed",
+        "content": "ipmi_si dmi-ipmi-si.0: Interface detection failed",
         "analyze": "appears in bare metal instance",
         "branch": "rhel7,rhel8",
         "status": "active",
@@ -180,7 +180,7 @@
         "trigger": ""
     },
     "msg_22": {
-        "content": "[    2.791129] ena 0002:04:00.0: Adding to iommu group 53",
+        "content": "ena 0002:04:00.0: Adding to iommu group 53",
         "analyze": "appears in arm bare metal instance",
         "branch": "rhel7,rhel8",
         "status": "active",
@@ -189,7 +189,7 @@
         "trigger": ""
     },
     "msg_23": {
-        "content": "[    2.791654] ena 0002:04:00.0: Linked as a consumer to arm-smmu.0.auto",
+        "content": "ena 0002:04:00.0: Linked as a consumer to arm-smmu.0.auto",
         "analyze": "appears in arm bare metal instance",
         "branch": "rhel7,rhel8",
         "status": "active",
@@ -198,7 +198,7 @@
         "trigger": ""
     },
     "msg_24": {
-        "content": "[    1.981712] BERT: Boot Error Record Table support is disabled. Enable it by using bert_enable as kernel parameter.",
+        "content": "BERT: Boot Error Record Table support is disabled. Enable it by using bert_enable as kernel parameter.",
         "analyze": "information only",
         "branch": "rhel7",
         "status": "active",
@@ -207,7 +207,7 @@
         "trigger": ""
     },
     "msg_25": {
-        "content": "[    4.935904] arm_spe_pmu arm,spe-v1: profiling buffer inaccessible. Try passing  kpti=off  on the kernel command line",
+        "content": "arm_spe_pmu arm,spe-v1: profiling buffer inaccessible. Try passing  kpti=off  on the kernel command line",
         "analyze": "information only, manually set and pass",
         "branch": "rhel8",
         "status": "active",
@@ -216,7 +216,7 @@
         "trigger": ""
     },
     "msg_26": {
-        "content": "[    4.937070] arm_spe_pmu: probe of arm,spe-v1 failed with error -1",
+        "content": "arm_spe_pmu: probe of arm,spe-v1 failed with error -1",
         "analyze": "information only, manually set and pass",
         "branch": "rhel8",
         "status": "active",
@@ -234,7 +234,7 @@
         "trigger": ""
     },
     "msg_28": {
-        "content": "Sep 07 01:26:26 vm-198-41.lab.eng.pek2.redhat.com kdumpctl[1108]: Warning: There might not be enough space to save a vmcore.",
+        "content": "kdumpctl[1108]: Warning: There might not be enough space to save a vmcore.",
         "analyze": "information only",
         "branch": "rhel8,rhel7",
         "status": "active",
@@ -313,5 +313,14 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1839753",
         "path": "journal",
         "trigger": "cpuhotplug"
+    },
+    "msg_37": {
+        "content": "gnome-shell[1682]: Getting invalid resource scale property",
+        "analyze": "Information only",
+        "branch": "rhel8",
+        "status": "active",
+        "link": "",
+        "path": "journal",
+        "trigger": ""
     }
 }

@@ -298,7 +298,7 @@ def is_metal(test_instance, action=None):
     Check whether system is a baremetal system.
     Arguments:
         test_instance {Test instance} -- unittest.TestCase instance
-        action {string} -- cancel case if it is a bare metal system
+        action {string} -- cancel case if it is not a bare metal system
     Return:
         metal: return True
         other: return False
@@ -309,11 +309,15 @@ def is_metal(test_instance, action=None):
         return True
     elif "x86_64" in output_lscpu and "Hypervisor" in output_lscpu:
         test_instance.log.info("It is a virtual guest.")
+        if action == "cancel":
+            test_instance.skipTest("Cancel it in non metal system.")
         return False
     output_dmesg = run_cmd(test_instance, "dmesg", expect_ret=0)
 
     if 'HYP mode not available' in output_dmesg:
         test_instance.log.info("It is a virtual guest.")
+        if action == "cancel":
+            test_instance.skipTest("Cancel it in non metal system.")
         return False
     else:
         test_instance.log.info("It is a bare metal instance.")
