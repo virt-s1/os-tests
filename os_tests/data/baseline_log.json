@@ -163,10 +163,10 @@
     },
     "msg_20": {
         "content": "pci 0000:00:02.0: BAR 13: failed to assign [io  size 0x10000]",
-        "analyze": "appears in bare metal instance",
+        "analyze": "appears in bare metal instance or esx platform, no functional impact",
         "branch": "rhel7,rhel8",
         "status": "active",
-        "link": "",
+        "link": "https://access.redhat.com/solutions/3144711",
         "path": "dmesg or journal",
         "trigger": ""
     },
@@ -339,6 +339,15 @@
         "status": "active",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1879368",
         "path": "journal",
+        "trigger": ""
+    },
+    "msg_40": {
+        "content": "psmouse serio1: trackpoint: failed to get extended button data, assuming 3 buttons",
+        "analyze": "It is a harmless message. You can ignore it.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/2023283",
+        "path": "dmesg",
         "trigger": ""
     }
 }
