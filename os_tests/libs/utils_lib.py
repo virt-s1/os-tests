@@ -54,7 +54,9 @@ def run_cmd(test_instance,
             cancel_ret=None,
             cancel_not_ret=None,
             timeout=60,
-            ret_status=False
+            ret_status=False,
+            is_log_output=True,
+            cursor=None
             ):
     """run cmd with/without check return status/keywords and save log
 
@@ -78,6 +80,8 @@ def run_cmd(test_instance,
                               if check multi rets
         msg {string} -- addtional info to mark cmd run.
         ret_status {bool} -- return ret code instead of output
+        is_log_output {bool} -- print cmd output or not
+        cursor {string} -- skip content before cursor(line)
 
     Keyword Arguments:
         check_ret {bool} -- [whether check return] (default: {False})
@@ -114,7 +118,12 @@ def run_cmd(test_instance,
                output = ret.stdout
         except Exception as err:
             test_instance.log.error("Run cmd failed again {}".format(err))
-    test_instance.log.info("CMD ret: {} out:{}".format(status, output))
+    if cursor is not None and cursor in output:
+        output = output[output.index(cursor):]
+    if is_log_output:
+        test_instance.log.info("CMD ret: {} out:{}".format(status, output))
+    else:
+        test_instance.log.info("CMD ret: {}".format(status))
     if expect_ret is not None:
         test_instance.assertEqual(status,
                          expect_ret,
@@ -351,6 +360,19 @@ def get_journal_cursor(test_instance):
     output = run_cmd(test_instance, "journalctl --show-cursor -n0 -o cat | sed 's/^.*cursor: *//'", expect_ret=0)
     test_instance.log.info("Get cursor: {}".format(output))
     return output
+
+def get_cmd_cursor(test_instance, cmd='dmesg -T'):
+    '''
+    Get command cursor by last matched line.
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+    Return:
+        cursor {string}
+    '''
+    output = run_cmd(test_instance, cmd, expect_ret=0, is_log_output=False)
+    cursor = output.split('\n')[-1]
+    test_instance.log.info("Get cursor: {}".format(cursor))
+    return cursor
 
 def check_log(test_instance, log_keyword, log_cmd="journalctl", match_word_exact=False, cursor=None, skip_words=None):
     '''

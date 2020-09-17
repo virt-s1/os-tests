@@ -153,33 +153,26 @@ available_clocksource'
         '''
         polarion_id: RHEL7-103851
         '''
-        utils_lib.check_log(self, 'error')
+        utils_lib.check_log(self, 'error', skip_words='test_check')
 
     def test_check_journalctl_fail(self):
         '''
         polarion_id: RHEL7-103851
         '''
-        utils_lib.check_log(self, 'fail')
+        utils_lib.check_log(self, 'fail', skip_words='test_check')
 
     def test_check_journalctl_warn(self):
         '''
         polarion_id: RHEL7-103851
         '''
-        utils_lib.check_log(self, 'warn')
+        utils_lib.check_log(self, 'warn', skip_words='test_check')
 
     def test_check_journalctl_invalid(self):
         '''
         polarion_id:
         BZ#:1750417
         '''
-        # redirect journalctl output to a file as it is not get return
-        # normally in RHEL7
-        # skip sshd to filter out invalid user message
-        #cmd = 'journalctl|grep -v sshd|grep -v MTU > /tmp/journalctl.log'
-        #utils_lib.run_cmd(self, cmd, expect_ret=0)
-        #cmd = 'cat /tmp/journalctl.log'
-        #utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='invalid,Invalid')
-        utils_lib.check_log(self, 'invalid', skip_words="Invalid user,invalid user")
+        utils_lib.check_log(self, 'invalid', skip_words="Invalid user,invalid user,test_check")
 
     def test_check_journalctl_service_unknown_lvalue(self):
         '''
