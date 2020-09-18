@@ -117,6 +117,24 @@ class TestCloudInit(unittest.TestCase):
                         expect_not_kw='ERROR',
                         msg='check /var/log/cloud-init-output.log')
 
+    def test_check_cloudinit_log_traceback(self):
+        '''
+        polarion_id:
+        check no traceback log in cloudinit logs
+        '''
+        utils_lib.run_cmd(self,
+                    'sudo cat /var/log/cloud-init.log',
+                    expect_ret=0,
+                    expect_not_kw='Traceback',
+                    msg='check /var/log/cloud-init.log')
+        if 'release 7' not in utils_lib.run_cmd(self,
+                                          'sudo cat /etc/redhat-release'):
+            utils_lib.run_cmd(self,
+                        'sudo cat /var/log/cloud-init-output.log',
+                        expect_ret=0,
+                        expect_not_kw='Traceback',
+                        msg='check /var/log/cloud-init-output.log')
+
     def test_check_metadata(self):
         '''
         polarion_id:
