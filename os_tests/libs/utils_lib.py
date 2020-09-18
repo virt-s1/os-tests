@@ -172,22 +172,22 @@ def run_cmd(test_instance,
             if key_word in output:
                 cancel_yes = False
         if cancel_yes:
-            test_instance.skipTest("None of %s found, cancel case" % cancel_kw)
+            test_instance.skipTest("None of %s found, cancel case. %s" % (cancel_kw, msg))
     if cancel_not_kw is not None:
         for key_word in cancel_not_kw.split(','):
             if key_word in output:
-                test_instance.skipTest("%s found, cancel case" % key_word)
+                test_instance.skipTest("%s found, cancel case. %s" % (key_word, msg))
     if cancel_ret is not None:
         cancel_yes = True
         for ret in cancel_ret.split(','):
             if int(ret) == int(status):
                 cancel_yes = False
         if cancel_yes:
-            test_instance.skipTest("ret code {} not match, cancel case".format(cancel_ret))
+            test_instance.skipTest("ret code {} not match, cancel case. {}".format(cancel_ret, msg))
     if cancel_not_ret is not None:
         for ret in cancel_not_ret.split(','):
             if int(ret) == int(status):
-                test_instance.skipTest("%s ret code found, cancel case" % key_word)
+                test_instance.skipTest("%s ret code found, cancel case. %s" % (key_word, msg))
     if ret_status:
         return status
     return output

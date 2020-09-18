@@ -186,6 +186,31 @@ available_clocksource'
             cmd = "journalctl --unit {}".format(service)
             utils_lib.check_log(self,'Unknown lvalue', log_cmd=cmd)
 
+    def test_check_memleaks(self):
+        '''
+        polarion_id: RHEL-117648
+        '''
+        self.log.info("Check memory leaks")
+        utils_lib.run_cmd(self,
+                    'uname -a',
+                    expect_ret=0,
+                    cancel_kw="debug",
+                    msg="Only run in debug kernel")
+        utils_lib.run_cmd(self,
+                    'cat /proc/cmdline',
+                    expect_ret=0,
+                    cancel_kw="kmemleak=on",
+                    msg="Only run with kmemleak=on")
+
+        utils_lib.run_cmd(self, 'sudo su', expect_ret=0)
+        cmd = 'echo scan > /sys/kernel/debug/kmemleak'
+        utils_lib.run_cmd(self, cmd, expect_ret=0, timeout=1800)
+
+        cmd = 'cat /sys/kernel/debug/kmemleak'
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0)
+        if len(output) > 0:
+            self.fail('Memory leak found!')
+
     def test_check_nouveau(self):
         '''
         polarion_id: N/A

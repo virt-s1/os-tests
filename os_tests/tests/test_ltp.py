@@ -20,8 +20,7 @@ class TestLTP(unittest.TestCase):
                     'lscpu',
                     expect_ret=0,
                     cancel_not_kw="Xen",
-                    msg="Not run in xen instance as bug \
-            1641510 which is very low priority")
+                    msg="Not run in xen instance as bug 1641510 which is very low priority")
         if utils_lib.is_aws(self) and utils_lib.is_metal(self):
             self.skipTest('Cancel test as aws bare metal needs 1+ cpus working \
 at least which ltp not handle')
