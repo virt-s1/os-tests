@@ -356,7 +356,7 @@
         "branch": "rhel",
         "status": "active",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1877997",
-        "path": "dmesg",
+        "path": "journal",
         "trigger": ""
     },
     "msg_42": {
@@ -365,7 +365,25 @@
         "branch": "rhel",
         "status": "active",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1877997",
-        "path": "dmesg",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_44": {
+        "content": "gnome-shell[1578]: Error looking up permission: GDBus.Error:org.freedesktop.portal.Error.NotFound: No entry for geolocation",
+        "analyze": "This message appears when GNOME location services is disabled. This message can be safely ignored.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/4831511",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_45": {
+        "content": "org.gnome.Shell.desktop[1578]: Errors from xkbcomp are not fatal to the X server",
+        "analyze": "Known bug.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1780463",
+        "path": "journal",
         "trigger": ""
     }
 }
