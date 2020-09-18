@@ -256,7 +256,7 @@ in cmdline as bug1859088")
         utils_lib.run_cmd(self,
                     'lscpu',
                     expect_ret=0,
-                    cancel_not_kw="Xen,aarch64,AuthenticAMD")
+                    cancel_not_kw="Xen,aarch64,AuthenticAMD", msg="Only run in intel cpu.")
 
         cmd = "grep tsc_deadline_timer /proc/cpuinfo"
         utils_lib.run_cmd(self, cmd, cancel_ret='0', msg="check cpu flag has tsc_deadline_timer")
@@ -271,6 +271,34 @@ current_device"
                     expect_ret=0,
                     expect_kw='lapic-deadline',
                     msg='Check guest timer')
+
+    def test_check_virtwhat(self):
+        '''
+        polarion_id: RHEL7-103857
+        test virt-what, not use systemd-detect-virt
+        '''
+        utils_lib.is_cmd_exist(self, cmd='virt-what')
+        virt_what_output = utils_lib.run_cmd(self, r"sudo virt-what", expect_ret=0)
+        lscpu_output = utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
+        if 'Xen' in lscpu_output:
+            self.log.info("Found it is a xen system!")
+            if 'full' in lscpu_output:
+                self.assertIn('xen-hvm', virt_what_output)
+            else:
+                self.assertIn('xen-domU', virt_what_output)
+        elif 'KVM' in lscpu_output:
+            self.log.info("Found it is a kvm system!")
+            self.assertIn('kvm', virt_what_output)
+        elif 'VMware' in lscpu_output:
+            self.log.info("Found it is a vmware system!")
+            self.assertIn('vmware', virt_what_output)
+        elif 'Microsoft' in lscpu_output:
+            self.log.info("Found it is a Hyper-V system!")
+            self.assertIn('hyperv', virt_what_output)
+        elif utils_lib.is_metal(self):
+            self.log.info("Found it is a bare metal system!")
+        else:
+            self.skipTest("Unknow hypervisor")
 
 if __name__ == '__main__':
     unittest.main()

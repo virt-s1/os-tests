@@ -332,6 +332,31 @@ def is_metal(test_instance, action=None):
         test_instance.log.info("It is a bare metal instance.")
         return True
 
+def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False):
+    '''
+    check cmd exists status, if no, try to install it.
+    Arguments:
+        test_instance {avocado Test instance} -- avocado test instance
+        cmd {string} -- checked command
+        is_install {bool} -- try to install it or not
+    '''
+    cmd_check = "which %s" % cmd
+    ret = run_cmd(test_instance, cmd_check, ret_status=True)
+    if ret == 0:
+        return True
+    else:
+        test_instance.log.info("No %s found!" % cmd)
+    if not is_install:
+        if cancel_case:
+            test_instance.skipTest("Cancel it as {} not found".format(cmd))
+        return False
+    arch = run_cmd(test_instance, 'uname -p')
+    pkg_find = "sudo yum provides %s" % cmd
+    output = run_cmd(test_instance, pkg_find, expect_ret=0)
+    pkg_list = re.findall(".*%s" % arch, output)
+    run_cmd(test_instance, "sudo yum install -y %s" % pkg_list[0], expect_ret=0)
+    return True
+
 def get_memsize(test_instance, action=None):
     '''
     Check whether system is a aws system.

@@ -430,5 +430,23 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1332997",
         "path": "journal",
         "trigger": "EDID length is too small"
+    },
+    "msg_50": {
+        "content": "sshd[1621]: reverse mapping checking getaddrinfo for nat-pool-xxx.xxx.redhat.com [00.000.000.000] failed - POSSIBLE BREAK-IN ATTEMPT!",
+        "analyze": "There is (most likely) no 'attack' occurring when this message is displayed.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/83933",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_51": {
+        "content": "kernel: CPU features: detected: Instruction cache invalidation not required for I/D coherence",
+        "analyze": "Information only",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal",
+        "trigger": ""
     }
 }
