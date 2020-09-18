@@ -349,5 +349,23 @@
         "link": "https://access.redhat.com/solutions/2023283",
         "path": "dmesg",
         "trigger": ""
+    },
+    "msg_41": {
+        "content": "org.gnome.Shell.desktop[1578]: libEGL warning: DRI2: failed to create dri screen",
+        "analyze": "Known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1877997",
+        "path": "dmesg",
+        "trigger": ""
+    },
+    "msg_42": {
+        "content": "gnome-shell[1578]: Failed to initialize accelerated iGPU/dGPU framebuffer sharing: Do not want to use software renderer (llvmpipe (LLVM 10.0.1, 256 bits)), falling back to CPU copy path",
+        "analyze": "Known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1877997",
+        "path": "dmesg",
+        "trigger": ""
     }
 }
