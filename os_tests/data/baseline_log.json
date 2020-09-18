@@ -368,7 +368,7 @@
         "path": "journal",
         "trigger": ""
     },
-    "msg_44": {
+    "msg_43": {
         "content": "gnome-shell[1578]: Error looking up permission: GDBus.Error:org.freedesktop.portal.Error.NotFound: No entry for geolocation",
         "analyze": "This message appears when GNOME location services is disabled. This message can be safely ignored.",
         "branch": "rhel",
@@ -377,7 +377,7 @@
         "path": "journal",
         "trigger": ""
     },
-    "msg_45": {
+    "msg_44": {
         "content": "org.gnome.Shell.desktop[1578]: Errors from xkbcomp are not fatal to the X server",
         "analyze": "Known bug.",
         "branch": "rhel",
@@ -385,5 +385,50 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1780463",
         "path": "journal",
         "trigger": ""
+    },
+    "msg_45": {
+        "content": "org.gnome.Shell.desktop[1578]: > Warning:          Could not resolve keysym XF86MonBrightnessCycle",
+        "analyze": "Known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1780463",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_46": {
+        "content": "gnome-shell[1578]: JS WARNING: [resource:///org/gnome/shell/ui/windowManager.js 1643]: reference to undefined property 'MetaWindowXwayland'",
+        "analyze": "This warning is harmless",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://gitlab.gnome.org/GNOME/gnome-shell/-/issues/1314",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_47": {
+        "content": "org.gnome.Shell.desktop[1578]: Failed to initialize glamor, falling back to sw",
+        "analyze": "I think this warning is harmless because exists on other platform too. eg. 1730315",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal",
+        "trigger": "Missing Wayland requirements for glamor"
+    },
+    "msg_48": {
+        "content": "colord[1817]: failed to get edid data: EDID length is too small",
+        "analyze": "It may not a bug.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1368291",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_49": {
+        "content": "gsd-color[1745]: failed to get edid: unable to get EDID for output",
+        "analyze": "Wont fix bug.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1332997",
+        "path": "journal",
+        "trigger": "EDID length is too small"
     }
 }
