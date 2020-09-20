@@ -275,6 +275,7 @@ current_device"
     def test_check_virtwhat(self):
         '''
         polarion_id: RHEL7-103857
+        BZ#: 1782435
         test virt-what, not use systemd-detect-virt
         '''
         utils_lib.is_cmd_exist(self, cmd='virt-what')

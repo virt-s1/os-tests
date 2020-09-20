@@ -29,15 +29,29 @@ os-tests is a lightweight, fast check and tests collection for Linux OS.
 
 ### Run all os_tests supported cases
 
+`# os-tests`  
+or  
 `# python3 -m unittest -v os_tests.os_tests_all`
+
+### List all supported cases only without run
+
+`# os-tests -l`
+
+#### Filter case name with ketwords ltp and virtwhat
+
+`# os-tests -l -p ltp,virtwhat`
 
 ### Run all cases in one file
 
-`# python3 -m unittest -v os_tests.tests.test_general_check`
+`# python3 -m unittest -v os_tests.tests.test_general_check`  
+or  
+`# os-tests -p test_general_check`
 
 ### Run single case in one file
 
-`# python3 -m unittest -v os_tests.tests.test_general_test.TestGeneralTest.test_change_clocksource`
+`# python3 -m unittest -v os_tests.tests.test_general_test.TestGeneralTest.test_change_clocksource`  
+or  
+`# os-tests -p test_change_clocksource`
 
 ### The log file
 

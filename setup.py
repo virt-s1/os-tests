@@ -29,4 +29,9 @@ setuptools.setup(
 
     ],
     python_requires='>=3.6',
+    entry_points = {
+             'console_scripts': [
+                 'os-tests = os_tests.os_tests_all:main',
+             ],
+         },
 )
