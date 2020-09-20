@@ -41,6 +41,10 @@ or
 
 `# os-tests -l -p ltp,virtwhat`
 
+#### Filter case name with keywords ltp and skip test_ltp_ipsec_icmp
+
+`# os-tests -l -p ltp -s test_ltp_ipsec_icmp`
+
 ### Run all cases in one file
 
 `# os-tests -p test_general_check`  
