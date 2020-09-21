@@ -26,6 +26,7 @@ class TestNetworkTest(unittest.TestCase):
                 nic = net
                 break
 
+        utils_lib.is_cmd_exist(self, cmd='ethtool')
         cmd = "sudo ethtool -i {}".format(nic)
         output = utils_lib.run_cmd(self, cmd, expect_ret=0)
         if 'ena' in output:
@@ -65,6 +66,8 @@ class TestNetworkTest(unittest.TestCase):
             elif mtu_size < mtu_min or mtu_size > mtu_max:
                 utils_lib.run_cmd(self, mtu_cmd, expect_not_ret=0)
                 utils_lib.run_cmd(self, mtu_check, expect_ret=0, expect_not_kw="mtu {}".format(mtu_size))
+        cmd = "ping {} -c 2 -I {}".format(self.params.get('ping_server'), nic)
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
         utils_lib.check_log(self, 'fail', log_cmd='dmesg -T', cursor=self.dmesg_cursor)
         utils_lib.check_log(self, 'error', log_cmd='dmesg -T', cursor=self.dmesg_cursor)
         utils_lib.check_log(self, 'warn', log_cmd='dmesg -T', cursor=self.dmesg_cursor)

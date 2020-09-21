@@ -36,6 +36,8 @@ at least which ltp not handle')
         if utils_lib.is_aarch64(self) and utils_lib.get_memsize(self) < 16:
             #Hugepagesize is big in aarch64, so not run all hugetlb case in low memory arm system
             utils_lib.ltp_run(self, case_name="hugemmap01", file_name="hugetlb")
+        elif utils_lib.get_memsize(self) < 4:
+            utils_lib.ltp_run(self, case_name="hugemmap01", file_name="hugetlb")
         else:
             utils_lib.ltp_run(self, file_name="hugetlb")
 
