@@ -94,7 +94,7 @@ def run_cmd(test_instance,
     exception_hit = False
 
     try:
-        ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout, encoding='utf-8')
+        ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
         status = ret.returncode
         if ret.stdout is not None:
             output = ret.stdout
@@ -107,12 +107,12 @@ def run_cmd(test_instance,
         test_instance.log.info("Try again")
         test_instance.log.info("Test via uname, if still fail, please make sure no hang or panic in sys")
         try:
-            ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout, encoding='utf-8')
+            ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
             status = ret.returncode
             if ret.stdout is not None:
                output = ret.stdout
             test_instance.log.info("Return: {}".format(output.decode("utf-8")))
-            ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout, encoding='utf-8')
+            ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
             status = ret.returncode
             if ret.stdout is not None:
                output = ret.stdout
@@ -380,18 +380,6 @@ def get_memsize(test_instance, action=None):
     test_instance.log.info("Total memory: {:0,.1f}G".format(mem_gb))
     return mem_gb
 
-def get_journal_cursor(test_instance):
-    '''
-    Get journal cursor for checking new generated log during test
-    Arguments:
-        test_instance {Test instance} -- unittest.TestCase instance
-    Return:
-        journal_cursor {string}
-    '''
-    output = run_cmd(test_instance, "journalctl --show-cursor -n0 -o cat | sed 's/^.*cursor: *//'", expect_ret=0)
-    test_instance.log.info("Get cursor: {}".format(output))
-    return output
-
 def get_cmd_cursor(test_instance, cmd='dmesg -T'):
     '''
     Get command cursor by last matched line.
@@ -428,7 +416,6 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl --since today", ma
         test_instance.log.info("Loading baseline data file from {}".format(baseline_file))
         baseline_dict = json.load(fh)
     run_cmd(test_instance, '\n')
-    journal_compare = None
     check_cmd = log_cmd
 
     if match_word_exact:
