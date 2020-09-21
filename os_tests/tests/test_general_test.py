@@ -37,7 +37,7 @@ current_clocksource'
 
     def test_change_tracer(self):
         '''
-        no hang happen
+        no hang/panic happen
         polarion_id:
         bz#: 1650273
         '''

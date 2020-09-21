@@ -30,6 +30,7 @@ os-tests is a lightweight, fast check and tests collection for Linux OS.
 ### Run all os_tests supported cases(os-tests cli was implemented in v0.0.10)
 
 `# os-tests`  
+note: you may add "/usr/local/bin" to your $PATH prior RHEL8  
 or  
 `# python3 -m unittest -v os_tests.os_tests_all`
 

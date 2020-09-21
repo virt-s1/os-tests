@@ -395,7 +395,12 @@ def get_cmd_cursor(test_instance, cmd='dmesg -T'):
         cursor {string}
     '''
     output = run_cmd(test_instance, cmd, expect_ret=0, is_log_output=False)
-    cursor = output.split('\n')[-1]
+    if len(output.split('\n')) < 5:
+        return output.split('\n')[-1]
+    for i in range(-1, -10, -1):
+        cursor = output.split('\n')[i]
+        if len(cursor) > 3:
+            break
     test_instance.log.info("Get cursor: {}".format(cursor))
     return cursor
 
@@ -429,10 +434,16 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl", match_word_exact
     if match_word_exact:
         check_cmd = check_cmd + '|grep -iw %s' % log_keyword
     ret = False
-    out = run_cmd(test_instance,
-                  check_cmd,
-                  expect_ret=0,
-                  msg='Get log......')
+    if "journalctl" not in log_cmd and cursor is not None:
+        out = run_cmd(test_instance,
+                      check_cmd,
+                      expect_ret=0,
+                      msg='Get log......', cursor=cursor)
+    else:
+        out = run_cmd(test_instance,
+                      check_cmd,
+                      expect_ret=0,
+                      msg='Get log......')
 
     for keyword in log_keyword.split(','):
         ret = find_word(test_instance, out, keyword, baseline_dict=baseline_dict, skip_words=skip_words)

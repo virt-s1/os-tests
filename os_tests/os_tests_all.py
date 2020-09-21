@@ -6,12 +6,14 @@ from os_tests.tests.test_cloud_init import TestCloudInit
 from os_tests.tests.test_general_check import TestGeneralCheck
 from os_tests.tests.test_general_test import TestGeneralTest
 from os_tests.tests.test_ltp import TestLTP
+from os_tests.tests.test_network_test import TestNetworkTest
 
 test_cloud_init_suite = unittest.TestLoader().loadTestsFromTestCase(TestCloudInit)
 test_general_check_suite = unittest.TestLoader().loadTestsFromTestCase(TestGeneralCheck)
 test_general_test_suite = unittest.TestLoader().loadTestsFromTestCase(TestGeneralTest)
-test_general_test_suite = unittest.TestLoader().loadTestsFromTestCase(TestLTP)
-all_tests = [test_general_check_suite, test_general_test_suite]
+test_ltp_suite = unittest.TestLoader().loadTestsFromTestCase(TestLTP)
+test_network_suite = unittest.TestLoader().loadTestsFromTestCase(TestNetworkTest)
+all_tests = [test_general_check_suite, test_general_test_suite, test_ltp_suite, test_network_suite]
 TS = unittest.TestSuite(tests=all_tests)
 
 
@@ -28,6 +30,7 @@ def main():
 
     print("Run in mode: is_listcase:{} pattern: {}".format(args.is_listcase, args.pattern))
     this_dir = os.path.dirname(__file__)
+    this_dir = os.path.dirname(this_dir)
     ts = unittest.defaultTestLoader.discover(start_dir=this_dir)
     tmp_ts = copy.deepcopy(ts)
     final_ts = unittest.TestSuite()
