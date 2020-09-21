@@ -410,7 +410,7 @@ def get_cmd_cursor(test_instance, cmd='dmesg -T'):
     test_instance.log.info("Get cursor: {}".format(cursor))
     return cursor
 
-def check_log(test_instance, log_keyword, log_cmd="journalctl", match_word_exact=False, cursor=None, skip_words=None):
+def check_log(test_instance, log_keyword, log_cmd="journalctl --since today", match_word_exact=False, cursor=None, skip_words=None):
     '''
     check journal log
     Arguments:
@@ -429,18 +429,12 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl", match_word_exact
         baseline_dict = json.load(fh)
     run_cmd(test_instance, '\n')
     journal_compare = None
-    if "journalctl" == log_cmd:
-        if cursor is not None:
-            check_cmd = 'journalctl -o cat --after-cursor "{}"'.format(cursor)
-        else:
-            check_cmd = 'journalctl --since today'
-    else:
-        check_cmd = log_cmd
+    check_cmd = log_cmd
 
     if match_word_exact:
         check_cmd = check_cmd + '|grep -iw %s' % log_keyword
     ret = False
-    if "journalctl" not in log_cmd and cursor is not None:
+    if cursor is not None:
         out = run_cmd(test_instance,
                       check_cmd,
                       expect_ret=0,

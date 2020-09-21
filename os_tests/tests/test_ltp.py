@@ -5,7 +5,7 @@ class TestLTP(unittest.TestCase):
     def setUp(self):
         utils_lib.init_case(self)
         utils_lib.ltp_install(self)
-        self.cursor = utils_lib.get_journal_cursor(self)
+        self.cursor = utils_lib.get_cmd_cursor(self, cmd='journalctl --since today')
 
     def test_ltp_cpuhotplug(self):
         '''

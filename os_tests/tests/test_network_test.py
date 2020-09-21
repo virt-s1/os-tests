@@ -68,9 +68,7 @@ class TestNetworkTest(unittest.TestCase):
                 utils_lib.run_cmd(self, mtu_check, expect_ret=0, expect_not_kw="mtu {}".format(mtu_size))
         cmd = "ping {} -c 2 -I {}".format(self.params.get('ping_server'), nic)
         utils_lib.run_cmd(self, cmd, expect_ret=0)
-        utils_lib.check_log(self, 'fail', log_cmd='dmesg -T', cursor=self.dmesg_cursor)
-        utils_lib.check_log(self, 'error', log_cmd='dmesg -T', cursor=self.dmesg_cursor)
-        utils_lib.check_log(self, 'warn', log_cmd='dmesg -T', cursor=self.dmesg_cursor)
+        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', cursor=self.dmesg_cursor)
 
 if __name__ == '__main__':
     unittest.main()
