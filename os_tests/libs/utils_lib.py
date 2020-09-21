@@ -350,10 +350,16 @@ def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False):
         if cancel_case:
             test_instance.skipTest("Cancel it as {} not found".format(cmd))
         return False
-    arch = run_cmd(test_instance, 'uname -p')
+    arch = run_cmd(test_instance, 'uname -p').rstrip('\n')
     pkg_find = "sudo yum provides %s" % cmd
     output = run_cmd(test_instance, pkg_find, expect_ret=0)
-    pkg_list = re.findall(".*%s" % arch, output)
+    for i in [arch, 'noarch']:
+        pkg_list = re.findall(".*%s" % arch, output)
+        if len(pkg_list) > 0:
+            break
+    if len(pkg_list) == 0:
+        test_instance.skipTest("Unable to install {}".format(cmd))
+        return False
     run_cmd(test_instance, "sudo yum install -y %s" % pkg_list[0], expect_ret=0)
     return True
 

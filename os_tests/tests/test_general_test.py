@@ -69,6 +69,7 @@ current_clocksource'
         polarion_id: N/A
         bz#: 1626505, 1659883
         '''
+        utils_lib.is_cmd_exist(self, 'cpupower')
         cmd = "sudo cpupower info"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='core dumped')
         cmd = "sudo cpupower idle-info"

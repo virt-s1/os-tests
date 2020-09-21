@@ -9,7 +9,7 @@ class TestNetworkTest(unittest.TestCase):
     def test_mtu_min_max_set(self):
         '''
         polarion_id: RHEL-111097
-        BZ#: 1502554
+        BZ#: 1502554, 1497228
         ena mtu range: 128~9216
         ixgbevf mtu range: 68~9710
         vif mtu range: 68~65535
@@ -45,7 +45,8 @@ class TestNetworkTest(unittest.TestCase):
             mtu_max = 65535
         elif 'vmxnet3' in output:
             self.log.info('vmxnet3 found!')
-            mtu_range = [0, 59, 60, 4500, 9000, 9001]
+            self.log.info("vmxnet3 min mtu is 60, because of bz1503193, skip test lower value than 68")
+            mtu_range = [68, 4500, 9000, 9001]
             mtu_min = 60
             mtu_max = 9000
         else:
@@ -64,7 +65,6 @@ class TestNetworkTest(unittest.TestCase):
             elif mtu_size < mtu_min or mtu_size > mtu_max:
                 utils_lib.run_cmd(self, mtu_cmd, expect_not_ret=0)
                 utils_lib.run_cmd(self, mtu_check, expect_ret=0, expect_not_kw="mtu {}".format(mtu_size))
-        #utils_lib.run_cmd(self, "dmesg|tail -30")
         utils_lib.check_log(self, 'fail', log_cmd='dmesg -T', cursor=self.dmesg_cursor)
         utils_lib.check_log(self, 'error', log_cmd='dmesg -T', cursor=self.dmesg_cursor)
         utils_lib.check_log(self, 'warn', log_cmd='dmesg -T', cursor=self.dmesg_cursor)
