@@ -12,7 +12,11 @@ os-tests is a lightweight, fast check and tests collection for Linux OS.
 
 ### Install from source code
 
-`# python3 setup.py install`
+```bash
+# git clone https://github.com/liangxiao1/os-tests.git
+# cd os-tests
+# python3 setup.py install
+```
 
 ### Build wheel from source code and install it
 
@@ -21,7 +25,7 @@ os-tests is a lightweight, fast check and tests collection for Linux OS.
 # pip install -U dist/os_tests-0.0.3-py3-none-any.whl
 ```
 
-### Public new wheels on [pypi](https://pypi.org/project/os-tests/) (only for author)
+### Public new wheels on [pypi](https://pypi.org/project/os-tests/) (maintainer use only)
 
 `# python3 -m twine upload  dist/*`
 
@@ -108,3 +112,7 @@ Files:
   os_tests/tests/test_ltp.py
 
 ```
+
+### Contribution
+
+You are welcomed to create pull request or raise issue.

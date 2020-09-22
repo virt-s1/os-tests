@@ -492,7 +492,6 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
     Returns:
         [Bool] -- [True|False]
     """
-    ret = False
     tmp_list = re.findall('.*%s.*\n' % log_keyword, check_str, flags=re.I)
     if len(tmp_list) == 0:
         test_instance.log.info("No %s found!", log_keyword)
@@ -507,7 +506,7 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
         return True
     # compare 2 string, if similary over fail_rate, consider it as same.
     fail_rate = 70
-    has_fail = True
+    no_fail = True
     for line1 in tmp_list:
         find_it = False
         if baseline_dict is not None:
@@ -539,14 +538,14 @@ new one", same_rate)
                     else:
                         test_instance.log.info("Find a similar issue which should be already fixed, please check manually.")
                         find_it = False
-                        has_fail = False
+                        no_fail = False
                     break
         if not find_it:
             test_instance.log.info("This is a new exception!")
             test_instance.log.info("{}".format(line1))
-        ret = find_it
+            no_fail = False
 
-    return ret and has_fail
+    return no_fail
 
 def ltp_check(test_instance):
     """
