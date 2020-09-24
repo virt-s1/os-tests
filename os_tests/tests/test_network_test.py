@@ -232,6 +232,11 @@ class TestNetworkTest(unittest.TestCase):
             mtu_range = [68, 4500, 9000, 9001]
             mtu_min = 60
             mtu_max = 9000
+        elif 'igb' in output:
+            self.log.info('igb found!')
+            mtu_range = [0, 67, 68, 4500, 9216, 9217]
+            mtu_min = 68
+            mtu_max = 9216
         else:
             self.log.info('Did not detect network type, use default min~max mtu. %s' % output)
             mtu_range = [0, 67, 68, 4500, 65535, 65536]

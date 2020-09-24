@@ -1,6 +1,6 @@
 # https://packaging.python.org/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/
 # https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#on
-name: publish to PyPI
+name: Publish to PyPI
 on:
   push:
     tags:
