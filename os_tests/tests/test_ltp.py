@@ -7,6 +7,39 @@ class TestLTP(unittest.TestCase):
         utils_lib.ltp_install(self)
         self.cursor = utils_lib.get_cmd_cursor(self, cmd='journalctl --since today')
 
+    def test_ltp_add_key02(self):
+        '''
+        case_name:
+            test_ltp_add_key02
+
+        case_priority:
+            1
+
+        component:
+            kernel
+
+        bugzilla_id:
+            1464851
+
+        polarion_id:
+            RHEL7-98753
+
+        maintainer:
+            xiliang@redhat.com
+
+        description:
+            Ran ltp syscalls add_key02.
+
+        key_steps:
+            1. Install ltp pkg
+            2. # /opt/ltp/runltp -f syscalls -s add_key02
+
+        expected_result:
+            No panic or hang happen.
+
+        '''
+        utils_lib.ltp_run(self, case_name="add_key02")
+
     def test_ltp_cpuhotplug(self):
         '''
         polarion_id: RHEL7-98752
@@ -50,6 +83,38 @@ at least which ltp not handle')
                       file_name='net_stress.ipsec_icmp')
         self.log.info("Try to remove ccm module after test.")
         utils_lib.run_cmd(self, 'sudo modprobe -r ccm', expect_ret=0)
+
+    def test_ltp_quickhit(self):
+        '''
+        case_name:
+            test_ltp_quickhit
+
+        case_priority:
+            1
+
+        component:
+            kernel
+
+        bugzilla_id:
+            n/a
+
+        polarion_id:
+            n/a
+
+        maintainer:
+            xiliang@redhat.com
+
+        description:
+            Ran ltp quickhit senario to test kernel quickly.
+
+        key_steps:
+            1. Install ltp pkg
+            2. # /opt/ltp/runltp -f quickhit
+
+        expected_result:
+            No panic or hang or other exception happen.
+        '''
+        utils_lib.ltp_run(self,file_name="quickhit")
 
     def tearDown(self):
         utils_lib.check_log(self, "error,warn,fail,trace", cursor=self.cursor)
