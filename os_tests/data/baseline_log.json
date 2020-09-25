@@ -448,5 +448,14 @@
         "link": "",
         "path": "journal",
         "trigger": ""
+    },
+    "msg_52": {
+        "content": "kernel: DMAR-IR: Queued invalidation will be enabled to support x2apic and Intr-remapping.",
+        "analyze": "Feature enabled, RFEBZ 1358653",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal or dmesg",
+        "trigger": "Using Queued invalidation"
     }
 }
