@@ -378,7 +378,7 @@ def get_memsize(test_instance, action=None):
 
     mem_kb = int(re.findall('\d+', output)[0])
     mem_gb = (mem_kb/1024/1024)
-    test_instance.log.info("Total memory: {:0,.1f}G".format(mem_gb))
+    test_instance.log.info("Total memory: {:0,.1f}GiB".format(mem_gb))
     return mem_gb
 
 def get_cmd_cursor(test_instance, cmd='dmesg -T'):

@@ -1,5 +1,6 @@
 import unittest
 from os_tests.libs import utils_lib
+import json
 
 class TestGeneralCheck(unittest.TestCase):
     def setUp(self):
@@ -185,6 +186,54 @@ available_clocksource'
             utils_lib.run_cmd(self, cmd)
             cmd = "journalctl --unit {}".format(service)
             utils_lib.check_log(self,'Unknown lvalue', log_cmd=cmd)
+
+    def test_check_lshw_mem(self):
+        '''
+        case_name:
+            test_check_lshw_mem
+
+        case_priority:
+            1
+
+        component:
+            lshw
+
+        bugzilla_id:
+            1882157
+
+        polarion_id:
+            n/a
+
+        maintainer:
+            xiliang@redhat.com
+
+        description:
+            Check "lshw -C memory -json" reported memory size is correct.
+
+        key_steps:
+            1. # lshw -C memory -json
+
+        expected_result:
+            No big gap found.
+            eg. #  lshw -C memory -json|grep -i size
+                    "size" : 98304,
+                    "size" : 4286578688, <-- 4GiB is correct
+                        "size" : 4286578688,
+
+        '''
+        utils_lib.is_cmd_exist(self, cmd='lshw')
+        base_memory = utils_lib.get_memsize(self)
+        cmd = 'lshw -json'
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0)
+        out = json.loads(output)['children'][0]["children"]
+        for i in out:
+            if i['id'] == 'memory':
+                mem_in_byte = i['size']
+                break
+        mem_in_gib = mem_in_byte/1024/1024/1024
+        self.log.info("lshw showed mem: {}".format(mem_in_gib))
+
+        utils_lib.compare_nums(self, mem_in_gib, base_memory, ratio=15)
 
     def test_check_memleaks(self):
         '''
