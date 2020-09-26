@@ -235,6 +235,44 @@ available_clocksource'
 
         utils_lib.compare_nums(self, mem_in_gib, base_memory, ratio=15)
 
+    def test_check_lspci_nvme(self):
+        '''
+        case_name:
+            test_check_lspci_nvme
+
+        case_priority:
+            1
+
+        component:
+            kernel
+
+        bugzilla_id:
+            1656862
+
+        polarion_id:
+            n/a
+
+        maintainer:
+            xiliang@redhat.com
+
+        description:
+            Check all nvme pci devices are found by "lsblk"
+
+        key_steps:
+            1. # lspci|grep "Non-Volatile memory"|wc -l
+            2. # lsblk -d|grep nvme|wc -l
+
+        expected_result:
+            The nums are equal.
+
+        '''
+        utils_lib.is_cmd_exist(self, cmd='lspci')
+        lspci_cmd = "lspci|grep 'Non-Volatile memory'|wc -l"
+        lsblk_cmd = "lsblk -d|grep nvme|wc -l"
+        lspci_out = utils_lib.run_cmd(self, lspci_cmd,cancel_not_kw='0', msg="Check nvme pci device")
+        lsblk_out = utils_lib.run_cmd(self, lsblk_cmd, msg="Check nvme block device")
+        self.assertEqual(lspci_out, lsblk_out, msg="No all nvme pci device nvme driver are loaded")
+
     def test_check_memleaks(self):
         '''
         polarion_id: RHEL-117648
