@@ -5,6 +5,9 @@ on:
   push:
     tags:
       - v*
+  workflow_dispatch:
+    tags:
+      description: 'Manually trigger'
 jobs:
   build:
     name: Build wheel test
