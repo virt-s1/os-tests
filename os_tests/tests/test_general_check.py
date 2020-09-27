@@ -1,6 +1,7 @@
 import unittest
 from os_tests.libs import utils_lib
 import json
+import os
 
 class TestGeneralCheck(unittest.TestCase):
     def setUp(self):
@@ -180,8 +181,12 @@ available_clocksource'
         polarion_id:
         BZ#:1871139
         '''
-        all_services = utils_lib.get_all_systemd_service()
+        cmd = "systemctl list-unit-files |grep -v UNIT|grep -v listed|awk -F' ' '{print $1}'"
+        all_services = utils_lib.run_cmd(self, cmd, msg='Get all systemd unit files').split('\n')
+
         for service in all_services:
+            if len(service) == 0:
+                continue
             cmd = "systemctl status {}".format(service)
             utils_lib.run_cmd(self, cmd)
             cmd = "journalctl --unit {}".format(service)
@@ -333,6 +338,19 @@ in cmdline as bug1859088")
                     expect_ret=0,
                     expect_kw="nvme_core.io_timeout=4294967295",
                     msg="Checking cmdline")
+
+    def test_check_service(self):
+        '''
+        :avocado: tags=test_check_service,fast_check,kernel_tier1
+        polarion_id: N/A
+        bz#: 1740443
+        '''
+        if utils_lib.is_aws and os.path.exists('/etc/yum.repos.d/ami.repo'):
+            cmd = 'systemctl|grep -v dnf-makecache'
+        else:
+            cmd = 'systemctl'
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='failed')
 
     def test_check_tsc_deadline_timer(self):
         '''

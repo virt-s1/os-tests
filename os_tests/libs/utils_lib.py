@@ -252,17 +252,6 @@ def getboottime(test_instance):
         "Boot time is {}(s)".format(boot_time_sec))
     return boot_time_sec
 
-def get_all_systemd_service():
-    '''
-    Get all systemd service from "/usr/lib/systemd/system"
-    Arguments:
-        None
-    Return:
-        list of service
-    '''
-    systemd_dir = "/usr/lib/systemd/system"
-    return os.listdir(systemd_dir)
-
 def is_aarch64(test_instance, action=None):
     '''
     Check whether system is a arm system.
