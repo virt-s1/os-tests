@@ -1,4 +1,6 @@
-name: Build wheel test
+# https://packaging.python.org/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/
+# https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#on
+name: Build test and publish
 on: [push, pull_request]
 jobs:
   build:
@@ -28,3 +30,8 @@ jobs:
         setup.py
         sdist
         bdist_wheel
+    - name: Publish to PyPI
+      if: startsWith(github.ref, 'refs/tags')
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        password: ${{ secrets.pypi_token }}
