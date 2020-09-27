@@ -4,7 +4,7 @@ name: Build test and publish
 on: [push, pull_request]
 jobs:
   build:
-    name: Build wheel test
+    name: Build wheel and publish
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
