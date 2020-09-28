@@ -1,5 +1,11 @@
+# save debug log to this dir
 results_dir: "/tmp/os_tests_result"
+# max boot up time in seconds
 max_boot_time: 40
+# ltp rpm location
 ltp_url_x86_64: https://github.com/liangxiao1/rpmbuild_specs/releases/download/ltp-master-20200514/ltp-master-20200514.x86_64.rpm
 ltp_url_aarch64: https://github.com/liangxiao1/rpmbuild_specs/releases/download/ltp-master-20200514/ltp-master-20200514.aarch64.rpm
+# public server for ping connection test
 ping_server: 8.8.8.8
+# max disk utils accepted
+disk_utils: 30

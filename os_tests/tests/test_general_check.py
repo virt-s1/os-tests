@@ -126,6 +126,74 @@ available_clocksource'
                     expect_not_kw='Unknown symbol',
                     msg='Check there is no Unknown symbol in dmesg')
 
+    def test_iostat_x(self):
+        '''
+        case_name:
+            test_iostat_x
+
+        case_priority:
+            1
+
+        component:
+            kernel
+
+        bugzilla_id:
+            1661977
+
+        polarion_id:
+            n/a
+
+        maintainer:
+            xiliang@redhat.com
+
+        description:
+            Check "iostat -x" report and make sure there is no high utils when there is no obviously read/write operations.
+
+        key_steps:
+            1. # iostat -x
+
+        expected_result:
+            No high utils reported when no obviously read/write operations.
+            eg. # iostat -x
+                Linux 4.18.0-236.el8.aarch64 (ip-xx-xxx-x-xxx.us-west-2.compute.internal) 	09/28/2020 	_aarch64_	(2 CPU)
+
+                avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+                           7.77    0.00    1.48    0.69    0.00   90.06
+
+                Device            r/s     w/s     rkB/s     wkB/s   rrqm/s   wrqm/s  %rrqm  %wrqm r_await w_await aqu-sz rareq-sz wareq-sz  svctm  %util
+                nvme0n1         46.06    2.82   1587.81    274.62     0.00     0.23   0.00   7.52    0.50    1.32   0.00    34.47    97.31   0.86   4.19
+                nvme1n1          0.15    0.00     10.43      0.00     0.00     0.00   0.00   0.00    1.00    0.00   0.00    70.40     0.00   1.50   0.02
+
+        '''
+        expect_utils = self.params.get('disk_utils')
+        self.log.info("Check no disk utils lager than %s" % expect_utils)
+        utils_lib.is_cmd_exist(self, cmd='iostat')
+        cmd = 'sudo  iostat -x -o JSON'
+        output = utils_lib.run_cmd(self, cmd)
+        try:
+            res_dict = json.loads(output)
+            for x in res_dict["sysstat"]["hosts"][0]["statistics"][0]["disk"]:
+                self.assertLessEqual(
+                    x["util"],
+                    expect_utils,
+                    msg="Utils more than %s without any large io! act: %s" %
+                    (expect_utils, x["util"]))
+        except ValueError as err:
+            self.log.info("cmd has no json support")
+            cmd = "sudo iostat -x"
+            utils_lib.run_cmd(self, cmd, expect_ret=0)
+            cmd = "sudo iostat -x|awk -F' ' '{print $NF}'"
+            output = utils_lib.run_cmd(self, cmd, expect_ret=0)
+            compare = False
+            for util in output.split('\n'):
+                if 'util' in util:
+                    compare = True
+                    continue
+                if compare and not util == '':
+                    if float(util) > expect_utils:
+                        self.fail("Some disk's utils %s is larger than %s" %
+                                  (util, expect_utils))
+
     def test_check_journal_calltrace(self):
         '''
         polarion_id:
@@ -341,9 +409,33 @@ in cmdline as bug1859088")
 
     def test_check_service(self):
         '''
-        :avocado: tags=test_check_service,fast_check,kernel_tier1
-        polarion_id: N/A
-        bz#: 1740443
+        case_name:
+            test_check_service
+
+        case_priority:
+            1
+
+        component:
+            systemd
+
+        bugzilla_id:
+            1740443
+
+        polarion_id:
+            n/a
+
+        maintainer:
+            xiliang@redhat.com
+
+        description:
+            Check no failed service in start up.
+
+        key_steps:
+            1. # systemctl|grep failed
+
+        expected_result:
+            No failed service found.
+
         '''
         if utils_lib.is_aws and os.path.exists('/etc/yum.repos.d/ami.repo'):
             cmd = 'systemctl|grep -v dnf-makecache'
