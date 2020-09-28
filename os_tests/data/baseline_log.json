@@ -466,5 +466,32 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1882913",
         "path": "journal",
         "trigger": ""
+    },
+    "msg_54": {
+        "content": "iTCO_wdt: unable to reset NO_REBOOT flag, device disabled by hardware/BIOS",
+        "analyze": "Information only.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/39240",
+        "path": "dmesg",
+        "trigger": ""
+    },
+    "msg_55": {
+        "content": "ghes_edac: Its SMBIOS info is wrong. It is doubtful that the error report would",
+        "analyze": "Kown bug and wait aws update.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1836065",
+        "path": "dmesg or journal",
+        "trigger": ""
+    },
+    "msg_56": {
+        "content": "/usr/sbin/irqbalance[1698]: GUESSING AARCH64 CLASS FOR arm-smmu-v3-gerror",
+        "analyze": "Information only",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal",
+        "trigger": ""
     }
 }

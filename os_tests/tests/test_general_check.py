@@ -437,7 +437,8 @@ in cmdline as bug1859088")
             No failed service found.
 
         '''
-        if utils_lib.is_aws and os.path.exists('/etc/yum.repos.d/ami.repo'):
+        ret = utils_lib.run_cmd(self, 'ls -l /etc/yum.repos.d/ami.repo', ret_status=True)
+        if utils_lib.is_aws and not int(ret):
             cmd = 'systemctl|grep -v dnf-makecache'
         else:
             cmd = 'systemctl'

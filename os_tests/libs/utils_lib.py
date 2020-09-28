@@ -177,18 +177,18 @@ def run_cmd(test_instance,
     if cancel_not_kw is not None:
         for key_word in cancel_not_kw.split(','):
             if key_word in output:
-                test_instance.skipTest("%s found, cancel case. %s" % (key_word, msg))
+                test_instance.skipTest("skip %s found, cancel case. %s" % (key_word, msg))
     if cancel_ret is not None:
         cancel_yes = True
         for ret in cancel_ret.split(','):
             if int(ret) == int(status):
                 cancel_yes = False
         if cancel_yes:
-            test_instance.skipTest("ret code {} not match, cancel case. {}".format(cancel_ret, msg))
+            test_instance.skipTest("expect ret code {} not match act ret {}, cancel case. {}".format(cancel_ret, status, msg))
     if cancel_not_ret is not None:
         for ret in cancel_not_ret.split(','):
             if int(ret) == int(status):
-                test_instance.skipTest("%s ret code found, cancel case. %s" % (key_word, msg))
+                test_instance.skipTest("skip ret code %s found act ret %s cancel case. %s" % (ret, status, msg))
     if ret_status:
         return status
     return output
@@ -272,6 +272,27 @@ def is_aarch64(test_instance, action=None):
     test_instance.log.info("Not an arm instance.")
     return False
 
+def is_arch(test_instance, arch="", action=None):
+    '''
+    Check whether system is specific system.
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+        arch {string} -- arch want to check
+        action {string} -- cancel case if it is not arch
+    Return:
+        arm: return True
+        other: return False
+    '''
+    output = run_cmd(test_instance, "lscpu", expect_ret=0)
+    if arch in output:
+        test_instance.log.info("{}detected.".format(arch))
+        return True
+    else:
+        if action == "cancel":
+            test_instance.skipTest("Cancel it in non {} platform.".format(arch))
+    test_instance.log.info("Not an {} instance.".format(arch))
+    return False
+
 def is_aws(test_instance, action=None):
     '''
     Check whether system is a aws system.
@@ -311,7 +332,7 @@ def is_metal(test_instance, action=None):
         if action == "cancel":
             test_instance.skipTest("Cancel it in non metal system.")
         return False
-    output_dmesg = run_cmd(test_instance, "dmesg", expect_ret=0)
+    output_dmesg = run_cmd(test_instance, "dmesg", expect_ret=0, is_log_output=False)
 
     if 'HYP mode not available' in output_dmesg:
         test_instance.log.info("It is a virtual guest.")
