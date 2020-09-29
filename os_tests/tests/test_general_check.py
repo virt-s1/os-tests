@@ -494,8 +494,13 @@ current_device"
         elif 'Microsoft' in lscpu_output:
             self.log.info("Found it is a Hyper-V system!")
             self.assertIn('hyperv', virt_what_output)
+        elif utils_lib.is_metal(self) and utils_lib.is_aws(self):
+            self.log.info("Found it is a bare metal system!")
+            self.assertEqual('aws', virt_what_output.strip('\n'))
         elif utils_lib.is_metal(self):
             self.log.info("Found it is a bare metal system!")
+        elif utils_lib.is_aws(self) and utils_lib.is_arch(self, arch='aarch64'):
+            self.assertEqual('aws', virt_what_output.strip('\n'))
         else:
             self.skipTest("Unknow hypervisor")
 

@@ -252,26 +252,6 @@ def getboottime(test_instance):
         "Boot time is {}(s)".format(boot_time_sec))
     return boot_time_sec
 
-def is_aarch64(test_instance, action=None):
-    '''
-    Check whether system is a arm system.
-    Arguments:
-        test_instance {Test instance} -- unittest.TestCase instance
-        action {string} -- cancel case if it is not arm
-    Return:
-        arm: return True
-        other: return False
-    '''
-    output = run_cmd(test_instance, "lscpu", expect_ret=0)
-    if 'aarch64' in output:
-        test_instance.log.info("Arm detected.")
-        return True
-    else:
-        if action == "cancel":
-            test_instance.skipTest("Cancel it in non arm platform.")
-    test_instance.log.info("Not an arm instance.")
-    return False
-
 def is_arch(test_instance, arch="", action=None):
     '''
     Check whether system is specific system.
@@ -587,7 +567,7 @@ def ltp_install(test_instance):
     """
     if not ltp_check(test_instance):
         test_instance.log.info("Try install ltp automatically!")
-        if is_aarch64(test_instance):
+        if is_arch(test_instance, arch='aarch64'):
             ltp_url = test_instance.params.get('ltp_url_aarch64')
         else:
             ltp_url = test_instance.params.get('ltp_url_x86_64')
