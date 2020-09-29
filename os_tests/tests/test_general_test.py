@@ -78,6 +78,38 @@ current_clocksource'
         cmd = "sudo cpupower frequency-info"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='core dumped')
 
+    def test_dracut_f_v(self):
+        '''
+        case_name:
+            test_dracut_f_v
+
+        case_priority:
+            1
+
+        component:
+            kernel
+
+        bugzilla_id:
+            1849082
+
+        polarion_id:
+            n/a
+
+        maintainer:
+            xiliang@redhat.com
+
+        description:
+            Test no failed items in generating an initramfs/initrd image.
+
+        key_steps:
+            1. # dracut -f -v
+
+        expected_result:
+            No failed items found.
+        '''
+        cmd = "sudo dracut -f -v"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='Failed,FAILED')
+
     def test_virsh_pci_reattach(self):
         '''
         case_name:
