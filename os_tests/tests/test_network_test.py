@@ -209,6 +209,7 @@ class TestNetworkTest(unittest.TestCase):
         '''
 
         utils_lib.is_cmd_exist(self, cmd='ethtool')
+        utils_lib.msg_to_syslog(self)
         cmd = "sudo ethtool -i {}".format(self.nic)
         output = utils_lib.run_cmd(self, cmd, expect_ret=0)
         if 'ena' in output:
@@ -255,7 +256,7 @@ class TestNetworkTest(unittest.TestCase):
                 utils_lib.run_cmd(self, mtu_check, expect_ret=0, expect_not_kw="mtu {}".format(mtu_size))
         cmd = "ping {} -c 2 -I {}".format(self.params.get('ping_server'), self.nic)
         utils_lib.run_cmd(self, cmd, expect_ret=0)
-        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', cursor=self.dmesg_cursor)
+        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', cursor=self.dmesg_cursor, skip_words='ftrace')
 
 if __name__ == '__main__':
     unittest.main()

@@ -42,6 +42,23 @@ def init_case(test_instance):
     if os.path.exists(cfg_file):
         test_instance.log.info("{} config file found!".format(cfg_file))
 
+def msg_to_syslog(test_instance, msg=None):
+    '''
+    Save msg to journal log and dmesg.
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+        msg {string} -- msg want to save, default is casename
+    Return:
+        arm: return True
+        other: return False
+    '''
+    if msg is None:
+        msg = test_instance.id()
+    cmd = "echo os-tests:{} | systemd-cat -p info".format(msg)
+    run_cmd(test_instance, cmd, expect_ret=0)
+    cmd = "echo {} > /dev/kmsg".format(msg)
+    run_cmd(test_instance, cmd, expect_ret=0)
+
 def run_cmd(test_instance,
             cmd,
             expect_ret=None,
