@@ -1,10 +1,38 @@
 import unittest
 from os_tests.libs import utils_lib
+import time
 
 class TestLTP(unittest.TestCase):
+
+    def _ltp_run(self, case_name=None, file_name=None):
+        '''
+        Run specify ltp test case.
+        Arguments:
+            test_instance {avocado Test instance} -- avocado test instance
+        '''
+        utils_lib.run_cmd(self, 'sudo rm -rf /opt/ltp/results/*')
+        if file_name is not None and case_name is not None:
+            ltp_cmd = 'sudo /opt/ltp/runltp -f %s -s %s > ltplog 2>&1' % (
+                file_name, case_name)
+        elif file_name is None and case_name is not None:
+            ltp_cmd = 'sudo /opt/ltp/runltp -s %s > ltplog 2>&1' % case_name
+        elif file_name is not None and case_name is None:
+            ltp_cmd = 'sudo /opt/ltp/runltp -f %s > ltplog 2>&1' % file_name
+        self.log.info("LTP cmd: %s" % ltp_cmd)
+        utils_lib.run_cmd(self, '\n')
+        utils_lib.run_cmd(self, ltp_cmd, timeout=600)
+        time.sleep(5)
+        utils_lib.run_cmd(self,
+                    'sudo cat /opt/ltp/results/*',
+                    expect_kw='Total Failures: 0')
+
     def setUp(self):
         utils_lib.init_case(self)
-        utils_lib.ltp_install(self)
+        if utils_lib.is_arch(self, arch='aarch64'):
+            ltp_url = self.params.get('ltp_url_aarch64')
+        else:
+            ltp_url = self.params.get('ltp_url_x86_64')
+        utils_lib.pkg_install(self, pkg_name='ltp', pkg_url=ltp_url)
         self.cursor = utils_lib.get_cmd_cursor(self, cmd='journalctl --since today')
 
     def test_ltp_add_key02(self):
@@ -38,7 +66,7 @@ class TestLTP(unittest.TestCase):
             No panic or hang happen.
 
         '''
-        utils_lib.ltp_run(self, case_name="add_key02")
+        self._ltp_run(case_name="add_key02")
 
     def test_ltp_cpuhotplug(self):
         '''
@@ -58,7 +86,7 @@ class TestLTP(unittest.TestCase):
             self.skipTest('Cancel test as aws bare metal needs 1+ cpus working \
 at least which ltp not handle')
         else:
-            utils_lib.ltp_run(self, case_name="cpuhotplug")
+            self._ltp_run(case_name="cpuhotplug")
 
     def test_ltp_hugemmap(self):
         '''
@@ -68,18 +96,18 @@ at least which ltp not handle')
         utils_lib.get_memsize(self)
         if utils_lib.is_arch(self, arch='aarch64') and utils_lib.get_memsize(self) < 16:
             #Hugepagesize is big in aarch64, so not run all hugetlb case in low memory arm system
-            utils_lib.ltp_run(self, case_name="hugemmap01", file_name="hugetlb")
+            self._ltp_run(case_name="hugemmap01", file_name="hugetlb")
         elif utils_lib.get_memsize(self) < 4:
-            utils_lib.ltp_run(self, case_name="hugemmap01", file_name="hugetlb")
+            self._ltp_run(case_name="hugemmap01", file_name="hugetlb")
         else:
-            utils_lib.ltp_run(self, file_name="hugetlb")
+            self._ltp_run(file_name="hugetlb")
 
     def test_ltp_ipsec_icmp(self):
         '''
         polarion_id: RHEL7-98754
         BZ#: 1473593
         '''
-        utils_lib.ltp_run(self, case_name="icmp4-uni-vti11",
+        self._ltp_run(case_name="icmp4-uni-vti11",
                       file_name='net_stress.ipsec_icmp')
         self.log.info("Try to remove ccm module after test.")
         utils_lib.run_cmd(self, 'sudo modprobe -r ccm', expect_ret=0)
@@ -114,7 +142,7 @@ at least which ltp not handle')
         expected_result:
             No panic or hang or other exception happen.
         '''
-        utils_lib.ltp_run(self,file_name="quickhit")
+        self._ltp_run(file_name="quickhit")
 
     def tearDown(self):
         utils_lib.check_log(self, "error,warn,fail,trace", cursor=self.cursor)

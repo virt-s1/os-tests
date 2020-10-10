@@ -7,13 +7,15 @@ from os_tests.tests.test_general_check import TestGeneralCheck
 from os_tests.tests.test_general_test import TestGeneralTest
 from os_tests.tests.test_ltp import TestLTP
 from os_tests.tests.test_network_test import TestNetworkTest
+from os_tests.tests.test_storage import TestStorage
 
 test_cloud_init_suite = unittest.TestLoader().loadTestsFromTestCase(TestCloudInit)
 test_general_check_suite = unittest.TestLoader().loadTestsFromTestCase(TestGeneralCheck)
 test_general_test_suite = unittest.TestLoader().loadTestsFromTestCase(TestGeneralTest)
 test_ltp_suite = unittest.TestLoader().loadTestsFromTestCase(TestLTP)
 test_network_suite = unittest.TestLoader().loadTestsFromTestCase(TestNetworkTest)
-all_tests = [test_general_check_suite, test_general_test_suite, test_ltp_suite, test_network_suite]
+test_storage_suite = unittest.TestLoader().loadTestsFromTestCase(TestStorage)
+all_tests = [test_general_check_suite, test_general_test_suite, test_ltp_suite, test_network_suite, test_storage_suite]
 TS = unittest.TestSuite(tests=all_tests)
 
 

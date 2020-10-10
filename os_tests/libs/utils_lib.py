@@ -300,8 +300,8 @@ def is_aws(test_instance, action=None):
         aws: return True
         other: return False
     '''
-    output = run_cmd(test_instance, "dmesg", expect_ret=0)
-    if 'Amazon' in output or 'amazon' in output:
+    output = run_cmd(test_instance, "cat /sys/devices/virtual/dmi/id/bios_*", expect_ret=0)
+    if 'amazon' in output.lower():
         test_instance.log.info("AWS system.")
         return True
     else:
@@ -370,6 +370,63 @@ def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False):
         return False
     run_cmd(test_instance, "sudo yum install -y %s" % pkg_list[0], expect_ret=0)
     return True
+
+def is_pkg_installed(test_instance, pkg_name=None, is_install=True, cancel_case=False):
+    '''
+    check cmd exists status, if no, try to install it.
+    Arguments:
+        test_instance {avocado Test instance} -- avocado test instance
+        cmd {string} -- checked command
+        is_install {bool} -- try to install it or not
+    '''
+    cmd_check = "rpm -qa|grep {}".format(pkg_name)
+    ret = run_cmd(test_instance, cmd_check, ret_status=True)
+    if ret == 0:
+        return True
+    else:
+        test_instance.log.info("No %s found!" % pkg_name)
+        return False
+
+def pkg_install(test_instance, pkg_name=None, pkg_url=None):
+        """
+        Install pkg in target system from default repo or pkg_url.
+        $pkg_url_$arch is defined in configuration file.
+        I use pre compiled pkgs for saving time in run.
+        eg.
+        blktests_url_x86_64: https://github.com/liangxiao1/rpmbuild_specs/releases/download/blktests_20201009/blktests-master-20201009.aarch64.rpm
+        or
+        blktests_url_aarch64: https://github.com/liangxiao1/rpmbuild_specs/releases/download/blktests_20201009/blktests-master-20201009.aarch64.rpm
+        Arguments:
+            test_instance {avocado Test instance} -- avocado test instance
+            pkg_name {string} -- pkg name
+            pkg_url {string} -- pkg url if it is not in default repo
+        """
+
+        if not is_pkg_installed(test_instance, pkg_name=pkg_name):
+            test_instance.log.info("Try install {} automatically!".format(pkg_name))
+            if pkg_url is not None:
+                test_instance.log.info("Install {} from {}".format(pkg_name, pkg_url))
+                cmd = 'sudo yum -y install %s' % pkg_url
+            else:
+                test_instance.log.info("Install {} from default repo".format(pkg_name))
+                cmd = 'sudo yum -y install %s' % pkg_name
+            run_cmd(test_instance, cmd, timeout=1200)
+        elif test_instance.params.get('pkg_reinstall'):
+            test_instance.log.info("Try reinstall {} automatically!".format(pkg_name))
+            if pkg_url is not None:
+                test_instance.log.info("Reinstall {} from {}".format(pkg_name, pkg_url))
+                cmd = 'sudo yum -y reinstall %s' % pkg_url
+            else:
+                test_instance.log.info("Reinstall {} from default repo".format(pkg_name))
+                cmd = 'sudo yum -y reinstall %s' % pkg_name
+            run_cmd(test_instance, cmd, timeout=1200)
+
+        if not is_pkg_installed(test_instance, pkg_name=pkg_name) and pkg_url is not None:
+            test_instance.log.info('Install without dependences!')
+            cmd = 'sudo rpm -ivh %s --nodeps' % pkg_url
+            run_cmd(test_instance, cmd, timeout=1200)
+        if not is_pkg_installed(test_instance, pkg_name=pkg_name):
+            test_instance.skipTest("Cannot install {} automatically!".format(pkg_name))
 
 def get_memsize(test_instance, action=None):
     '''
@@ -554,72 +611,3 @@ new one", same_rate)
             no_fail = False
 
     return no_fail
-
-def ltp_check(test_instance):
-    """
-    Check whether ltp installed.
-    Arguments:
-        test_instance {Test instance} -- unittest.TestCase instance
-    """
-    test_instance.log.info("Check ltp installation status")
-    status = run_cmd( test_instance, 'sudo ls -l /opt/ltp/runltp', ret_status=True)
-    if status == 0:
-        test_instance.log.info("Fould /opt/ltp/runltp!")
-        return True
-    else:
-        test_instance.log.info("/opt/ltp/runltp not found")
-        return False
-
-def ltp_install(test_instance):
-    """
-    Install ltp in target system.
-    ltp_url is defined in configuration file.
-    I use pre compiled pkgs for saving time in run.
-    eg.
-    ltp_url : https://github.com/liangxiao1/rpmbuild_specs/releases/download/ltp-master-20200514/ltp-master-20200514.x86_64.rpm
-    or
-    ltp_url : https://github.com/liangxiao1/rpmbuild_specs/releases/download/ltp-master-20200514/ltp-master-20200514.aarch64.rpm
-    Arguments:
-        test_instance {avocado Test instance} -- avocado test instance
-    """
-    if not ltp_check(test_instance):
-        test_instance.log.info("Try install ltp automatically!")
-        if is_arch(test_instance, arch='aarch64'):
-            ltp_url = test_instance.params.get('ltp_url_aarch64')
-        else:
-            ltp_url = test_instance.params.get('ltp_url_x86_64')
-        test_instance.log.info("Install ltp from %s", ltp_url)
-        cmd = 'sudo yum -y install %s' % ltp_url
-        run_cmd(test_instance, cmd)
-    if not ltp_check(test_instance):
-        test_instance.log.info('Install without dependences!')
-        cmd = 'sudo rpm -ivh %s --nodeps' % ltp_url
-        run_cmd(test_instance, cmd)
-    if not ltp_check(test_instance):
-        test_instance.skipTest("Cannot install ltp automatically!")
-
-def ltp_run(test_instance, case_name=None, file_name=None):
-    '''
-    Run specify ltp test case.
-    Arguments:
-        test_instance {avocado Test instance} -- avocado test instance
-    '''
-    run_cmd(test_instance, 'sudo rm -rf /opt/ltp/results/*')
-    if file_name is not None and case_name is not None:
-        ltp_cmd = 'sudo /opt/ltp/runltp -f %s -s %s > ltplog 2>&1' % (
-            file_name, case_name)
-    elif file_name is None and case_name is not None:
-        ltp_cmd = 'sudo /opt/ltp/runltp -s %s > ltplog 2>&1' % case_name
-    elif file_name is not None and case_name is None:
-        ltp_cmd = 'sudo /opt/ltp/runltp -f %s > ltplog 2>&1' % file_name
-    if not ltp_check(test_instance):
-        ltp_install(test_instance)
-    if not ltp_check(test_instance):
-        test_instance.fail("LTP is not installed!")
-    test_instance.log.info("LTP cmd: %s" % ltp_cmd)
-    run_cmd(test_instance, '\n')
-    run_cmd(test_instance, ltp_cmd, timeout=600)
-    time.sleep(5)
-    run_cmd(test_instance,
-                'sudo cat /opt/ltp/results/*',
-                expect_kw='Total Failures: 0')

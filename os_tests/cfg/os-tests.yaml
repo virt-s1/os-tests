@@ -5,6 +5,14 @@ max_boot_time: 40
 # ltp rpm location
 ltp_url_x86_64: https://github.com/liangxiao1/rpmbuild_specs/releases/download/ltp-master-20200514/ltp-master-20200514.x86_64.rpm
 ltp_url_aarch64: https://github.com/liangxiao1/rpmbuild_specs/releases/download/ltp-master-20200514/ltp-master-20200514.aarch64.rpm
+# blktests rpm location
+blktests_url_x86_64: https://github.com/liangxiao1/rpmbuild_specs/releases/download/blktests_20201009/blktests-master-20201009.x86_64.rpm
+blktests_url_aarch64: https://github.com/liangxiao1/rpmbuild_specs/releases/download/blktests_20201009/blktests-master-20201009.aarch64.rpm
+# pkg_reinstall to determine install it again or not when pkg exists already, set it to True to install latest version in each run
+pkg_reinstall: False
+# blk_devs defines the block device to test, caution, all data on this device will be erased.
+# the blktests runtime is pending on your disk/cpu/mem perf, please stay tunned.
+# blk_devs: "/dev/nvme0n1 /dev/sdb"
 # public server for ping connection test
 ping_server: 8.8.8.8
 # max disk utils accepted
