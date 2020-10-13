@@ -502,5 +502,14 @@
         "link": "",
         "path": "journal or dmesg",
         "trigger": "os_tests.tests.test_network_test.TestNetworkTest.test_mtu_min_max_set"
+    },
+    "msg_58": {
+        "content": "libvirtd[43301]: internal error: Invalid unsigned integer value '-1' in file '/sys/devices/system/cpu/cpu0/topology/die_id'",
+        "analyze": "Know issue in arm bz#1876742",
+        "branch": "rhel8",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1876742",
+        "path": "journal",
+        "trigger": ""
     }
 }

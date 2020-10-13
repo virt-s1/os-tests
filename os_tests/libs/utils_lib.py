@@ -474,7 +474,7 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl --since today", ma
         cursor: where to start to check journal log, only for journal log
         skip_words: skip words as you want, split by ","
     '''
-     # Baseline data file
+    # Baseline data file
     baseline_file = os.path.dirname(os_tests.__file__) + "/data/baseline_log.json"
     # Result dir
     with open(baseline_file,'r') as fh:
