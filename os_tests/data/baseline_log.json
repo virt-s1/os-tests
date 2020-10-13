@@ -511,5 +511,14 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1876742",
         "path": "journal",
         "trigger": ""
+    },
+    "msg_59": {
+        "content": "kernel: hub 2-0:1.0: config failed, hub doesn't have any ports! (err -19)",
+        "analyze": "Know fail log in kernel, patch is not implemented yet",
+        "branch": "rhel8",
+        "status": "active",
+        "link": "https://lore.kernel.org/patchwork/patch/863993/",
+        "path": "journal",
+        "trigger": ""
     }
 }

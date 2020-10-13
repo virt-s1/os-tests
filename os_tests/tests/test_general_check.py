@@ -229,7 +229,7 @@ available_clocksource'
         '''
         polarion_id: RHEL7-103851
         '''
-        utils_lib.check_log(self, 'fail', skip_words='test_check')
+        utils_lib.check_log(self, 'fail', skip_words='test_check,nofail')
 
     def test_check_journalctl_warn(self):
         '''
