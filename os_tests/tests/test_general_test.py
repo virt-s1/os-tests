@@ -178,13 +178,21 @@ grep -i pci|grep n1' % boot_pci
             else:
                 tmp_pci = None
         if tmp_pci is None:
-            cmd = 'sudo find /sys/devices -name *ttyS0*'
-            tmp_root = utils_lib.run_cmd(self, cmd, msg="get ttyS0 pci device")
+            cmd = 'sudo find /sys/devices -name *ttyS0*|grep [0-9]:[0-9]'
+            tmp_root = utils_lib.run_cmd(self, cmd, msg="try to get ttyS0 pci device")
             if len(tmp_root) == 0:
                 tmp_pci = None
             else:
                 serial_pci = tmp_root.split('/')[-3]
                 tmp_pci = serial_pci
+        if tmp_pci is None:
+            cmd = 'sudo find /sys/devices -name *vga*|grep [0-9]:[0-9]'
+            tmp_root = utils_lib.run_cmd(self, cmd, msg="try to get vga pci device")
+            if len(tmp_root) == 0:
+                tmp_pci = None
+            else:
+                vga_pci = tmp_root.split('/')[-2]
+                tmp_pci = vga_pci
         if tmp_pci is not None:
             self.log.info("Get pci device: {}".format(tmp_pci))
         else:
