@@ -407,6 +407,38 @@ in cmdline as bug1859088")
                     expect_kw="nvme_core.io_timeout=4294967295",
                     msg="Checking cmdline")
 
+    def test_check_proc_self_status(self):
+        '''
+        case_name:
+            test_check_proc_self_status
+
+        case_priority:
+            1
+
+        component:
+            kernel
+
+        bugzilla_id:
+            1773868
+
+        polarion_id:
+            n/a
+
+        maintainer:
+            xiliang@redhat.com
+
+        description:
+            Check no 'unknown' in /proc/self/status.
+
+        key_steps:
+            1. # cat /proc/self/status
+
+        expected_result:
+            No 'unknown' in this file
+
+        '''
+        utils_lib.run_cmd(self, 'cat /proc/self/status', expect_not_kw='unknown', msg='Check no unknown in "/proc/self/status"')
+
     def test_check_service(self):
         '''
         case_name:
@@ -444,6 +476,39 @@ in cmdline as bug1859088")
             cmd = 'systemctl'
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='failed')
+
+    def test_check_sysfs_cpu_list(self):
+        '''
+        case_name:
+            test_check_sysfs_cpu_list
+
+        case_priority:
+            1
+
+        component:
+            kernel
+
+        bugzilla_id:
+            1741462
+
+        polarion_id:
+            n/a
+
+        maintainer:
+            xiliang@redhat.com
+
+        description:
+            Check no crash when read "cpu_list" in /sys.
+
+        key_steps:
+            1. # find -H /sys -name cpu_list  -type f -perm -u=r -print -exec cat '{}' 2>&1 \;
+
+        expected_result:
+            No crash/panic happen
+
+        '''
+        cmd = "find -H /sys -name cpu_list  -type f -perm -u=r -print -exec cat '{}' 2>&1 \;"
+        utils_lib.run_cmd(self, cmd, msg='Check no crash seen when read cpu_list if exists')
 
     def test_check_tsc_deadline_timer(self):
         '''
