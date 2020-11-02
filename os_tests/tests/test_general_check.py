@@ -535,6 +535,43 @@ current_device"
                     expect_kw='lapic-deadline',
                     msg='Check guest timer')
 
+    def test_check_tuned_adm_active(self):
+        '''
+        case_name:
+            test_check_tuned_adm_active
+
+        case_priority:
+            1
+
+        component:
+            kernel
+
+        bugzilla_id:
+            1893063
+
+        polarion_id:
+            n/a
+
+        maintainer:
+            xiliang@redhat.com
+
+        description:
+            Check tuned-adm loads default "virtual-guest" in vm and does not load virtual-guest in metal instance
+
+        key_steps:
+            1. # tuned-adm active
+
+        expected_result:
+            Should not load virtual-guest in bare metal.
+            Should load virtual-guest in vm by default.
+
+        '''
+        utils_lib.is_cmd_exist(self, cmd='tuned-adm', cancel_case=True)
+        if utils_lib.is_metal(self):
+            utils_lib.run_cmd(self, 'tuned-adm active', expect_not_kw='virtual-guest', msg='Should not load virtual-guest in bare metal')
+        else:
+            utils_lib.run_cmd(self, 'tuned-adm active', expect_kw='virtual-guest', msg='Should load virtual-guest in vm by default')
+
     def test_check_virtwhat(self):
         '''
         polarion_id: RHEL7-103857
