@@ -96,7 +96,10 @@ class TestStorage(unittest.TestCase):
         self._blktests_run(case_name="nvme")
 
     def tearDown(self):
-        utils_lib.check_log(self, "error,warn,fail,trace", cursor=self.cursor)
+        if 'blktests' in self.id():
+            utils_lib.check_log(self, "trace", cursor=self.cursor)
+        else:
+            utils_lib.check_log(self, "error,warn,fail,trace", cursor=self.cursor)
 
 if __name__ == '__main__':
     unittest.main()

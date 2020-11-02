@@ -38,7 +38,7 @@ def init_case(test_instance):
         logging.root.removeHandler(handler)
     FORMAT = "%(levelname)s:%(message)s"
     logging.basicConfig(level=logging.DEBUG, format=FORMAT, filename=log_file)
-    test_instance.log.info("Case id: {}".format(test_instance.id(), test_instance.shortDescription()))
+    test_instance.log.info("Case id: {}".format(test_instance.id()))
     if os.path.exists(cfg_file):
         test_instance.log.info("{} config file found!".format(cfg_file))
 
