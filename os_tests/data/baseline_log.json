@@ -520,5 +520,14 @@
         "link": "https://lore.kernel.org/patchwork/patch/863993/",
         "path": "journal",
         "trigger": ""
+    },
+    "msg_60": {
+        "content": "kernel: DMAR: dmar6: Using Queued invalidation",
+        "analyze": "Information only in iommu",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal",
+        "trigger": "intel_iommu=on"
     }
 }
