@@ -2,6 +2,7 @@ import unittest
 from os_tests.libs import utils_lib
 import json
 import os
+import re
 
 class TestGeneralCheck(unittest.TestCase):
     def setUp(self):
@@ -605,6 +606,65 @@ current_device"
             self.assertEqual('aws', virt_what_output.strip('\n'))
         else:
             self.skipTest("Unknow hypervisor")
+
+    def test_collect_insights_result(self):
+        '''
+        case_name:
+            test_collect_insights_result
+
+        case_priority:
+            1
+
+        component:
+            kernel
+
+        bugzilla_id:
+            1889702
+
+        polarion_id:
+            n/a
+
+        maintainer:
+            xiliang@redhat.com
+
+        description:
+            Check if insights-client hits some rules.
+
+        key_steps:
+            1. #insights-client --register
+            2. #insights-client --check-result
+            3. #insights-client --show-result
+
+        expected_result:
+            If run in dev compose, we simply assume there is no insights rule should be hit because no pkg update available in the latest build.
+            If run in old compose, please follow rule suggestion to check.
+        '''
+        utils_lib.is_cmd_exist(self, cmd="insights-client")
+        utils_lib.run_cmd(self,
+                    'sudo insights-client --register',
+                    msg="try to register system")
+        utils_lib.run_cmd(self,
+                    'sudo insights-client --status',
+                    cancel_kw="System is registered",
+                    msg="Please register system or add user to '/etc/insights-client/insights-client.conf'")
+        utils_lib.run_cmd(self,
+                    'sudo insights-client --check-result',
+                    expect_ret=0,
+                    msg="checking system")
+        out = utils_lib.run_cmd(self,
+                    'sudo insights-client --show-result',
+                    expect_ret=0,
+                    msg="show insights result")
+        #hit_list = json.loads(out)
+        if len(out) > 10:
+            out = utils_lib.run_cmd(self,
+                    'sudo insights-client --no-upload --keep-archive',
+                    expect_ret=0,
+                    msg="generate archive")
+            gz_file = re.findall('/var/.*tar.gz', out)[0]
+            file_name = gz_file.split('/')[-1]
+            utils_lib.run_cmd(self, 'sudo cp {} {}'.format(gz_file, self.log_dir))
+            self.fail("insights rule hit")
 
 if __name__ == '__main__':
     unittest.main()

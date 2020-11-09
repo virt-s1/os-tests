@@ -26,6 +26,7 @@ def init_case(test_instance):
        keys_data = load(fh, Loader=Loader)
     test_instance.params = keys_data
     results_dir = keys_data['results_dir']
+    test_instance.log_dir = results_dir
     if not os.path.exists(results_dir):
         os.mkdir(results_dir)
     case_log = test_instance.id() + ".debug"
@@ -362,7 +363,7 @@ def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False):
     pkg_find = "sudo yum provides %s" % cmd
     output = run_cmd(test_instance, pkg_find, expect_ret=0)
     for i in [arch, 'noarch']:
-        pkg_list = re.findall(".*%s" % arch, output)
+        pkg_list = re.findall(".*%s" % i, output)
         if len(pkg_list) > 0:
             break
     if len(pkg_list) == 0:
