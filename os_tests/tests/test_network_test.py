@@ -98,7 +98,7 @@ class TestNetworkTest(unittest.TestCase):
                 #cmd = "sudo ethtool -G {} rx 0".format(self.nic)
                 #utils_lib.run_cmd(self, cmd, expect_kw="Invalid argument", msg="Check rx cannot set to 0")
                 cmd = "sudo ethtool -G {} rx -1".format(self.nic)
-                utils_lib.run_cmd(self, cmd, expect_kw="aborting", msg="Check rx cannot set to -1")
+                utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg="Check rx cannot set to -1")
         if max_rx_mini is not None and 'n/a' not in max_rx_mini and int(max_rx_mini) > 0:
             if int(max_rx_mini) >= 1024:
                 rx_mini = 512
@@ -115,7 +115,7 @@ class TestNetworkTest(unittest.TestCase):
                     utils_lib.run_cmd(self, cmd)
                     utils_lib.run_cmd(self, query_cmd, expect_kw="RX Mini:\t0", msg="Check rx-mini canset to 0")
                 cmd = "sudo ethtool -G {} rx-mini -1".format(self.nic)
-                utils_lib.run_cmd(self, cmd, expect_kw="aborting", msg="Check rx cannot rx-mini to -1")
+                utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg="Check rx cannot rx-mini to -1")
         if max_rx_jumbo is not None and 'n/a' not in max_rx_jumbo and int(max_rx_jumbo) > 0:
             if int(max_rx_jumbo) >= 1024:
                 rx_jumbo = 512
@@ -131,7 +131,7 @@ class TestNetworkTest(unittest.TestCase):
                     cmd = "sudo ethtool -G {} rx-jumbo 0".format(self.nic)
                     utils_lib.run_cmd(self, cmd, expect_kw="Invalid argument", msg="Check rx-jumbo can set to 0")
                 cmd = "sudo ethtool -G {} rx-jumbo -1".format(self.nic)
-                utils_lib.run_cmd(self, cmd, expect_kw="aborting", msg="Check rx-jumbo cannot set to -1")
+                utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg="Check rx-jumbo cannot set to -1")
         if max_tx is not None and 'n/a' not in max_tx and int(max_tx) > 0:
             if int(max_tx) >= 1024:
                 tx = 512
@@ -146,7 +146,7 @@ class TestNetworkTest(unittest.TestCase):
                 #cmd = "sudo ethtool -G {} tx 0".format(self.nic)
                 #utils_lib.run_cmd(self, cmd, expect_kw="Invalid argument", msg="Check tx cannot set to 0")
                 cmd = "sudo ethtool -G {} tx -1".format(self.nic)
-                utils_lib.run_cmd(self, cmd, expect_kw="aborting", msg="Check tx cannot set to -1")
+                utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg="Check tx cannot set to -1")
 
         utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', cursor=self.dmesg_cursor)
 
