@@ -238,11 +238,20 @@ class TestNetworkTest(unittest.TestCase):
             mtu_range = [0, 67, 68, 4500, 9216, 9217]
             mtu_min = 68
             mtu_max = 9216
+        elif 'tg3' in output:
+            self.log.info('tg3 found!')
+            mtu_range = [0, 59, 60, 4500, 9000, 9001]
+            mtu_min = 60
+            mtu_max = 9000
         else:
             self.log.info('Did not detect network type, use default min~max mtu. %s' % output)
             mtu_range = [0, 67, 68, 4500, 65535, 65536]
             mtu_min = 68
             mtu_max = 65535
+        cmd = 'ip link show {}'.format(self.nic)
+        out = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='save the mtu before change')
+        self.mtu_old = re.findall('mtu [0-9]+',out)[0].split(' ')[1]
+        self.log.info("Get old mtu: {}".format(self.mtu_old))
 
         self.log.info("Trying to change mtu to %s" % mtu_range)
         for mtu_size in mtu_range:
@@ -257,6 +266,11 @@ class TestNetworkTest(unittest.TestCase):
         cmd = "ping {} -c 2 -I {}".format(self.params.get('ping_server'), self.nic)
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', cursor=self.dmesg_cursor, skip_words='ftrace')
+
+    def tearDown(self):
+        if 'test_mtu_min_max_set' in self.id():
+            mtu_cmd = "sudo ip link set dev %s mtu %s" % (self.nic, self.mtu_old)
+            utils_lib.run_cmd(self, mtu_cmd, expect_ret=0, msg='restore mtu')
 
 if __name__ == '__main__':
     unittest.main()
