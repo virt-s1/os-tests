@@ -529,5 +529,32 @@
         "link": "",
         "path": "journal",
         "trigger": "intel_iommu=on"
+    },
+    "msg_61": {
+        "content": "sshd[4419]: error: kex_exchange_identification: Connection closed by remote host",
+        "analyze": "Maybe triggered by some scan software or earlier login failure, will research more",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_62": {
+        "content": "kernel: SGI XFS with ACLs, security attributes, verbose warnings, no debug enabled",
+        "analyze": "debug kernel information only",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_63": {
+        "content": "dnf[4394]: Failed determining last makecache time.",
+        "analyze": "happens at first time boot, should disappear after reboot",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "journal",
+        "trigger": "dnf[4394]: Metadata cache created."
     }
 }
