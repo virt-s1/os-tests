@@ -564,6 +564,8 @@ current_device"
 
         '''
         utils_lib.is_cmd_exist(self, cmd='tuned-adm', cancel_case=True)
+        if 'inactive' in utils_lib.run_cmd(self, 'sudo systemctl is-active tuned'):
+            utils_lib.run_cmd(self, 'sudo systemctl enable --now tuned', msg='enable tuned service')
         if utils_lib.is_metal(self):
             utils_lib.run_cmd(self, 'tuned-adm active', expect_not_kw='virtual-guest', msg='Should not load virtual-guest in bare metal')
         else:
