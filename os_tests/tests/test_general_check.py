@@ -363,8 +363,7 @@ available_clocksource'
                     cancel_kw="kmemleak=on",
                     msg="Only run with kmemleak=on")
 
-        utils_lib.run_cmd(self, 'sudo su', expect_ret=0)
-        cmd = 'echo scan > /sys/kernel/debug/kmemleak'
+        cmd = 'sudo echo scan > /sys/kernel/debug/kmemleak'
         utils_lib.run_cmd(self, cmd, expect_ret=0, timeout=1800)
 
         cmd = 'cat /sys/kernel/debug/kmemleak'
