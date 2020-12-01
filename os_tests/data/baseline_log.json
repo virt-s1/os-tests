@@ -556,5 +556,14 @@
         "link": "",
         "path": "journal",
         "trigger": "dnf[4394]: Metadata cache created."
+    },
+    "msg_64": {
+        "content": "kernel: SGI XFS with ACLs, security attributes, verbose warnings, no debug enabled",
+        "analyze": "information only in debug kernel",
+        "branch": "rhel7,rhel8",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
     }
 }
