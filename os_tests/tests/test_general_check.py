@@ -114,7 +114,7 @@ available_clocksource'
         polarion_id: RHEL7-103851
         bz#: 1777179
         '''
-        utils_lib.run_cmd(self, 'dmesg', expect_ret=0, expect_not_kw='Call Trace', msg="Check there is no call trace in dmesg")
+        utils_lib.run_cmd(self, 'dmesg', expect_ret=0, expect_not_kw='Call trace', msg="Check there is no call trace in dmesg")
 
     def test_check_dmesg_unknownsymbol(self):
         '''

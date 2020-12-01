@@ -252,7 +252,7 @@ if __name__ == "__main__":
         '''
         utils_lib.run_cmd(self, "echo '%s' > t.py" % script_str, expect_ret=0)
         utils_lib.run_cmd(self, 'sudo python3 t.py')
-        utils_lib.run_cmd(self, "dmesg", expect_not_kw='Call Trace')
+        utils_lib.run_cmd(self, "dmesg", expect_not_kw='Call trace')
 
 if __name__ == '__main__':
     unittest.main()
