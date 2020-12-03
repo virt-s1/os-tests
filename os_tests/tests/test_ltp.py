@@ -33,7 +33,7 @@ class TestLTP(unittest.TestCase):
         else:
             ltp_url = self.params.get('ltp_url_x86_64')
         utils_lib.pkg_install(self, pkg_name='ltp', pkg_url=ltp_url)
-        self.cursor = utils_lib.get_cmd_cursor(self, cmd='journalctl --since today')
+        self.cursor = utils_lib.get_cmd_cursor(self, cmd='journalctl --since today', rmt_redirect_stdout=True)
 
     def test_ltp_add_key02(self):
         '''
@@ -145,7 +145,7 @@ at least which ltp not handle')
         self._ltp_run(file_name="quickhit")
 
     def tearDown(self):
-        utils_lib.check_log(self, "error,warn,fail,trace", cursor=self.cursor)
+        utils_lib.check_log(self, "error,warn,fail,trace", cursor=self.cursor, rmt_redirect_stdout=True)
 
 if __name__ == '__main__':
     unittest.main()

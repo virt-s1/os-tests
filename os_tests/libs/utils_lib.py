@@ -8,6 +8,7 @@ import subprocess
 import os_tests
 import json
 import difflib
+from os_tests.libs import rmt_ssh
 from yaml import load, dump
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -40,6 +41,14 @@ def init_case(test_instance):
     FORMAT = "%(levelname)s:%(message)s"
     logging.basicConfig(level=logging.DEBUG, format=FORMAT, filename=log_file)
     test_instance.log.info("Case id: {}".format(test_instance.id()))
+    test_instance.log.info(test_instance.params)
+    if test_instance.params['remote_node'] != 'None':
+        test_instance.log.info("remote_node specified, all tests will be run in {}".format(test_instance.params['remote_node']))
+        test_instance.ssh_client = rmt_ssh.build_connection(rmt_node=test_instance.params['remote_node'],rmt_user=test_instance.params['remote_user'],rmt_keyfile=test_instance.params['remote_keyfile'])
+        if test_instance.ssh_client is None:
+            test_instance.skipTest("Cannot make ssh connection to remote, please check")
+    else:
+        test_instance.ssh_client = None
     if os.path.exists(cfg_file):
         test_instance.log.info("{} config file found!".format(cfg_file))
 
@@ -55,9 +64,9 @@ def msg_to_syslog(test_instance, msg=None):
     '''
     if msg is None:
         msg = test_instance.id()
-    cmd = "echo os-tests:{} | systemd-cat -p info".format(msg)
+    cmd = "sudo echo os-tests:{} | systemd-cat -p info".format(msg)
     run_cmd(test_instance, cmd, expect_ret=0)
-    cmd = "echo {} > /dev/kmsg".format(msg)
+    cmd = "sudo bash -c 'echo \"{}\" > /dev/kmsg'".format(msg)
     run_cmd(test_instance, cmd, expect_ret=0)
 
 def run_cmd(test_instance,
@@ -75,7 +84,9 @@ def run_cmd(test_instance,
             timeout=60,
             ret_status=False,
             is_log_output=True,
-            cursor=None
+            cursor=None,
+            rmt_redirect_stdout=False,
+            rmt_redirect_stderr=False
             ):
     """run cmd with/without check return status/keywords and save log
 
@@ -101,6 +112,8 @@ def run_cmd(test_instance,
         ret_status {bool} -- return ret code instead of output
         is_log_output {bool} -- print cmd output or not
         cursor {string} -- skip content before cursor(line)
+        rmt_redirect_stdout {bool} -- ssh command not exit some times, redirect stdout to tmpfile if needed
+        rmt_redirect_stderr {bool} -- ssh command not exit some times, redirect stderr to tmpfile if needed
 
     Keyword Arguments:
         check_ret {bool} -- [whether check return] (default: {False})
@@ -113,10 +126,13 @@ def run_cmd(test_instance,
     exception_hit = False
 
     try:
-        ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
-        status = ret.returncode
-        if ret.stdout is not None:
-            output = ret.stdout
+        if test_instance.ssh_client is not None:
+            status, output = rmt_ssh.remote_excute(test_instance.ssh_client, cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr)
+        else:
+            ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
+            status = ret.returncode
+            if ret.stdout is not None:
+                output = ret.stdout
     except Exception as err:
         test_instance.log.error("Run cmd failed as %s" % err)
         status = None
@@ -126,15 +142,19 @@ def run_cmd(test_instance,
         test_instance.log.info("Try again")
         test_instance.log.info("Test via uname, if still fail, please make sure no hang or panic in sys")
         try:
-            ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
-            status = ret.returncode
-            if ret.stdout is not None:
-               output = ret.stdout
-            test_instance.log.info("Return: {}".format(output.decode("utf-8")))
-            ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
-            status = ret.returncode
-            if ret.stdout is not None:
-               output = ret.stdout
+            if test_instance.ssh_client is not None:
+                status, output = rmt_ssh.remote_excute(test_instance.ssh_client, 'uname -a', timeout)
+                status, output = rmt_ssh.remote_excute(test_instance.ssh_client, cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr)
+            else:
+                ret = subprocess.run('uname -a', shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
+                status = ret.returncode
+                if ret.stdout is not None:
+                   output = ret.stdout
+                test_instance.log.info("Return: {}".format(output.decode("utf-8")))
+                ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
+                status = ret.returncode
+                if ret.stdout is not None:
+                   output = ret.stdout
         except Exception as err:
             test_instance.log.error("Run cmd failed again {}".format(err))
     if cursor is not None and cursor in output:
@@ -446,7 +466,7 @@ def get_memsize(test_instance, action=None):
     test_instance.log.info("Total memory: {:0,.1f}GiB".format(mem_gb))
     return mem_gb
 
-def get_cmd_cursor(test_instance, cmd='dmesg -T'):
+def get_cmd_cursor(test_instance, cmd='dmesg -T', rmt_redirect_stdout=False):
     '''
     Get command cursor by last matched line.
     Arguments:
@@ -454,7 +474,7 @@ def get_cmd_cursor(test_instance, cmd='dmesg -T'):
     Return:
         cursor {string}
     '''
-    output = run_cmd(test_instance, cmd, expect_ret=0, is_log_output=False)
+    output = run_cmd(test_instance, cmd, expect_ret=0, is_log_output=False, rmt_redirect_stdout=rmt_redirect_stdout)
     if len(output.split('\n')) < 5:
         return output.split('\n')[-1]
     for i in range(-1, -10, -1):
@@ -464,7 +484,7 @@ def get_cmd_cursor(test_instance, cmd='dmesg -T'):
     test_instance.log.info("Get cursor: {}".format(cursor))
     return cursor
 
-def check_log(test_instance, log_keyword, log_cmd="journalctl --since today", match_word_exact=False, cursor=None, skip_words=None):
+def check_log(test_instance, log_keyword, log_cmd="journalctl --since today", match_word_exact=False, cursor=None, skip_words=None, rmt_redirect_stdout=False, rmt_redirect_stderr=False):
     '''
     check journal log
     Arguments:
@@ -491,12 +511,16 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl --since today", ma
         out = run_cmd(test_instance,
                       check_cmd,
                       expect_ret=0,
-                      msg='Get log......', cursor=cursor)
+                      msg='Get log......', cursor=cursor,
+                      rmt_redirect_stderr=rmt_redirect_stderr,
+                      rmt_redirect_stdout=rmt_redirect_stdout)
     else:
         out = run_cmd(test_instance,
                       check_cmd,
                       expect_ret=0,
-                      msg='Get log......')
+                      msg='Get log......',
+                      rmt_redirect_stderr=rmt_redirect_stderr,
+                      rmt_redirect_stdout=rmt_redirect_stdout)
 
     for keyword in log_keyword.split(','):
         ret = find_word(test_instance, out, keyword, baseline_dict=baseline_dict, skip_words=skip_words)

@@ -21,13 +21,13 @@ available_clocksource'
 
         output = utils_lib.run_cmd(self, cmd, expect_ret=0)
         for clocksource in output.split(' '):
-            cmd = 'echo %s > /sys/devices/system/clocksource/clocksource0/\
-current_clocksource' % clocksource
+            cmd = 'sudo bash -c \'echo "%s" > /sys/devices/system/clocksource/clocksource0/\
+current_clocksource\'' % clocksource
             utils_lib.run_cmd(self,
                         cmd,
                         expect_ret=0,
                         msg='Change clocksource to %s' % clocksource)
-            cmd = 'cat /sys/devices/system/clocksource/clocksource0/\
+            cmd = 'sudo cat /sys/devices/system/clocksource/clocksource0/\
 current_clocksource'
 
             utils_lib.run_cmd(self,
@@ -51,7 +51,7 @@ current_clocksource'
         output = utils_lib.run_cmd(self, cmd, expect_ret=0)
         for tracer in output.split(' '):
             tracer = tracer.rstrip('\n')
-            cmd = 'echo %s > /sys/kernel/debug/tracing/current_tracer' % tracer
+            cmd = 'sudo bash -c \'echo "%s" > /sys/kernel/debug/tracing/current_tracer\'' % tracer
             utils_lib.run_cmd(self,
                         cmd,
                         expect_ret=0,

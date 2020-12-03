@@ -224,26 +224,26 @@ available_clocksource'
         '''
         polarion_id: RHEL7-103851
         '''
-        utils_lib.check_log(self, 'error', skip_words='test_check')
+        utils_lib.check_log(self, 'error', skip_words='test_check', rmt_redirect_stdout=True)
 
     def test_check_journalctl_fail(self):
         '''
         polarion_id: RHEL7-103851
         '''
-        utils_lib.check_log(self, 'fail', skip_words='test_check,nofail')
+        utils_lib.check_log(self, 'fail', skip_words='test_check,nofail', rmt_redirect_stdout=True)
 
     def test_check_journalctl_warn(self):
         '''
         polarion_id: RHEL7-103851
         '''
-        utils_lib.check_log(self, 'warn', skip_words='test_check')
+        utils_lib.check_log(self, 'warn', skip_words='test_check',rmt_redirect_stdout=True)
 
     def test_check_journalctl_invalid(self):
         '''
         polarion_id:
         BZ#:1750417
         '''
-        utils_lib.check_log(self, 'invalid', skip_words="Invalid user,invalid user,test_check")
+        utils_lib.check_log(self, 'invalid', skip_words="Invalid user,invalid user,test_check", rmt_redirect_stdout=True)
 
     def test_check_journalctl_service_unknown_lvalue(self):
         '''
@@ -259,7 +259,7 @@ available_clocksource'
             cmd = "systemctl status {}".format(service)
             utils_lib.run_cmd(self, cmd)
             cmd = "journalctl --unit {}".format(service)
-            utils_lib.check_log(self,'Unknown lvalue', log_cmd=cmd)
+            utils_lib.check_log(self,'Unknown lvalue', log_cmd=cmd, rmt_redirect_stdout=True)
 
     def test_check_lshw_mem(self):
         '''
