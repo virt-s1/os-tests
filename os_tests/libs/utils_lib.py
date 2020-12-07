@@ -8,12 +8,32 @@ import subprocess
 import os_tests
 import json
 import difflib
+import time
 from os_tests.libs import rmt_ssh
 from yaml import load, dump
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
     from yaml import Loader, Dumper
+
+def init_connection(test_instance, timeout=600):
+    if test_instance.params['remote_node'] != 'None':
+        test_instance.log.info("remote_node specified, all tests will be run in {}".format(test_instance.params['remote_node']))
+        start_time = time.time()
+        while True:
+            current_time = time.time()
+            if current_time - start_time > timeout:
+                test_instance.log.info("timeout to connect to remote")
+                break
+            test_instance.ssh_client = rmt_ssh.build_connection(rmt_node=test_instance.params['remote_node'],rmt_user=test_instance.params['remote_user'],rmt_keyfile=test_instance.params['remote_keyfile'])
+            if test_instance.ssh_client is not None:
+                break
+            time.sleep(5)
+            test_instance.log.info("Not conncted, retry again! timeout:{}".format(timeout))
+        if test_instance.ssh_client is None:
+            test_instance.skipTest("Cannot make ssh connection to remote, please check")
+    else:
+        test_instance.ssh_client = None
 
 def init_case(test_instance):
     """init case
@@ -42,7 +62,7 @@ def init_case(test_instance):
     logging.basicConfig(level=logging.DEBUG, format=FORMAT, filename=log_file)
     test_instance.log.info("Case id: {}".format(test_instance.id()))
     test_instance.log.info(test_instance.params)
-    if test_instance.params['remote_node'] != 'None':
+    if test_instance.params['remote_node'] != 'None' or len(test_instance.params['remote_node']) >= 5:
         test_instance.log.info("remote_node specified, all tests will be run in {}".format(test_instance.params['remote_node']))
         test_instance.ssh_client = rmt_ssh.build_connection(rmt_node=test_instance.params['remote_node'],rmt_user=test_instance.params['remote_user'],rmt_keyfile=test_instance.params['remote_keyfile'])
         if test_instance.ssh_client is None:

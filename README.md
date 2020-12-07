@@ -62,6 +62,16 @@ or
 or  
 `# python3 -m unittest -v os_tests.tests.test_general_test.TestGeneralTest.test_change_clocksource`
 
+### The config file
+
+You can change the default setting in "cfg/os-tests.yaml".
+
+If you want to run os-tests all cases in remote node to support lifecyce cases which needs reboot.  
+Please specify below options:  
+remote_node: None  
+remote_user: ec2-user  
+remote_keyfile: None  
+
 ### The log file
 
 The console only shows the case test result as summary.
