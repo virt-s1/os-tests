@@ -114,7 +114,7 @@ available_clocksource'
         polarion_id: RHEL7-103851
         bz#: 1777179
         '''
-        utils_lib.run_cmd(self, 'dmesg', expect_ret=0, expect_not_kw='Call trace', msg="Check there is no call trace in dmesg")
+        utils_lib.run_cmd(self, 'dmesg', expect_ret=0, expect_not_kw='Call trace,Call Trace', msg="Check there is no call trace in dmesg")
 
     def test_check_dmesg_unknownsymbol(self):
         '''
@@ -662,6 +662,9 @@ current_device"
             file_name = gz_file.split('/')[-1]
             utils_lib.run_cmd(self, 'sudo cp {} {}'.format(gz_file, self.log_dir))
             self.fail("insights rule hit")
+
+    def tearDown(self):
+        self.log.info("{} test done".format(self.id()))
 
 if __name__ == '__main__':
     unittest.main()

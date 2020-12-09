@@ -223,7 +223,7 @@ grep -i pci|grep n1' % boot_pci
                         'sudo virsh nodedev-reattach %s' % pci_dev_0,
                         msg='reattach pci device',
                         expect_ret=0)
-        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', cursor=self.dmesg_cursor)
+        utils_lib.check_log(self, "error,warn,fail,trace,Trace", log_cmd='dmesg -T', cursor=self.dmesg_cursor)
 
     def test_xenfs_write_inability(self):
         '''
@@ -252,7 +252,7 @@ if __name__ == "__main__":
         '''
         utils_lib.run_cmd(self, "echo '%s' > t.py" % script_str, expect_ret=0)
         utils_lib.run_cmd(self, 'sudo python3 t.py')
-        utils_lib.run_cmd(self, "dmesg", expect_not_kw='Call trace')
+        utils_lib.run_cmd(self, "dmesg", expect_not_kw='Call trace,Call Trace')
 
 if __name__ == '__main__':
     unittest.main()

@@ -72,6 +72,13 @@ def init_case(test_instance):
     if os.path.exists(cfg_file):
         test_instance.log.info("{} config file found!".format(cfg_file))
 
+def finish_case(test_instance):
+    """init case
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+    """
+    pass
+
 def msg_to_syslog(test_instance, msg=None):
     '''
     Save msg to journal log and dmesg.
