@@ -25,7 +25,7 @@ def init_connection(test_instance, timeout=600):
             if current_time - start_time > timeout:
                 test_instance.log.info("timeout to connect to remote")
                 break
-            test_instance.ssh_client = rmt_ssh.build_connection(rmt_node=test_instance.params['remote_node'],rmt_user=test_instance.params['remote_user'],rmt_keyfile=test_instance.params['remote_keyfile'])
+            test_instance.ssh_client = rmt_ssh.build_connection(rmt_node=test_instance.params['remote_node'],rmt_user=test_instance.params['remote_user'], rmt_password=test_instance.params['remote_password'], rmt_keyfile=test_instance.params['remote_keyfile'])
             if test_instance.ssh_client is not None:
                 break
             time.sleep(5)
@@ -64,7 +64,7 @@ def init_case(test_instance):
     test_instance.log.info(test_instance.params)
     if test_instance.params['remote_node'] != 'None' or len(test_instance.params['remote_node']) >= 5:
         test_instance.log.info("remote_node specified, all tests will be run in {}".format(test_instance.params['remote_node']))
-        test_instance.ssh_client = rmt_ssh.build_connection(rmt_node=test_instance.params['remote_node'],rmt_user=test_instance.params['remote_user'],rmt_keyfile=test_instance.params['remote_keyfile'])
+        test_instance.ssh_client = rmt_ssh.build_connection(rmt_node=test_instance.params['remote_node'],rmt_user=test_instance.params['remote_user'],rmt_password=test_instance.params['remote_password'],rmt_keyfile=test_instance.params['remote_keyfile'])
         if test_instance.ssh_client is None:
             test_instance.skipTest("Cannot make ssh connection to remote, please check")
     else:
@@ -113,7 +113,8 @@ def run_cmd(test_instance,
             is_log_output=True,
             cursor=None,
             rmt_redirect_stdout=False,
-            rmt_redirect_stderr=False
+            rmt_redirect_stderr=False,
+            rmt_get_pty=False
             ):
     """run cmd with/without check return status/keywords and save log
 
@@ -154,7 +155,7 @@ def run_cmd(test_instance,
 
     try:
         if test_instance.ssh_client is not None:
-            status, output = rmt_ssh.remote_excute(test_instance.ssh_client, cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr)
+            status, output = rmt_ssh.remote_excute(test_instance.ssh_client, cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty)
         else:
             ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
             status = ret.returncode
@@ -171,7 +172,7 @@ def run_cmd(test_instance,
         try:
             if test_instance.ssh_client is not None:
                 status, output = rmt_ssh.remote_excute(test_instance.ssh_client, 'uname -a', timeout)
-                status, output = rmt_ssh.remote_excute(test_instance.ssh_client, cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr)
+                status, output = rmt_ssh.remote_excute(test_instance.ssh_client, cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr, rmt_get_pty=rmt_get_pty)
             else:
                 ret = subprocess.run('uname -a', shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
                 status = ret.returncode
@@ -493,7 +494,7 @@ def get_memsize(test_instance, action=None):
     test_instance.log.info("Total memory: {:0,.1f}GiB".format(mem_gb))
     return mem_gb
 
-def get_cmd_cursor(test_instance, cmd='dmesg -T', rmt_redirect_stdout=False):
+def get_cmd_cursor(test_instance, cmd='dmesg -T', rmt_redirect_stdout=False, rmt_get_pty=False):
     '''
     Get command cursor by last matched line.
     Arguments:
@@ -501,7 +502,7 @@ def get_cmd_cursor(test_instance, cmd='dmesg -T', rmt_redirect_stdout=False):
     Return:
         cursor {string}
     '''
-    output = run_cmd(test_instance, cmd, expect_ret=0, is_log_output=False, rmt_redirect_stdout=rmt_redirect_stdout)
+    output = run_cmd(test_instance, cmd, expect_ret=0, is_log_output=False, rmt_redirect_stdout=rmt_redirect_stdout, rmt_get_pty=rmt_get_pty)
     if len(output.split('\n')) < 5:
         return output.split('\n')[-1]
     for i in range(-1, -10, -1):
@@ -511,7 +512,7 @@ def get_cmd_cursor(test_instance, cmd='dmesg -T', rmt_redirect_stdout=False):
     test_instance.log.info("Get cursor: {}".format(cursor))
     return cursor
 
-def check_log(test_instance, log_keyword, log_cmd="journalctl --since today", match_word_exact=False, cursor=None, skip_words=None, rmt_redirect_stdout=False, rmt_redirect_stderr=False):
+def check_log(test_instance, log_keyword, log_cmd="journalctl --since today", match_word_exact=False, cursor=None, skip_words=None, rmt_redirect_stdout=False, rmt_redirect_stderr=False, rmt_get_pty=False):
     '''
     check journal log
     Arguments:
@@ -540,14 +541,16 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl --since today", ma
                       expect_ret=0,
                       msg='Get log......', cursor=cursor,
                       rmt_redirect_stderr=rmt_redirect_stderr,
-                      rmt_redirect_stdout=rmt_redirect_stdout)
+                      rmt_redirect_stdout=rmt_redirect_stdout,
+                      rmt_get_pty=rmt_get_pty)
     else:
         out = run_cmd(test_instance,
                       check_cmd,
                       expect_ret=0,
                       msg='Get log......',
                       rmt_redirect_stderr=rmt_redirect_stderr,
-                      rmt_redirect_stdout=rmt_redirect_stdout)
+                      rmt_redirect_stdout=rmt_redirect_stdout,
+                      rmt_get_pty=rmt_get_pty)
 
     for keyword in log_keyword.split(','):
         ret = find_word(test_instance, out, keyword, baseline_dict=baseline_dict, skip_words=skip_words)

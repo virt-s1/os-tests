@@ -26,3 +26,5 @@ remote_node: None
 remote_user: ec2-user
 # ssh key file location for remote access
 remote_keyfile: None
+# or password for remote access
+remote_password: None

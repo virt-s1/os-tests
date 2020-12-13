@@ -13,7 +13,7 @@ class TestGeneralCheck(unittest.TestCase):
         polarion_id: N/A
         '''
         cmd = "sudo ausearch -m AVC -ts today"
-        utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='Checking avc log!')
+        utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='Checking avc log!', rmt_get_pty=True)
 
     def test_check_avclog_nfs(self):
         '''
@@ -43,7 +43,7 @@ class TestGeneralCheck(unittest.TestCase):
         utils_lib.run_cmd(self, "sudo umount /mnt")
 
         cmd = "sudo ausearch -m AVC -ts today"
-        utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='Checking avc log!')
+        utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='Checking avc log!', rmt_get_pty=True)
 
     def test_check_available_clocksource(self):
         '''
