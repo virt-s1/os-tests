@@ -128,6 +128,46 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='mitigations=auto,nosmt')
         utils_lib.check_log(self, "error,warn,fail,trace,Trace", rmt_redirect_stdout=True)
 
+    def test_kdump_no_specify_cpu(self):
+        '''
+        polarion_id: RHEL7-58669
+        bz#: 1654962
+        '''
+        cmd = 'systemctl is-active kdump'
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check kdump service')
+        output = utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
+        self.is_metal = utils_lib.is_metal(self)
+        if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self):
+            self.cancel("Cancel as bug 1654962 in arm guest which \
+no plan to fix it in the near future!")
+
+        utils_lib.run_cmd(self,
+                    r'sudo rm -rf /var/crash/*',
+                    expect_ret=0,
+                    msg='clean /var/crash firstly')
+        utils_lib.run_cmd(self, r'sudo sync', expect_ret=0)
+        self.log.info("Before system crash")
+        utils_lib.run_cmd(self,
+                    r'find /var/crash',
+                    expect_ret=0,
+                    msg='list /var/crash')
+        utils_lib.run_cmd(self, 'echo c > /proc/sysrq-trigger', msg='trigger crash')
+
+        if self.is_metal:
+            self.log.info("Wait 180s")
+            time.sleep(180)
+        else:
+            self.log.info("Wait 30s")
+            time.sleep(30)
+        utils_lib.init_connection(self)
+        self.log.info("After system crash")
+        utils_lib.run_cmd(self,
+                    r'find /var/crash',
+                    expect_ret=0,
+                    msg='list /var/crash after crash')
+        cmd = r'sudo cat /var/crash/1*/vmcore-dmesg.txt|tail -50'
+        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='write_sysrq_trigger')
+
     def tearDown(self):
         if 'test_boot_debugkernel' in self.id():
             cmd = "sudo grubby --set-default-index=%s" % self.old_grub_index
@@ -135,9 +175,10 @@ class TestLifeCycle(unittest.TestCase):
         if 'test_boot_mitigations' in self.id():
             cmd = 'sudo grubby --update-kernel=ALL  --remove-args="mitigations=auto,nosmt"'
             utils_lib.run_cmd(self, cmd, msg='Remove "mitigations=auto,nosmt"')
-        utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
-        time.sleep(10)
-        utils_lib.init_connection(self, timeout=800)
+        if 'test_kdump_no_specify_cpu' not in self.id():
+            utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
+            time.sleep(10)
+            utils_lib.init_connection(self, timeout=800)
 
 if __name__ == '__main__':
     unittest.main()
