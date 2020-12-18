@@ -12,12 +12,12 @@ class TestLTP(unittest.TestCase):
         '''
         utils_lib.run_cmd(self, 'sudo rm -rf /opt/ltp/results/*')
         if file_name is not None and case_name is not None:
-            ltp_cmd = 'sudo /opt/ltp/runltp -f %s -s %s > ltplog 2>&1' % (
+            ltp_cmd = 'sudo /opt/ltp/runltp -f %s -s %s > /tmp/ltplog 2>&1' % (
                 file_name, case_name)
         elif file_name is None and case_name is not None:
-            ltp_cmd = 'sudo /opt/ltp/runltp -s %s > ltplog 2>&1' % case_name
+            ltp_cmd = 'sudo /opt/ltp/runltp -s %s > /tmp/ltplog 2>&1' % case_name
         elif file_name is not None and case_name is None:
-            ltp_cmd = 'sudo /opt/ltp/runltp -f %s > ltplog 2>&1' % file_name
+            ltp_cmd = 'sudo /opt/ltp/runltp -f %s > /tmp/ltplog 2>&1' % file_name
         self.log.info("LTP cmd: %s" % ltp_cmd)
         utils_lib.run_cmd(self, '\n')
         utils_lib.run_cmd(self, ltp_cmd, timeout=600)

@@ -519,7 +519,7 @@ in cmdline as bug1859088")
 
         cmd = "grep tsc_deadline_timer /proc/cpuinfo"
         utils_lib.run_cmd(self, cmd, cancel_ret='0', msg="check cpu flag has tsc_deadline_timer")
-        cmd = "dmesg|grep 'TSC deadline timer enabled'"
+        cmd = "dmesg|egrep 'TSC deadline timer enabled|TSC deadline timer available'"
         utils_lib.run_cmd(self, cmd, expect_ret=0)
 
         cmd = "sudo cat /sys/devices/system/clockevents/clockevent0/\

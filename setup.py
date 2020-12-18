@@ -20,7 +20,7 @@ setuptools.setup(
     },
     include_package_data=True,
     #data_files=[('/'+os.path.expanduser("~"), ['cfg/os-tests.yaml']),],
-    install_requires=['PyYAML', 'argparse', 'paramiko'],
+    install_requires=['PyYAML', 'argparse'],
     license="GPLv3+",
     classifiers=[
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',

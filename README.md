@@ -10,6 +10,9 @@ os-tests is a lightweight, fast check and tests collection for Linux OS.
 
 `# pip install os-tests`
 
+note: you must install paramiko module to support run on remotely.  
+    This requires libffi-devel,openssl-devel,python-devel are required in aarch64 to compile cryptography
+
 ### Install from source code
 
 ```bash
@@ -31,10 +34,10 @@ os-tests is a lightweight, fast check and tests collection for Linux OS.
 
 ## Run test
 
-### Run all os_tests supported cases(os-tests cli was implemented in v0.0.10)
+### Run all os_tests supported cases(os-tests cli was introduced in v0.0.10)
 
 `# os-tests`  
-note: you may add "/usr/local/bin" to your $PATH prior RHEL8  
+note: the default path is "/usr/local/bin" if not in virtual environment.  
 or  
 `# python3 -m unittest -v os_tests.os_tests_all`
 
