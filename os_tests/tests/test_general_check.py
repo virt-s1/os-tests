@@ -636,6 +636,8 @@ current_device"
             If run in dev compose, we simply assume there is no insights rule should be hit because no pkg update available in the latest build.
             If run in old compose, please follow rule suggestion to check.
         '''
+        cmd="cat /etc/redhat-release"
+        utils_lib.run_cmd(self, cmd, cancel_not_kw='CentOS', msg='Not run in centos')
         utils_lib.is_cmd_exist(self, cmd="insights-client")
         utils_lib.run_cmd(self,
                     'sudo insights-client --register',
