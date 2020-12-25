@@ -565,5 +565,23 @@
         "link": "",
         "path": "journal, dmesg",
         "trigger": ""
+    },
+    "msg_65": {
+        "content": "kernel: Invalid max_queues (4), will use default max: 2.",
+        "analyze": "xen_blkif_max_queues > online nr_cpus",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": "Xen HVM domU"
+    },
+    "msg_66": {
+        "content": "insights-client[1133]: Error: Could not submit event: Could not find the TLS certificate file, invalid path: /etc/pki/consumer/cert.pem",
+        "analyze": "known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1907266",
+        "path": "journal, dmesg",
+        "trigger": ""
     }
 }
