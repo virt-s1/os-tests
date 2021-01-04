@@ -377,6 +377,7 @@ available_clocksource'
         BZ#: 1349927, 1645772
         '''
         utils_lib.is_aws(self, action='cancel')
+        utils_lib.run_cmd(self, 'cat /etc/redhat-release', cancel_not_kw='CentOS', msg='skip this check on centos, rhbz1645772')
         self.log.info("nouveau is not required in ec2, make sure it is \
 in blacklist and not loaded bug1645772")
         utils_lib.run_cmd(self,
@@ -406,6 +407,16 @@ in cmdline as bug1859088")
                     expect_ret=0,
                     expect_kw="nvme_core.io_timeout=4294967295",
                     msg="Checking cmdline")
+
+    def test_check_release_name(self):
+        '''
+        polarion_id: N/A
+        BZ#: 1852657
+        '''
+        out = utils_lib.run_cmd(self, 'cat /etc/redhat-release', cancel_not_kw='CentOS,Maipo', msg='skip in centos and rhel7')
+        rhversion = re.findall('Red Hat Enterprise Linux release \d', out)[0]
+        cmd = "sudo grep -R 'Red Hat Enterprise Linux' /boot/grub*|grep -v '{}'".format(rhversion)
+        utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='make sure no other release name found')
 
     def test_check_proc_self_status(self):
         '''
