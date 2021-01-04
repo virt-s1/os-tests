@@ -410,13 +410,36 @@ in cmdline as bug1859088")
 
     def test_check_release_name(self):
         '''
-        polarion_id: N/A
+        polarion_id: RHEL7-103850
         BZ#: 1852657
         '''
-        out = utils_lib.run_cmd(self, 'cat /etc/redhat-release', cancel_not_kw='CentOS,Maipo', msg='skip in centos and rhel7')
-        rhversion = re.findall('Red Hat Enterprise Linux release \d', out)[0]
-        cmd = "sudo grep -R 'Red Hat Enterprise Linux' /boot/grub*|grep -v '{}'".format(rhversion)
-        utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='make sure no other release name found')
+        check_cmd = "sudo cat /etc/redhat-release"
+        output = utils_lib.run_cmd(self,check_cmd, expect_ret=0, msg='check release name')
+        kernel_ver = utils_lib.run_cmd(self, 'uname -r', msg="Get kernel version")
+        name_map = {'el6':'Red Hat Enterprise Linux Server release 6',
+                    'el7':'Red Hat Enterprise Linux Server release 7',
+                    'el8':'Red Hat Enterprise Linux release 8',
+                    'el9':'Red Hat Enterprise Linux release 9',
+                    'el8_centos':'CentOS Stream release 8',
+                    'el9_centos':'CentOS Stream release 9'}
+        for key in name_map.keys():
+            if key in kernel_ver:
+                if 'CentOS' not in output:
+                    self.assertIn(
+                    name_map[key],
+                    output,
+                    msg="It should be like: {}.n but it is {}".format(name_map[key], output))
+                    if 'el6' not in kernel_ver and 'el7' not in kernel_ver:
+                        rhversion = re.findall('Red Hat Enterprise Linux release \d', output)[0]
+                        cmd = "sudo grep -R 'Red Hat Enterprise Linux' /boot/grub*|grep -v '{}'".format(rhversion)
+                        utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='make sure no other release name found')
+                else:
+                    centos_key = "{}_centos".format(key)
+                    self.assertIn(
+                    name_map[centos_key],
+                    output,
+                    msg="It should be like: {}.n but it is {}".format(name_map[centos_key], output))
+                break
 
     def test_check_proc_self_status(self):
         '''

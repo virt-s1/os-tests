@@ -61,7 +61,11 @@ def init_case(test_instance):
     FORMAT = "%(levelname)s:%(message)s"
     logging.basicConfig(level=logging.DEBUG, format=FORMAT, filename=log_file)
     test_instance.log.info("Case id: {}".format(test_instance.id()))
-    test_instance.log.info(test_instance.params)
+    for key in test_instance.params.keys():
+        if 'password' in key:
+            test_instance.log.info("key:{}, val:*******".format(key))
+        else:
+            test_instance.log.info("key:{}, val:{}".format(key, test_instance.params[key]))
     if test_instance.params['remote_node'] != 'None' or len(test_instance.params['remote_node']) >= 5:
         test_instance.log.info("remote_node specified, all tests will be run in {}".format(test_instance.params['remote_node']))
         test_instance.ssh_client = rmt_ssh.build_connection(rmt_node=test_instance.params['remote_node'],rmt_user=test_instance.params['remote_user'],rmt_password=test_instance.params['remote_password'],rmt_keyfile=test_instance.params['remote_keyfile'])

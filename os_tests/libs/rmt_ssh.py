@@ -14,7 +14,8 @@ def build_connection(rmt_node=None, rmt_user='ec2-user', rmt_password=None, rmt_
     log.info("Try to make connection: {}@{}".format(rmt_user, rmt_node))
     ssh_client = paramiko.SSHClient()
     ssh_client.load_system_host_keys()
-    ssh_client.set_missing_host_key_policy(paramiko.WarningPolicy())
+    #ssh_client.set_missing_host_key_policy(paramiko.WarningPolicy())
+    ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     start_time = time.time()
     while True:
         try:
