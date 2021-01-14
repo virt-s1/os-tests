@@ -583,5 +583,23 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1907266",
         "path": "journal, dmesg",
         "trigger": ""
+    },
+    "msg_67": {
+        "content": "sshd[7714]: error: maximum authentication attempts exceeded for root from 75.165.202.153 port 51082 ssh2 [preauth]",
+        "analyze": "information only when not allowed user try to access our system",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": "Too many authentication failures"
+    },
+    "msg_68": {
+        "content": "sshd[6899]: Disconnecting invalid user admin 184.102.37.82 port 32770: Too many authentication failures [preauth]",
+        "analyze": "information only when not allowed user try to access our system",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": "Too many authentication failures"
     }
 }
