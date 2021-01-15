@@ -10,7 +10,7 @@ os-tests is a lightweight, fast check and tests collection for Linux OS.
 
 `# pip install os-tests`
 
-note: you must install paramiko module to support run on remotely.  
+note: you must install paramiko module to support run on remote.  
     This requires libffi-devel,openssl-devel,python-devel are required in aarch64 to compile cryptography
 
 ### Install from source code
@@ -128,4 +128,4 @@ Files:
 
 ### Contribution
 
-You are welcomed to create pull request or raise issue.
+You are welcomed to create pull request or raise issue. New case from real customer senario or rhbz is prefered.

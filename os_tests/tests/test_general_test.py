@@ -110,6 +110,50 @@ current_clocksource'
         cmd = "sudo dracut -f -v"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='Failed,FAILED', timeout=120)
 
+
+    def test_fork_pte(self):
+        '''
+        case_name:
+            test_fork_pte
+
+        case_priority:
+            2
+
+        component:
+            kernel
+
+        bugzilla_id:
+            1908439
+
+        polarion_id:
+            n/a
+
+        maintainer:
+            xiliang@redhat.com
+
+        description:
+            Ensure dirty bit is preserved across pte_wrprotect
+
+        key_steps:
+            1. # wget https://github.com/redis/redis/files/5717040/redis_8124.c.txt
+            2. # mv redis_8124.c.txt redis_8124.c
+            3. # gcc -o reproduce redis_8124.c
+            4. # systemd-run --scope -p MemoryLimit=550M ./reproduce
+
+        expected_result:
+            Your kernel looks fine.
+        '''
+        utils_lib.is_cmd_exist(self, cmd='gcc', cancel_case=True)
+        utils_lib.is_cmd_exist(self, cmd='wget', cancel_case=True)
+        cmd_list = ['wget https://github.com/redis/redis/files/5717040/redis_8124.c.txt',
+                    'mv redis_8124.c.txt redis_8124.c',
+                    'gcc -o reproduce redis_8124.c',
+                    'systemd-run --scope -p MemoryLimit=550M ./reproduce']
+        for cmd in cmd_list:
+            out = utils_lib.run_cmd(self, cmd, expect_ret=0, timeout=120)
+        if 'Your kernel looks fine' not in out:
+            self.fail("'Your kernel looks fine' not found in {}".format(out))
+
     def test_virsh_pci_reattach(self):
         '''
         case_name:

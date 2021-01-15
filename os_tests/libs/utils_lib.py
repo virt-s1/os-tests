@@ -421,7 +421,7 @@ def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False):
     if len(pkg_list) == 0:
         test_instance.skipTest("Unable to install {}".format(cmd))
         return False
-    run_cmd(test_instance, "sudo yum install -y %s" % pkg_list[0], expect_ret=0)
+    run_cmd(test_instance, "sudo yum install -y %s" % pkg_list[0], expect_ret=0, timeout=120)
     return True
 
 def is_pkg_installed(test_instance, pkg_name=None, is_install=True, cancel_case=False):
