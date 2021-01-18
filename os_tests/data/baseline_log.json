@@ -601,5 +601,32 @@
         "link": "",
         "path": "journal, dmesg",
         "trigger": "Too many authentication failures"
+    },
+    "msg_69": {
+        "content": "avahi-daemon[908]: WARNING: No NSS support for mDNS detected, consider installing nss-mdns!",
+        "analyze": "It's not a bug, just a warning to indicate that the libs supporting for mDNS are not installed in Red Hat Enterprise Linux.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/18783",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_70": {
+        "content": "systemd[1]: mcelog.service: Main process exited, code=exited, status=1/FAILURE",
+        "analyze": "Information only on unsupported cpu.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": "mcelog does not support this processor"
+    },
+    "msg_71": {
+        "content": "systemd[1]: mcelog.service: Failed with result 'exit-code'.",
+        "analyze": "Information only on unsupported cpu.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": "mcelog does not support this processor"
     }
 }

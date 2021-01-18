@@ -129,7 +129,8 @@ class TestNetworkTest(unittest.TestCase):
                 out = utils_lib.run_cmd(self, query_cmd, expect_kw="RX Jumbo:\t{}".format(rx_jumbo), msg="Check rx_jumbo")
                 if "RX Jumbo:\t0" not in out:
                     cmd = "sudo ethtool -G {} rx-jumbo 0".format(self.nic)
-                    utils_lib.run_cmd(self, cmd, expect_kw="Invalid argument", msg="Check rx-jumbo can set to 0")
+                    #utils_lib.run_cmd(self, cmd, expect_kw="Invalid argument", msg="Check rx-jumbo cannot set to 0")
+                    utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg="Check rx-jumbo cannot set to 0")
                 cmd = "sudo ethtool -G {} rx-jumbo -1".format(self.nic)
                 utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg="Check rx-jumbo cannot set to -1")
         if max_tx is not None and 'n/a' not in max_tx and int(max_tx) > 0:
@@ -210,6 +211,10 @@ class TestNetworkTest(unittest.TestCase):
 
         utils_lib.is_cmd_exist(self, cmd='ethtool')
         utils_lib.msg_to_syslog(self)
+        cmd = 'ip link show {}'.format(self.nic)
+        out = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='save the mtu before change')
+        self.mtu_old = re.findall('mtu [0-9]+',out)[0].split(' ')[1]
+        self.log.info("Get old mtu: {}".format(self.mtu_old))
         cmd = "sudo ethtool -i {}".format(self.nic)
         output = utils_lib.run_cmd(self, cmd, expect_ret=0)
         if 'ena' in output:
@@ -229,6 +234,8 @@ class TestNetworkTest(unittest.TestCase):
             mtu_max = 65535
         elif 'vmxnet3' in output:
             self.log.info('vmxnet3 found!')
+            if self.params['remote_node'] != 'None' or len(self.params['remote_node']) >= 5:
+                self.skipTest("Skip mtu test while running remotely with vmxnet3")
             self.log.info("vmxnet3 min mtu is 60, because of bz1503193, skip test lower value than 68")
             mtu_range = [68, 4500, 9000, 9001]
             mtu_min = 60
@@ -248,10 +255,6 @@ class TestNetworkTest(unittest.TestCase):
             mtu_range = [0, 67, 68, 4500, 65535, 65536]
             mtu_min = 68
             mtu_max = 65535
-        cmd = 'ip link show {}'.format(self.nic)
-        out = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='save the mtu before change')
-        self.mtu_old = re.findall('mtu [0-9]+',out)[0].split(' ')[1]
-        self.log.info("Get old mtu: {}".format(self.mtu_old))
 
         self.log.info("Trying to change mtu to %s" % mtu_range)
         for mtu_size in mtu_range:

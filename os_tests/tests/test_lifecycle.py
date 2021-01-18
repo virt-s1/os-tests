@@ -16,6 +16,7 @@ class TestLifeCycle(unittest.TestCase):
         polarion_id:
         bz#: 1703366
         '''
+        self.old_grub_index = utils_lib.run_cmd(self, 'sudo grubby --default-index', expect_ret=0)
         self.log.info("Check kernel-debug can boot up!")
         mini_mem = utils_lib.get_memsize(self)
         if int(mini_mem) < 2:
@@ -28,7 +29,6 @@ class TestLifeCycle(unittest.TestCase):
             debug_kernel = "/boot/vmlinuz-" + kernel_ver.strip('\n') + ".debug"
         else:
             debug_kernel = "/boot/vmlinuz-" + kernel_ver.strip('\n') + "+debug"
-        self.old_grub_index = utils_lib.run_cmd(self, 'sudo grubby --default-index', expect_ret=0)
 
         utils_lib.run_cmd(self,
                     "sudo grubby --info=%s" % debug_kernel,
