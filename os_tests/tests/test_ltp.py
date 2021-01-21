@@ -22,6 +22,7 @@ class TestLTP(unittest.TestCase):
         utils_lib.run_cmd(self, '\n')
         utils_lib.run_cmd(self, ltp_cmd, timeout=600)
         time.sleep(5)
+        utils_lib.run_cmd(self, 'sudo cat /tmp/ltplog')
         utils_lib.run_cmd(self,
                     'sudo cat /opt/ltp/results/*',
                     expect_kw='Total Failures: 0')
