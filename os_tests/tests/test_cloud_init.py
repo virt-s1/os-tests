@@ -14,6 +14,8 @@ class TestCloudInit(unittest.TestCase):
         bz#: 1746627
         check ds-identify run and ret found
         '''
+        cmd = 'rpm -q cloud-init'
+        utils_lib.run_cmd(self, cmd, cancel_not_kw='el8_0,el8_1')
         cmd = 'sudo cat /run/cloud-init/cloud-init-generator.log'
         utils_lib.run_cmd(self,
                     cmd,
