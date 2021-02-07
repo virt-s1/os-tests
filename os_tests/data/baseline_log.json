@@ -628,5 +628,23 @@
         "link": "",
         "path": "journal, dmesg",
         "trigger": "mcelog does not support this processor"
+    },
+    "msg_72": {
+        "content": "lvm[761]:   Failed to get primary device for 259:1.",
+        "analyze": "known issue",
+        "branch": "rhel8",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1925871",
+        "path": "journal, dmesg",
+        "trigger": "blob data"
+    },
+    "msg_73": {
+        "content": "lvm[761]:   readlink failed: Invalid argument",
+        "analyze": "known issue",
+        "branch": "rhel8",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1925871",
+        "path": "journal, dmesg",
+        "trigger": "blob data"
     }
 }
