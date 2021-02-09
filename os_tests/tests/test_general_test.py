@@ -144,8 +144,8 @@ current_clocksource'
             Your kernel looks fine.
         '''
         utils_lib.run_cmd(self, 'uname -r', cancel_not_kw='el7,el6', msg='not support in el7 and el6')
-        utils_lib.is_cmd_exist(self, cmd='gcc', cancel_case=True, msg='gcc not found')
-        utils_lib.is_cmd_exist(self, cmd='wget', cancel_case=True, msg='wget not found')
+        utils_lib.is_cmd_exist(self, cmd='gcc', cancel_case=True)
+        utils_lib.is_cmd_exist(self, cmd='wget', cancel_case=True)
         cmd_list = ['wget https://github.com/redis/redis/files/5717040/redis_8124.c.txt',
                     'mv redis_8124.c.txt redis_8124.c',
                     'gcc -o reproduce redis_8124.c',
