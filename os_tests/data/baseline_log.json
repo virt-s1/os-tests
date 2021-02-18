@@ -646,5 +646,14 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1925871",
         "path": "journal, dmesg",
         "trigger": "blob data"
+    },
+    "msg_74": {
+        "content": "insights-client[1876]: Error: failed to download advisor report.",
+        "analyze": "known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1907266",
+        "path": "journal, dmesg",
+        "trigger": "Could not find the TLS certificate file"
     }
 }
