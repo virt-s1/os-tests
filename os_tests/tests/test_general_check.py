@@ -664,18 +664,25 @@ current_device"
         key_steps:
             1. #insights-client --register
             2. #insights-client --check-result
-            3. #insights-client --show-result
+            3. #insights-client --show-results
 
         expected_result:
             If run in dev compose, we simply assume there is no insights rule should be hit because no pkg update available in the latest build.
-            If run in old compose, please follow rule suggestion to check.
+            But if it is expected in dev compose, we can skip it in this case.
+            If run in GAed compose, please follow rule suggestion to check manually.
         '''
         cmd="cat /etc/redhat-release"
         utils_lib.run_cmd(self, cmd, cancel_not_kw='CentOS', msg='Not run in centos')
         utils_lib.is_cmd_exist(self, cmd="insights-client")
         utils_lib.run_cmd(self,
+                    'sudo lscpu',
+                    msg="get cpu information")
+        utils_lib.run_cmd(self,
+                    'sudo rpm -q insights-client',
+                    msg="get insights-client version")
+        utils_lib.run_cmd(self,
                     'sudo insights-client --register',
-                    msg="try to register system")
+                    msg="try to register system", timeout=120)
         utils_lib.run_cmd(self,
                     'sudo insights-client --status',
                     cancel_kw="System is registered",
@@ -689,7 +696,8 @@ current_device"
                     expect_ret=0,
                     msg="show insights result")
         #hit_list = json.loads(out)
-        if len(out) > 10:
+        tmp_dict = json.loads(out)
+        if len(tmp_dict) > 0:
             out = utils_lib.run_cmd(self,
                     'sudo insights-client --no-upload --keep-archive',
                     expect_ret=0,
@@ -697,7 +705,7 @@ current_device"
             gz_file = re.findall('/var/.*tar.gz', out)[0]
             file_name = gz_file.split('/')[-1]
             utils_lib.run_cmd(self, 'sudo cp {} {}'.format(gz_file, self.log_dir))
-            self.fail("insights rule hit")
+            self.fail("{} insights rule hit".format(len(tmp_dict)))
 
     def tearDown(self):
         self.log.info("{} test done".format(self.id()))

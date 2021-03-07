@@ -1,7 +1,7 @@
 try:
     import paramiko
 except ImportError as error:
-    print("Please install paramiko if run os-tests on remote")
+    print("Please install paramiko if run os-tests in server-client mode")
 
 import logging
 import time
