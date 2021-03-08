@@ -241,14 +241,14 @@ available_clocksource'
     def test_check_journalctl_invalid(self):
         '''
         polarion_id:
-        BZ#:1750417
+        bz#:1750417
         '''
         utils_lib.check_log(self, 'invalid', skip_words="Invalid user,invalid user,test_check", rmt_redirect_stdout=True)
 
     def test_check_journalctl_service_unknown_lvalue(self):
         '''
         polarion_id:
-        BZ#:1871139
+        bz#:1871139
         '''
         cmd = "systemctl list-unit-files |grep -v UNIT|grep -v listed|awk -F' ' '{print $1}'"
         all_services = utils_lib.run_cmd(self, cmd, msg='Get all systemd unit files').split('\n')
@@ -366,11 +366,10 @@ available_clocksource'
             self.fail("memfree:{} >= memtotal:{}".format(memfree, memtotal))
         else:
             self.log.info("memfree:{} < memtotal:{}".format(memfree, memtotal))
-        # if there are more than one node, memused maybe larger than memtotal.
-        #if int(memused) >= int(memtotal):
-        #    self.fail("memused:{} >= memtotal:{}".format(memused, memtotal))
-        #else:
-        #    self.log.info("memused:{} < memtotal:{}".format(memused, memtotal))
+        if int(memused) >= int(memtotal):
+            self.fail("memused:{} >= memtotal:{}".format(memused, memtotal))
+        else:
+            self.log.info("memused:{} < memtotal:{}".format(memused, memtotal))
 
     def test_check_memleaks(self):
         '''
@@ -399,7 +398,7 @@ available_clocksource'
     def test_check_nouveau(self):
         '''
         polarion_id: N/A
-        BZ#: 1349927, 1645772
+        bz: 1349927, 1645772
         '''
         utils_lib.is_aws(self, action='cancel')
         utils_lib.run_cmd(self, 'cat /etc/redhat-release', cancel_not_kw='CentOS', msg='skip this check on centos, rhbz1645772')
@@ -419,7 +418,7 @@ in blacklist and not loaded bug1645772")
     def test_check_nvme_io_timeout(self):
         '''
         polarion_id: N/A
-        bz#: 1859088
+        bz: 1859088
         '''
         utils_lib.is_aws(self, action='cancel')
         self.log.info("nvme_core.io_timeout=4294967295 is recommended in ec2, make sure it is \
@@ -436,7 +435,7 @@ in cmdline as bug1859088")
     def test_check_release_name(self):
         '''
         polarion_id: RHEL7-103850
-        BZ#: 1852657
+        bz#: 1852657
         '''
         check_cmd = "sudo cat /etc/redhat-release"
         output = utils_lib.run_cmd(self,check_cmd, expect_ret=0, msg='check release name')
@@ -569,7 +568,7 @@ in cmdline as bug1859088")
         '''
         polarion_id: RHEL7-111006
         des: check TSC deadline timer enabled in dmesg
-        BZ#: 1503160
+        bz#: 1503160
         '''
         utils_lib.run_cmd(self,
                     'lscpu',
@@ -632,7 +631,7 @@ current_device"
     def test_check_virtwhat(self):
         '''
         polarion_id: RHEL7-103857
-        BZ#: 1782435
+        bz: 1782435
         test virt-what, not use systemd-detect-virt
         '''
         utils_lib.is_cmd_exist(self, cmd='virt-what')
@@ -662,6 +661,18 @@ current_device"
             self.assertEqual('aws', virt_what_output.strip('\n'))
         else:
             self.skipTest("Unknow hypervisor")
+
+    def test_check_rpm_V_efi(self):
+        '''
+        des: check TSC deadline timer enabled in dmesg
+        bz: 1845052
+        '''
+        utils_lib.run_cmd(self,
+                    'sudo rpm -q efi-filesystem',
+                    cancel_not_kw="not installed", msg="efi-filesystem is not installed")
+
+        cmd = "sudo rpm -V efi-filesystem"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check rpm verify status")
 
     def test_collect_insights_result(self):
         '''

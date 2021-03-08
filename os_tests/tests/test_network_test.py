@@ -202,7 +202,7 @@ class TestNetworkTest(unittest.TestCase):
     def test_mtu_min_max_set(self):
         '''
         polarion_id: RHEL-111097
-        BZ#: 1502554, 1497228
+        bz: 1502554, 1497228
         ena mtu range: 128~9216
         ixgbevf mtu range: 68~9710
         vif mtu range: 68~65535

@@ -14,7 +14,7 @@ class TestLifeCycle(unittest.TestCase):
     def test_boot_debugkernel(self):
         '''
         polarion_id:
-        bz#: 1703366
+        bz: 1703366
         '''
         self.old_grub_index = utils_lib.run_cmd(self, 'sudo grubby --default-index', expect_ret=0)
         self.log.info("Check kernel-debug can boot up!")
@@ -82,7 +82,7 @@ class TestLifeCycle(unittest.TestCase):
     def test_boot_fipsenabled(self):
         '''
         polarion_id:
-        bz#: 1787270
+        bz: 1787270
         '''
 
         self.log.info("Check system can boot with fips=1")
@@ -118,7 +118,7 @@ class TestLifeCycle(unittest.TestCase):
     def test_boot_mitigations(self):
         '''
         polarion_id:
-        bz#: 1896786
+        bz: 1896786
         '''
         cmd = 'sudo grubby --update-kernel=ALL --args="mitigations=auto,nosmt"'
         utils_lib.run_cmd(self, cmd, msg='Append mitigations=auto,nosmt to command line!', timeout=600)
@@ -131,7 +131,7 @@ class TestLifeCycle(unittest.TestCase):
     def test_kdump_no_specify_cpu(self):
         '''
         polarion_id: RHEL7-58669
-        bz#: 1654962
+        bz: 1654962
         '''
         cmd = 'systemctl is-active kdump'
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check kdump service')

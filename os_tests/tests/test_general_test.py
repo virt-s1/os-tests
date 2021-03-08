@@ -40,7 +40,7 @@ current_clocksource'
         '''
         no hang/panic happen
         polarion_id:
-        bz#: 1650273
+        bz: 1650273
         '''
         cmd = 'sudo mount -t debugfs nodev /sys/kernel/debug'
         utils_lib.run_cmd(self, cmd, msg='mount debugfs')
@@ -68,7 +68,7 @@ current_clocksource'
         '''
         No exception when run cpupower command
         polarion_id: N/A
-        bz#: 1626505, 1659883
+        bz: 1626505, 1659883
         '''
         utils_lib.is_cmd_exist(self, 'cpupower')
         cmd = "sudo cpupower info"
@@ -273,7 +273,7 @@ grep -i pci|grep n1' % boot_pci
     def test_xenfs_write_inability(self):
         '''
         polarion_id:
-        BZ# 1663266
+        bz: 1663266
         '''
         utils_lib.run_cmd(self,
                     'lscpu',

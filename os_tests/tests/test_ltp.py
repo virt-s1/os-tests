@@ -72,7 +72,7 @@ class TestLTP(unittest.TestCase):
     def test_ltp_cpuhotplug(self):
         '''
         polarion_id: RHEL7-98752
-        BZ#: 1464095
+        bz: 1464095
         '''
         # ltp will considering fail if more than 1 cpus cannot be offline
         # in bare metal instance
@@ -92,7 +92,7 @@ at least which ltp not handle')
     def test_ltp_hugemmap(self):
         '''
         polarion_id: RHEL7-88729
-        BZ#: 1312331
+        bz: 1312331
         '''
         utils_lib.get_memsize(self)
         if utils_lib.is_arch(self, arch='aarch64') and utils_lib.get_memsize(self) < 100:
@@ -106,7 +106,7 @@ at least which ltp not handle')
     def test_ltp_ipsec_icmp(self):
         '''
         polarion_id: RHEL7-98754
-        BZ#: 1473593
+        bz: 1473593
         '''
         self._ltp_run(case_name="icmp4-uni-vti11",
                       file_name='net_stress.ipsec_icmp')
