@@ -347,6 +347,31 @@ available_clocksource'
         lsblk_out = utils_lib.run_cmd(self, lsblk_cmd, msg="Check nvme block device")
         self.assertEqual(lspci_out, lsblk_out, msg="No all nvme pci device nvme driver are loaded")
 
+    def test_check_meminfo_memfree(self):
+        '''
+        rhbz: 1880090
+        MemFree should less than MemTotal
+        Fail output:
+        # cat /sys/devices/system/node/node0/meminfo
+        Node 0 MemTotal:       30774804 kB
+        Node 0 MemFree:        31505560 kB
+        '''
+        out = utils_lib.run_cmd(self, 'sudo cat /sys/devices/system/node/node0/meminfo', expect_ret=0,
+                    msg="Check MemFree less than MemTotal")
+        memtotal = re.findall('[\d]+',re.findall('MemTotal:.*[\d]*',out)[0])[0]
+        memfree = re.findall('[\d]+',re.findall('MemFree:.*[\d]*',out)[0])[0]
+        memused = re.findall('[\d]+',re.findall('MemUsed:.*[\d]*',out)[0])[0]
+
+        if int(memfree) >= int(memtotal):
+            self.fail("memfree:{} >= memtotal:{}".format(memfree, memtotal))
+        else:
+            self.log.info("memfree:{} < memtotal:{}".format(memfree, memtotal))
+        # if there are more than one node, memused maybe larger than memtotal.
+        #if int(memused) >= int(memtotal):
+        #    self.fail("memused:{} >= memtotal:{}".format(memused, memtotal))
+        #else:
+        #    self.log.info("memused:{} < memtotal:{}".format(memused, memtotal))
+
     def test_check_memleaks(self):
         '''
         polarion_id: RHEL-117648
