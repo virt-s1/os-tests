@@ -18,7 +18,7 @@ class TestGeneralCheck(unittest.TestCase):
     def test_check_avclog_nfs(self):
         '''
         polarion_id: N/A
-        bz#: 1771856
+        bz: 1771856
         '''
         self.log.info("Check no permission denied at nfs server - bug1655493")
         cmd = 'sudo yum install -y nfs-utils'
@@ -48,7 +48,7 @@ class TestGeneralCheck(unittest.TestCase):
     def test_check_available_clocksource(self):
         '''
         polarion_id:
-        bz#: 1726487
+        bz: 1726487
         '''
         output = utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
         if 'Xen' in output:
@@ -73,7 +73,7 @@ available_clocksource'
     def test_check_boot_time(self):
         '''
         polarion_id: RHEL7-93100
-        bz#: 1776710
+        bz: 1776710
         check the boot time.
         '''
         max_boot_time = self.params.get('max_boot_time')
@@ -105,27 +105,59 @@ available_clocksource'
         '''
         :avocado: tags=test_check_dmesg_unable,fast_check
         polarion_id:
-        bz#: 1779454
+        bz: 1779454
         '''
         utils_lib.check_log(self, 'unable', log_cmd='dmesg')
 
     def test_check_dmesg_calltrace(self):
         '''
         polarion_id: RHEL7-103851
-        bz#: 1777179
+        bz: 1777179
         '''
         utils_lib.run_cmd(self, 'dmesg', expect_ret=0, expect_not_kw='Call trace,Call Trace', msg="Check there is no call trace in dmesg")
 
     def test_check_dmesg_unknownsymbol(self):
         '''
         polarion_id:
-        bz#: 1649215
+        bz: 1649215
         '''
         utils_lib.run_cmd(self,
                     'dmesg',
                     expect_ret=0,
                     expect_not_kw='Unknown symbol',
                     msg='Check there is no Unknown symbol in dmesg')
+
+    def test_check_cpu_vulnerabilities(self):
+        '''
+        check if cpu has unexpected Vulnerable
+        '''
+
+        utils_lib.run_cmd(self, "rpm -qa|grep microcode", msg='Get microcode version')
+        utils_lib.run_cmd(self, "rpm -qa|grep linux-firmware",msg='get linux-firmware pkg version')
+        check_cmd = r"sudo grep . /sys/devices/system/cpu/vulnerabilities/* | \
+sed 's/:/^/' | column -t -s^"
+        utils_lib.run_cmd(self, check_cmd, expect_ret=0)
+
+        output = utils_lib.run_cmd(self, 'uname -r', expect_ret=0)
+        if utils_lib.is_metal(self):
+            self.log.info(
+                "Bare metal instance should not have any vulnerable (microload loaded).")
+            cmd = r"sudo grep . /sys/devices/system/cpu/vulnerabilities/* | \
+sed 's/:/^/' | column -t -s^"
+        elif 'el7' in output:
+            self.log.info(
+                "Skip spec_store_bypass,Retpoline and mds in RHEL7 vms")
+            check_cmd = r"sudo grep . /sys/devices/system/cpu/vulnerabilities/* | \
+grep -v spec_store_bypass|grep -v 'tsx_async_abort'|grep -v 'Vulnerable: Retpoline'|\
+grep -v mds| sed 's/:/^/' | column -t -s^"
+        else:
+            self.log.info(
+                "Skip spec_store_bypass and mds,itlb_multihit in vms")
+            check_cmd = r"sudo grep . /sys/devices/system/cpu/vulnerabilities/*|\
+grep -v spec_store_bypass|grep -v 'tsx_async_abort'|grep -v mds|grep -v \
+itlb_multihit|sed 's/:/^/' | column -t -s^"
+
+        utils_lib.run_cmd(self, check_cmd, expect_ret=0, expect_not_kw='Vulnerable')
 
     def test_iostat_x(self):
         '''
@@ -198,7 +230,7 @@ available_clocksource'
     def test_check_journal_calltrace(self):
         '''
         polarion_id:
-        bz#: 1801999, 1736818
+        bz: 1801999, 1736818
         '''
         # redirect journalctl output to a file as it is not get return
         # normally in RHEL7
@@ -211,7 +243,7 @@ available_clocksource'
     def test_check_journalctl_dumpedcore(self):
         '''
         polarion_id:
-        bz#: 1797973
+        bz: 1797973
         '''
         # redirect journalctl output to a file as it is not get return
         # normally in RHEL7
@@ -241,14 +273,14 @@ available_clocksource'
     def test_check_journalctl_invalid(self):
         '''
         polarion_id:
-        bz#:1750417
+        bz:1750417
         '''
         utils_lib.check_log(self, 'invalid', skip_words="Invalid user,invalid user,test_check", rmt_redirect_stdout=True)
 
     def test_check_journalctl_service_unknown_lvalue(self):
         '''
         polarion_id:
-        bz#:1871139
+        bz:1871139
         '''
         cmd = "systemctl list-unit-files |grep -v UNIT|grep -v listed|awk -F' ' '{print $1}'"
         all_services = utils_lib.run_cmd(self, cmd, msg='Get all systemd unit files').split('\n')
@@ -395,6 +427,31 @@ available_clocksource'
         if len(output) > 0:
             self.fail('Memory leak found!')
 
+    def test_check_microcode_load(self):
+        '''
+        bz: 1607899
+        des: Don't attempt to perform early microcode update on virtualized guests
+        This case checks it from dmesg output.
+        '''
+        cpu_info = utils_lib.run_cmd(self,
+                    'lscpu',
+                    expect_ret=0,
+                    cancel_not_kw="aarch64",
+                    msg="Only run in x86 platform")
+        utils_lib.run_cmd(self, "rpm -qa|grep microcode",msg='get microcode pkg version')
+        utils_lib.run_cmd(self, "rpm -qa|grep linux-firmware",msg='get linux-firmware pkg version')
+        cmd = 'dmesg|grep microcode'
+        if utils_lib.is_metal(self):
+            utils_lib.run_cmd(self,
+                        cmd,
+                        expect_kw="microcode updated early",
+                        msg='microcode should load in bare metal')
+        else:
+            utils_lib.run_cmd(self,
+                        cmd,
+                        expect_not_kw='microcode updated early',
+                        msg='microcode should not load in VMs')
+
     def test_check_nouveau(self):
         '''
         polarion_id: N/A
@@ -435,7 +492,7 @@ in cmdline as bug1859088")
     def test_check_release_name(self):
         '''
         polarion_id: RHEL7-103850
-        bz#: 1852657
+        bz: 1852657
         '''
         check_cmd = "sudo cat /etc/redhat-release"
         output = utils_lib.run_cmd(self,check_cmd, expect_ret=0, msg='check release name')
@@ -568,7 +625,7 @@ in cmdline as bug1859088")
         '''
         polarion_id: RHEL7-111006
         des: check TSC deadline timer enabled in dmesg
-        bz#: 1503160
+        bz: 1503160
         '''
         utils_lib.run_cmd(self,
                     'lscpu',
@@ -664,12 +721,11 @@ current_device"
 
     def test_check_rpm_V_efi(self):
         '''
-        des: check TSC deadline timer enabled in dmesg
         bz: 1845052
         '''
         utils_lib.run_cmd(self,
                     'sudo rpm -q efi-filesystem',
-                    cancel_not_kw="not installed", msg="efi-filesystem is not installed")
+                    cancel_not_kw="not installed", msg="check if efi-filesystem is installed")
 
         cmd = "sudo rpm -V efi-filesystem"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check rpm verify status")

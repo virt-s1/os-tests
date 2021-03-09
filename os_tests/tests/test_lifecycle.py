@@ -4,12 +4,12 @@ from os_tests.libs import utils_lib
 
 class TestLifeCycle(unittest.TestCase):
     '''
-    Only run remotely.
+    Only run in server-client mode.
     '''
     def setUp(self):
         utils_lib.init_case(self)
         if self.params['remote_node'] == 'None' or len(self.params['remote_node']) < 5:
-            self.skipTest("Only support to run remotely!")
+            self.skipTest("Only support to run in server-client mode!")
 
     def test_boot_debugkernel(self):
         '''

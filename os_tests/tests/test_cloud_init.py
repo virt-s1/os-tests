@@ -11,7 +11,7 @@ class TestCloudInit(unittest.TestCase):
     def test_check_cloudinit_ds_identify_found(self):
         '''
         polarion_id:
-        bz#: 1746627
+        bz: 1746627
         check ds-identify run and ret found
         '''
         cmd = 'rpm -q cloud-init'
@@ -26,7 +26,7 @@ class TestCloudInit(unittest.TestCase):
     def test_check_cloudinit_log_imdsv2(self):
         '''
         polarion_id:
-        bz#: 1810704
+        bz: 1810704
         check cloud-init use imdsv2 in aws
         '''
         cmd = "sudo grep -Ri amazon /sys/devices/virtual/dmi/id/bios*"
@@ -46,7 +46,7 @@ class TestCloudInit(unittest.TestCase):
     def test_check_cloudinit_log_unexpected(self):
         '''
         polarion_id:
-        bz#: 1827207
+        bz: 1827207
         check no unexpected error log in cloudinit logs
         '''
         utils_lib.run_cmd(self,
@@ -65,7 +65,7 @@ class TestCloudInit(unittest.TestCase):
     def test_check_cloudinit_log_critical(self):
         '''
         polarion_id:
-        bz#: 1827207
+        bz: 1827207
         check no critical log in cloudinit logs
         '''
         utils_lib.run_cmd(self,
@@ -84,7 +84,7 @@ class TestCloudInit(unittest.TestCase):
     def test_check_cloudinit_log_warn(self):
         '''
         polarion_id:
-        bz#: 1821999
+        bz: 1821999
         check no warning log in cloudinit logs
         '''
         utils_lib.run_cmd(self,
@@ -103,7 +103,7 @@ class TestCloudInit(unittest.TestCase):
     def test_check_cloudinit_log_error(self):
         '''
         polarion_id:
-        bz#: 1821999
+        bz: 1821999
         check no error log in cloudinit logs
         '''
         utils_lib.run_cmd(self,
@@ -149,7 +149,7 @@ class TestCloudInit(unittest.TestCase):
     def test_check_output_isexist(self):
         '''
         polarion_id:
-        bz#: 1626117
+        bz: 1626117
         check whether /var/log/cloud-init-output.log exists
         '''
         utils_lib.run_cmd(self,
@@ -165,7 +165,7 @@ class TestCloudInit(unittest.TestCase):
     def test_check_cloudinit_service_status(self):
         '''
         polarion_id:
-        bz#: 1829713
+        bz: 1829713
         The 4 cloud-init services status should be "active"
         '''
         service_list = ['cloud-init-local',
