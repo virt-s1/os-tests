@@ -81,7 +81,10 @@ $(document).ready(function() {
         with open(self.logfile, 'w+') as fh:
             fh.write(self.html_header)
             self.total = self.case_pass + self.case_error + self.case_fail + self.case_skip
-            self.pass_rate = self.case_pass/(self.total - self.case_skip) * 100
+            if self.total - self.case_skip > 0:
+                self.pass_rate = self.case_pass/(self.total - self.case_skip) * 100
+            else:
+                self.pass_rate = 0
             summary = self.summary.safe_substitute(total = self.total, case_pass=self.case_pass, fail=self.case_fail,
                     error=self.case_error, skip=self.case_skip, pass_rate=format(self.pass_rate,'0.2f'), run_time=format(self.run_time,'0.2f'))
             fh.write(summary)
