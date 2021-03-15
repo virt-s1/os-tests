@@ -2,6 +2,7 @@ import unittest
 import argparse
 import copy
 import os
+from os_tests.libs.html_runner import HTMLTestRunner
 from os_tests.tests.test_cloud_init import TestCloudInit
 from os_tests.tests.test_general_check import TestGeneralCheck
 from os_tests.tests.test_general_test import TestGeneralTest
@@ -59,7 +60,9 @@ def main():
             print(case.id())
         print("Total case num: %s"%final_ts.countTestCases())
     else:
-        unittest.TextTestRunner(verbosity=2).run(final_ts)
+        HTMLTestRunner(verbosity=2).run(final_ts)
+        #unittest.TextTestRunner(verbosity=2).run(final_ts)
 
 if __name__ == "__main__":
-    unittest.TextTestRunner().run(TS)
+    HTMLTestRunner(verbosity=2).run(final_ts)
+    #unittest.TextTestRunner().run(TS)

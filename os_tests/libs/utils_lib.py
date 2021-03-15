@@ -35,16 +35,20 @@ def init_connection(test_instance, timeout=600):
     else:
         test_instance.ssh_client = None
 
-def init_case(test_instance):
-    """init case
-    Arguments:
-        test_instance {Test instance} -- unittest.TestCase instance
-    """
+def get_cfg():
     # Config file
     cfg_file = os.path.dirname(os_tests.__file__) + "/cfg/os-tests.yaml"
     # Result dir
     with open(cfg_file,'r') as fh:
        keys_data = load(fh, Loader=Loader)
+    return cfg_file, keys_data
+
+def init_case(test_instance):
+    """init case
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+    """
+    cfg_file, keys_data = get_cfg()
     test_instance.params = keys_data
     results_dir = keys_data['results_dir']
     test_instance.log_dir = results_dir
