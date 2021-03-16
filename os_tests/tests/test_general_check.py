@@ -554,6 +554,21 @@ in cmdline as bug1859088")
         '''
         utils_lib.run_cmd(self, 'cat /proc/self/status', expect_not_kw='unknown', msg='Check no unknown in "/proc/self/status"')
 
+    def test_check_product_id(self):
+        '''
+        bz: 1938930
+        issue: RHELPLAN-60817
+        check if product id matches /etc/redhat-release
+        '''
+        check_cmd = "sudo cat /etc/redhat-release"
+        output = utils_lib.run_cmd(self,check_cmd, expect_ret=0, msg='check release name')
+        product_id = re.findall('\d.\d', output)[0]
+        self.log.info("Get product id: {}".format(product_id))
+        cmd = 'sudo rpm -qa|grep redhat-release'
+        utils_lib.run_cmd(self,cmd, cancel_ret='0', msg='get redhat-release-server version')
+        cmd = 'sudo rct cat-cert /etc/pki/product-default/*.pem'
+        utils_lib.run_cmd(self,cmd, expect_ret=0, expect_kw="Version: {}".format(product_id), msg='check product certificate')
+
     def test_check_service(self):
         '''
         case_name:
