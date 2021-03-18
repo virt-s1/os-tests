@@ -194,7 +194,6 @@ class HTMLTestRunner(object):
             for ts, err in result.failures:
                 if case == ts.id():
                     is_pass = False
-                    print("{}: FAIL".format(case))
                     html_sum.case_fail += 1
                     html_sum.table_rows.append((id, case, 'FAIL', err, debug_log))
                     with open(debug_log, 'a+') as fh:
@@ -209,7 +208,6 @@ class HTMLTestRunner(object):
             for ts, err in result.errors:
                 if case == ts.id():
                     is_pass = False
-                    print("{}: ERROR".format(case))
                     html_sum.case_error += 1
                     html_sum.table_rows.append((id, case, 'ERROR', err, debug_log))
                     with open(debug_log, 'a+') as fh:
@@ -224,7 +222,6 @@ class HTMLTestRunner(object):
             for ts, reason in result.skipped:
                 if case == ts.id():
                     is_pass = False
-                    print("{}: SKIPPED".format(case))
                     html_sum.case_skip += 1
                     html_sum.table_rows.append((id, case, 'SKIP', reason, debug_log))
                     with open(debug_log, 'a+') as fh:
