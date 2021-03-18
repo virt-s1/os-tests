@@ -156,11 +156,22 @@ class TestCloudInit(unittest.TestCase):
                     'uname -r',
                     cancel_not_kw='el7,el6',
                     msg='cancel it in RHEL7')
+        datasource = None
+        if utils_lib.is_ali(self):
+            datasource = 'Datasource DataSourceAliYun'
+        if utils_lib.is_aws(self):
+            datasource = 'Datasource DataSourceEc2Local'
         cmd = 'sudo cat /var/log/cloud-init-output.log'
-        utils_lib.run_cmd(self,
-                    cmd,
-                    expect_kw='Datasource DataSourceEc2Local',
-                    msg='check /var/log/cloud-init-output.log exists status')
+        if datasource is not None:    
+            utils_lib.run_cmd(self,
+                        cmd,
+                        expect_kw=datasource,
+                        msg='check /var/log/cloud-init-output.log exists status')
+        else:
+            utils_lib.run_cmd(self,
+                        cmd,
+                        expect_ret=0,
+                        msg='check /var/log/cloud-init-output.log exists status')
 
     def test_check_cloudinit_service_status(self):
         '''

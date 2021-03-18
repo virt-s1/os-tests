@@ -367,6 +367,26 @@ def is_aws(test_instance, action=None):
         test_instance.log.info("Not an aws system.")
     return False
 
+def is_ali(test_instance, action=None):
+    '''
+    Check whether system is a ali system.
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+        action {string} -- cancel case if it is not a ali system
+    Return:
+        aws: return True
+        other: return False
+    '''
+    output = run_cmd(test_instance, "cat /sys/devices/virtual/dmi/id/product_*", expect_ret=0)
+    if 'alibaba' in output.lower():
+        test_instance.log.info("Ali system.")
+        return True
+    else:
+        if action == "cancel":
+            test_instance.skipTest("Cancel it in non ali system.")
+        test_instance.log.info("Not an ali system.")
+    return False
+
 def is_metal(test_instance, action=None):
     '''
     Check whether system is a baremetal system.
