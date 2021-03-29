@@ -111,6 +111,17 @@ current_clocksource'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='Failed,FAILED', timeout=120)
 
 
+    def test_fio_cpuclock(self):
+        '''
+        bz: 1943474
+        polarion_id: N/A
+        Perform test and validation of internal CPU clock.
+        '''
+        utils_lib.run_cmd(self, 'sudo lscpu', cancel_not_kw="aarch64")
+        utils_lib.is_cmd_exist(self, 'fio')
+        cmd = "sudo fio --cpuclock-test"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw="Pass",msg='Perform test and validation of internal CPU clock.', timeout=1200)
+
     def test_fork_pte(self):
         '''
         case_name:

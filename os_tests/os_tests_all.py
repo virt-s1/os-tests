@@ -2,6 +2,7 @@ import unittest
 import argparse
 import copy
 import os
+import sys
 from os_tests.libs.html_runner import HTMLTestRunner
 from os_tests.tests.test_cloud_init import TestCloudInit
 from os_tests.tests.test_general_check import TestGeneralCheck
@@ -55,6 +56,9 @@ def main():
                     else:
                         if not is_skip:
                             final_ts.addTest(case)
+    if final_ts.countTestCases() == 0:
+        print("No case found!")
+        sys.exit(1)
     if args.is_listcase:
         for case in final_ts:
             print(case.id())
@@ -64,5 +68,5 @@ def main():
         #unittest.TextTestRunner(verbosity=2).run(final_ts)
 
 if __name__ == "__main__":
-    HTMLTestRunner(verbosity=2).run(final_ts)
+    main()
     #unittest.TextTestRunner().run(TS)
