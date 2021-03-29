@@ -561,7 +561,7 @@ in cmdline as bug1859088")
         check if product id matches /etc/redhat-release
         '''
         check_cmd = "sudo cat /etc/redhat-release"
-        output = utils_lib.run_cmd(self,check_cmd, expect_ret=0, msg='check release name')
+        output = utils_lib.run_cmd(self,check_cmd, expect_ret=0, cancel_not_kw='CentOS,Fedora', msg='check release name')
         product_id = re.findall('\d.\d', output)[0]
         self.log.info("Get product id: {}".format(product_id))
         cmd = 'sudo rpm -qa|grep redhat-release'
@@ -779,7 +779,7 @@ current_device"
             If run in GAed compose, please follow rule suggestion to check manually.
         '''
         cmd="cat /etc/redhat-release"
-        utils_lib.run_cmd(self, cmd, cancel_not_kw='CentOS', msg='Not run in centos')
+        utils_lib.run_cmd(self, cmd, cancel_not_kw='CentOS,Fedora', msg='Not run in centos')
         utils_lib.is_cmd_exist(self, cmd="insights-client")
         utils_lib.run_cmd(self,
                     'sudo lscpu',
@@ -805,8 +805,8 @@ current_device"
         #hit_list = json.loads(out)
         out = utils_lib.run_cmd(self,
                 'sudo insights-client --no-upload --keep-archive',
-                expect_ret=0,
-                msg="generate archive")
+                expect_ret=0, expect_kw="tar.gz",
+                msg="generate archive", timeout=180)
         gz_file = re.findall('/var/.*tar.gz', out)[0]
         file_name = gz_file.split('/')[-1]
         utils_lib.run_cmd(self, 'sudo cp {} {}'.format(gz_file, self.log_dir))

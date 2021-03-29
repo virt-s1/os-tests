@@ -51,11 +51,14 @@ def init_case(test_instance):
     cfg_file, keys_data = get_cfg()
     test_instance.params = keys_data
     results_dir = keys_data['results_dir']
+    debug_dir = results_dir + "/debug"
     test_instance.log_dir = results_dir
     if not os.path.exists(results_dir):
         os.mkdir(results_dir)
+    if not os.path.exists(debug_dir):
+        os.mkdir(debug_dir)
     case_log = test_instance.id() + ".debug"
-    log_file = results_dir + '/' + case_log
+    log_file = debug_dir + '/' + case_log
     if os.path.exists(log_file):
         os.unlink(log_file)
     test_instance.log = logging.getLogger(__name__)

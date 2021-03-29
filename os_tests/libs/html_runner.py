@@ -190,7 +190,7 @@ class HTMLTestRunner(object):
             id += 1
             is_pass = True
             os.chdir(logdir)
-            debug_log = case + '.debug'
+            debug_log = "debug/" + case + '.debug'
             for ts, err in result.failures:
                 if case == ts.id():
                     is_pass = False
