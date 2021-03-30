@@ -10,7 +10,7 @@ os-tests is a lightweight, fast check and tests collection for Linux OS.
 
 `# pip install os-tests`
 
-note: you must install paramiko module to support run in server-client mode.  
+note: you must install paramiko module if run in server-client mode.  
     This requires libffi-devel,openssl-devel,python-devel are required in aarch64 to compile cryptography
 
 ### Install from source code
@@ -77,23 +77,27 @@ remote_keyfile: None
 
 ### The log file
 
-The console only shows the case test result as summary.
-The test debug log file are saved in "/tmp/os_tests_result" following case name by default.
-You can change "results_dir" in "cfg/os-tests.yaml" to save log in other place.
+The suite saves summary to sum.html and sum.log under /tmp/os_tests_result/.
+The test debug log files are saved in "/tmp/os_tests_result/debug" following case name by default.
+You can change "results_dir" in "cfg/os-tests.yaml" to save log to other place.
 
 Below is an example:
 
 ```bash
-# python3 -m unittest -v os_tests.tests.test_general_test.TestGeneralTest.test_change_clocksource
+#  os-tests -p test_change_clocksource
+Run in mode: is_listcase:False pattern: test_change_clocksource
 test_change_clocksource (os_tests.tests.test_general_test.TestGeneralTest) ... ok
-
 ----------------------------------------------------------------------
-Ran 1 test in 0.117s
+summary in html: /tmp/os_tests_result/sum.html
+summary in text: /tmp/os_tests_result/sum.log
+----------------------------------------------------------------------
+Ran 1 test in 0.383s
 
 OK
-# ls -l /tmp/os_tests_result/
+
+# ls -l /tmp/os_tests_result/debug/
 total 8
--rw-r--r--. 1 root root 4224 Aug 26 10:11 os_tests.tests.test_general_test.TestGeneralTest.test_change_clocksource.debug
+-rw-r--r--. 1 root root 5472 Mar 30 16:44 os_tests.tests.test_general_test.TestGeneralTest.test_change_clocksource.debug
 ```
 
 ### The installed files
