@@ -120,12 +120,35 @@ class TestLifeCycle(unittest.TestCase):
         polarion_id:
         bz: 1896786
         '''
+        utils_lib.run_cmd(self,
+                    r'sudo rm -rf /var/crash/*',
+                    expect_ret=0,
+                    msg='clean /var/crash firstly')
         cmd = 'sudo grubby --update-kernel=ALL --args="mitigations=auto,nosmt"'
         utils_lib.run_cmd(self, cmd, msg='Append mitigations=auto,nosmt to command line!', timeout=600)
         utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(10)
         utils_lib.init_connection(self, timeout=800)
         utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='mitigations=auto,nosmt')
+        utils_lib.check_log(self, "error,warn,fail,trace,Trace", rmt_redirect_stdout=True)
+
+    def test_boot_usbcore_quirks(self):
+        '''
+        bz: 1809429
+        polarion_id:
+        '''
+        utils_lib.run_cmd(self, r'sudo rm -rf /var/crash/*',
+                    expect_ret=0, msg='clean /var/crash firstly')
+        option = 'usbcore.quirks=quirks=0781:5580:bk,0a5c:5834:gij'
+        cmd = 'sudo grubby --update-kernel=ALL --args="{}"'.format(option)
+        utils_lib.run_cmd(self, cmd, msg='Append {} to command line!'.format(option), timeout=600)
+        utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
+        time.sleep(10)
+        utils_lib.init_connection(self, timeout=800)
+
+        utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw=option)
+        cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50'
+        utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='make sure there is no core generated')
         utils_lib.check_log(self, "error,warn,fail,trace,Trace", rmt_redirect_stdout=True)
 
     def test_kdump_no_specify_cpu(self):
@@ -165,7 +188,7 @@ no plan to fix it in the near future!")
                     r'find /var/crash',
                     expect_ret=0,
                     msg='list /var/crash after crash')
-        cmd = r'sudo cat /var/crash/1*/vmcore-dmesg.txt|tail -50'
+        cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='write_sysrq_trigger')
 
     def tearDown(self):
@@ -175,6 +198,9 @@ no plan to fix it in the near future!")
         if 'test_boot_mitigations' in self.id():
             cmd = 'sudo grubby --update-kernel=ALL  --remove-args="mitigations=auto,nosmt"'
             utils_lib.run_cmd(self, cmd, msg='Remove "mitigations=auto,nosmt"')
+        if 'test_boot_usbcore_quirks' in self.id():
+            cmd = 'sudo grubby --update-kernel=ALL  --remove-args="usbcore.quirks=quirks=0781:5580:bk,0a5c:5834:gij"'
+            utils_lib.run_cmd(self, cmd, msg='Remove "usbcore.quirks=quirks=0781:5580:bk,0a5c:5834:gij"')
         if 'test_kdump_no_specify_cpu' not in self.id():
             utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
             time.sleep(10)
