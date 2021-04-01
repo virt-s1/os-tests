@@ -168,6 +168,20 @@ current_clocksource'
         if 'Your kernel looks fine' not in out:
             self.fail("'Your kernel looks fine' not found in {}".format(out))
 
+    def test_fsadm_resize(self):
+        '''
+        bz: 1905705
+        polarion_id: N/A
+        fsadm resize should not crash as below without NEW_SIZE specified
+        # fsadm resize $(findmnt -n -o source /)
+        /sbin/fsadm: line 818: $3: unbound variable
+        expected result:
+        fsadm does nothing since the filesystem is already at maximum size
+        '''
+        utils_lib.is_cmd_exist(self, 'fsadm')
+        utils_lib.run_cmd(self, 'sudo fsadm resize $(findmnt -n -o source /)', expect_ret=0,
+            expect_not_kw="unbound variable", msg="fsadm should not crash")
+
     def test_subscription_manager_auto(self):
         '''
         bz: 1932802, 1905398
