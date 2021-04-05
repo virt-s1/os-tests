@@ -226,6 +226,53 @@ current_clocksource'
             self.log.info('wait {}s and try to check again, timeout {}s'.format(interval, timeout))
             time.sleep(interval)
 
+    def test_subscription_manager_config(self):
+        '''
+        bz: 1862431
+        des: "subscription-manager config" output should equal "subscription-manager config --list"
+        '''
+        utils_lib.is_cmd_exist(self, 'subscription-manager')
+        cmd1 = "sudo subscription-manager config"
+        out1 = utils_lib.run_cmd(self, cmd1, expect_ret=0, msg='get {} output'.format(cmd1))
+        cmd2 = "sudo subscription-manager config --list"
+        out2 = utils_lib.run_cmd(self, cmd2, expect_ret=0, msg='get {} output'.format(cmd2))
+        if out1 != out2:
+            self.fail('"{}" output not same with "{}"'.format(cmd1,cmd2))
+
+    def test_podman_rm_stopped(self):
+        '''
+        bz: 1913295
+        des: podman can remove a stopped container
+        '''
+        self.log.info("Test podman can remove a stopped container")
+        utils_lib.is_cmd_exist(self, 'podman')
+        cmd = "podman ps"
+        utils_lib.run_cmd(self, cmd, msg='try to list all containers before testing')
+        cmd = "podman rm -a -f"
+        utils_lib.run_cmd(self, cmd, msg='try to clean all containers before testing')
+        cmd = "podman run --name myctr1 -td quay.io/libpod/alpine"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='run myctr1')
+        cmd = "podman run --name myctr2 -td quay.io/libpod/alpine"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='run myctr2')
+        cmd = "timeout 5 podman exec myctr1 sleep 10"
+        utils_lib.run_cmd(self, cmd)
+        cmd = "podman kill myctr1"
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        cmd = "podman inspect myctr1"
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        cmd = "podman rm myctr1"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to remove myctr1')
+        cmd = "timeout 5 podman exec myctr2 sleep 10"
+        utils_lib.run_cmd(self, cmd)
+        cmd = "podman stop myctr2"
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        cmd = "podman inspect myctr2"
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        cmd = "podman rm myctr2"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to remove myctr2')
+        cmd = "podman ps"
+        utils_lib.run_cmd(self, cmd, expect_not_kw='myctr1,myctr2', msg='try to list all containers again after testing')
+
     def test_virsh_pci_reattach(self):
         '''
         case_name:

@@ -17,8 +17,8 @@ class TestGeneralCheck(unittest.TestCase):
 
     def test_check_avclog_nfs(self):
         '''
-        polarion_id: N/A
         bz: 1771856
+        polarion_id: N/A
         '''
         self.log.info("Check no permission denied at nfs server - bug1655493")
         cmd = 'sudo yum install -y nfs-utils'
@@ -47,8 +47,8 @@ class TestGeneralCheck(unittest.TestCase):
 
     def test_check_available_clocksource(self):
         '''
-        polarion_id:
         bz: 1726487
+        polarion_id:
         '''
         output = utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
         if 'Xen' in output:
@@ -72,8 +72,8 @@ available_clocksource'
 
     def test_check_boot_time(self):
         '''
-        polarion_id: RHEL7-93100
         bz: 1776710
+        polarion_id: RHEL7-93100
         check the boot time.
         '''
         max_boot_time = self.params.get('max_boot_time')
@@ -103,29 +103,42 @@ available_clocksource'
 
     def test_check_dmesg_unable(self):
         '''
-        :avocado: tags=test_check_dmesg_unable,fast_check
-        polarion_id:
         bz: 1779454
+        polarion_id:
         '''
         utils_lib.check_log(self, 'unable', log_cmd='dmesg')
 
     def test_check_dmesg_calltrace(self):
         '''
-        polarion_id: RHEL7-103851
         bz: 1777179
+        polarion_id: RHEL7-103851
         '''
         utils_lib.run_cmd(self, 'dmesg', expect_ret=0, expect_not_kw='Call trace,Call Trace', msg="Check there is no call trace in dmesg")
 
     def test_check_dmesg_unknownsymbol(self):
         '''
-        polarion_id:
         bz: 1649215
+        polarion_id:
         '''
         utils_lib.run_cmd(self,
                     'dmesg',
                     expect_ret=0,
                     expect_not_kw='Unknown symbol',
                     msg='Check there is no Unknown symbol in dmesg')
+
+    def test_check_dmidecode_outofspec(self):
+        '''
+        bz: 1858350
+        des: make sure there is no "OUT OF SPEC" in dmidecode output
+        '''
+        utils_lib.is_cmd_exist(self, cmd='dmidecode')
+        cmd = "sudo dmidecode --dump-bin {}/debug/dmidecode_debug.bin".format(self.log_dir)
+        utils_lib.run_cmd(self, cmd, msg='save dmidecode_debug.bin for debug purpose, please attach it if file bug')
+        utils_lib.run_cmd(self,
+                    'sudo dmidecode',
+                    expect_ret=0,
+                    expect_not_kw='OUT OF SPEC',
+                    msg='Check there is no "OUT OF SPEC" in dmidecode output')
 
     def test_check_cpu_vulnerabilities(self):
         '''
@@ -638,9 +651,9 @@ in cmdline as bug1859088")
 
     def test_check_tsc_deadline_timer(self):
         '''
-        polarion_id: RHEL7-111006
         des: check TSC deadline timer enabled in dmesg
         bz: 1503160
+        polarion_id: RHEL7-111006
         '''
         utils_lib.run_cmd(self,
                     'lscpu',
@@ -702,8 +715,8 @@ current_device"
 
     def test_check_virtwhat(self):
         '''
-        polarion_id: RHEL7-103857
         bz: 1782435
+        polarion_id: RHEL7-103857
         test virt-what, not use systemd-detect-virt
         '''
         utils_lib.is_cmd_exist(self, cmd='virt-what')
