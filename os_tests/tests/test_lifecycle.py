@@ -115,10 +115,29 @@ class TestLifeCycle(unittest.TestCase):
             cmd = 'sudo fips-mode-setup --disable'
             utils_lib.run_cmd(self, cmd, msg='Disable fips!')
 
+    def test_boot_hpet_mmap_enabled(self):
+        '''
+        bz: 1660796
+        polarion_id:
+        '''
+        utils_lib.run_cmd(self,
+                    r'sudo rm -rf /var/crash/*',
+                    expect_ret=0,
+                    msg='clean /var/crash firstly')
+        cmd = 'sudo grubby --update-kernel=ALL --args="hpet_mmap=1"'
+        utils_lib.run_cmd(self, cmd, msg='Append hpet_mmap=1,nosmt to command line!', timeout=600)
+        utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
+        time.sleep(10)
+        utils_lib.init_connection(self, timeout=800)
+        utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='hpet_mmap=1')
+        utils_lib.run_cmd(self, 'sudo cat /proc/iomem|grep -i hpet', expect_kw='HPET 0')
+        utils_lib.run_cmd(self, 'dmesg | grep -i hpet', expect_kw='enabled')
+        utils_lib.check_log(self, "error,warn,fail,trace,Trace", rmt_redirect_stdout=True)
+
     def test_boot_mitigations(self):
         '''
-        polarion_id:
         bz: 1896786
+        polarion_id:
         '''
         utils_lib.run_cmd(self,
                     r'sudo rm -rf /var/crash/*',
@@ -153,8 +172,8 @@ class TestLifeCycle(unittest.TestCase):
 
     def test_kdump_no_specify_cpu(self):
         '''
-        polarion_id: RHEL7-58669
         bz: 1654962
+        polarion_id: RHEL7-58669
         '''
         cmd = 'systemctl is-active kdump'
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check kdump service')
@@ -195,6 +214,9 @@ no plan to fix it in the near future!")
         if 'test_boot_debugkernel' in self.id():
             cmd = "sudo grubby --set-default-index=%s" % self.old_grub_index
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="restore default boot index to {}".format(self.old_grub_index))
+        if 'test_boot_hpet_mmap_enabled' in self.id():
+            cmd = 'sudo grubby --update-kernel=ALL  --remove-args="hpet_mmap=1"'
+            utils_lib.run_cmd(self, cmd, msg='Remove "hpet_mmap=1"')
         if 'test_boot_mitigations' in self.id():
             cmd = 'sudo grubby --update-kernel=ALL  --remove-args="mitigations=auto,nosmt"'
             utils_lib.run_cmd(self, cmd, msg='Remove "mitigations=auto,nosmt"')
