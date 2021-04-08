@@ -655,5 +655,14 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1907266",
         "path": "journal, dmesg",
         "trigger": "Could not find the TLS certificate file"
+    },
+    "msg_75": {
+        "content": "smpboot: do_boot_cpu failed(-1) to wakeup CPU#0",
+        "analyze": "known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1929266",
+        "path": "journal, dmesg",
+        "trigger": "starting cpuhotplug"
     }
 }

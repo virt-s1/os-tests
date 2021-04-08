@@ -342,7 +342,7 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         '''
         utils_lib.is_cmd_exist(self, cmd='lshw')
         base_memory = utils_lib.get_memsize(self)
-        cmd = 'lshw -json'
+        cmd = 'sudo lshw -json'
         output = utils_lib.run_cmd(self, cmd, expect_ret=0)
         out = json.loads(output)['children'][0]["children"]
         for i in out:

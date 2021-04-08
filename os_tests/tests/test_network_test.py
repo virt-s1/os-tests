@@ -234,7 +234,7 @@ class TestNetworkTest(unittest.TestCase):
             mtu_max = 65535
         elif 'vmxnet3' in output:
             self.log.info('vmxnet3 found!')
-            if self.params['remote_node'] != 'None' or len(self.params['remote_node']) >= 5:
+            if self.params['remote_node'] is not None:
                 self.skipTest("Skip mtu test while running remotely with vmxnet3")
             self.log.info("vmxnet3 min mtu is 60, because of bz1503193, skip test lower value than 68")
             mtu_range = [68, 4500, 9000, 9001]
