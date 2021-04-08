@@ -71,9 +71,9 @@ You can change the default setting in "cfg/os-tests.yaml".
 
 If you want to run os-tests all cases in remote node to support lifecyce cases which needs reboot.  
 Please specify below options:  
-remote_node: None  
+remote_node:   
 remote_user: ec2-user  
-remote_keyfile: None  
+remote_keyfile:   
 
 ### The log file
 

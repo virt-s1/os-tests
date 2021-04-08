@@ -21,10 +21,10 @@ disk_utils: 30
 # if you want to run os-tests in master-slave mode, please specify below options.
 # All tests are running in slave node including some reboot operations.
 # remote_node specify remote ip
-remote_node: None
+remote_node: 
 # remote_user: user to login remote
 remote_user: ec2-user
 # ssh key file location for remote access
-remote_keyfile: None
+remote_keyfile: 
 # or password for remote access
-remote_password: None
+remote_password: 

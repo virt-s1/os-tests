@@ -162,7 +162,7 @@ current_clocksource'
         cmd_list = ['wget https://github.com/redis/redis/files/5717040/redis_8124.c.txt',
                     'mv redis_8124.c.txt redis_8124.c',
                     'gcc -o reproduce redis_8124.c',
-                    'systemd-run --scope -p MemoryLimit=550M ./reproduce']
+                    'sudo systemd-run --scope -p MemoryLimit=550M ./reproduce']
         for cmd in cmd_list:
             out = utils_lib.run_cmd(self, cmd, expect_ret=0, timeout=120)
         if 'Your kernel looks fine' not in out:

@@ -8,7 +8,7 @@ class TestLifeCycle(unittest.TestCase):
     '''
     def setUp(self):
         utils_lib.init_case(self)
-        if self.params['remote_node'] == 'None' or len(self.params['remote_node']) < 5:
+        if self.params['remote_node'] is None:
             self.skipTest("Only support to run in server-client mode!")
 
     def test_boot_debugkernel(self):
@@ -84,6 +84,7 @@ class TestLifeCycle(unittest.TestCase):
         polarion_id:
         bz: 1787270
         '''
+        self.skipTest("skip it for now because paramiko know issue when enabled fips https://github.com/paramiko/paramiko/pull/1643")
 
         self.log.info("Check system can boot with fips=1")
         output = utils_lib.run_cmd(self, 'uname -r', expect_ret=0)
@@ -117,7 +118,7 @@ class TestLifeCycle(unittest.TestCase):
 
     def test_boot_hpet_mmap_enabled(self):
         '''
-        bz: 1660796
+        bz: 1660796, 1764790
         polarion_id:
         '''
         utils_lib.run_cmd(self,
@@ -130,8 +131,11 @@ class TestLifeCycle(unittest.TestCase):
         time.sleep(10)
         utils_lib.init_connection(self, timeout=800)
         utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='hpet_mmap=1')
-        utils_lib.run_cmd(self, 'sudo cat /proc/iomem|grep -i hpet', expect_kw='HPET 0')
-        utils_lib.run_cmd(self, 'dmesg | grep -i hpet', expect_kw='enabled')
+        utils_lib.run_cmd(self, 'dmesg | grep -i hpet', expect_kw='enabled', expect_not_kw='6HPET')
+        cmd = 'sudo cat /sys/devices/system/clocksource/clocksource0/available_clocksource'
+        out = utils_lib.run_cmd(self, cmd)
+        if 'hpet' in out:
+            utils_lib.run_cmd(self, 'sudo cat /proc/iomem|grep -i hpet', expect_kw='HPET 0')
         utils_lib.check_log(self, "error,warn,fail,trace,Trace", rmt_redirect_stdout=True)
 
     def test_boot_mitigations(self):
@@ -167,8 +171,8 @@ class TestLifeCycle(unittest.TestCase):
 
         utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw=option)
         cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50'
-        utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='make sure there is no core generated')
-        utils_lib.check_log(self, "error,warn,fail,trace,Trace", rmt_redirect_stdout=True)
+        utils_lib.run_cmd(self, cmd, expect_kw='No such file or directory', msg='make sure there is no core generated')
+        utils_lib.check_log(self, "error,warn,fail,trace,Trace", skip_words='ftrace', rmt_redirect_stdout=True)
 
     def test_kdump_no_specify_cpu(self):
         '''
@@ -193,7 +197,7 @@ no plan to fix it in the near future!")
                     r'find /var/crash',
                     expect_ret=0,
                     msg='list /var/crash')
-        utils_lib.run_cmd(self, 'echo c > /proc/sysrq-trigger', msg='trigger crash')
+        utils_lib.run_cmd(self, 'sudo echo c > /proc/sysrq-trigger', msg='trigger crash')
 
         if self.is_metal:
             self.log.info("Wait 180s")

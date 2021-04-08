@@ -27,7 +27,7 @@ def build_connection(rmt_node=None, rmt_user='ec2-user', rmt_password=None, rmt_
                 log.info("no password or keyfile for ssh access")
                 ssh_client.load_system_host_keys()
                 ssh_client.connect(rmt_node, username=rmt_user)
-            if rmt_password is not None or rmt_password != 'None':
+            if rmt_password is not None:
                 log.info("login system using password")
                 ssh_client.connect(
                     rmt_node,
@@ -41,10 +41,12 @@ def build_connection(rmt_node=None, rmt_user='ec2-user', rmt_password=None, rmt_
                 if not os.path.exists(rmt_keyfile):
                     log.error("{} not found".format(rmt_keyfile))
                     return None
+                #pkey = paramiko.RSAKey.from_private_key_file(rmt_keyfile)
                 ssh_client.connect(
                     rmt_node,
                     username=rmt_user,
                     key_filename=rmt_keyfile,
+                    #pkey=pkey,
                     look_for_keys=False,
                     timeout=60
                 )

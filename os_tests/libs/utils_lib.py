@@ -17,7 +17,7 @@ except ImportError:
     from yaml import Loader, Dumper
 
 def init_connection(test_instance, timeout=600):
-    if test_instance.params['remote_node'] != 'None':
+    if test_instance.params['remote_node'] is not None:
         test_instance.log.info("remote_node specified, all tests will be run in {}".format(test_instance.params['remote_node']))
         start_time = time.time()
         while True:
@@ -73,7 +73,7 @@ def init_case(test_instance):
             test_instance.log.info("key:{}, val:*******".format(key))
         else:
             test_instance.log.info("key:{}, val:{}".format(key, test_instance.params[key]))
-    if test_instance.params['remote_node'] != 'None' or len(test_instance.params['remote_node']) >= 5:
+    if test_instance.params['remote_node'] is not None:
         test_instance.log.info("remote_node specified, all tests will be run in {}".format(test_instance.params['remote_node']))
         test_instance.ssh_client = rmt_ssh.build_connection(rmt_node=test_instance.params['remote_node'],rmt_user=test_instance.params['remote_user'],rmt_password=test_instance.params['remote_password'],rmt_keyfile=test_instance.params['remote_keyfile'])
         if test_instance.ssh_client is None:
@@ -360,7 +360,7 @@ def is_aws(test_instance, action=None):
         aws: return True
         other: return False
     '''
-    output = run_cmd(test_instance, "cat /sys/devices/virtual/dmi/id/bios_*", expect_ret=0)
+    output = run_cmd(test_instance, "sudo cat /sys/devices/virtual/dmi/id/bios_*", expect_ret=0)
     if 'amazon' in output.lower():
         test_instance.log.info("AWS system.")
         return True
@@ -380,7 +380,7 @@ def is_ali(test_instance, action=None):
         aws: return True
         other: return False
     '''
-    output = run_cmd(test_instance, "cat /sys/devices/virtual/dmi/id/product_*", expect_ret=0)
+    output = run_cmd(test_instance, "sudo cat /sys/devices/virtual/dmi/id/product_*", expect_ret=0)
     if 'alibaba' in output.lower():
         test_instance.log.info("Ali system.")
         return True
