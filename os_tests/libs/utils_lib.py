@@ -9,7 +9,7 @@ import os_tests
 import json
 import difflib
 import time
-from os_tests.libs import rmt_ssh
+from tipset.libs import rmt_ssh
 from yaml import load, dump
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -25,7 +25,7 @@ def init_connection(test_instance, timeout=600):
             if current_time - start_time > timeout:
                 test_instance.log.info("timeout to connect to remote")
                 break
-            test_instance.ssh_client = rmt_ssh.build_connection(rmt_node=test_instance.params['remote_node'],rmt_user=test_instance.params['remote_user'], rmt_password=test_instance.params['remote_password'], rmt_keyfile=test_instance.params['remote_keyfile'])
+            test_instance.ssh_client = rmt_ssh.build_connection(rmt_node=test_instance.params['remote_node'],rmt_user=test_instance.params['remote_user'], rmt_password=test_instance.params['remote_password'], rmt_keyfile=test_instance.params['remote_keyfile'], log=test_instance.log)
             if test_instance.ssh_client is not None:
                 break
             time.sleep(5)
@@ -75,7 +75,7 @@ def init_case(test_instance):
             test_instance.log.info("key:{}, val:{}".format(key, test_instance.params[key]))
     if test_instance.params['remote_node'] is not None:
         test_instance.log.info("remote_node specified, all tests will be run in {}".format(test_instance.params['remote_node']))
-        test_instance.ssh_client = rmt_ssh.build_connection(rmt_node=test_instance.params['remote_node'],rmt_user=test_instance.params['remote_user'],rmt_password=test_instance.params['remote_password'],rmt_keyfile=test_instance.params['remote_keyfile'])
+        test_instance.ssh_client = rmt_ssh.build_connection(rmt_node=test_instance.params['remote_node'],rmt_user=test_instance.params['remote_user'],rmt_password=test_instance.params['remote_password'],rmt_keyfile=test_instance.params['remote_keyfile'], log=test_instance.log)
         if test_instance.ssh_client is None:
             test_instance.skipTest("Cannot make ssh connection to remote, please check")
     else:
@@ -166,7 +166,7 @@ def run_cmd(test_instance,
 
     try:
         if test_instance.ssh_client is not None:
-            status, output = rmt_ssh.remote_excute(test_instance.ssh_client, cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty)
+            status, output = rmt_ssh.remote_excute(test_instance.ssh_client, cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty, log=test_instance.log)
         else:
             ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
             status = ret.returncode
@@ -182,8 +182,8 @@ def run_cmd(test_instance,
         test_instance.log.info("Test via uname, if still fail, please make sure no hang or panic in sys")
         try:
             if test_instance.ssh_client is not None:
-                status, output = rmt_ssh.remote_excute(test_instance.ssh_client, 'uname -a', timeout)
-                status, output = rmt_ssh.remote_excute(test_instance.ssh_client, cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr, rmt_get_pty=rmt_get_pty)
+                status, output = rmt_ssh.remote_excute(test_instance.ssh_client, 'uname -a', timeout, log=test_instance.log)
+                status, output = rmt_ssh.remote_excute(test_instance.ssh_client, cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr, rmt_get_pty=rmt_get_pty, log=test_instance.log)
             else:
                 ret = subprocess.run('uname -a', shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
                 status = ret.returncode
@@ -448,6 +448,7 @@ def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False):
     if len(pkg_list) == 0:
         test_instance.skipTest("Unable to install {}".format(cmd))
         return False
+    pkg_list.sort(reverse=True)
     run_cmd(test_instance, "sudo yum install -y %s" % pkg_list[0], expect_ret=0, timeout=120)
     return True
 

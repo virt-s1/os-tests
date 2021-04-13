@@ -149,7 +149,7 @@ class TestNetworkTest(unittest.TestCase):
                 cmd = "sudo ethtool -G {} tx -1".format(self.nic)
                 utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg="Check tx cannot set to -1")
 
-        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', cursor=self.dmesg_cursor)
+        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', skip_words='ftrace', cursor=self.dmesg_cursor)
 
     def test_ethtool_P(self):
         '''
