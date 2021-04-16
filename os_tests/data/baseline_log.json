@@ -664,5 +664,32 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1929266",
         "path": "journal, dmesg",
         "trigger": "starting cpuhotplug"
+    },
+    "msg_76": {
+        "content": "usr/sbin/era_invalidate -> pdata_tools",
+        "analyze": "this is a tool name instead of a actual invalid",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_77": {
+        "content": "kernel: blk_update_request: operation not supported error, dev loop0, sector 524160 op 0x9:(WRITE_ZEROES) flags 0x800800 phys_seg 0 prio class 0",
+        "analyze": "this is a low priority warning during ltp test, will investigate later",
+        "branch": "rhel9",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": "LTP: starting fsync01"
+    },
+    "msg_78": {
+        "content": "integrity: Unable to open file: /etc/keys/x509_ima.der (-2)",
+        "analyze": "this is not a RHEL specific problem and looks like not a real error",
+        "branch": "rhel9",
+        "status": "active",
+        "link": "https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1771555",
+        "path": "journal, dmesg",
+        "trigger": ""
     }
 }

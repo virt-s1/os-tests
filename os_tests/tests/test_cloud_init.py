@@ -160,7 +160,7 @@ class TestCloudInit(unittest.TestCase):
         if utils_lib.is_ali(self):
             datasource = 'Datasource DataSourceAliYun'
         if utils_lib.is_aws(self):
-            datasource = 'Datasource DataSourceEc2Local'
+            datasource = 'Datasource DataSourceEc2'
         cmd = 'sudo cat /var/log/cloud-init-output.log'
         if datasource is not None:    
             utils_lib.run_cmd(self,
