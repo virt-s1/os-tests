@@ -258,6 +258,7 @@ current_clocksource'
         utils_lib.run_cmd(self, cmd)
         cmd = "podman kill myctr1"
         utils_lib.run_cmd(self, cmd, expect_ret=0)
+        time.sleep(1)
         cmd = "podman inspect myctr1"
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         cmd = "podman rm myctr1"

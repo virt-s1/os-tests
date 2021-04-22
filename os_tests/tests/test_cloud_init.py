@@ -8,6 +8,20 @@ class TestCloudInit(unittest.TestCase):
         cmd = "sudo systemctl is-enabled cloud-init-local"
         utils_lib.run_cmd(self, cmd, cancel_ret='0', msg = "check cloud-init-local is enabled")
 
+    def test_check_cloudinit_cfg_no_wheel(self):
+        '''
+        bz: 1549638
+        cm: 01965459
+        polarion_id:
+        des: make sure there is no wheel in default_user's group in "/etc/cloud/cloud.cfg"
+        '''
+        cmd = 'sudo cat /etc/cloud/cloud.cfg'
+        utils_lib.run_cmd(self,
+                    cmd,
+                    expect_ret=0,
+                    expect_not_kw='wheel',
+                    msg='check /etc/cloud/cloud.cfg to make sure no wheel in default_user group(bz1549638)')
+
     def test_check_cloudinit_ds_identify_found(self):
         '''
         polarion_id:

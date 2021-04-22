@@ -125,8 +125,9 @@ class TestLifeCycle(unittest.TestCase):
                     r'sudo rm -rf /var/crash/*',
                     expect_ret=0,
                     msg='clean /var/crash firstly')
+        utils_lib.is_arch(self, arch='x86', action='cancel')
         cmd = 'sudo grubby --update-kernel=ALL --args="hpet_mmap=1"'
-        utils_lib.run_cmd(self, cmd, msg='Append hpet_mmap=1,nosmt to command line!', timeout=600)
+        utils_lib.run_cmd(self, cmd, msg='Append hpet_mmap=1 to command line!', timeout=600)
         utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(10)
         utils_lib.init_connection(self, timeout=800)
