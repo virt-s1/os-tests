@@ -159,7 +159,7 @@ def run_cmd(test_instance,
     """
     if msg is not None:
         test_instance.log.info(msg)
-    test_instance.log.info("CMD: %s", cmd)
+    test_instance.log.info("CMD: {}".format(cmd))
     status = None
     output = None
     exception_hit = False
@@ -433,7 +433,7 @@ def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False):
     if ret == 0:
         return True
     else:
-        test_instance.log.info("No %s found!" % cmd)
+        test_instance.log.info("No {} found!".format(cmd))
     if not is_install:
         if cancel_case:
             test_instance.skipTest("Cancel it as {} not found".format(cmd))
@@ -698,3 +698,10 @@ new one", same_rate)
             no_fail = False
 
     return no_fail
+
+def get_product_id(test_instance):
+    check_cmd = "sudo cat /etc/redhat-release"
+    output = run_cmd(test_instance,check_cmd, expect_ret=0, msg='check release name')
+    product_id = re.findall('[\d.]{2,3}', output)[0]
+    test_instance.log.info("Get product id: {}".format(product_id))
+    return product_id

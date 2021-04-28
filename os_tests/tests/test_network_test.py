@@ -198,6 +198,70 @@ class TestNetworkTest(unittest.TestCase):
                              cmd,
                              expect_kw=mac,
                              msg='compare with ip showed mac')
+    def test_ethtool_S_xdp(self):
+        '''
+        case_name:
+            test_ethtool_S_xdp
+
+        case_priority:
+            2
+
+        component:
+            kernel
+
+        bugzilla_id:
+            1908542
+
+        polarion_id:
+            n/a
+
+        maintainer:
+            xiliang@redhat.com
+
+        description:
+            Use ethtool to query the specified network device xdp statistics.
+
+        key_steps:
+            1. # ethtool -S $nic |grep xdp
+
+        expected_result:
+            xdp status found
+            eg. # ethtool -S eth0 |grep xdp
+                  queue_0_rx_xdp_aborted: 0
+                  queue_0_rx_xdp_drop: 0
+                  queue_0_rx_xdp_pass: 0
+                  queue_0_rx_xdp_tx: 0
+                  queue_0_rx_xdp_invalid: 0
+                  queue_0_rx_xdp_redirect: 0
+
+        '''
+        product_id = utils_lib.get_product_id(self)
+        cmd = "sudo ethtool -i {}".format(self.nic)
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0)
+        if 'ena' in output:
+            self.log.info('ena driver found!')
+            if float(product_id) > 8.4:
+                cmd = "ethtool -S {}|grep xdp".format(self.nic)
+                utils_lib.run_cmd(self, cmd, expect_ret=0,msg='Check if have xdp information')
+            else:
+                self.skipTest('ena driver does not support xdp prior to 8.4')
+        else:
+            cmd = "ethtool -S {}|grep xdp".format(self.nic)
+            utils_lib.run_cmd(self, cmd, cancel_ret='0', msg='Check if have xdp support')
+        if float(product_id) > 8.3:
+            utils_lib.is_cmd_exist(self, 'xdp-loader')
+            cmd = 'sudo xdp-loader status'
+            utils_lib.run_cmd(self, cmd, expect_ret=0,msg='Check xdp-loader status')
+            cmd = 'sudo xdp-loader unload -a {}'.format(self.nic)
+            utils_lib.run_cmd(self, cmd,msg='unload xdp-filter if have')
+            cmd = 'sudo xdp-filter load --mode skb {}'.format(self.nic)
+            utils_lib.run_cmd(self, cmd, expect_ret=0,msg='load xdp-filter')
+            cmd = 'sudo xdp-loader status'
+            utils_lib.run_cmd(self, cmd, expect_ret=0,expect_kw='XDP_PASS',msg='Check xdp-loader status again')
+            cmd = 'sudo xdp-loader unload -a {}'.format(self.nic)
+            utils_lib.run_cmd(self, cmd, expect_ret=0,msg='unload xdp-filter')
+            cmd = 'sudo xdp-loader status'
+            utils_lib.run_cmd(self, cmd, expect_ret=0,expect_not_kw='XDP_PASS',msg='Check xdp-loader status again')
 
     def test_mtu_min_max_set(self):
         '''

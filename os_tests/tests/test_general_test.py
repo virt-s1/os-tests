@@ -92,7 +92,10 @@ current_clocksource'
             kernel
 
         bugzilla_id:
-            1849082
+            1849082,1906301
+
+        customer_case_id:
+            02925130
 
         polarion_id:
             n/a
