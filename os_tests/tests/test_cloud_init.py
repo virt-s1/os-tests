@@ -37,6 +37,25 @@ class TestCloudInit(unittest.TestCase):
                     expect_kw='ds-identify _RET=found',
                     msg='check /run/cloud-init/cloud-init-generator.log')
 
+    def test_check_cloudinit_fingerprints(self):
+        '''
+        bz: 1957532
+        cm: 02905983
+        polarion_id:
+        check fingerprints is saved in /var/log/messages.
+        expected:
+            # grep -A 4 'BEGIN SSH HOST KEY FINGERPRINTS' /var/log/messages
+            May  6 02:57:58 ip-10-116-2-239 ec2[1441]: -----BEGIN SSH HOST KEY FINGERPRINTS-----
+            May  6 02:57:58 ip-10-116-2-239 ec2[1441]: 256 SHA256:n+iS6HUI/ApfkE/ZveBzBrIFSsmcL1YR/c3RsbPShd8 no comment (ECDSA)
+            May  6 02:57:58 ip-10-116-2-239 ec2[1441]: 256 SHA256:lZSyEuxf421H9y2DnoadjIvidZWXvGL3wfRlwAFBnms no comment (ED25519)
+            May  6 02:57:58 ip-10-116-2-239 ec2[1441]: 3072 SHA256:gysD1LLAkwZIovBEZdzX7s/dCJBegc+jnCtH7cJkIOo no comment (RSA)
+            May  6 02:57:58 ip-10-116-2-239 ec2[1441]: -----END SSH HOST KEY FINGERPRINTS-----
+        '''
+        cmd = "sudo grep -A 4 'BEGIN SSH HOST KEY FINGERPRINTS' /var/log/messages"
+        out = utils_lib.run_cmd(self, cmd, msg='get fingerprints in /var/log/messages')
+        if out.count('BEGIN') != out.count('SHA256')/3:
+            self.fail('fingerprints count {} does not match expected {}'.format(out.count('SHA256')/3,out.count('BEGIN')))
+
     def test_check_cloudinit_log_imdsv2(self):
         '''
         polarion_id:
