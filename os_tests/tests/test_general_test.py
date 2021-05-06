@@ -192,11 +192,8 @@ current_clocksource'
         cmd = "sudo rpm -qa|grep rhui"
         utils_lib.run_cmd(self, cmd, cancel_ret='0', msg='skip test if rhui is not installed')
 
-        check_cmd = "sudo cat /etc/redhat-release"
-        output = utils_lib.run_cmd(self,check_cmd, expect_ret=0, msg='check release name')
-        product_id = re.findall('\d.\d', output)[0]
-        self.log.info("Get product id: {}".format(product_id))
-        if product_id < '8.4':
+        product_id = utils_lib.get_product_id(self)
+        if float(product_id) < 8.4:
             self.skipTest('skip in earlier than el8.4')
         self.log.info("Auto registeration only supports aws platform for now.")
 
