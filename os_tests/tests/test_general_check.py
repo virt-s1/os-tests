@@ -649,6 +649,39 @@ in cmdline as bug1859088")
         cmd = "find -H /sys -name cpu_list  -type f -perm -u=r -print -exec cat '{}' 2>&1 \;"
         utils_lib.run_cmd(self, cmd, msg='Check no crash seen when read cpu_list if exists')
 
+    def test_check_systemd_analyze_verify_ordering_cycle(self):
+        '''
+        description:
+            Make sure there is no ordering cycle which may block boot up.
+        polarion_id:
+            n/a
+        bugzilla_id: 
+            1932614
+        customer_case_id: 
+            02878130
+        maintainer: 
+            xiliang
+        case_priority: 
+            0
+        case_component: 
+            systemd
+        key_steps:
+            # systemd-analyze verify default.target
+        pass_criteria: 
+            No ordering cycle found
+        '''
+        cmd = "sudo systemd-analyze verify default.target"
+        utils_lib.run_cmd(self, cmd, expect_not_kw='ordering cycle', msg='Check there is no ordering cycle which may block boot up.')
+        #cmd = "sudo systemctl list-units --type target|grep target|awk -F' ' '{print $1}'"
+        cmd = "systemctl list-unit-files |grep -v UNIT|grep -v listed|awk -F' ' '{print $1}'"
+        all_services = utils_lib.run_cmd(self, cmd, msg='retrive all systemd unit files').split('\n')
+
+        for service in all_services:
+            if not service or service.startswith('-'):
+                continue
+            cmd = "sudo systemd-analyze verify {}".format(service)
+            utils_lib.run_cmd(self, cmd, expect_not_kw='ordering cycle', msg='Check there is no ordering cycle which may block boot up in {}'.format(service))
+
     def test_check_tsc_deadline_timer(self):
         '''
         des: check TSC deadline timer enabled in dmesg
@@ -720,6 +753,7 @@ current_device"
         test virt-what, not use systemd-detect-virt
         '''
         utils_lib.is_cmd_exist(self, cmd='virt-what')
+        utils_lib.run_cmd(self, "rpm -q virt-what", expect_ret=0, msg='get virt-what version')
         virt_what_output = utils_lib.run_cmd(self, r"sudo virt-what", expect_ret=0)
         lscpu_output = utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
         if 'Xen' in lscpu_output:
@@ -728,7 +762,7 @@ current_device"
                 self.assertIn('xen-hvm', virt_what_output)
             else:
                 self.assertIn('xen-domU', virt_what_output)
-        elif 'KVM' in lscpu_output:
+        elif 'KVM' in lscpu_output and not utils_lib.is_metal(self):
             self.log.info("Found it is a kvm system!")
             self.assertIn('kvm', virt_what_output)
         elif 'VMware' in lscpu_output:
