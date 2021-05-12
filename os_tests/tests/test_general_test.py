@@ -215,13 +215,19 @@ current_clocksource'
             utils_lib.run_cmd(self, cmd, msg='try to check rhsm.log')
             cmd = "sudo subscription-manager identity"
             out = utils_lib.run_cmd(self, cmd, msg='try to check subscription identity')
+            cmd = "sudo subscription-manager list --installed"
+            out = utils_lib.run_cmd(self, cmd, msg='try to list currently installed on the system')
             cmd = "sudo subscription-manager status"
             out = utils_lib.run_cmd(self, cmd, msg='try to check subscription status')
-            if 'Red Hat Enterprise Linux' in out:
+            if 'Red Hat Enterprise Linux' in out or 'Simple Content Access' in out:
                 self.log.info("auto subscription registered completed")
+                cmd = "sudo insights-client --register"
+                utils_lib.run_cmd(self, cmd, msg='check if insights-client can register successfully')
                 break
             end_time = time.time()
             if end_time - start_time > timeout:
+                cmd = "sudo insights-client --register"
+                utils_lib.run_cmd(self, cmd, msg='check if insights-client can register successfully')
                 self.fail("timeout({}s) to wait auto subscription registered completed".format(timeout))
             self.log.info('wait {}s and try to check again, timeout {}s'.format(interval, timeout))
             time.sleep(interval)
