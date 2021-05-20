@@ -51,7 +51,8 @@ class TestCloudInit(unittest.TestCase):
             May  6 02:57:58 ip-10-116-2-239 ec2[1441]: 3072 SHA256:gysD1LLAkwZIovBEZdzX7s/dCJBegc+jnCtH7cJkIOo no comment (RSA)
             May  6 02:57:58 ip-10-116-2-239 ec2[1441]: -----END SSH HOST KEY FINGERPRINTS-----
         '''
-        cmd = "sudo grep -A 4 'BEGIN SSH HOST KEY FINGERPRINTS' /var/log/messages"
+        # cmd = "sudo grep -A 4 'BEGIN SSH HOST KEY FINGERPRINTS' /var/log/messages"
+        cmd = "sudo awk '/BEGIN/,/END/' /var/log/messages"
         out = utils_lib.run_cmd(self, cmd, msg='get fingerprints in /var/log/messages')
         if out.count('BEGIN') != out.count('SHA256')/3:
             self.fail('fingerprints count {} does not match expected {}'.format(out.count('SHA256')/3,out.count('BEGIN')))

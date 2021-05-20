@@ -440,7 +440,7 @@ def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False):
         return False
     arch = run_cmd(test_instance, 'uname -p').rstrip('\n')
     pkg_find = "sudo yum provides %s" % cmd
-    output = run_cmd(test_instance, pkg_find, expect_ret=0)
+    output = run_cmd(test_instance, pkg_find)
     for i in [arch, 'noarch']:
         pkg_list = re.findall(".*%s" % i, output)
         if len(pkg_list) > 0:

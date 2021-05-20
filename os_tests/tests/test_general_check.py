@@ -3,6 +3,7 @@ from os_tests.libs import utils_lib
 import json
 import os
 import re
+import time
 
 class TestGeneralCheck(unittest.TestCase):
     def setUp(self):
@@ -20,6 +21,7 @@ class TestGeneralCheck(unittest.TestCase):
         bz: 1771856
         polarion_id: N/A
         '''
+        time_start = utils_lib.run_cmd(self, "date '+%T'", msg='retrive test system current time')
         self.log.info("Check no permission denied at nfs server - bug1655493")
         cmd = 'sudo yum install -y nfs-utils'
         utils_lib.run_cmd(self, cmd, msg='Install nfs-utils')
@@ -42,8 +44,9 @@ class TestGeneralCheck(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         utils_lib.run_cmd(self, "sudo umount /mnt")
 
-        cmd = "sudo ausearch -m AVC -ts today"
-        utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='Checking avc log!', rmt_get_pty=True)
+        time.sleep(10)
+        cmd = "sudo ausearch -m AVC -ts today {}".format(time_start)
+        utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='check if new avc log generated', rmt_get_pty=True)
 
     def test_check_available_clocksource(self):
         '''
@@ -827,7 +830,8 @@ current_device"
         '''
         cmd="cat /etc/redhat-release"
         utils_lib.run_cmd(self, cmd, cancel_not_kw='CentOS,Fedora', msg='Not run in centos')
-        utils_lib.is_cmd_exist(self, cmd="insights-client")
+        if not utils_lib.is_cmd_exist(self, cmd="insights-client"):
+            self.skipTest('No insights-client installation found!')
         utils_lib.run_cmd(self,
                     'sudo lscpu',
                     msg="get cpu information")
