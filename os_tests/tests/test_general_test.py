@@ -160,6 +160,8 @@ current_clocksource'
             Your kernel looks fine.
         '''
         utils_lib.run_cmd(self, 'uname -r', cancel_not_kw='el7,el6', msg='not support in el7 and el6')
+        if utils_lib.get_memsize(self) < 4:
+            self.skipTest('skip when mem lower than 4GiB')
         utils_lib.is_cmd_exist(self, cmd='gcc', cancel_case=True)
         utils_lib.is_cmd_exist(self, cmd='wget', cancel_case=True)
         cmd_list = ['wget https://github.com/redis/redis/files/5717040/redis_8124.c.txt',
@@ -244,6 +246,55 @@ current_clocksource'
         out2 = utils_lib.run_cmd(self, cmd2, expect_ret=0, msg='get {} output'.format(cmd2))
         if out1 != out2:
             self.fail('"{}" output not same with "{}"'.format(cmd1,cmd2))
+
+    def test_podman_build_image(self):
+        '''
+        case_name:
+            test_podman_build_image
+
+        case_priority:
+            2
+
+        component:
+            podman
+
+        bugzilla_id:
+            1903412
+
+        polarion_id:
+            n/a
+
+        maintainer:
+            xiliang@redhat.com
+
+        description:
+            podman can build an image using '--network container' in rootless or root mode
+
+        key_steps:
+            1. $ cat Dockerfile
+               FROM registry.access.redhat.com/ubi8/ubi
+               RUN touch /tmp/test.txt
+            2. # podman build --network container -t build_test .
+
+        expected_result:
+            Build successfully.
+        '''
+        self.log.info("Test podman can build an image using '--network container'")
+        utils_lib.is_cmd_exist(self, 'podman')
+        dockerfile = '''
+FROM registry.access.redhat.com/ubi8/ubi
+RUN touch /tmp/test.txt
+        '''
+        cmd = "echo '{}' > Dockerfile".format(dockerfile)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='generate Dockerfile')
+        cmd = "podman build --network container -t build_test ."
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='build image')
+        cmd = "podman run --rm -it build_test uname -r"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check kernel')
+        cmd = "podman run --rm -it build_test whoami"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check user')
+        cmd = "podman run --rm -it build_test ls -l /tmp/test.txt"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check test file')
 
     def test_podman_rm_stopped(self):
         '''

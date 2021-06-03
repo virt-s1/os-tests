@@ -248,7 +248,7 @@ class TestNetworkTest(unittest.TestCase):
         else:
             cmd = "ethtool -S {}|grep xdp".format(self.nic)
             utils_lib.run_cmd(self, cmd, cancel_ret='0', msg='Check if have xdp support')
-        if float(product_id) > 8.3:
+        if float(product_id) > 8.3 and utils_lib.is_arch(self, arch='x86_64'):
             utils_lib.is_cmd_exist(self, 'xdp-loader')
             cmd = 'sudo xdp-loader status'
             utils_lib.run_cmd(self, cmd, expect_ret=0,msg='Check xdp-loader status')

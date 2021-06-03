@@ -71,8 +71,8 @@ class TestLTP(unittest.TestCase):
 
     def test_ltp_cpuhotplug(self):
         '''
+        bz: 1464095,1908550
         polarion_id: RHEL7-98752
-        bz: 1464095
         '''
         # ltp will considering fail if more than 1 cpus cannot be offline
         # in bare metal instance

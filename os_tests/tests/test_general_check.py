@@ -528,7 +528,7 @@ in cmdline as bug1859088")
                     msg="It should be like: {}.n but it is {}".format(name_map[key], output))
                     if 'el6' not in kernel_ver and 'el7' not in kernel_ver:
                         rhversion = re.findall('Red Hat Enterprise Linux release \d', output)[0]
-                        cmd = "sudo grep -R 'Red Hat Enterprise Linux' /boot/grub*|grep -v '{}'".format(rhversion)
+                        cmd = "sudo grep -R 'Red Hat Enterprise Linux' /boot/grub*|grep -v '{}'".format(rhversion.replace('release ',''))
                         utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='make sure no other release name found')
                 else:
                     centos_key = "{}_centos".format(key)
