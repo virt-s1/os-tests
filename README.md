@@ -2,7 +2,7 @@
 
 ## Introduction
 
-os-tests is a lightweight, fast check and tests collection for Linux OS.
+os-tests is a lightweight, fast and customer centric tests collection for Linux OS.
 
 ## Installation
 
@@ -129,6 +129,13 @@ Files:
   os_tests/tests/test_ltp.py
 
 ```
+
+### Recommend test matrix to catch potiential issues
+
+- run in normal kernel, it is the most used senario
+- run in debug kernel with 'kmemleak=on'
+- run in fips enabled kernel
+- run in remote-client mode to cover lifecycle cases
 
 ### Contribution
 

@@ -67,12 +67,16 @@ def init_case(test_instance):
         logging.root.removeHandler(handler)
     FORMAT = "%(levelname)s:%(message)s"
     logging.basicConfig(level=logging.DEBUG, format=FORMAT, filename=log_file)
-    test_instance.log.info("Case id: {}".format(test_instance.id()))
+    test_instance.log.info("-"*80)
+    test_instance.log.info("Case ID: {}".format(test_instance.id()))
+    test_instance.log.info("Case Doc: {}".format(eval(test_instance.id()).__doc__))
+    test_instance.log.info("Case Params:")
     for key in test_instance.params.keys():
         if 'password' in key:
             test_instance.log.info("key:{}, val:*******".format(key))
         else:
             test_instance.log.info("key:{}, val:{}".format(key, test_instance.params[key]))
+    test_instance.log.info("-"*80)
     if test_instance.params['remote_node'] is not None:
         test_instance.log.info("remote_node specified, all tests will be run in {}".format(test_instance.params['remote_node']))
         test_instance.ssh_client = rmt_ssh.build_connection(rmt_node=test_instance.params['remote_node'],rmt_user=test_instance.params['remote_user'],rmt_password=test_instance.params['remote_password'],rmt_keyfile=test_instance.params['remote_keyfile'], log=test_instance.log)

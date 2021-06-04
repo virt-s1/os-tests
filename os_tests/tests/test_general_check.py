@@ -129,6 +129,42 @@ available_clocksource'
                     expect_not_kw='Unknown symbol',
                     msg='Check there is no Unknown symbol in dmesg')
 
+    def test_check_dmidecode_dump_segfault(self):
+        '''
+        case_name:
+            test_check_dmidecode_dump_segfault
+
+        case_priority:
+            2
+
+        component:
+            dmidecode
+
+        bugzilla_id:
+            1885823
+
+        customer_case_id:
+            02939365
+
+        polarion_id:
+            n/a
+
+        maintainer:
+            xiliang@redhat.com
+
+        description:
+            check there is no segmentation fault while run 'dmidecode --dump'
+
+        key_steps:
+            # dmidecode --dump |grep -i Segmentation 
+
+        expected_result:
+            No segmentation fault found.
+        '''
+        utils_lib.is_cmd_exist(self, cmd='dmidecode')
+        cmd = "sudo dmidecode --dump"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='Segmentation')
+
     def test_check_dmidecode_outofspec(self):
         '''
         bz: 1858350

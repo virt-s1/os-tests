@@ -127,6 +127,79 @@ current_clocksource'
         cmd = "sudo fio --cpuclock-test"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw="Pass",msg='Perform test and validation of internal CPU clock.', timeout=1200)
 
+    def test_fips_selftest(self):
+        '''
+        case_name:
+            test_fips_selftest
+
+        case_priority:
+            2
+
+        component:
+            openssl
+
+        bugzilla_id:
+            1940085
+
+        customer_case_id:
+            02874840
+
+        polarion_id:
+            n/a
+
+        maintainer:
+            xiliang@redhat.com
+
+        description:
+            FIPS_selftest() pass
+
+        key_steps:
+            1. # gcc fipstest.c -o fipstest -lcrypto
+            2. # # ./fipstest
+
+        expected_result:
+            No fips selftest failed.
+        '''
+        fipstest = """
+//required pkg: openssl-devel
+//compile: gcc fipstest.c -o fipstest -lcrypto
+//run ./fipstest
+//https://www.openssl.org/docs/fips/UserGuide-2.0.pdf
+#include <stdio.h>
+#include <openssl/ssl.h>
+#include <openssl/fips.h>
+#include <openssl/err.h>
+
+int fips_test(int fipsset){
+    FIPS_mode_set(fipsset);
+    if (FIPS_mode()){
+        printf("fips mode set.\\n");
+    }
+    else{
+        printf("fips mode not set.\\n");
+    }
+    if (FIPS_selftest()){
+        printf("fips selftest pass.\\n");
+    }
+    else{
+        printf("fips selftest failed.\\n");
+        ERR_print_errors_fp(stderr);
+    }
+}
+int main(int argc, char *argv[])
+{
+	fips_test(0);
+	fips_test(1);
+}
+        """
+        utils_lib.is_pkg_installed(self, pkg_name="openssl-devel")
+        cmd = "echo '{}' > /tmp/fipstest.c".format(fipstest)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='generate fipstest.c')
+        cmd = "gcc /tmp/fipstest.c -o /tmp/fipstest -lcrypto"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='compile fipstest.c')
+        cmd = "/tmp/fipstest"
+        utils_lib.run_cmd(self, cmd, expect_ret=0,expect_not_kw="fips selftest failed", msg='run fipstest')
+
     def test_fork_pte(self):
         '''
         case_name:
@@ -296,6 +369,97 @@ RUN touch /tmp/test.txt
         cmd = "podman run --rm -it build_test ls -l /tmp/test.txt"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check test file')
 
+    def test_podman_dev_null_permission(self):
+        '''
+        case_name:
+            test_podman_dev_null_permission
+
+        case_priority:
+            2
+
+        component:
+            podman
+
+        bugzilla_id:
+            1952698
+
+        customer_case_id:
+            02920986
+
+        polarion_id:
+            n/a
+
+        maintainer:
+            xiliang@redhat.com
+
+        description:
+            Make sure permission on /dev/null are not changing from 666 to 777 after running podman as root
+
+        key_steps:
+            1. # sudo podman run -d -p 80:80 httpd
+            2. # ls -l /dev/null
+
+        expected_result:
+            /dev/null permission keeps 666
+        '''
+        utils_lib.is_cmd_exist(self, 'podman')
+        cmd = "ls -l /dev/null"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check /dev/null permission before test')
+        cmd = "sudo chmod 666 /dev/null"
+        utils_lib.run_cmd(self, cmd, expect_ret=0,msg='change /dev/null permission to 666')
+        cmd = "podman rm -a -f"
+        utils_lib.run_cmd(self, cmd, msg='try to clean all containers before testing')
+        cmd = "podman run --name test -d ubi"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to start a test container')
+        cmd = "ls -l /dev/null"
+        utils_lib.run_cmd(self, cmd, expect_ret=0,expect_kw='crw-rw-rw-.' ,msg='check /dev/null permission after test')
+
+    def test_podman_leaks_exit(self):
+        '''
+        case_name:
+            test_podman_leaks_exit
+
+        case_priority:
+            2
+
+        component:
+            podman
+
+        bugzilla_id:
+            1730281
+
+        customer_case_id:
+            02390622
+
+        polarion_id:
+            n/a
+
+        maintainer:
+            xiliang@redhat.com
+
+        description:
+            podman leaks kernel memory due to return code stored in tmpfs
+
+        key_steps:
+            1. $ podman run --name test -d ubi
+            2. $ ls /run/libpod/exits/
+
+        expected_result:
+            Step2 return nothing.
+        '''
+        self.log.info("Test podman can build an image using '--network container'")
+        cmd = "podman ps -a"
+        utils_lib.run_cmd(self, cmd, msg='try to list all containers before testing')
+        cmd = "podman rm -a -f"
+        utils_lib.run_cmd(self, cmd, msg='try to clean all containers before testing')
+        cmd = "podman run --name test -d ubi"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to start a test container')
+        time.sleep(2)
+        cmd = "podman ps -a"
+        utils_lib.run_cmd(self, cmd, msg='try to list all containers after testing')
+        cmd = "ls /run/libpod/exits/"
+        utils_lib.run_cmd(self, cmd, expect_output='',msg='check if saved exit code in tmpfs')
+
     def test_podman_rm_stopped(self):
         '''
         bz: 1913295
@@ -303,7 +467,7 @@ RUN touch /tmp/test.txt
         '''
         self.log.info("Test podman can remove a stopped container")
         utils_lib.is_cmd_exist(self, 'podman')
-        cmd = "podman ps"
+        cmd = "podman ps -a"
         utils_lib.run_cmd(self, cmd, msg='try to list all containers before testing')
         cmd = "podman rm -a -f"
         utils_lib.run_cmd(self, cmd, msg='try to clean all containers before testing')

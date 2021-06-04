@@ -110,8 +110,9 @@ at least which ltp not handle')
         '''
         self._ltp_run(case_name="icmp4-uni-vti11",
                       file_name='net_stress.ipsec_icmp')
-        self.log.info("Try to remove ccm module after test.")
-        utils_lib.run_cmd(self, 'sudo modprobe -r ccm', expect_ret=0)
+        if 'builtin' not in utils_lib.run_cmd(self, 'modinfo ccm'):
+            self.log.info("Try to remove ccm module after test.")
+            utils_lib.run_cmd(self, 'sudo modprobe -r ccm', expect_ret=0)
 
     def test_ltp_quickhit(self):
         '''
