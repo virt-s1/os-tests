@@ -3,10 +3,10 @@ import os
 
 setuptools.setup(
     name="os-tests",
-    version="0.0.34",
+    version="0.0.35",
     author="Xiao Liang",
     author_email="xiliang@redhat.com",
-    description="Lightweight, fast check and tests collection for Linux OS",
+    description="Lightweight, fast and customer centric tests collection for Linux OS.",
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
     url="https://github.com/liangxiao1/os-tests",

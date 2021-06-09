@@ -652,7 +652,6 @@ in cmdline as bug1859088")
 
         '''
         cmd = 'systemctl'
-        utils_lib.run_cmd(self, cmd, expect_ret=0)
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='failed')
 
     def test_check_sysfs_cpu_list(self):
