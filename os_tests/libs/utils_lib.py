@@ -68,6 +68,7 @@ def init_case(test_instance):
     FORMAT = "%(levelname)s:%(message)s"
     logging.basicConfig(level=logging.DEBUG, format=FORMAT, filename=log_file)
     test_instance.log.info("-"*80)
+    test_instance.log.info("Case Repo: {}".format(test_instance.params['code_repo']))
     test_instance.log.info("Case ID: {}".format(test_instance.id()))
     test_instance.log.info("Case Doc: {}".format(eval(test_instance.id()).__doc__))
     test_instance.log.info("Case Params:")
@@ -173,27 +174,34 @@ def run_cmd(test_instance,
             status, output = rmt_ssh.remote_excute(test_instance.ssh_client, cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty, log=test_instance.log)
         else:
             ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
+            #ret = subprocess.run(cmd, shell=True, capture_output=True, timeout=timeout, encoding='utf-8')
             status = ret.returncode
             if ret.stdout is not None:
                 output = ret.stdout
+            #if ret.stderr is not None:
+            #    output = output + ret.stderr
+
     except Exception as err:
-        test_instance.log.error("Run cmd failed as %s" % err)
+        test_instance.log.error("Run cmd failed: {}".format(err))
         status = None
         exception_hit = True
 
     if exception_hit:
-        test_instance.log.info("Try again")
-        test_instance.log.info("Test via uname, if still fail, please make sure no hang or panic in sys")
+        test_cmd = 'uname -a'
+        test_instance.log.info("Test system is alive via cmd:{}. If still fail, check no hang or panic happens.".format(test_cmd))
         try:
             if test_instance.ssh_client is not None:
-                status, output = rmt_ssh.remote_excute(test_instance.ssh_client, 'uname -a', timeout, log=test_instance.log)
+                status, output = rmt_ssh.remote_excute(test_instance.ssh_client, test_cmd, timeout, log=test_instance.log)
                 status, output = rmt_ssh.remote_excute(test_instance.ssh_client, cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr, rmt_get_pty=rmt_get_pty, log=test_instance.log)
             else:
-                ret = subprocess.run('uname -a', shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
+                ret = subprocess.run(test_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
                 status = ret.returncode
                 if ret.stdout is not None:
                    output = ret.stdout
-                test_instance.log.info("Return: {}".format(output.decode("utf-8")))
+                test_instance.log.info("CMD ret: {} out:{}".format(status, output))
+                test_instance.log.info("Retry to run CMD: {}".format(cmd))
+                status = None
+                output = None
                 ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
                 status = ret.returncode
                 if ret.stdout is not None:
@@ -446,14 +454,17 @@ def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False):
     pkg_find = "sudo yum provides %s" % cmd
     output = run_cmd(test_instance, pkg_find)
     for i in [arch, 'noarch']:
-        pkg_list = re.findall(".*%s" % i, output)
+        pkg_list_tmp = re.findall(".*%s" % i, output)
+        pkg_list = [i for i in pkg_list_tmp if 'Repo' not in i]
         if len(pkg_list) > 0:
             break
     if len(pkg_list) == 0:
         test_instance.skipTest("Unable to install {}".format(cmd))
         return False
     pkg_list.sort(reverse=True)
-    run_cmd(test_instance, "sudo yum install -y %s" % pkg_list[0], expect_ret=0, timeout=120)
+    cmd = "sudo yum info {}|grep Name|awk -F':' '{{print $NF}}'".format(pkg_list[0])
+    pkg_name = run_cmd(test_instance, cmd, expect_ret=0, timeout=120, msg='get pkg name')
+    run_cmd(test_instance, "sudo yum install -y {}".format(pkg_name), expect_ret=0, timeout=120)
     return True
 
 def is_pkg_installed(test_instance, pkg_name=None, is_install=True, cancel_case=False):
@@ -470,6 +481,10 @@ def is_pkg_installed(test_instance, pkg_name=None, is_install=True, cancel_case=
         return True
     else:
         test_instance.log.info("No %s found!" % pkg_name)
+        cmd = 'sudo yum install -y {}'.format(pkg_name)
+        ret = run_cmd(test_instance, cmd, ret_status=True, msg='try to install it')
+        if ret == 0:
+            return True
         return False
 
 def pkg_install(test_instance, pkg_name=None, pkg_url=None):

@@ -314,6 +314,11 @@ class TestNetworkTest(unittest.TestCase):
             mtu_range = [0, 59, 60, 4500, 9000, 9001]
             mtu_min = 60
             mtu_max = 9000
+        elif 'virtio_net' in output:
+            self.log.info('virtio_net found!')
+            mtu_range = [0, 67, 68, 1500,1600]
+            mtu_min = 68
+            mtu_max = 1500
         else:
             self.log.info('Did not detect network type, use default min~max mtu. %s' % output)
             mtu_range = [0, 67, 68, 4500, 65535, 65536]

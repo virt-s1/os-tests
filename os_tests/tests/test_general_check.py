@@ -85,21 +85,18 @@ available_clocksource'
 
     def test_check_dmesg_error(self):
         '''
-        :avocado: tags=test_check_dmesg_error,fast_check
         polarion_id: RHEL7-103851
         '''
         utils_lib.check_log(self, 'error', log_cmd='dmesg')
 
     def test_check_dmesg_fail(self):
         '''
-        :avocado: tags=test_check_dmesg_fail,fast_check
         polarion_id: RHEL7-103851
         '''
         utils_lib.check_log(self, 'fail', log_cmd='dmesg')
 
     def test_check_dmesg_warn(self):
         '''
-        :avocado: tags=test_check_dmesg_warn,fast_check
         polarion_id: RHEL7-103851
         '''
         utils_lib.check_log(self, 'warn', log_cmd='dmesg')

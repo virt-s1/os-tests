@@ -29,9 +29,11 @@ def main():
     parser.add_argument('-l', dest='is_listcase', action='store_true',
                     help='list supported cases without run', required=False)
     parser.add_argument('-p', dest='pattern', default=None, action='store',
-                    help='filter case by name', required=False)
+                    help='filter case by name, add --strict for matching exactly', required=False)
+    parser.add_argument('--strict', dest='is_strict', action='store_true',
+                    help='match exactly if -p or -s specified', required=False)
     parser.add_argument('-s', dest='skip_pattern', default=None, action='store',
-                    help='skip cases', required=False)
+                    help='skip cases, add --strict for skipping exactly', required=False)
     args = parser.parse_args()
 
     print("Run in mode: is_listcase:{} pattern: {}".format(args.is_listcase, args.pattern))
@@ -48,11 +50,17 @@ def main():
                     if args.skip_pattern is not None:
                             for skippattern in args.skip_pattern.split(','):
                                 if skippattern in case.id():
-                                    is_skip = True
+                                    if args.is_strict and case.id().endswith(skippattern):
+                                        is_skip = True
+                                    elif not args.is_strict:
+                                        is_skip = True
                     if args.pattern is not None:
                         for pattern in args.pattern.split(','):
                             if pattern in case.id() and not is_skip:
-                                final_ts.addTest(case)
+                                if args.is_strict and case.id().endswith(pattern):
+                                    final_ts.addTest(case)
+                                elif not args.is_strict:
+                                    final_ts.addTest(case)
                     else:
                         if not is_skip:
                             final_ts.addTest(case)

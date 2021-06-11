@@ -691,5 +691,86 @@
         "link": "https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1771555",
         "path": "journal, dmesg",
         "trigger": ""
+    },
+    "msg_79": {
+        "content": "usr/lib/kbd/consolefonts/ERRORS",
+        "analyze": "this is an information only",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_80": {
+        "content": "usr/lib64/libgpg-error.so.0 -> ../../lib64/libgpg-error.so.0.32.0",
+        "analyze": "this is a mode name only",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_81": {
+        "content": "usr/lib64/libgpg-error.so.0.32.0",
+        "analyze": "this is a mode name only",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_82": {
+        "content": "COMMAND=/usr/bin/systemd-analyze verify systemd-boot-check-no-failures.service",
+        "analyze": "this is a service name only",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_83": {
+        "content": "subj=system_u:system_r:sshd_t:s0-s0:c0.c1023 msg='op=pubkey acct=\"root\" exe=\"/usr/sbin/sshd\" hostname=? addr=10.72.12.125 terminal=ssh res=failed",
+        "analyze": "this is a ssh login failed try",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_84": {
+        "content": "network[820]: WARN      : [network] You are using 'network' service provided by 'network-scripts', which are now deprecated.",
+        "analyze": "this is a warning info if you updated from 7.9 to 8.4 as network.service used",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_85": {
+        "content": "network[820]: WARN      : [network] 'network-scripts' will be removed in one of the next major releases of RHEL.",
+        "analyze": "this is a warning info if you updated from 7.9 to 8.4 as network.service used",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_86": {
+        "content": "network[820]: WARN      : [network] It is advised to switch to 'NetworkManager' instead for network management.",
+        "analyze": "this is a warning info if you updated from 7.9 to 8.4 as network.service used",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_87": {
+        "content": "GPT: Use GNU Parted to correct GPT errors.",
+        "analyze": "this is information only when launch instance with bigger disk size",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
     }
 }

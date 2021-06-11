@@ -173,16 +173,16 @@ current_clocksource'
 int fips_test(int fipsset){
     FIPS_mode_set(fipsset);
     if (FIPS_mode()){
-        printf("fips mode set.\\n");
+        fprintf(stderr, "fips mode set.\\n");
     }
     else{
-        printf("fips mode not set.\\n");
+        fprintf(stderr, "fips mode not set.\\n");
     }
     if (FIPS_selftest()){
-        printf("fips selftest pass.\\n");
+        fprintf(stderr, "fips selftest pass.\\n");
     }
     else{
-        printf("fips selftest failed.\\n");
+        fprintf(stderr, "fips selftest failed.\\n");
         ERR_print_errors_fp(stderr);
     }
 }
@@ -193,6 +193,7 @@ int main(int argc, char *argv[])
 }
         """
         utils_lib.is_pkg_installed(self, pkg_name="openssl-devel")
+        utils_lib.is_pkg_installed(self, pkg_name="gcc")
         cmd = "echo '{}' > /tmp/fipstest.c".format(fipstest)
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='generate fipstest.c')
         cmd = "gcc /tmp/fipstest.c -o /tmp/fipstest -lcrypto"
