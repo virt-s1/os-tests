@@ -40,32 +40,23 @@ class TestLTP(unittest.TestCase):
         '''
         case_name:
             test_ltp_add_key02
-
         case_priority:
             1
-
         component:
             kernel
-
         bugzilla_id:
             1464851
-
         polarion_id:
             RHEL7-98753
-
         maintainer:
             xiliang@redhat.com
-
         description:
             Ran ltp syscalls add_key02.
-
         key_steps:
             1. Install ltp pkg
             2. # /opt/ltp/runltp -f syscalls -s add_key02
-
         expected_result:
             No panic or hang happen.
-
         '''
         self._ltp_run(case_name="add_key02")
 
@@ -118,29 +109,21 @@ at least which ltp not handle')
         '''
         case_name:
             test_ltp_quickhit
-
         case_priority:
             1
-
         component:
             kernel
-
         bugzilla_id:
             n/a
-
         polarion_id:
             n/a
-
         maintainer:
             xiliang@redhat.com
-
         description:
             Ran ltp quickhit senario to test kernel quickly.
-
         key_steps:
             1. Install ltp pkg
             2. # /opt/ltp/runltp -f quickhit
-
         expected_result:
             No panic or hang or other exception happen.
         '''

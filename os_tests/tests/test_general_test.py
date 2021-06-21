@@ -374,32 +374,23 @@ RUN touch /tmp/test.txt
         '''
         case_name:
             test_podman_dev_null_permission
-
         case_priority:
             2
-
         component:
             podman
-
         bugzilla_id:
             1952698
-
         customer_case_id:
             02920986
-
         polarion_id:
             n/a
-
         maintainer:
             xiliang@redhat.com
-
         description:
             Make sure permission on /dev/null are not changing from 666 to 777 after running podman as root
-
         key_steps:
             1. # sudo podman run -d -p 80:80 httpd
             2. # ls -l /dev/null
-
         expected_result:
             /dev/null permission keeps 666
         '''
@@ -419,32 +410,23 @@ RUN touch /tmp/test.txt
         '''
         case_name:
             test_podman_leaks_exit
-
         case_priority:
             2
-
         component:
             podman
-
         bugzilla_id:
             1730281
-
         customer_case_id:
             02390622
-
         polarion_id:
             n/a
-
         maintainer:
             xiliang@redhat.com
-
         description:
             podman leaks kernel memory due to return code stored in tmpfs
-
         key_steps:
             1. $ podman run --name test -d ubi
             2. $ ls /run/libpod/exits/
-
         expected_result:
             Step2 return nothing.
         '''
@@ -473,9 +455,9 @@ RUN touch /tmp/test.txt
         cmd = "podman rm -a -f"
         utils_lib.run_cmd(self, cmd, msg='try to clean all containers before testing')
         cmd = "podman run --name myctr1 -td quay.io/libpod/alpine"
-        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='run myctr1')
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='run myctr1', timeout=180)
         cmd = "podman run --name myctr2 -td quay.io/libpod/alpine"
-        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='run myctr2')
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='run myctr2', timeout=180)
         cmd = "timeout 5 podman exec myctr1 sleep 10"
         utils_lib.run_cmd(self, cmd)
         cmd = "podman kill myctr1"
@@ -500,37 +482,28 @@ RUN touch /tmp/test.txt
         '''
         case_name:
             test_virsh_pci_reattach
-
         case_priority:
             1
-
         component:
             kernel
-
         bugzilla_id:
             1700254
-
         polarion_id:
             n/a
-
         maintainer:
             xiliang@redhat.com
-
         description:
             Test no exception when system does pci detach and attach operation in virsh.
             virsh can detach host pci device and attach it to guest.
-
         key_steps:
             1. #virsh  nodedev-detach $pci
             2. #virsh  nodedev-reattach $pci
-
         expected_result:
             No panic/crash happen.
             eg. # virsh nodedev-detach pci_0000_2b_00_0
                 Device pci_0000_2b_00_0 detached
                 # virsh nodedev-reattach pci_0000_2b_00_0
                 Device pci_0000_2b_00_0 re-attached
-
         '''
         utils_lib.is_metal(self, action="cancel")
         cmd = "sudo yum install -y libvirt"

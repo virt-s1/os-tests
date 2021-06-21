@@ -335,7 +335,7 @@ class TestNetworkTest(unittest.TestCase):
             elif mtu_size < mtu_min or mtu_size > mtu_max:
                 utils_lib.run_cmd(self, mtu_cmd, expect_not_ret=0)
                 utils_lib.run_cmd(self, mtu_check, expect_ret=0, expect_not_kw="mtu {}".format(mtu_size))
-        cmd = "ping {} -c 2 -I {}".format(self.params.get('ping_server'), self.nic)
+        cmd = "ping {} -c 10 -I {}".format(self.params.get('ping_server'), self.nic)
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', cursor=self.dmesg_cursor, skip_words='ftrace')
 

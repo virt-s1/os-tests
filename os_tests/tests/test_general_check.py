@@ -130,31 +130,22 @@ available_clocksource'
         '''
         case_name:
             test_check_dmidecode_dump_segfault
-
         case_priority:
             2
-
         component:
             dmidecode
-
         bugzilla_id:
             1885823
-
         customer_case_id:
             02939365
-
         polarion_id:
             n/a
-
         maintainer:
             xiliang@redhat.com
-
         description:
             check there is no segmentation fault while run 'dmidecode --dump'
-
         key_steps:
             # dmidecode --dump |grep -i Segmentation 
-
         expected_result:
             No segmentation fault found.
         '''
@@ -212,28 +203,20 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         '''
         case_name:
             test_iostat_x
-
         case_priority:
             1
-
         component:
             kernel
-
         bugzilla_id:
             1661977
-
         polarion_id:
             n/a
-
         maintainer:
             xiliang@redhat.com
-
         description:
             Check "iostat -x" report and make sure there is no high utils when there is no obviously read/write operations.
-
         key_steps:
             1. # iostat -x
-
         expected_result:
             No high utils reported when no obviously read/write operations.
             eg. # iostat -x
@@ -245,7 +228,6 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
                 Device            r/s     w/s     rkB/s     wkB/s   rrqm/s   wrqm/s  %rrqm  %wrqm r_await w_await aqu-sz rareq-sz wareq-sz  svctm  %util
                 nvme0n1         46.06    2.82   1587.81    274.62     0.00     0.23   0.00   7.52    0.50    1.32   0.00    34.47    97.31   0.86   4.19
                 nvme1n1          0.15    0.00     10.43      0.00     0.00     0.00   0.00   0.00    1.00    0.00   0.00    70.40     0.00   1.50   0.02
-
         '''
         expect_utils = self.params.get('disk_utils')
         self.log.info("Check no disk utils lager than %s" % expect_utils)
@@ -349,32 +331,24 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
 
         case_priority:
             1
-
         component:
             lshw
-
         bugzilla_id:
             1882157
-
         polarion_id:
             n/a
-
         maintainer:
             xiliang@redhat.com
-
         description:
             Check "lshw -C memory -json" reported memory size is correct.
-
         key_steps:
             1. # lshw -C memory -json
-
         expected_result:
             No big gap found.
             eg. #  lshw -C memory -json|grep -i size
                     "size" : 98304,
                     "size" : 4286578688, <-- 4GiB is correct
                         "size" : 4286578688,
-
         '''
         utils_lib.is_cmd_exist(self, cmd='lshw')
         base_memory = utils_lib.get_memsize(self)
@@ -397,29 +371,21 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
 
         case_priority:
             1
-
         component:
             kernel
-
         bugzilla_id:
             1656862
-
         polarion_id:
             n/a
-
         maintainer:
             xiliang@redhat.com
-
         description:
             Check all nvme pci devices are found by "lsblk"
-
         key_steps:
             1. # lspci|grep "Non-Volatile memory"|wc -l
             2. # lsblk -d|grep nvme|wc -l
-
         expected_result:
             The nums are equal.
-
         '''
         utils_lib.is_cmd_exist(self, cmd='lspci')
         lspci_cmd = "lspci|grep 'Non-Volatile memory'|wc -l"
@@ -575,31 +541,22 @@ in cmdline as bug1859088")
         '''
         case_name:
             test_check_proc_self_status
-
         case_priority:
             1
-
         component:
             kernel
-
         bugzilla_id:
             1773868
-
         polarion_id:
             n/a
-
         maintainer:
             xiliang@redhat.com
-
         description:
             Check no 'unknown' in /proc/self/status.
-
         key_steps:
             1. # cat /proc/self/status
-
         expected_result:
             No 'unknown' in this file
-
         '''
         utils_lib.run_cmd(self, 'cat /proc/self/status', expect_not_kw='unknown', msg='Check no unknown in "/proc/self/status"')
 
@@ -622,31 +579,22 @@ in cmdline as bug1859088")
         '''
         case_name:
             test_check_service
-
         case_priority:
             1
-
         component:
             systemd
-
         bugzilla_id:
             1740443
-
         polarion_id:
             n/a
-
         maintainer:
             xiliang@redhat.com
-
         description:
             Check no failed service in start up.
-
         key_steps:
             1. # systemctl|grep failed
-
         expected_result:
             No failed service found.
-
         '''
         cmd = 'systemctl'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='failed')
@@ -655,34 +603,93 @@ in cmdline as bug1859088")
         '''
         case_name:
             test_check_sysfs_cpu_list
-
         case_priority:
             1
-
         component:
             kernel
-
         bugzilla_id:
             1741462
-
         polarion_id:
             n/a
-
         maintainer:
             xiliang@redhat.com
-
         description:
             Check no crash when read "cpu_list" in /sys.
-
         key_steps:
             1. # find -H /sys -name cpu_list  -type f -perm -u=r -print -exec cat '{}' 2>&1 \;
-
         expected_result:
             No crash/panic happen
-
         '''
         cmd = "find -H /sys -name cpu_list  -type f -perm -u=r -print -exec cat '{}' 2>&1 \;"
         utils_lib.run_cmd(self, cmd, msg='Check no crash seen when read cpu_list if exists')
+
+    def test_check_systemd_analyze_verify_deprecated_unsafe(self):
+        '''
+        case_name:
+            test_check_systemd_analyze_verify_deprecated_unsafe
+        case_priority:
+            2
+        component:
+            systemd
+        bugzilla_id:
+            1974184
+        customer_case_id:
+            n/a
+        polarion_id:
+            n/a
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check service does not use deprecated or unsafe options in unit file
+        key_steps:
+            1. # systemd-analyze verify $service name
+        expected_result:
+            No 'deprecated' or 'unsafe' found in output
+        '''
+        cmd = "sudo systemd-analyze verify default.target"
+        utils_lib.run_cmd(self, cmd, expect_not_kw='deprecated,nsafe', msg='Check there is no "deprecated" or "unsafe" keyword in output')
+        cmd = "systemctl list-unit-files |grep -v UNIT|grep -v listed|awk -F' ' '{print $1}'"
+        all_services = utils_lib.run_cmd(self, cmd, msg='retrive all systemd unit files').split('\n')
+
+        for service in all_services:
+            if not service or service.startswith('-'):
+                continue
+            cmd = "sudo systemd-analyze verify {}".format(service)
+            utils_lib.run_cmd(self, cmd, expect_not_kw='deprecated,unsafe', msg='Check there is no "deprecated" or "unsafe" keyword in output from {}'.format(service))
+
+    def test_check_systemd_analyze_verify_obsolete(self):
+        '''
+        case_name:
+            test_check_systemd_analyze_verify_obsolete
+        case_priority:
+            2
+        component:
+            systemd
+        bugzilla_id:
+            1974108
+        customer_case_id:
+            n/a
+        polarion_id:
+            n/a
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check service does not use obsolete options in unit file
+        key_steps:
+            1. # systemd-analyze verify $service name
+        expected_result:
+            No "is obsolete" found in output
+        '''
+        cmd = "sudo systemd-analyze verify default.target"
+        utils_lib.run_cmd(self, cmd, expect_not_kw='is obsolet', msg='Check there is no obsolet keyword in output')
+        cmd = "systemctl list-unit-files |grep -v UNIT|grep -v listed|awk -F' ' '{print $1}'"
+        all_services = utils_lib.run_cmd(self, cmd, msg='retrive all systemd unit files').split('\n')
+
+        for service in all_services:
+            if not service or service.startswith('-'):
+                continue
+            cmd = "sudo systemd-analyze verify {}".format(service)
+            utils_lib.run_cmd(self, cmd, expect_not_kw='is obsolet', msg='Check there is no obsolet keyword in output from {}'.format(service))
 
     def test_check_systemd_analyze_verify_ordering_cycle(self):
         '''
@@ -717,6 +724,7 @@ in cmdline as bug1859088")
             cmd = "sudo systemd-analyze verify {}".format(service)
             utils_lib.run_cmd(self, cmd, expect_not_kw='ordering cycle', msg='Check there is no ordering cycle which may block boot up in {}'.format(service))
 
+
     def test_check_tsc_deadline_timer(self):
         '''
         des: check TSC deadline timer enabled in dmesg
@@ -749,29 +757,21 @@ current_device"
 
         case_priority:
             1
-
         component:
             kernel
-
         bugzilla_id:
             1893063
-
         polarion_id:
             n/a
-
         maintainer:
             xiliang@redhat.com
-
         description:
             Check tuned-adm loads default "virtual-guest" in vm and does not load virtual-guest in metal instance
-
         key_steps:
             1. # tuned-adm active
-
         expected_result:
             Should not load virtual-guest in bare metal.
             Should load virtual-guest in vm by default.
-
         '''
         utils_lib.is_cmd_exist(self, cmd='tuned-adm', cancel_case=True)
         if 'inactive' in utils_lib.run_cmd(self, 'sudo systemctl is-active tuned'):
@@ -831,30 +831,22 @@ current_device"
         '''
         case_name:
             test_collect_insights_result
-
         case_priority:
             1
-
         component:
             kernel
-
         bugzilla_id:
             1889702
-
         polarion_id:
             n/a
-
         maintainer:
             xiliang@redhat.com
-
         description:
             Check if insights-client hits some rules.
-
         key_steps:
             1. #insights-client --register
             2. #insights-client --check-result
             3. #insights-client --show-results
-
         expected_result:
             If run in dev compose, we simply assume there is no insights rule should be hit because no pkg update available in the latest build.
             But if it is expected in dev compose, we can skip it in this case.
