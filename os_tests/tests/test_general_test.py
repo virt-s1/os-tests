@@ -131,32 +131,23 @@ current_clocksource'
         '''
         case_name:
             test_fips_selftest
-
         case_priority:
             2
-
         component:
             openssl
-
         bugzilla_id:
             1940085
-
         customer_case_id:
             02874840
-
         polarion_id:
             n/a
-
         maintainer:
             xiliang@redhat.com
-
         description:
             FIPS_selftest() pass
-
         key_steps:
             1. # gcc fipstest.c -o fipstest -lcrypto
             2. # # ./fipstest
-
         expected_result:
             No fips selftest failed.
         '''
@@ -192,6 +183,9 @@ int main(int argc, char *argv[])
 	fips_test(1);
 }
         """
+        product_id = utils_lib.get_product_id(self)
+        if float(product_id) >= 9.0:
+            self.skipTest('openssl-3.0.0 does not provide FIPS_selftest() API bz:1969692')
         utils_lib.is_pkg_installed(self, pkg_name="openssl-devel")
         utils_lib.is_pkg_installed(self, pkg_name="gcc")
         cmd = "echo '{}' > /tmp/fipstest.c".format(fipstest)
@@ -430,6 +424,7 @@ RUN touch /tmp/test.txt
         expected_result:
             Step2 return nothing.
         '''
+        utils_lib.is_cmd_exist(self, 'podman')
         self.log.info("Test podman can build an image using '--network container'")
         cmd = "podman ps -a"
         utils_lib.run_cmd(self, cmd, msg='try to list all containers before testing')

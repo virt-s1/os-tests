@@ -137,6 +137,14 @@ Files:
 - run in fips enabled kernel
 - run in remote-client mode to cover lifecycle cases
 
+### third party utils  
+
+Below tools are shiped under 'utils' directory with os-tests because not all systems can reach github.
+- ltp x86 rpms: https://github.com/liangxiao1/rpmbuild_specs/releases/download/ltp-master-20200514/ltp-master-20200514.x86_64.rpm
+- ltp aarch64 rpm: https://github.com/liangxiao1/rpmbuild_specs/releases/download/ltp-master-20200514/ltp-master-20200514.aarch64.rpm
+- blktests x86_64 rpm: https://github.com/liangxiao1/rpmbuild_specs/releases/download/blktests_20201009/blktests-master-20201009.x86_64.rpm
+- blktests aarch64 rpm: https://github.com/liangxiao1/rpmbuild_specs/releases/download/blktests_20201009/blktests-master-20201009.aarch64.rpm
+
 ### Contribution
 
 You are welcomed to create pull request or raise issue. New case from real customer senario or rhbz is prefered.

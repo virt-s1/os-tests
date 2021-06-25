@@ -3,12 +3,6 @@ code_repo: "https://github.com/liangxiao1/os-tests"
 results_dir: "/tmp/os_tests_result"
 # max boot up time in seconds
 max_boot_time: 40
-# ltp rpm location
-ltp_url_x86_64: https://github.com/liangxiao1/rpmbuild_specs/releases/download/ltp-master-20200514/ltp-master-20200514.x86_64.rpm
-ltp_url_aarch64: https://github.com/liangxiao1/rpmbuild_specs/releases/download/ltp-master-20200514/ltp-master-20200514.aarch64.rpm
-# blktests rpm location
-blktests_url_x86_64: https://github.com/liangxiao1/rpmbuild_specs/releases/download/blktests_20201009/blktests-master-20201009.x86_64.rpm
-blktests_url_aarch64: https://github.com/liangxiao1/rpmbuild_specs/releases/download/blktests_20201009/blktests-master-20201009.aarch64.rpm
 # pkg_reinstall to determine install it again or not when pkg exists already, set it to True to install latest version in each run
 pkg_reinstall: False
 # blk_devs defines the block device to test, caution, all data on this device will be erased.
@@ -18,7 +12,6 @@ pkg_reinstall: False
 ping_server: 8.8.8.8
 # max disk utils accepted
 disk_utils: 30
-
 # if you want to run os-tests in master-slave mode, please specify below options.
 # All tests are running in slave node including some reboot operations.
 # remote_node specify remote ip

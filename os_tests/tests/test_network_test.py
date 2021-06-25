@@ -1,5 +1,6 @@
 import re
 import unittest
+import time
 from os_tests.libs import utils_lib
 
 class TestNetworkTest(unittest.TestCase):
@@ -11,11 +12,15 @@ class TestNetworkTest(unittest.TestCase):
         self.nic = "eth0"
         self.log.info("Test which nic connecting to public, if no found, use {} by default".format(self.nic))
         for net in output.split('\n'):
-            cmd = "ping {} -c 2 -I {}".format(self.params.get('ping_server'), net)
+            cmd = "ping {} -c 6 -I {}".format(self.params.get('ping_server'), net)
             ret = utils_lib.run_cmd(self, cmd, ret_status=True)
             if ret == 0:
                 self.nic = net
                 break
+        cmd = "ip addr show {}".format(self.nic)
+        output = utils_lib.run_cmd(self, cmd, msg='try to get {} ipv4 address'.format(self.nic))
+        self.ipv4 = re.findall('[\d.]{7,16}', output)[0]
+
 
     def test_ethtool_G(self):
         '''
@@ -338,6 +343,49 @@ class TestNetworkTest(unittest.TestCase):
         cmd = "ping {} -c 10 -I {}".format(self.params.get('ping_server'), self.nic)
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', cursor=self.dmesg_cursor, skip_words='ftrace')
+
+    def test_persistent_route(self):
+        '''
+        case_name:
+            test_persistent_route
+        case_priority:
+            2
+        component:
+            NetworkManager
+        bugzilla_id:
+            1971527
+        customer_case_id:
+            02957058
+        polarion_id:
+            n/a
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if can add persistent static route
+        key_steps:
+            1. # nmcli connection modify 'System eth0' +ipv4.routes "10.8.8.0/24 10.7.9.5"
+            2. # nmcli connection down 'System eth0';nmcli connection up 'System eth0'
+            3. # ip r
+        expected_result:
+            New static route added.
+            eg. 10.8.8.0/24 via 10.7.9.5 dev eth0 proto static metric 100
+        '''
+        if utils_lib.is_pkg_installed(self, pkg_name='NetworkManager-cloud-setup', is_install=False):
+            cmd = 'sudo systemctl status nm-cloud-setup.timer'
+            utils_lib.run_cmd(self, cmd, msg='get nm-cloud-setup.timer status')
+        cmd = 'ip r'
+        utils_lib.run_cmd(self, cmd, msg='print route before testing')
+        cmd = "sudo nmcli |grep 'connected to'|grep {}|awk -F'to' '{{print $NF}}'".format(self.nic)
+        con_name = utils_lib.run_cmd(self, cmd, msg='try to get connection name')
+        con_name = con_name.strip('\n')
+        con_name = con_name.lstrip(' ')
+        cmd = "sudo nmcli connection modify '{}' +ipv4.routes '10.8.8.0/24 {}'".format(con_name, self.ipv4)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to add static route name')
+        cmd = "sudo bash -c 'nmcli connection down \"{con}\";nmcli connection up \"{con}\"'".format(con=con_name)
+        utils_lib.run_cmd(self, cmd, msg='down and up the connection')
+        time.sleep(10)
+        cmd = 'ip r'
+        utils_lib.run_cmd(self, cmd, expect_kw='10.8.8.0', msg='check new route added')
 
     def tearDown(self):
         if 'test_mtu_min_max_set' in self.id():

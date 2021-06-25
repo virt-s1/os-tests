@@ -481,10 +481,11 @@ def is_pkg_installed(test_instance, pkg_name=None, is_install=True, cancel_case=
         return True
     else:
         test_instance.log.info("No %s found!" % pkg_name)
-        cmd = 'sudo yum install -y {}'.format(pkg_name)
-        ret = run_cmd(test_instance, cmd, ret_status=True, msg='try to install it')
-        if ret == 0:
-            return True
+        if is_install:
+            cmd = 'sudo yum install -y {}'.format(pkg_name)
+            ret = run_cmd(test_instance, cmd, ret_status=True, msg='try to install it')
+            if ret == 0:
+                return True
         return False
 
 def pkg_install(test_instance, pkg_name=None, pkg_url=None):
@@ -682,6 +683,26 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
         find_it = False
         if baseline_dict is not None:
             for basekey in baseline_dict:
+                for sub_basekey_content in baseline_dict[basekey]["content"].split(';'):
+                    if re.search(sub_basekey_content, line1):
+                        if baseline_dict[basekey]["status"] == 'active':
+                            test_instance.log.info("Found a similar issue matched in baseline.")
+                            find_it = True
+                        else:
+                            test_instance.log.info("Found a similar issue matched in baseline. But it is not active, please check manually")
+                            find_it = False
+                            no_fail = False
+                        test_instance.log.info("log:{}, base:{}".format(line1, sub_basekey_content))
+                        test_instance.log.info("ID:%s Baseline analyze:%s Branch:%s Status:%s Link:%s Path:%s" %
+                             (basekey,
+                              baseline_dict[basekey]["analyze"],
+                              baseline_dict[basekey]["branch"],
+                              baseline_dict[basekey]["status"],
+                              baseline_dict[basekey]["link"],
+                              baseline_dict[basekey]["path"]))
+                        break
+                if find_it:
+                    break
                 line1_tmp = line1
                 line2_tmp = baseline_dict[basekey]["content"]
                 line1_tmp, line2_tmp = clean_sentence(test_instance, line1_tmp, line2_tmp)
@@ -690,8 +711,7 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
                 same_rate = seq.ratio() * 100
                 if same_rate > fail_rate:
                     test_instance.log.info(
-                        "Compare result rate: %d same, maybe it is not a \
-new one", same_rate)
+                        "Compare result rate: %d same, maybe it is not a new one", same_rate)
                     test_instance.log.info("Guest: %s Baseline: %s", line1,
                              baseline_dict[basekey]["content"])
                     test_instance.log.info("ID:%s Baseline analyze:%s Branch:%s Status:%s Link:%s Path:%s" %

@@ -729,7 +729,7 @@
         "trigger": ""
     },
     "msg_83": {
-        "content": "subj=system_u:system_r:sshd_t:s0-s0:c0.c1023 msg='op=pubkey acct=\"root\" exe=\"/usr/sbin/sshd\" hostname=? addr=10.72.12.125 terminal=ssh res=failed",
+        "content": "audit.* terminal=ssh res=failed",
         "analyze": "this is a ssh login failed try",
         "branch": "rhel",
         "status": "active",
@@ -767,6 +767,24 @@
     "msg_87": {
         "content": "GPT: Use GNU Parted to correct GPT errors.",
         "analyze": "this is information only when launch instance with bigger disk size",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_88": {
+        "content": "sshd.*: Invalid user .* from .* port .*.;sshd.*:.*authentication.*;sshd.*:.*Failed password.*",
+        "analyze": "this is information only when invalid user login",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_89": {
+        "content": "sshd.* banner exchange: Connection from .* port .*: invalid format;sshd.*: error: kex_exchange_identification: client sent invalid protocol identifier.*",
+        "analyze": "this is information only when invalid user login",
         "branch": "rhel",
         "status": "active",
         "link": "",

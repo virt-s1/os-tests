@@ -1,6 +1,8 @@
 import unittest
 from os_tests.libs import utils_lib
 import time
+import os
+import os_tests
 
 class TestStorage(unittest.TestCase):
 
@@ -20,11 +22,13 @@ class TestStorage(unittest.TestCase):
 
     def setUp(self):
         utils_lib.init_case(self)
+        utils_dir = os.path.realpath(os_tests.__file__)
+        utils_dir = os.path.dirname(utils_dir) + '/utils'
         if utils_lib.is_arch(self, arch='aarch64'):
-            blktests_url = self.params.get('blktests_url_aarch64')
+            blktests_rpm = utils_dir + '/blktests-master.aarch64.rpm'
         else:
-            blktests_url = self.params.get('blktests_url_x86_64')
-        utils_lib.pkg_install(self, pkg_name='blktests', pkg_url=blktests_url)
+            blktests_rpm = utils_dir + '/blktests-master.x86_64.rpm'
+        utils_lib.pkg_install(self, pkg_name='blktests', pkg_url=blktests_rpm)
         self.cursor = utils_lib.get_cmd_cursor(self, cmd='journalctl --since today')
 
     def test_storage_blktests_block(self):

@@ -1,6 +1,8 @@
 import unittest
 from os_tests.libs import utils_lib
+import os_tests
 import time
+import os
 
 class TestLTP(unittest.TestCase):
 
@@ -29,11 +31,13 @@ class TestLTP(unittest.TestCase):
 
     def setUp(self):
         utils_lib.init_case(self)
+        utils_dir = os.path.realpath(os_tests.__file__)
+        utils_dir = os.path.dirname(utils_dir) + '/utils'
         if utils_lib.is_arch(self, arch='aarch64'):
-            ltp_url = self.params.get('ltp_url_aarch64')
+            ltp_rpm = utils_dir + '/ltp-master.aarch64.rpm'
         else:
-            ltp_url = self.params.get('ltp_url_x86_64')
-        utils_lib.pkg_install(self, pkg_name='ltp', pkg_url=ltp_url)
+            ltp_rpm = utils_dir + '/ltp-master.x86_64.rpm'
+        utils_lib.pkg_install(self, pkg_name='ltp', pkg_url=ltp_rpm)
         self.cursor = utils_lib.get_cmd_cursor(self, cmd='journalctl --since today', rmt_redirect_stdout=True)
 
     def test_ltp_add_key02(self):
