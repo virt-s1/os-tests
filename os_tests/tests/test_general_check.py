@@ -291,7 +291,33 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
 
     def test_check_journalctl_fail(self):
         '''
-        polarion_id: RHEL7-103851
+        case_name:
+            test_check_journalctl_fail
+
+        case_priority:
+            1    
+
+        component:
+            kernel
+
+        bugzilla_id:
+            1879368
+
+        polarion_id:
+            RHEL7-103851
+
+        maintainer:
+            xiliang@redhat.com
+
+        description:
+            Check "journalctl |grep -i fail" reported and make sure there is nounknown fail log.                     
+    
+        key_steps:
+            1.#journalctl |grep -i fail
+
+        expected_result:
+            No new unknown fail log found.
+
         '''
         utils_lib.check_log(self, 'fail', skip_words='test_check,nofail', rmt_redirect_stdout=True)
 
