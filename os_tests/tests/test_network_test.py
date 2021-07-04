@@ -381,11 +381,12 @@ class TestNetworkTest(unittest.TestCase):
         con_name = con_name.lstrip(' ')
         cmd = "sudo nmcli connection modify '{}' +ipv4.routes '10.8.8.0/24 {}'".format(con_name, self.ipv4)
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to add static route name')
+        utils_lib.run_cmd(self, 'ip r', msg='print route after added')
         cmd = "sudo bash -c 'nmcli connection down \"{con}\";nmcli connection up \"{con}\"'".format(con=con_name)
         utils_lib.run_cmd(self, cmd, msg='down and up the connection')
         time.sleep(10)
         cmd = 'ip r'
-        utils_lib.run_cmd(self, cmd, expect_kw='10.8.8.0', msg='check new route added')
+        utils_lib.run_cmd(self, cmd, expect_kw='10.8.8.0', msg='check new route again after down and up connection')
 
     def tearDown(self):
         if 'test_mtu_min_max_set' in self.id():

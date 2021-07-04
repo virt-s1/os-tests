@@ -310,7 +310,7 @@
         "analyze": "Usually triggered by cpuhotplug test",
         "branch": "rhel8",
         "status": "active",
-        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1839753",
+        "link": "",
         "path": "journal",
         "trigger": "cpuhotplug"
     },

@@ -26,8 +26,15 @@ class TestStorage(unittest.TestCase):
         utils_dir = os.path.dirname(utils_dir) + '/utils'
         if utils_lib.is_arch(self, arch='aarch64'):
             blktests_rpm = utils_dir + '/blktests-master.aarch64.rpm'
+            blktests_rpm_tmp = '/tmp/ltp-master.aarch64.rpm'
         else:
             blktests_rpm = utils_dir + '/blktests-master.x86_64.rpm'
+            blktests_rpm_tmp = '/tmp/blktests-master.x86_64.rpm'
+        if not utils_lib.is_pkg_installed(self, pkg_name='ltp',is_install=False):
+            if self.params['remote_node'] is not None:
+                self.log.info('Copy {} to remote'.format(blktests_rpm))
+                self.SSH.put_file(local_file=blktests_rpm, rmt_file=blktests_rpm_tmp)
+                blktests_rpm = blktests_rpm_tmp
         utils_lib.pkg_install(self, pkg_name='blktests', pkg_url=blktests_rpm)
         self.cursor = utils_lib.get_cmd_cursor(self, cmd='journalctl --since today')
 

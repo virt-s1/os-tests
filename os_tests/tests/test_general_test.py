@@ -1,7 +1,9 @@
 import unittest
 import re
+import os_tests
 from os_tests.libs import utils_lib
 import time
+import os
 
 class TestGeneralTest(unittest.TestCase):
     def setUp(self):
@@ -232,10 +234,18 @@ int main(int argc, char *argv[])
             self.skipTest('skip when mem lower than 4GiB')
         utils_lib.is_cmd_exist(self, cmd='gcc', cancel_case=True)
         utils_lib.is_cmd_exist(self, cmd='wget', cancel_case=True)
-        cmd_list = ['wget https://github.com/redis/redis/files/5717040/redis_8124.c.txt',
-                    'mv redis_8124.c.txt redis_8124.c',
-                    'gcc -o reproduce redis_8124.c',
-                    'sudo systemd-run --scope -p MemoryLimit=550M ./reproduce']
+        utils_dir = os.path.realpath(os_tests.__file__)
+        utils_dir = os.path.dirname(utils_dir) + '/utils'
+        redis_src = utils_dir + '/redis_8124.c'
+        redis_src_tmp = '/tmp/redis_8124.c'
+        if self.params['remote_node'] is not None:
+            self.log.info('Copy {} to remote'.format(redis_src))
+            self.SSH.put_file(local_file=redis_src, rmt_file=redis_src_tmp)
+        else:
+            cmd = "sudo cp -f {} {}".format(redis_src, redis_src_tmp)
+            utils_lib.run_cmd(self, cmd, expect_ret=0, timeout=120)
+        cmd_list = ['gcc -o /tmp/reproduce /tmp/redis_8124.c',
+                    'sudo systemd-run --scope -p MemoryLimit=550M /tmp/reproduce']
         for cmd in cmd_list:
             out = utils_lib.run_cmd(self, cmd, expect_ret=0, timeout=120)
         if 'Your kernel looks fine' not in out:

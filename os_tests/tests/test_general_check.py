@@ -265,7 +265,7 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         '''
         # redirect journalctl output to a file as it is not get return
         # normally in RHEL7
-        cmd = 'journalctl > /tmp/journalctl.log'
+        cmd = 'journalctl -b 0 > /tmp/journalctl.log'
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         cmd = 'cat /tmp/journalctl.log'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='Traceback,Backtrace',
@@ -278,7 +278,7 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         '''
         # redirect journalctl output to a file as it is not get return
         # normally in RHEL7
-        cmd = 'journalctl > /tmp/journalctl.log'
+        cmd = 'journalctl -b 0 > /tmp/journalctl.log'
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         cmd = 'cat /tmp/journalctl.log'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='dumped core',
