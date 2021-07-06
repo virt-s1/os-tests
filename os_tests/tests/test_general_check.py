@@ -917,7 +917,27 @@ current_device"
                 self.fail("{} insights rule hit".format(len(tmp_dict)))
         except json.decoder.JSONDecodeError as exc:
             self.log.error("insights rule hit or other unexpected error")
-
+    def test_check_rngd_cpuusage(self):
+        '''
+        case_name:
+            test_check_rngd_cpuusage
+        case_priority:
+            1
+        component:
+            rngd
+        bugzilla_id:
+            1956248
+        polarion_id:
+            n/a
+        maintainer:
+        description:
+            Check if rngd is taking 100% usage of CPU.
+        key_steps:
+            1.#ps u -C rngd
+        expected_result:
+            The usage of CPU is not 100%.
+        '''
+        utils_lib.run_cmd(self,'ps u -C rngd',msg='Check rngd CPU usage')
     def tearDown(self):
         self.log.info("{} test done".format(self.id()))
 
