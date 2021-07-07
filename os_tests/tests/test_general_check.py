@@ -954,7 +954,7 @@ current_device"
                 result_out.remove('')
             if count == 0:
                 lastpid = int(result_out[1])
-            if float(result_out[0]) >= 95 and lastpid == int(result_out[1]):
+            if float(result_out[0]) >= 85 and lastpid == int(result_out[1]):
                 lastpid = int(result_out[1])
                 count += 1
                 time.sleep(1)
