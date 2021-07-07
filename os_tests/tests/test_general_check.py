@@ -921,23 +921,39 @@ current_device"
         '''
         case_name:
             test_check_rngd_cpuusage
+
         case_priority:
             1
+
         component:
             rngd
+
         bugzilla_id:
             1956248
+
         polarion_id:
             n/a
+
         maintainer:
+
+
         description:
             Check if rngd is taking 100% usage of CPU.
+
         key_steps:
             1.#ps u -C rngd
+
         expected_result:
             The usage of CPU is not 100%.
+
         '''
-        utils_lib.run_cmd(self,'ps u -C rngd',msg='Check rngd CPU usage')
+        pid = utils_lib.run_cmd(self,'pidof rngd',msg='Find rngd\'spid')
+        result_out = utils_lib.run_cmd(self, f'ps up {pid[:-1]} |grep rngd', msg='Check rngd CPU usage')
+        result_out = result_out.split(' ')
+        while '' in result_out:
+            result_out.remove('')
+        if  re.match('100', result_out[2]):
+            self.fail('The usage of CPU is 100%')
     def tearDown(self):
         self.log.info("{} test done".format(self.id()))
 
