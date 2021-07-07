@@ -917,16 +917,16 @@ current_device"
                 self.fail("{} insights rule hit".format(len(tmp_dict)))
         except json.decoder.JSONDecodeError as exc:
             self.log.error("insights rule hit or other unexpected error")
-    def test_check_rngd_cpuusage(self):
+    def test_check_cpuusage_exception(self):
         '''
         case_name:
-            test_check_rngd_cpuusage
+            test_check_cpuusage_exception
 
         case_priority:
             1
 
         component:
-            rngd
+            kernel
 
         bugzilla_id:
             1956248
@@ -936,24 +936,35 @@ current_device"
 
         maintainer:
 
-
         description:
-            Check if rngd is taking 100% usage of CPU.
+            Check if there is a process taking high usage of CPU abnormally.
 
         key_steps:
-            1.#ps u -C rngd
+            1.#ps -eo pmem,pid |sort -k 1 -r -n
 
         expected_result:
-            The usage of CPU is not 100%.
+            The usage of CPU is normal.
 
         '''
-        pid = utils_lib.run_cmd(self,'pidof rngd',msg='Find rngd\'spid')
-        result_out = utils_lib.run_cmd(self, f'ps up {pid[:-1]} |grep rngd', msg='Check rngd CPU usage')
-        result_out = result_out.split(' ')
-        while '' in result_out:
-            result_out.remove('')
-        if  re.match('100', result_out[2]):
-            self.fail('The usage of CPU is 100%')
+        count=0
+        for i in range(60):
+            result_out = utils_lib.run_cmd(self,"ps -eo pmem,pid |sort -k 1 -r -n|sed -n '1p'",msg='Find process with highest cpu usage')
+            result_out = result_out.split(' ')
+            while '' in result_out:
+                result_out.remove('')
+            if count == 0:
+                lastpid = int(result_out[1])
+            if float(result_out[0]) >= 95 and lastpid == int(result_out[1]):
+                lastpid = int(result_out[1])
+                count += 1
+                time.sleep(1)
+            else:
+                break
+        if count>=59:
+            process = utils_lib.run_cmd(self,f'grep "Name:" /proc/{int(result_out[1])}/status',msg='Find process name')
+            process = process[6:-1]
+            self.fail(f'Proces {process} have abnormal CPU usage.')
+            
     def tearDown(self):
         self.log.info("{} test done".format(self.id()))
 
