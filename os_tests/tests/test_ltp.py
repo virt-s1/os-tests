@@ -35,8 +35,15 @@ class TestLTP(unittest.TestCase):
         utils_dir = os.path.dirname(utils_dir) + '/utils'
         if utils_lib.is_arch(self, arch='aarch64'):
             ltp_rpm = utils_dir + '/ltp-master.aarch64.rpm'
+            ltp_rpm_tmp = '/tmp/ltp-master.aarch64.rpm'
         else:
             ltp_rpm = utils_dir + '/ltp-master.x86_64.rpm'
+            ltp_rpm_tmp = '/tmp/ltp-master.x86_64.rpm'
+        if not utils_lib.is_pkg_installed(self, pkg_name='ltp',is_install=False):
+            if self.params['remote_node'] is not None:
+                self.log.info('Copy {} to remote'.format(ltp_rpm))
+                self.SSH.put_file(local_file=ltp_rpm, rmt_file=ltp_rpm_tmp)
+                ltp_rpm = ltp_rpm_tmp
         utils_lib.pkg_install(self, pkg_name='ltp', pkg_url=ltp_rpm)
         self.cursor = utils_lib.get_cmd_cursor(self, cmd='journalctl --since today', rmt_redirect_stdout=True)
 

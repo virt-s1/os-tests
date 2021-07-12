@@ -19,21 +19,29 @@ except ImportError:
 def init_connection(test_instance, timeout=600):
     if test_instance.params['remote_node'] is not None:
         test_instance.log.info("remote_node specified, all tests will be run in {}".format(test_instance.params['remote_node']))
+        ssh = rmt_ssh.RemoteSSH()
+        ssh.rmt_node = test_instance.params['remote_node']
+        ssh.rmt_user = test_instance.params['remote_user']
+        ssh.rmt_password = test_instance.params['remote_password']
+        ssh.rmt_keyfile = test_instance.params['remote_keyfile']
+        ssh.timeout = 180
+        ssh.log = test_instance.log
+        test_instance.SSH = ssh
         start_time = time.time()
         while True:
             current_time = time.time()
             if current_time - start_time > timeout:
                 test_instance.log.info("timeout to connect to remote")
                 break
-            test_instance.ssh_client = rmt_ssh.build_connection(rmt_node=test_instance.params['remote_node'],rmt_user=test_instance.params['remote_user'], rmt_password=test_instance.params['remote_password'], rmt_keyfile=test_instance.params['remote_keyfile'], log=test_instance.log)
-            if test_instance.ssh_client is not None:
+            test_instance.SSH.create_connection()
+            if test_instance.SSH.ssh_client is not None:
                 break
             time.sleep(5)
             test_instance.log.info("Not conncted, retry again! timeout:{}".format(timeout))
-        if test_instance.ssh_client is None:
+        if test_instance.SSH.ssh_client is None:
             test_instance.skipTest("Cannot make ssh connection to remote, please check")
     else:
-        test_instance.ssh_client = None
+        test_instance.SSH.ssh_client = None
 
 def get_cfg():
     # Config file
@@ -79,12 +87,12 @@ def init_case(test_instance):
             test_instance.log.info("key:{}, val:{}".format(key, test_instance.params[key]))
     test_instance.log.info("-"*80)
     if test_instance.params['remote_node'] is not None:
-        test_instance.log.info("remote_node specified, all tests will be run in {}".format(test_instance.params['remote_node']))
-        test_instance.ssh_client = rmt_ssh.build_connection(rmt_node=test_instance.params['remote_node'],rmt_user=test_instance.params['remote_user'],rmt_password=test_instance.params['remote_password'],rmt_keyfile=test_instance.params['remote_keyfile'], log=test_instance.log)
-        if test_instance.ssh_client is None:
+        init_connection(test_instance)
+        if  test_instance.SSH.ssh_client is None:
             test_instance.skipTest("Cannot make ssh connection to remote, please check")
     else:
-        test_instance.ssh_client = None
+        test_instance.SSH = rmt_ssh.RemoteSSH()
+        test_instance.SSH.ssh_client = None
     if os.path.exists(cfg_file):
         test_instance.log.info("{} config file found!".format(cfg_file))
 
@@ -170,8 +178,8 @@ def run_cmd(test_instance,
     exception_hit = False
 
     try:
-        if test_instance.ssh_client is not None:
-            status, output = rmt_ssh.remote_excute(test_instance.ssh_client, cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty, log=test_instance.log)
+        if  test_instance.SSH.ssh_client is not None:
+            status, output = test_instance.SSH.remote_excute(cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty)
         else:
             ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
             #ret = subprocess.run(cmd, shell=True, capture_output=True, timeout=timeout, encoding='utf-8')
@@ -190,9 +198,9 @@ def run_cmd(test_instance,
         test_cmd = 'uname -a'
         test_instance.log.info("Test system is alive via cmd:{}. If still fail, check no hang or panic happens.".format(test_cmd))
         try:
-            if test_instance.ssh_client is not None:
-                status, output = rmt_ssh.remote_excute(test_instance.ssh_client, test_cmd, timeout, log=test_instance.log)
-                status, output = rmt_ssh.remote_excute(test_instance.ssh_client, cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr, rmt_get_pty=rmt_get_pty, log=test_instance.log)
+            if test_instance.SSH.ssh_client is not None:
+                status, output = test_instance.SSH.remote_excute(test_cmd, timeout)
+                status, output = test_instance.SSH.remote_excute(cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty)
             else:
                 ret = subprocess.run(test_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
                 status = ret.returncode
@@ -500,7 +508,7 @@ def pkg_install(test_instance, pkg_name=None, pkg_url=None):
         Arguments:
             test_instance {avocado Test instance} -- avocado test instance
             pkg_name {string} -- pkg name
-            pkg_url {string} -- pkg url if it is not in default repo
+            pkg_url {string} -- pkg url or location if it is not in default repo
         """
 
         if not is_pkg_installed(test_instance, pkg_name=pkg_name):
@@ -564,7 +572,7 @@ def get_cmd_cursor(test_instance, cmd='dmesg -T', rmt_redirect_stdout=False, rmt
     test_instance.log.info("Get cursor: {}".format(cursor))
     return cursor
 
-def check_log(test_instance, log_keyword, log_cmd="journalctl --since today", match_word_exact=False, cursor=None, skip_words=None, rmt_redirect_stdout=False, rmt_redirect_stderr=False, rmt_get_pty=False):
+def check_log(test_instance, log_keyword, log_cmd="journalctl -b 0", match_word_exact=False, cursor=None, skip_words=None, rmt_redirect_stdout=False, rmt_redirect_stderr=False, rmt_get_pty=False):
     '''
     check journal log
     Arguments:

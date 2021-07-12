@@ -137,7 +137,7 @@ Files:
 - run in fips enabled kernel
 - run in remote-client mode to cover lifecycle cases
 
-### third party utils  
+### Third party utils  
 
 Below tools are shiped under 'utils' directory with os-tests because not all systems can reach github.
 - ltp x86 rpms: https://github.com/liangxiao1/rpmbuild_specs/releases/download/ltp-master-20200514/ltp-master-20200514.x86_64.rpm
