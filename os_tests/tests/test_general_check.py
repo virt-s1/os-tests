@@ -198,7 +198,50 @@ grep -v spec_store_bypass|grep -v 'tsx_async_abort'|grep -v mds|grep -v \
 itlb_multihit|sed 's/:/^/' | column -t -s^"
 
         utils_lib.run_cmd(self, check_cmd, expect_ret=0, expect_not_kw='Vulnerable')
+        
+   def test_check_cpuusage_exception(self):
+        '''
+        case_name:
+            test_check_cpuusage_exception
+        case_priority:
+            1
+        component:
+            kernel
+        bugzilla_id:
+            1956248
+        customer_case_id:
+            n/a
+        polarion_id:
+            n/a
+        maintainer:
 
+        description:
+            Check if there is a process taking high usage of CPU abnormally.
+            If it shows the high usage of CPU abnormally(higher than 85% over 1min),the case fails.
+        key_steps:
+            1.#ps -eo pmem,pid |sort -k 1 -r -n
+        expected_result:
+            The usage of CPU is normal(slower than 85% once in 1min).
+        '''
+        count=0
+        for i in range(60):
+            result_out = utils_lib.run_cmd(self,"ps -eo pmem,pid |sort -k 1 -r -n|sed -n '1p'",msg='Find process with highest cpu usage')
+            result_out = result_out.split(' ')
+            while '' in result_out:
+                result_out.remove('')
+            if count == 0:
+                lastpid = int(result_out[1])
+            if float(result_out[0]) >= 85 and lastpid == int(result_out[1]):
+                lastpid = int(result_out[1])
+                count += 1
+                time.sleep(1)
+            else:
+                break
+        if count>=59:
+            process = utils_lib.run_cmd(self,f'grep "Name:" /proc/{int(result_out[1])}/status',msg='Find process name')
+            process = process[6:-1]
+            self.fail(f'{process}(pid:{lastpid}) have abnormal CPU usage.')
+            
     def test_iostat_x(self):
         '''
         case_name:
@@ -917,56 +960,6 @@ current_device"
                 self.fail("{} insights rule hit".format(len(tmp_dict)))
         except json.decoder.JSONDecodeError as exc:
             self.log.error("insights rule hit or other unexpected error")
-    def test_check_cpuusage_exception(self):
-        '''
-        case_name:
-            test_check_cpuusage_exception
-
-        case_priority:
-            1
-
-        component:
-            kernel
-
-        bugzilla_id:
-            1956248
-
-        polarion_id:
-            n/a
-
-        maintainer:
-
-        description:
-            Check if there is a process taking high usage of CPU abnormally.
-
-        key_steps:
-            1.#ps -eo pmem,pid |sort -k 1 -r -n
-
-        expected_result:
-            The usage of CPU is normal.
-
-        '''
-        count=0
-        for i in range(60):
-            result_out = utils_lib.run_cmd(self,"ps -eo pmem,pid |sort -k 1 -r -n|sed -n '1p'",msg='Find process with highest cpu usage')
-            result_out = result_out.split(' ')
-            while '' in result_out:
-                result_out.remove('')
-            if count == 0:
-                lastpid = int(result_out[1])
-            if float(result_out[0]) >= 85 and lastpid == int(result_out[1]):
-                lastpid = int(result_out[1])
-                count += 1
-                time.sleep(1)
-            else:
-                break
-        if count>=59:
-            process = utils_lib.run_cmd(self,f'grep "Name:" /proc/{int(result_out[1])}/status',msg='Find process name')
-            process = process[6:-1]
-            self.fail(f'Proces {process} have abnormal CPU usage.')
-            
-    def tearDown(self):
-        self.log.info("{} test done".format(self.id()))
 
 if __name__ == '__main__':
     unittest.main()
