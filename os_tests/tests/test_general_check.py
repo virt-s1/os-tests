@@ -210,22 +210,22 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         bugzilla_id:
             1956248
         customer_case_id:
-            n/a
+            02929244
         polarion_id:
             n/a
         maintainer:
-
+        
         description:
             Check if there is a process taking high usage of CPU abnormally.
             If it shows the high usage of CPU abnormally(higher than 85% over 1min),the case fails.
         key_steps:
-            1.#ps -eo pmem,pid |sort -k 1 -r -n
+            1.#ps -eo pcpu,pid,command |sort -k 1 -r -n
         expected_result:
             The usage of CPU is normal(slower than 85% once in 1min).
         '''
         count=0
         for i in range(60):
-            result_out = utils_lib.run_cmd(self,"ps -eo pmem,pid |sort -k 1 -r -n|sed -n '1p'",msg='Find process with highest cpu usage')
+            result_out = utils_lib.run_cmd(self,"ps -eo pcpu,pid,command |sort -k 1 -r -n|sed -n '1p'",msg='Find process with highest usage of CPU')
             result_out = result_out.split(' ')
             while '' in result_out:
                 result_out.remove('')
@@ -238,9 +238,10 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
             else:
                 break
         if count>=59:
-            process = utils_lib.run_cmd(self,f'grep "Name:" /proc/{int(result_out[1])}/status',msg='Find process name')
-            process = process[6:-1]
-            self.fail(f'{process}(pid:{lastpid}) have abnormal CPU usage.')
+            command =''
+            for i in range(2,len(result_out)-1):
+                command += result_out[i] + ' '
+            self.fail(f'{command}(pid:{lastpid}) have abnormal usage of CPU.')
             
     def test_iostat_x(self):
         '''
@@ -510,7 +511,51 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         output = utils_lib.run_cmd(self, cmd, expect_ret=0)
         if len(output) > 0:
             self.fail('Memory leak found!')
-
+            
+    def test_check_memusage_exception(self):
+        '''
+        case_name:
+            test_check_memusage_exception
+        case_priority:
+            1
+        component:
+            kernel
+        bugzilla_id:
+            1956248
+        customer_case_id:
+            02929244
+        polarion_id:
+            n/a
+        maintainer:
+        
+        description:
+            Check if there is a process taking high usage of Memory abnormally.
+            If it shows the high usage of Memory abnormally(higher than 60% over 1min),the case fails.
+        key_steps:
+            1.#ps -eo pmem,pid,command |sort -k 1 -r -n
+        expected_result:
+            The usage of Memory is normal(slower than 60% once in 1min).
+        '''
+        count=0
+        for i in range(60):
+            result_out = utils_lib.run_cmd(self,"ps -eo pmem,pid,command |sort -k 1 -r -n|sed -n '1p'",msg='Find process with highest usage of Memory')
+            result_out = result_out.split(' ')
+            while '' in result_out:
+                result_out.remove('')
+            if count == 0:
+                lastpid = int(result_out[1])
+            if float(result_out[0]) >= 60 and lastpid == int(result_out[1]):
+                lastpid = int(result_out[1])
+                count += 1
+                time.sleep(1)
+            else:
+                break
+        if count>=59:
+            command =''
+            for i in range(2,len(result_out)-1):
+                command += result_out[i] + ' '
+            self.fail(f'{command}(pid:{lastpid}) have abnormal usage of Memory.')
+            
     def test_check_microcode_load(self):
         '''
         bz: 1607899
