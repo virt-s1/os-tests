@@ -39,7 +39,7 @@ def main():
     print("Run in mode: is_listcase:{} pattern: {}".format(args.is_listcase, args.pattern))
     this_dir = os.path.dirname(__file__)
     this_dir = os.path.dirname(this_dir)
-    ts = unittest.defaultTestLoader.discover(start_dir=this_dir)
+    ts = unittest.defaultTestLoader.discover(start_dir=this_dir,pattern='os_tests*.py')
     tmp_ts = copy.deepcopy(ts)
     final_ts = unittest.TestSuite()
     for ts1 in tmp_ts:

@@ -214,7 +214,7 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         polarion_id:
             n/a
         maintainer:
-        
+            xiliang
         description:
             Check if there is a process taking high usage of CPU abnormally.
             If it shows the high usage of CPU abnormally(higher than 85% over 1min),the case fails.
@@ -315,6 +315,56 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='Traceback,Backtrace',
                         msg = "Check no Traceback,Backtrace in journal log")
 
+    def test_check_journalctl_cannot(self):
+        '''
+        case_name:
+            test_check_journalctl_cannot
+        case_priority:
+            2
+        component:
+            journal
+        bugzilla_id:
+            
+        customer_case_id:
+            
+        polarion_id:
+            n/a
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check "journalctl |grep -i 'Could not'" reported and make sure there is 'Could not' log.
+        key_steps:
+            1.#journalctl |grep -i 'Could not'
+        expected_result:
+            No new unknown 'Could not' log found.
+        '''
+        utils_lib.check_log(self, 'Could not,can not', rmt_redirect_stdout=True)
+
+    def test_check_journalctl_denied(self):
+        '''
+        case_name:
+            test_check_journalctl_denied
+        case_priority:
+            2
+        component:
+            journal
+        bugzilla_id:
+            1978507
+        customer_case_id:
+            
+        polarion_id:
+            n/a
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check "journalctl |grep -i denied" reported and make sure there is no unknown denied log.
+        key_steps:
+            1.#journalctl |grep -i denied
+        expected_result:
+            No new unknown denied log found.
+        '''
+        utils_lib.check_log(self, 'denied', rmt_redirect_stdout=True)
+
     def test_check_journalctl_dumpedcore(self):
         '''
         polarion_id:
@@ -337,33 +387,75 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         '''
         case_name:
             test_check_journalctl_fail
-
         case_priority:
             1    
-
         component:
             kernel
-
         bugzilla_id:
             1879368
-
         polarion_id:
             RHEL7-103851
-
         maintainer:
             xiliang@redhat.com
-
         description:
-            Check "journalctl |grep -i fail" reported and make sure there is nounknown fail log.                     
-    
+            Check "journalctl |grep -i fail" reported and make sure there is nounknown fail log.
         key_steps:
             1.#journalctl |grep -i fail
-
         expected_result:
             No new unknown fail log found.
-
         '''
         utils_lib.check_log(self, 'fail', skip_words='test_check,nofail', rmt_redirect_stdout=True)
+
+    def test_check_journalctl_not_found(self):
+        '''
+        case_name:
+            test_check_journalctl_not_found
+        case_priority:
+            2
+        component:
+            journal
+        bugzilla_id:
+            1855252
+        customer_case_id:
+            
+        polarion_id:
+            n/a
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check "journalctl |grep -i 'no such file'" reported and make sure there is file not found in log.
+        key_steps:
+            1.#journalctl |grep -i 'not found'
+            2.#journalctl |grep -i 'no such file'
+        expected_result:
+            No new unknown not file found log found.
+        '''
+        utils_lib.check_log(self, 'not found,no such', rmt_redirect_stdout=True)
+
+    def test_check_journalctl_unexpected(self):
+        '''
+        case_name:
+            test_check_journalctl_unexpected
+        case_priority:
+            2
+        component:
+            journal
+        bugzilla_id:
+            1978507
+        customer_case_id:
+            
+        polarion_id:
+            n/a
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check "journalctl |grep -i unexpected" reported and make sure there is no unknown unexpected log.
+        key_steps:
+            1.#journalctl |grep -i unexpected
+        expected_result:
+            No new unknown unexpected log found.
+        '''
+        utils_lib.check_log(self, 'unexpected', rmt_redirect_stdout=True)
 
     def test_check_journalctl_warn(self):
         '''

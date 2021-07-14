@@ -790,5 +790,23 @@
         "link": "",
         "path": "journal, dmesg",
         "trigger": ""
+    },
+    "msg_90": {
+        "content": "[drm] psp command (0xD) failed and response status is (0x80000204)",
+        "analyze": "this is information only while amdgpu is not supported in rhel",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1969797",
+        "path": "journal, dmesg",
+        "trigger": "amdgpu"
+    },
+    "msg_91": {
+        "content": "modprobe: ERROR: could not insert .*: No such device",
+        "analyze": "this is information only and the messages can be safely disregardedl",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/2853221",
+        "path": "journal, dmesg",
+        "trigger": "fips mode: enabled"
     }
 }
