@@ -269,13 +269,12 @@ int main(int argc, char *argv[])
         '''
         bz: 1932802, 1905398
         '''
-        cmd = "sudo rpm -qa|grep rhui"
-        utils_lib.run_cmd(self, cmd, cancel_ret='0', msg='skip test if rhui is not installed')
+        if not (utils_lib.is_aws(self) or utils_lib.is_azure(self)):
+            self.skipTest('Auto registeration only supports AWS and Azure platforms for now.')
 
         product_id = utils_lib.get_product_id(self)
         if float(product_id) < 8.4:
             self.skipTest('skip in earlier than el8.4')
-        self.log.info("Auto registeration only supports AWS and Azure platforms for now.")
 
         cmd = "sudo subscription-manager config --rhsmcertd.auto_registration=1 --rhsm.manage_repos=0 --rhsmcertd.auto_registration_interval=1"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to enable auto_registration, disable managed_repos and change inverval from 60mins to 1min')

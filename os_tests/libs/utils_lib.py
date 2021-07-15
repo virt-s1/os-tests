@@ -390,6 +390,26 @@ def is_aws(test_instance, action=None):
         test_instance.log.info("Not an aws system.")
     return False
 
+def is_azure(test_instance, action=None):
+    '''
+    Check whether system is an azure system.
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+        action {string} -- cancel case if it is not a azure system
+    Return:
+        azure: return True
+        other: return False
+    '''
+    output = run_cmd(test_instance, "sudo route -n", expect_ret=0)
+    if '168.63.129.16' in output:
+        test_instance.log.info("Azure system.")
+        return True
+    else:
+        if action == "cancel":
+            test_instance.skipTest("Cancel it in non azure system.")
+        test_instance.log.info("Not an azure system.")
+    return False
+
 def is_ali(test_instance, action=None):
     '''
     Check whether system is a ali system.
