@@ -126,6 +126,36 @@ available_clocksource'
                     expect_not_kw='Unknown symbol',
                     msg='Check there is no Unknown symbol in dmesg')
 
+    def test_check_dmesg_nmi(self):
+        '''
+        case_name:
+            test_check_dmesg_nmi
+        case_priority:
+            1
+        component:
+            kernel
+        bugzilla_id:
+            1917824
+        customer_case_id:
+            02803548
+        polarion_id:
+            n/a
+        maintainer:
+            xiliang@redhat.com
+        description:
+           Check no "NMI received" before and after run 'perf top' in dmesg.
+        key_steps:
+            1.#dmesg
+            2.#timeout 20 perf top
+            3.#dmesg
+        expected_result:
+            There is no "NMI received" before and after run 'perf top' in dmesg.
+        '''
+        utils_lib.run_cmd(self, 'dmesg', expect_ret=0, expect_not_kw='NMI received', msg="Check there is no 'NMI received' in dmesg before run 'perf top'")
+        utils_lib.run_cmd(self, 'timeout --foreground 20 perf top ', msg="Run 'perf top' for 20s. ")
+        utils_lib.run_cmd(self, 'dmesg', expect_ret=0, expect_not_kw='NMI received', msg="Check there is no 'NMI received' in dmesg after run 'perf top'")
+
+
     def test_check_dmidecode_dump_segfault(self):
         '''
         case_name:
