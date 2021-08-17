@@ -859,7 +859,7 @@ in cmdline as bug1859088")
         cmd = "find -H /sys -name cpu_list  -type f -perm -u=r -print -exec cat '{}' 2>&1 \;"
         utils_lib.run_cmd(self, cmd, msg='Check no crash seen when read cpu_list if exists')
         
-    def test_check_sys_modules_parameters(self):
+    def test_check_sys_modules_parameters_readable(self):
         '''
         case_name:
             test_check_sys_modules_parameters_readable
@@ -878,11 +878,11 @@ in cmdline as bug1859088")
         description:
             Check no panic happen when read all files under "/sys/module/*/parameters/".
         key_steps:
-            1. # cat /sys/module/*/parameters/* >/dev/null 2>&1
+            1. # cat /sys/module/*/parameters/* 
         expected_result:
             No panic happen
         '''
-        utils_lib.run_cmd(self, 'cat /sys/module/*/parameters/* >/dev/null 2>&1', msg='Check no panic happen when read all files under "/sys/module/*/parameters/"')
+        utils_lib.run_cmd(self, 'cat /sys/module/*/parameters/*', msg='Check no panic happen when read all files under "/sys/module/*/parameters/"')
 
     def test_check_systemd_analyze_verify_deprecated_unsafe(self):
         '''
