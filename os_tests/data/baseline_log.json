@@ -808,5 +808,32 @@
         "link": "https://access.redhat.com/solutions/2853221",
         "path": "journal, dmesg",
         "trigger": "fips mode: enabled"
+    },
+    "msg_92": {
+        "content": "usr/lib/modules/.*/kernel/.*net.*failover.ko.xz",
+        "analyze": "this is a mode name only",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_93": {
+        "content": "/usr/sbin/irqbalance[756]: libcap-ng used by \"/usr/sbin/irqbalance\" failed due to not having CAP_SETPCAP in capng_apply",
+        "analyze": "Known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1963152",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_94": {
+        "content": "audit: CONFIG_CHANGE op=set audit_failure=1 old=1 auid=4294967295 ses=4294967295 subj=system_u:system_r:unconfined_service_t:s0 res=1",
+        "analyze": "this is info of login",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
     }
 }
