@@ -835,5 +835,23 @@
         "link": "",
         "path": "journal, dmesg",
         "trigger": ""
+    },
+    "msg_95": {
+        "content": "pstore: crypto_comp_decompress failed, ret = -22!",
+        "analyze": "this is know issue and can ignore it, user also can avoid by clean up /sys/fs/pstore",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1978938, https://bugzilla.redhat.com/show_bug.cgi?id=1993551#c16",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_96": {
+        "content": "pstore: decompression failed: -22",
+        "analyze": "this is know issue and can ignore it, user also can avoid by clean up /sys/fs/pstore",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1978938, https://bugzilla.redhat.com/show_bug.cgi?id=1993551#c16",
+        "path": "journal, dmesg",
+        "trigger": ""
     }
 }
