@@ -567,6 +567,11 @@ grep -i pci|grep n1' % boot_pci
             self,
             'sudo virsh nodedev-list|grep %s |tail -1' % tmp_pci,
             msg='pick up device to detach')
+        pci_dev_1 = re.findall('pci_.*',pci_dev_1)
+        if len(pci_dev_1) > 0:
+            pci_dev_1= pci_dev_1[0]
+        else:
+            self.fail("no {} found in output".format(tmp_pci))
         if pci_dev_1.endswith('1'):
             pci_dev_0 = pci_dev_1.rstrip('1') + '0'
             utils_lib.run_cmd(self,

@@ -23,8 +23,7 @@ class TestGeneralCheck(unittest.TestCase):
         '''
         time_start = utils_lib.run_cmd(self, "date '+%T'", msg='retrive test system current time')
         self.log.info("Check no permission denied at nfs server - bug1655493")
-        cmd = 'sudo yum install -y nfs-utils'
-        utils_lib.run_cmd(self, cmd, msg='Install nfs-utils')
+        utils_lib.is_pkg_installed(self,pkg_name='nfs-utils')
         output = utils_lib.run_cmd(self, 'uname -r', expect_ret=0)
 
         if 'el7' in output or 'el6' in output:
@@ -58,9 +57,9 @@ class TestGeneralCheck(unittest.TestCase):
             expect_clocks = 'xen,tsc,hpet,acpi_pm'
         elif 'aarch64' in output:
             expect_clocks = 'arch_sys_counter'
-        elif 'AuthenticAMD' in output and 'KVM' in output:
+        elif 'AuthenticAMD' in output and 'KVM' in output and not utils_lib.is_metal(self):
             expect_clocks = 'kvm-clock,tsc,acpi_pm'
-        elif 'GenuineIntel' in output and 'KVM' in output:
+        elif 'GenuineIntel' in output and 'KVM' in output and not utils_lib.is_metal(self):
             expect_clocks = 'kvm-clock,tsc,acpi_pm'
         else:
             expect_clocks = 'tsc,hpet,acpi_pm'
