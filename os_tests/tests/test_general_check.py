@@ -179,6 +179,8 @@ available_clocksource'
             No segmentation fault found.
         '''
         utils_lib.is_cmd_exist(self, cmd='dmidecode')
+        cmd = "sudo dmidecode --dump-bin {}/debug/dmidecode_debug.bin".format(self.log_dir)
+        utils_lib.run_cmd(self, cmd, msg='save dmidecode_debug.bin for debug purpose, please attach it if file bug')
         cmd = "sudo dmidecode --dump"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='Segmentation')
 
@@ -1141,7 +1143,7 @@ current_device"
         out = utils_lib.run_cmd(self,
                 'sudo insights-client --no-upload --keep-archive',
                 expect_ret=0, expect_kw="tar.gz",
-                msg="generate archive", timeout=180)
+                msg="please attach this archive if file bug", timeout=180)
         gz_file = re.findall('/var/.*tar.gz', out)[0]
         file_name = gz_file.split('/')[-1]
         utils_lib.run_cmd(self, 'sudo cp {} {}'.format(gz_file, self.log_dir))

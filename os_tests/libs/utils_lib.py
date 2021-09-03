@@ -76,7 +76,7 @@ def init_case(test_instance):
     FORMAT = "%(levelname)s:%(message)s"
     logging.basicConfig(level=logging.DEBUG, format=FORMAT, filename=log_file)
     test_instance.log.info("-"*80)
-    test_instance.log.info("Case Repo: {}".format(test_instance.params['code_repo']))
+    test_instance.log.info("Code Repo: {}".format(test_instance.params['code_repo']))
     test_instance.log.info("Case ID: {}".format(test_instance.id()))
     test_instance.log.info("Case Doc: {}".format(eval(test_instance.id()).__doc__))
     test_instance.log.info("Case Params:")

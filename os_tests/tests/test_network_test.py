@@ -207,30 +207,27 @@ class TestNetworkTest(unittest.TestCase):
         '''
         case_name:
             test_ethtool_S_xdp
-
+        case_file:
+            https://github.com/liangxiao1/os-tests/blob/master/os_tests/tests/test_network_test.py
         case_priority:
             2
-
         component:
             kernel
-
         bugzilla_id:
-            1908542
-
+            1908542, 2000400
         polarion_id:
             n/a
-
         maintainer:
             xiliang@redhat.com
-
         description:
             Use ethtool to query the specified network device xdp statistics.
-
         key_steps:
             1. # ethtool -S $nic |grep xdp
-
+            2. # xdp-loader status (xdp-tools is required and it is only support x86_64 for now)
+            3. # xdp-loader unload -a
+            4. # xdp-filter load --mode skb $nic
         expected_result:
-            xdp status found
+            1. xdp data found
             eg. # ethtool -S eth0 |grep xdp
                   queue_0_rx_xdp_aborted: 0
                   queue_0_rx_xdp_drop: 0
@@ -238,6 +235,12 @@ class TestNetworkTest(unittest.TestCase):
                   queue_0_rx_xdp_tx: 0
                   queue_0_rx_xdp_invalid: 0
                   queue_0_rx_xdp_redirect: 0
+            2. xdp-loader works on x86_64 platform
+        debug_want:
+            1. # uname -r
+            2. # ethtool -i $nic
+            3. # rpm -q xdp-tools (if fail at xdp-tools)
+            4. # xdp-loader $cmd -vv
 
         '''
         product_id = utils_lib.get_product_id(self)
@@ -255,6 +258,7 @@ class TestNetworkTest(unittest.TestCase):
             utils_lib.run_cmd(self, cmd, cancel_ret='0', msg='Check if have xdp support')
         if float(product_id) > 8.3 and utils_lib.is_arch(self, arch='x86_64'):
             utils_lib.is_cmd_exist(self, 'xdp-loader')
+            self.log.info('please attach debug log with -vv appended when report xdp-tools issue')
             cmd = 'sudo xdp-loader status'
             utils_lib.run_cmd(self, cmd, expect_ret=0,msg='Check xdp-loader status')
             cmd = 'sudo xdp-loader unload -a {}'.format(self.nic)
