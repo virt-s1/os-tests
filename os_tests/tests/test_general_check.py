@@ -517,6 +517,36 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
             cmd = "journalctl --unit {}".format(service)
             utils_lib.check_log(self,'Unknown lvalue', log_cmd=cmd, rmt_redirect_stdout=True)
 
+    def test_check_locale(self):
+        '''
+        case_name:
+            test_check_locale
+        case_file:
+            https://github.com/liangxiao1/os-tests/blob/master/os_tests/tests/test_general_check.py
+        case_priority:
+            1
+        component:
+            glibc
+        bugzilla_id:
+            2000878
+        polarion_id:
+            n/a
+        maintainer:
+            xiliang@redhat.com
+        description:
+            Check there are no errors on the output of 'locale'
+        key_steps:
+            1. # locale
+        expected_result:
+            No error information found.
+        debug_want:
+            1. # rpm -qa | grep glibc
+            2. # uname -r
+        '''
+        cmd = 'rpm -qa | grep glibc'
+        utils_lib.run_cmd(self, cmd, msg='please attach {} output if file bug'.format(cmd))
+        utils_lib.run_cmd(self, 'locale', expect_not_kw="Cannot", msg='check no errors about locale')
+
     def test_check_lshw_mem(self):
         '''
         case_name:
