@@ -70,11 +70,39 @@ current_clocksource'
 
     def test_cpupower_exception(self):
         '''
-        No exception when run cpupower command
-        polarion_id: N/A
-        bz: 1626505, 1659883
+        case_name:
+            test_cpupower_exception
+        case_file:
+            https://github.com/liangxiao1/os-tests/blob/master/os_tests/tests/test_general_test.py
+        case_priority:
+            2
+        component:
+            kernel-Platform Enablement
+        bugzilla_id:
+            1626505, 1659883, 1999926
+        customer_case_id:
+            02172487
+        polarion_id:
+            n/a
+        maintainer:
+            xiliang@redhat.com
+        description:
+            Run cpupower to query processor power related values. It may not support all fields, but crash is not expected.
+        key_steps:
+            1. # cpupower info
+            2. # cpupower idle-info
+            3. # cpupower frequency-info
+        expected_result:
+            No application crash when run cpupower command, all return 0.
+        debug_want:
+            1. # lscpu
+            2. # rpm -q kernel-tools
+            3. # uname -r
         '''
         utils_lib.is_cmd_exist(self, 'cpupower')
+        debug_cmds = ['lscpu', 'rpm -q kernel-tools', 'uname -r']
+        for cmd in debug_cmds:
+            utils_lib.run_cmd(self, cmd, msg='please attach {} output if file bug'.format(cmd))
         cmd = "sudo cpupower info"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='core dumped')
         cmd = "sudo cpupower idle-info"
@@ -149,7 +177,7 @@ current_clocksource'
             FIPS_selftest() pass
         key_steps:
             1. # gcc fipstest.c -o fipstest -lcrypto
-            2. # # ./fipstest
+            2. # ./fipstest
         expected_result:
             No fips selftest failed.
         '''
