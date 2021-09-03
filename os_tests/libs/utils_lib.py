@@ -490,8 +490,12 @@ def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False):
         test_instance.skipTest("Unable to install {}".format(cmd))
         return False
     pkg_list.sort(reverse=True)
-    cmd = "sudo yum info {}|grep Name|awk -F':' '{{print $NF}}'".format(pkg_list[0])
-    pkg_name = run_cmd(test_instance, cmd, expect_ret=0, timeout=120, msg='get pkg name')
+    out = run_cmd(test_instance, "sudo yum info {}".format(pkg_list[0]))
+    pkg_names = re.findall('Name.*',out)
+    if len(pkg_names) > 0:
+        pkg_name = pkg_names[0].split(':')[-1].strip(' ')
+    else:
+        test_instance.skipTest("Unable to retrive {} owned by which pkg".format(cmd))
     run_cmd(test_instance, "sudo yum install -y {}".format(pkg_name), expect_ret=0, timeout=120)
     return True
 
