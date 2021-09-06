@@ -369,7 +369,7 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         expected_result:
             No new unknown 'Could not' log found.
         '''
-        utils_lib.check_log(self, 'Could not,can not', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, 'Could not,can not', skip_words='test_check_journalctl_cannot', rmt_redirect_stdout=True)
 
     def test_check_journalctl_denied(self):
         '''
@@ -394,7 +394,7 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         expected_result:
             No new unknown denied log found.
         '''
-        utils_lib.check_log(self, 'denied', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, 'denied', skip_words='test_check_journalctl_denied', rmt_redirect_stdout=True)
 
     def test_check_journalctl_dumpedcore(self):
         '''
@@ -461,7 +461,7 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         expected_result:
             No new unknown not file found log found.
         '''
-        utils_lib.check_log(self, 'not found,no such', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, 'not found,no such', skip_words='test_check_journalctl_not_found', rmt_redirect_stdout=True)
 
     def test_check_journalctl_unexpected(self):
         '''
@@ -486,7 +486,7 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         expected_result:
             No new unknown unexpected log found.
         '''
-        utils_lib.check_log(self, 'unexpected', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, 'unexpected', skip_words='test_check_journalctl_unexpected', rmt_redirect_stdout=True)
 
     def test_check_journalctl_warn(self):
         '''
