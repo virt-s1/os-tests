@@ -960,7 +960,7 @@ in cmdline as bug1859088")
         polarion_id:
             n/a
         bugzilla_id: 
-            1932614
+            1932614, 1998445
         customer_case_id: 
             02878130
         maintainer: 
@@ -971,9 +971,14 @@ in cmdline as bug1859088")
             systemd
         key_steps:
             # systemd-analyze verify default.target
+            # journalctl -b0 |grep -i 'Found ordering cycle'
         pass_criteria: 
             No ordering cycle found
+        debug_want:
+            # journalctl -b0
         '''
+        cmd = 'sudo journalctl -b0'
+        utils_lib.run_cmd(self, cmd, expect_not_kw='ordering cycle', msg='Check there is no ordering cycle in journal log')
         cmd = "sudo systemd-analyze verify default.target"
         utils_lib.run_cmd(self, cmd, expect_not_kw='ordering cycle', msg='Check there is no ordering cycle which may block boot up.')
         #cmd = "sudo systemctl list-units --type target|grep target|awk -F' ' '{print $1}'"
