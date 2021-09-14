@@ -3,6 +3,8 @@ import argparse
 import copy
 import os
 import sys
+from os_tests.libs.utils_lib import get_cfg
+from shutil import rmtree
 from os_tests.libs.html_runner import HTMLTestRunner
 from os_tests.tests.test_cloud_init import TestCloudInit
 from os_tests.tests.test_general_check import TestGeneralCheck
@@ -37,6 +39,10 @@ def main():
     args = parser.parse_args()
 
     print("Run in mode: is_listcase:{} pattern: {}".format(args.is_listcase, args.pattern))
+    cfg_file, keys_data = get_cfg()
+    results_dir = keys_data['results_dir']
+    if os.path.exists(results_dir):
+        rmtree(results_dir)
     this_dir = os.path.dirname(__file__)
     this_dir = os.path.dirname(this_dir)
     ts = unittest.defaultTestLoader.discover(start_dir=this_dir,pattern='os_tests*.py')
