@@ -229,7 +229,7 @@ grep -v spec_store_bypass|grep -v 'tsx_async_abort'|grep -v mds|grep -v \
 itlb_multihit|sed 's/:/^/' | column -t -s^"
 
         utils_lib.run_cmd(self, check_cmd, expect_ret=0, expect_not_kw='Vulnerable')
-        
+
     def test_check_cpuusage_exception(self):
         '''
         case_name:
@@ -245,24 +245,24 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         polarion_id:
             n/a
         maintainer:
-            xiliang
+            xiliang@redhat.com
         description:
             Check if there is a process taking high usage of CPU abnormally.
             If it shows the high usage of CPU abnormally(higher than 85% over 1min),the case fails.
         key_steps:
-            1.#ps -eo pcpu,pid,command |sort -k 1 -r -n
+            1.#ps aux --sort=-%cpu|sed -n '2p'
         expected_result:
             The usage of CPU is normal(slower than 85% once in 1min).
         '''
         count=0
         for i in range(60):
-            result_out = utils_lib.run_cmd(self,"ps -eo pcpu,pid,command |sort -k 1 -r -n|sed -n '1p'",msg='Find process with highest usage of CPU')
+            result_out = utils_lib.run_cmd(self, "ps aux --sort=-%cpu|sed -n '2p'", msg='Find process with highest usage of CPU')
             result_out = result_out.split(' ')
             while '' in result_out:
                 result_out.remove('')
             if count == 0:
                 lastpid = int(result_out[1])
-            if float(result_out[0]) >= 85 and lastpid == int(result_out[1]):
+            if float(result_out[2]) >= 85 and lastpid == int(result_out[1]):
                 lastpid = int(result_out[1])
                 count += 1
                 time.sleep(1)
@@ -270,10 +270,10 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
                 break
         if count>=59:
             command =''
-            for i in range(2,len(result_out)-1):
+            for i in range(10, len(result_out)):
                 command += result_out[i] + ' '
             self.fail(f'{command}(pid:{lastpid}) have abnormal usage of CPU.')
-            
+
     def test_iostat_x(self):
         '''
         case_name:
@@ -664,7 +664,7 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         output = utils_lib.run_cmd(self, cmd, expect_ret=0)
         if len(output) > 0:
             self.fail('Memory leak found!')
-            
+
     def test_check_memusage_exception(self):
         '''
         case_name:
@@ -680,24 +680,24 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         polarion_id:
             n/a
         maintainer:
-        
+            xiliang@redhat.com
         description:
             Check if there is a process taking high usage of Memory abnormally.
             If it shows the high usage of Memory abnormally(higher than 60% over 1min),the case fails.
         key_steps:
-            1.#ps -eo pmem,pid,command |sort -k 1 -r -n
+            1.#ps aux --sort=-rss|sed -n '2p'
         expected_result:
             The usage of Memory is normal(slower than 60% once in 1min).
         '''
         count=0
         for i in range(60):
-            result_out = utils_lib.run_cmd(self,"ps -eo pmem,pid,command |sort -k 1 -r -n|sed -n '1p'",msg='Find process with highest usage of Memory')
+            result_out = utils_lib.run_cmd(self, "ps aux --sort=-rss|sed -n '2p'", msg='Find process with highest usage of Memory')
             result_out = result_out.split(' ')
             while '' in result_out:
                 result_out.remove('')
             if count == 0:
                 lastpid = int(result_out[1])
-            if float(result_out[0]) >= 60 and lastpid == int(result_out[1]):
+            if float(result_out[3]) >= 60 and lastpid == int(result_out[1]):
                 lastpid = int(result_out[1])
                 count += 1
                 time.sleep(1)
@@ -705,10 +705,10 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
                 break
         if count>=59:
             command =''
-            for i in range(2,len(result_out)-1):
+            for i in range(10, len(result_out)):
                 command += result_out[i] + ' '
             self.fail(f'{command}(pid:{lastpid}) have abnormal usage of Memory.')
-            
+
     def test_check_microcode_load(self):
         '''
         bz: 1607899
@@ -889,7 +889,7 @@ in cmdline as bug1859088")
         '''
         cmd = "find -H /sys -name cpu_list  -type f -perm -u=r -print -exec cat '{}' 2>&1 \;"
         utils_lib.run_cmd(self, cmd, msg='Check no crash seen when read cpu_list if exists')
-        
+
     def test_check_sys_modules_parameters_readable(self):
         '''
         case_name:
@@ -1113,6 +1113,60 @@ current_device"
         else:
             self.skipTest("Unknow hypervisor")
 
+    def test_check_rpm_V_differences(self):
+        '''
+        case_name:
+            test_check_rpm_V_differences
+        case_priority:
+            1
+        component:
+            rpm
+        bugzilla_id:
+            n/a
+        customer_case_id:
+            n/a
+        polarion_id:
+            n/a
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check the pkg differences with information from database
+        key_steps:
+            1. # sudo rpm -qa
+            2. # sudo rpm -V $(pkg)
+        expected_result:
+            No pkg differences with information from database.
+        '''
+        character={'S': 'file Size differs',
+              'M': 'Mode differs (includes permissions and file type)',
+              '5':'digest (formerly MD5 sum) differs',
+              'D':'Device major/minor number mismatch',
+              'L':'readLink(2) path mismatch',
+              'U':'User ownership differs',
+              'G':'Group ownership differs',
+              'T':'mTime differs',
+              'P':'caPabilities differ',
+              '?':'test could not be performed'}
+        pkg=utils_lib.run_cmd(self, 'sudo rpm -qa', msg="list the pkgs")
+        pkg=pkg.split('\n')
+        count=0
+        differ=''
+        for i in range(len(pkg)-1):
+            out=utils_lib.run_cmd(self, f'sudo rpm -V {pkg[i]}', msg="check pkg differences")
+            if out != '':
+                out = out.split('\n')
+                if out[0][0] in '.S':
+                    count += 1
+                    differ += f'{count}.{pkg[i]}:\n'
+                    for j in out[:-1]:
+                        differ+=j+'\n'
+                        for k in j[0:9]:
+                            if k!='.':
+                                differ+=character[k]+'\n'
+        self.log.info("{}".format(differ))
+        if count>=25:
+            self.fail("{} differes found, please check.".format(count))
+
     def test_check_rpm_V_efi(self):
         '''
         bz: 1845052
@@ -1123,6 +1177,43 @@ current_device"
 
         cmd = "sudo rpm -V efi-filesystem"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check rpm verify status")
+
+    def test_check_rpm_V_missing(self):
+        '''
+        case_name:
+            test_check_rpm_V_missing
+        case_priority:
+            1
+        component:
+            rpm
+        bugzilla_id:
+            n/a
+        customer_case_id:
+            n/a
+        polarion_id:
+            n/a
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check pkg missing file problem
+        key_steps:
+            1. # sudo rpm -qa
+            2. # sudo rpm -V $(pkg)
+        expected_result:
+            No missing file found in output.
+        '''
+        skip = ['rhui']
+        pkg = utils_lib.run_cmd(self, 'sudo rpm -qa', msg="list the pkgs")
+        pkg = pkg.split('\n')
+        for i in range(len(pkg) - 1):
+            status = 0
+            for j in skip:
+                if re.search(j, pkg[i]):
+                    status += 1
+                else:
+                    pass
+            if status == 0:
+                utils_lib.run_cmd(self, f'sudo rpm -V {pkg[i]}', expect_not_kw="missing", msg="check pkg missing problem")
 
     def test_collect_insights_result(self):
         '''
