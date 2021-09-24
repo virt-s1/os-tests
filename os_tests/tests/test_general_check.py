@@ -587,6 +587,54 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
 
         utils_lib.compare_nums(self, mem_in_gib, base_memory, ratio=15)
 
+    def test_check_lsmem_segfault(self):
+        '''
+        case_name:
+            test_check_lsmem_segfault
+        case_priority:
+            1
+        component:
+            util-linux
+        bugzilla_id:
+            1712768
+        polarion_id:
+            n/a
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check there is no segmentation fault while running 'lsmem' and 'lsmem -o NODE'
+        key_steps:
+            # 1.lsmem
+            # 2.lsmem -o NODE
+        expected_result:
+            No segmentation fault found.
+        '''
+        utils_lib.run_cmd(self, 'lsmem', expect_ret=0, expect_not_kw='Segmentation', msg='check no segfault')
+        utils_lib.run_cmd(self, 'lsmem -o NODE', expect_ret=0, expect_not_kw='Segmentation', msg='check no segfault')
+
+    def test_check_lspci_invalid_domain(self):
+        '''
+        case_name:
+            test_check_lspci_invalid_domain
+        case_priority:
+            1
+        component:
+            kernel
+        bugzilla_id:
+            1551091
+        polarion_id:
+            n/a
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check there is no 'Invalid domain' while running 'lspci'
+        key_steps:
+            # 1.lspci
+        expected_result:
+            'lspci' can list devices normally without "Invalid domain"
+        '''
+        utils_lib.run_cmd(self, 'lspci', expect_ret=0, expect_not_kw='Invalid', msg='check no invalid domain')
+
     def test_check_lspci_nvme(self):
         '''
         case_name:
