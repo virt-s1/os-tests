@@ -222,7 +222,51 @@ class TestCloudInit(unittest.TestCase):
             utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='Active: active', msg = "check %s status" % service)
             cmd = "sudo systemctl is-active %s" % service
             utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='active', msg = "check %s status" % service)
-        
+
+    def test_cloudinit_sshd_keypair(self):
+        '''
+        description:
+            '/etc/ssh/sshd_config' allows key value empty, this case check if cloud-init can handle such situation.
+            This bz is reported by customer.
+        polarion_id:
+            n/a
+        bugzilla_id: 
+            1527649, 1862933
+        customer_case_id: 
+            n/a
+        maintainer: 
+            xiliang
+        case_priority: 
+            2
+        case_component: 
+            cloud-init
+        key_steps:
+            # sudo echo 'DenyUsers'>>/etc/ssh/sshd_config
+            # sudo cloud-init clean
+            # sudo grep 'SSH credentials failed' /var/log/cloud-init.log
+        pass_criteria: 
+            No 'SSH credentials failed' found
+        debug_want:
+            # cat /var/log/cloud-init.log
+        '''
+        cmd = 'sudo cp -f /etc/ssh/sshd_config /etc/ssh/sshd_config.bak'
+        utils_lib.run_cmd(self, cmd, msg='backup /etc/ssh/sshd_config')
+        cmd = "sudo sed -i '/DenyUsers/d' /etc/ssh/sshd_config"
+        utils_lib.run_cmd(self, cmd, msg='delete old config if has')
+        cmd = "sudo echo 'DenyUsers' >> /etc/ssh/sshd_config"
+        utils_lib.run_cmd(self, cmd, msg='append empty DenyUsers filed')
+        cmd = "sudo cloud-init clean"
+        utils_lib.run_cmd(self, cmd, msg='clean cloud-init')
+        cmd = "sudo cloud-init init"
+        utils_lib.run_cmd(self, cmd, msg='init cloud-init again')
+        cmd = 'sudo cp -f /etc/ssh/sshd_config.bak /etc/ssh/sshd_config'
+        utils_lib.run_cmd(self, cmd, msg='restore /etc/ssh/sshd_config')  
+        utils_lib.run_cmd(self,
+                    'sudo cat /var/log/cloud-init.log',
+                    expect_ret=0,
+                    expect_not_kw='SSH credentials failed',
+                    expect_kw='value pair',
+                    msg='check /var/log/cloud-init.log')  
 
 if __name__ == '__main__':
     unittest.main()
