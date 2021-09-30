@@ -371,6 +371,31 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         '''
         utils_lib.check_log(self, 'Could not,can not', skip_words='test_check_journalctl_cannot', rmt_redirect_stdout=True)
 
+    def test_check_journalctl_conflict(self):
+        '''
+        case_name:
+            test_check_journalctl_conflict
+        case_priority:
+            2
+        component:
+            journal
+        bugzilla_id:
+            
+        customer_case_id:
+            
+        polarion_id:
+            n/a
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check "journalctl |grep -i conflict" reported and make sure there is no conflict log.
+        key_steps:
+            1.#journalctl |grep -i conflict
+        expected_result:
+            No conflict log found.
+        '''
+        utils_lib.check_log(self, 'conflict', skip_words='test_check_journalctl_conflict', rmt_redirect_stdout=True)
+
     def test_check_journalctl_denied(self):
         '''
         case_name:
@@ -1212,8 +1237,11 @@ current_device"
                             if k!='.':
                                 differ+=character[k]+'\n'
         self.log.info("{}".format(differ))
-        if count>=25:
-            self.fail("{} differes found, please check.".format(count))
+        allow_count = 25
+        if count>=allow_count:
+            self.fail("Too many ({}) differes found, please check.".format(count))
+        else:
+            self.log.info("Found few ({}) differs less than {}".format(count,allow_count))
 
     def test_check_rpm_V_efi(self):
         '''

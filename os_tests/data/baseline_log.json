@@ -853,5 +853,32 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1978938, https://bugzilla.redhat.com/show_bug.cgi?id=1993551#c16",
         "path": "journal, dmesg",
         "trigger": ""
+    },
+    "msg_97": {
+        "content": "kernel: system .*: [mem .*] could not be reserved",
+        "analyze": "this is information level message and harmless if no functional impaction",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_98": {
+        "content": "rngd.* Initialization Failed",
+        "analyze": "rhel8.3+ do not require rng-tools any more(rhbz#1888695) and not all system supports hwrng and rdrand.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://ask.fedoraproject.org/t/rngd-entropy-generation-is-slow-consider-tuning-adding-sources/11720/3",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_99": {
+        "content": ".*COMMAND=/bin/rpm -V.*",
+        "analyze": "some pkg has error keywords when run test_check_rpm_V cases, ignore it",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
     }
 }
