@@ -392,6 +392,62 @@ class TestNetworkTest(unittest.TestCase):
         cmd = 'ip r'
         utils_lib.run_cmd(self, cmd, expect_kw='10.8.8.0', msg='check new route again after down and up connection')
 
+    def test_route_interfere(self):
+        """
+        case_name:
+            test_route_interfere
+        case_file:
+            https://github.com/liangxiao1/os-tests/blob/master/os_tests/tests/test_network_test.py
+        component:
+            NetworkManager
+        bugzilla_id:
+            1977984
+        customer_case_id:
+            02984023
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            Check the route working if system has other IP that have routes in the "main" table.
+        key_steps:
+            # mkdir -p /tmp/test
+            # echo 'hello new site!' > /tmp/test/hello
+            # podman run -dit --name httpd_site -p 8080:80 -v "/tmp/test":/usr/local/apache2/htdocs/ httpd:2.4
+            # systemctl restart nm-cloud-setup (if enabled)
+            # curl http://$serverip:8080/hello (with NetworkManager-cloud-setup installed, curl failed, without nm-cloud, curl ok)
+        expect_result:
+            - curl return "hello new site"
+        debug_want:
+            # ip -4 route show table all
+        """
+        is_cloud_setup_installed = False
+        if utils_lib.is_pkg_installed(self, pkg_name='NetworkManager-cloud-setup', is_install=False):
+            cmd = 'sudo systemctl status nm-cloud-setup.timer'
+            utils_lib.run_cmd(self, cmd, msg='get nm-cloud-setup.timer status')
+            is_cloud_setup_installed = True
+        cmd = "podman rm -a -f"
+        utils_lib.run_cmd(self, cmd, msg='try to clean all containers before testing')
+        cmd = 'sudo ip -4 route show table all|sort'
+        utils_lib.run_cmd(self, cmd, msg='get ip routes')
+        cmd = 'sudo mkdir -p /tmp/test'
+        utils_lib.run_cmd(self, cmd, msg='create /tmp/test')
+        cmd = "sudo echo 'hello new site!' > /tmp/test/hello"
+        utils_lib.run_cmd(self, cmd, msg='create /tmp/test/hello')
+        registries = ['docker.io/library/httpd:2.4','docker.mirrors.ustc.edu.cn/library/httpd:2.4']
+        for registry in registries:
+            cmd = 'sudo podman run -dit --name httpd_site -p 8080:80 -v "/tmp/test":/usr/local/apache2/htdocs/ {}'.format(registry)
+            ret = utils_lib.run_cmd(self, cmd, timeout=180, msg='start container httpd_site', ret_status=True)
+            if ret == 0:
+                break
+        if is_cloud_setup_installed:
+            cmd = 'sudo systemctl restart nm-cloud-setup'
+            utils_lib.run_cmd(self, cmd, msg='restart nm-cloud-setup')
+        cmd = 'sudo ip -4 route show table all|sort'
+        utils_lib.run_cmd(self, cmd, msg='get ip routes')
+        cmd = "curl --connect-timeout 5 http://{}:8080/hello".format(self.ipv4)
+        utils_lib.run_cmd(self, cmd, expect_kw='new site', msg='test site is available')
+
     def tearDown(self):
         if 'test_mtu_min_max_set' in self.id():
             mtu_cmd = "sudo ip link set dev %s mtu %s" % (self.nic, self.mtu_old)

@@ -51,25 +51,29 @@ def main():
     for ts1 in tmp_ts:
         if len(ts1._tests) > 0:
             for ts2 in ts1._tests:
-                for case in ts2._tests:
-                    is_skip = False
-                    if args.skip_pattern is not None:
-                            for skippattern in args.skip_pattern.split(','):
-                                if skippattern in case.id():
-                                    if args.is_strict and case.id().endswith(skippattern):
-                                        is_skip = True
+                try:
+                    for case in ts2._tests:
+                        is_skip = False
+                        if args.skip_pattern is not None:
+                                for skippattern in args.skip_pattern.split(','):
+                                    if skippattern in case.id():
+                                        if args.is_strict and case.id().endswith(skippattern):
+                                            is_skip = True
+                                        elif not args.is_strict:
+                                            is_skip = True
+                        if args.pattern is not None:
+                            for pattern in args.pattern.split(','):
+                                if pattern in case.id() and not is_skip:
+                                    if args.is_strict and case.id().endswith(pattern):
+                                        final_ts.addTest(case)
                                     elif not args.is_strict:
-                                        is_skip = True
-                    if args.pattern is not None:
-                        for pattern in args.pattern.split(','):
-                            if pattern in case.id() and not is_skip:
-                                if args.is_strict and case.id().endswith(pattern):
-                                    final_ts.addTest(case)
-                                elif not args.is_strict:
-                                    final_ts.addTest(case)
-                    else:
-                        if not is_skip:
-                            final_ts.addTest(case)
+                                        final_ts.addTest(case)
+                        else:
+                            if not is_skip:
+                                final_ts.addTest(case)
+                except Exception as err:
+                    print("Cannot handle ts discovered:{}".format(ts2))
+                    print(err)
     if final_ts.countTestCases() == 0:
         print("No case found!")
         sys.exit(1)
