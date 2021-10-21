@@ -527,10 +527,32 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         utils_lib.check_log(self, 'invalid', skip_words="Invalid user,invalid user,test_check", rmt_redirect_stdout=True)
 
     def test_check_journalctl_service_unknown_lvalue(self):
-        '''
-        polarion_id:
-        bz:1871139
-        '''
+        """
+        case_name:
+            test_check_journalctl_service_unknown_lvalue
+        case_file:
+            https://github.com/liangxiao1/os-tests/blob/master/os_tests/tests/test_general_check.py
+        component:
+            systemd
+        bugzilla_id:
+            1871139
+        customer_case_id:
+            yes
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check service has no 'Unknown lvalue' in unit file
+        key_steps:
+            # systemd-analyze verify $service
+        expect_result:
+            # No 'Unknown lvalue' keywords in output
+        debug_want:
+            - service unit file content
+            - output from 'systemd-analyze verify $service'
+        """
+
         cmd = "systemctl list-unit-files |grep -v UNIT|grep -v listed|awk -F' ' '{print $1}'"
         all_services = utils_lib.run_cmd(self, cmd, msg='Get all systemd unit files').split('\n')
 
@@ -541,6 +563,10 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
             utils_lib.run_cmd(self, cmd)
             cmd = "journalctl --unit {}".format(service)
             utils_lib.check_log(self,'Unknown lvalue', log_cmd=cmd, rmt_redirect_stdout=True)
+            if not service or service.startswith('-'):
+                continue
+            cmd = "sudo systemd-analyze verify {}".format(service)
+            utils_lib.run_cmd(self, cmd, expect_not_kw='Unknown lvalue', msg='Check there is no Unknown lvalue in {}'.format(service))
 
     def test_check_locale(self):
         '''
@@ -1021,6 +1047,43 @@ in cmdline as bug1859088")
                 continue
             cmd = "sudo systemd-analyze verify {}".format(service)
             utils_lib.run_cmd(self, cmd, expect_not_kw='deprecated,unsafe', msg='Check there is no "deprecated" or "unsafe" keyword in output from {}'.format(service))
+
+    def test_check_systemd_analyze_verify_missing(self):
+        """
+        case_name:
+            test_check_systemd_analyze_verify_missing
+        case_file:
+            https://github.com/liangxiao1/os-tests/blob/master/os_tests/tests/test_general_check.py
+        component:
+            systemd
+        bugzilla_id:
+            2016305
+        customer_case_id:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check service has no 'Missing' config in unit file
+        key_steps:
+            # systemd-analyze verify $service
+        expect_result:
+            # No 'Missing' keywords in output
+        debug_want:
+            - service unit file content
+            - output from 'systemd-analyze verify $service'
+        """
+        cmd = "sudo systemd-analyze verify default.target"
+        utils_lib.run_cmd(self, cmd, expect_not_kw='is obsolet', msg='Check there is no obsolet keyword in output')
+        cmd = "systemctl list-unit-files |grep -v UNIT|grep -v listed|awk -F' ' '{print $1}'"
+        all_services = utils_lib.run_cmd(self, cmd, msg='retrive all systemd unit files').split('\n')
+
+        for service in all_services:
+            if not service or service.startswith('-'):
+                continue
+            cmd = "sudo systemd-analyze verify {}".format(service)
+            utils_lib.run_cmd(self, cmd, expect_not_kw='Missing;ignoring line', msg='Check there is no Missing keyword in output from {}'.format(service))
 
     def test_check_systemd_analyze_verify_obsolete(self):
         '''
