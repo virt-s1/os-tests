@@ -833,6 +833,52 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
                         expect_not_kw='microcode updated early',
                         msg='microcode should not load in VMs')
 
+    def test_check_nitro_enclaves(self):
+        '''
+        case_name:
+            test_check_nitro_enclaves
+        case_priority:
+            1
+        component:
+            kernel
+        bugzilla_id:
+            2011739
+        polarion_id:
+            n/a
+        maintainer:
+            xiliang@redhat.com
+        description:
+            Test whether nitro enclave is enabled.
+        key_steps:
+            1.#sudo yum -y install gcc make git podman-docker
+            2.#sudo setenforce 0
+            3.#git clone https://github.com/GAO567/aws-nitro-enclaves-cli.git
+            4.#cd aws-nitro-enclaves-cli; sudo make && sudo make vsock-proxy;sudo NITRO_CLI_INSTALL_DIR=/ make install-tools; cd ..
+            5.#sudo mkdir /run/nitro_enclaves/
+            6.#sudo systemctl enable nitro-enclaves-allocator.service && sudo systemctl start nitro-enclaves-allocator.service
+            7.#curl -O http://people.redhat.com/~vkuznets/hello_v2.eif
+            8.#sudo nitro-cli run-enclave --cpu-count 2 --memory 256 --eif-path hello_v2.eif --debug-mode
+            9.#nitro-cli describe-enclaves
+            10.#nitro-cli console --enclave-id $EnclaveID
+            11.#sudo nitro-cli terminate-enclave --enclave-id $EnclaveID
+        expected_result:
+            Enclave can be started and terminated successfully.
+        '''
+        if not utils_lib.is_aws(self):
+            self.skipTest('encalve is only for aws platform')
+        utils_lib.run_cmd(self, 'sudo yum -y install gcc make git podman-docker',timeout=300, msg='install required pkgs')
+        utils_lib.run_cmd(self, 'sudo setenforce 0', msg='disable SElinux')
+        utils_lib.run_cmd(self, 'git clone https://github.com/GAO567/aws-nitro-enclaves-cli.git', msg='clone nitro-enclaves-cli ')
+        utils_lib.run_cmd(self, 'cd aws-nitro-enclaves-cli; sudo make && sudo make vsock-proxy;sudo NITRO_CLI_INSTALL_DIR=/ make install-tools; cd ..', timeout=600,msg='make and install nitro-cli')
+        utils_lib.run_cmd(self, 'sudo mkdir /run/nitro_enclaves/')
+        utils_lib.run_cmd(self, 'sudo systemctl enable nitro-enclaves-allocator.service && sudo systemctl start nitro-enclaves-allocator.service')
+        utils_lib.run_cmd(self, 'curl -O http://people.redhat.com/~vkuznets/hello_v2.eif', msg='download test enclave')
+        utils_lib.run_cmd(self, 'sudo nitro-cli run-enclave --cpu-count 2 --memory 256 --eif-path hello_v2.eif --debug-mode', expect_kw='Started', msg='run enclave')
+        EnclaveID=utils_lib.run_cmd(self, 'nitro-cli describe-enclaves |grep EnclaveID', msg='get EnclaveID')
+        EnclaveID=EnclaveID[18:-3]
+        utils_lib.run_cmd(self, f'timeout 5 nitro-cli console --enclave-id {EnclaveID}', expect_kw='Successfully', msg='get the console')
+        utils_lib.run_cmd(self, f'sudo nitro-cli terminate-enclave --enclave-id {EnclaveID}', expect_kw='Successfully', msg='terminate enclave')
+
     def test_check_nouveau(self):
         '''
         polarion_id: N/A
