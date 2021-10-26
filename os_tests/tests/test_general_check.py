@@ -57,6 +57,8 @@ class TestGeneralCheck(unittest.TestCase):
             expect_clocks = 'xen,tsc,hpet,acpi_pm'
         elif 'aarch64' in output:
             expect_clocks = 'arch_sys_counter'
+        elif 'Microsoft' in output:
+            expect_clocks = 'hyperv_clocksource_tsc_page,acpi_pm'
         elif 'AuthenticAMD' in output and 'KVM' in output and not utils_lib.is_metal(self):
             expect_clocks = 'kvm-clock,tsc,acpi_pm'
         elif 'GenuineIntel' in output and 'KVM' in output and not utils_lib.is_metal(self):
@@ -437,7 +439,7 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         '''
         polarion_id: RHEL7-103851
         '''
-        utils_lib.check_log(self, 'error', skip_words='test_check', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, 'error', skip_words='test_check,UpdateGSErrors', rmt_redirect_stdout=True)
 
     def test_check_journalctl_fail(self):
         '''
@@ -1129,7 +1131,7 @@ in cmdline as bug1859088")
             if not service or service.startswith('-'):
                 continue
             cmd = "sudo systemd-analyze verify {}".format(service)
-            utils_lib.run_cmd(self, cmd, expect_not_kw='Missing;ignoring line', msg='Check there is no Missing keyword in output from {}'.format(service))
+            utils_lib.run_cmd(self, cmd, expect_not_kw='Missing,ignoring line', msg='Check there is no Missing keyword in output from {}'.format(service))
 
     def test_check_systemd_analyze_verify_obsolete(self):
         '''
@@ -1276,17 +1278,17 @@ current_device"
                 self.assertIn('xen-hvm', virt_what_output)
             else:
                 self.assertIn('xen-domU', virt_what_output)
-        elif 'KVM' in lscpu_output and not utils_lib.is_metal(self):
-            self.log.info("Found it is a kvm system!")
-            self.assertIn('kvm', virt_what_output)
+        elif 'Microsoft' in lscpu_output and not utils_lib.is_metal(self):
+            self.log.info("Found it is a Hyper-V system!")
+            self.assertIn('hyperv', virt_what_output)
         elif 'VMware' in lscpu_output:
             self.log.info("Found it is a vmware system!")
             self.assertIn('vmware', virt_what_output)
-        elif 'Microsoft' in lscpu_output:
-            self.log.info("Found it is a Hyper-V system!")
-            self.assertIn('hyperv', virt_what_output)
+        elif 'KVM' in lscpu_output and not utils_lib.is_metal(self):
+            self.log.info("Found it is a kvm system!")
+            self.assertIn('kvm', virt_what_output)
         elif utils_lib.is_metal(self) and utils_lib.is_aws(self):
-            self.log.info("Found it is a bare metal system!")
+            self.log.info("Found it is a aws bare metal system!")
             self.assertEqual('aws', virt_what_output.strip('\n'))
         elif utils_lib.is_metal(self):
             self.log.info("Found it is a bare metal system!")

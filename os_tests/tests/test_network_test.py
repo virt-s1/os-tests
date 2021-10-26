@@ -328,6 +328,11 @@ class TestNetworkTest(unittest.TestCase):
             mtu_range = [0, 67, 68, 1500,1600]
             mtu_min = 68
             mtu_max = 1500
+        elif 'hv_netvsc' in output:
+            self.log.info('hv_netvsc found, linux/drivers/net/hyperv/netvsc_drv.c  MTU range: 68 - 1500 or 65521')
+            mtu_range = [0, 67, 68, 4500, 65521, 65525]
+            mtu_min = 68
+            mtu_max = 65521
         else:
             self.log.info('Did not detect network type, use default min~max mtu. %s' % output)
             mtu_range = [0, 67, 68, 4500, 65535, 65536]
@@ -413,9 +418,9 @@ class TestNetworkTest(unittest.TestCase):
         key_steps:
             # mkdir -p /tmp/test
             # echo 'hello new site!' > /tmp/test/hello
-            # podman run -dit --name httpd_site -p 8080:80 -v "/tmp/test":/usr/local/apache2/htdocs/ httpd:2.4
+            # podman run -dit --name httpd_site -p 8188:80 -v "/tmp/test":/usr/local/apache2/htdocs/ httpd:2.4
             # systemctl restart nm-cloud-setup (if enabled)
-            # curl http://$serverip:8080/hello (with NetworkManager-cloud-setup installed, curl failed, without nm-cloud, curl ok)
+            # curl http://$serverip:8188/hello (with NetworkManager-cloud-setup installed, curl failed, without nm-cloud, curl ok)
         expect_result:
             - curl return "hello new site"
         debug_want:
@@ -436,16 +441,20 @@ class TestNetworkTest(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, msg='create /tmp/test/hello')
         registries = ['docker.io/library/httpd:2.4','docker.mirrors.ustc.edu.cn/library/httpd:2.4']
         for registry in registries:
-            cmd = 'sudo podman run -dit --name httpd_site -p 8080:80 -v "/tmp/test":/usr/local/apache2/htdocs/ {}'.format(registry)
-            ret = utils_lib.run_cmd(self, cmd, timeout=180, msg='start container httpd_site', ret_status=True)
+            cmd = 'sudo podman run -dit --name httpd_site -p 8188:80 -v "/tmp/test":/usr/local/apache2/htdocs/ {}'.format(registry)
+            ret = utils_lib.run_cmd(self, cmd, timeout=600, msg='start container httpd_site', ret_status=True)
             if ret == 0:
                 break
+            cmd = "podman rm -a -f"
+            utils_lib.run_cmd(self, cmd, msg='try to clean all containers before testing')
+        cmd = "podman ps -a"
+        utils_lib.run_cmd(self, cmd, msg='list all running containers')
         if is_cloud_setup_installed:
             cmd = 'sudo systemctl restart nm-cloud-setup'
             utils_lib.run_cmd(self, cmd, msg='restart nm-cloud-setup')
         cmd = 'sudo ip -4 route show table all|sort'
         utils_lib.run_cmd(self, cmd, msg='get ip routes')
-        cmd = "curl --connect-timeout 5 http://{}:8080/hello".format(self.ipv4)
+        cmd = "curl --connect-timeout 5 http://{}:8188/hello".format(self.ipv4)
         utils_lib.run_cmd(self, cmd, expect_kw='new site', msg='test site is available')
 
     def tearDown(self):

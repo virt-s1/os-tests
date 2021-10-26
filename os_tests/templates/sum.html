@@ -24,7 +24,7 @@
     <tr>
     <td>Summary</td><td>Total:<b>{{ result.total|e }}</b>, PASS:<b class="text-success">{{ result.case_pass|e }}</b>, FAIL:<b class="text-danger">{{ result.case_fail|e }}</b>, SKIP:<b class="text-warning">{{ result.case_skip|e }}</b>, ERROR:<b class="text-danger">{{ result.case_error|e }}</b> - success rate of <b>{{ result.pass_rate|e }}</b>% (excluding SKIP and CANCEL)</tr>
     <tr>
-    <td>RunTime</td><td>{{ result.run_time|e }}</td></tr>
+    <td>RunTime(s)</td><td>{{ result.run_time|e }}</td></tr>
   </table>
   <table id="result" class="table table-hover table-bordered">
     <thead>

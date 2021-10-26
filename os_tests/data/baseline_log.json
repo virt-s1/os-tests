@@ -729,11 +729,11 @@
         "trigger": ""
     },
     "msg_83": {
-        "content": "audit.* terminal=ssh res=failed",
-        "analyze": "this is a ssh login failed try",
+        "content": "audit.* res=failed",
+        "analyze": "audit fail information",
         "branch": "rhel",
         "status": "active",
-        "link": "",
+        "link": "https://access.redhat.com/solutions/2050393",
         "path": "journal, dmesg",
         "trigger": ""
     },
@@ -878,6 +878,42 @@
         "branch": "rhel",
         "status": "active",
         "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_100": {
+        "content": "microcode_ctl: kernel version .* failed early load check for .*, skipping",
+        "analyze": "The message can be ignored.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/4388631",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_101": {
+        "content": "ctstate INVALID,NEW",
+        "analyze": "iptables output 'iptables -L -v -n'",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_102": {
+        "content": "INFO Daemon Daemon WireServer endpoint is not found. Rerun dhcp handler",
+        "analyze": "information only on azure",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_103": {
+        "content": ".*dracut module .* will not be installed, because command .* could not be found!.*",
+        "analyze": "These warnings are safe to be ignored.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/3683511",
         "path": "journal, dmesg",
         "trigger": ""
     }

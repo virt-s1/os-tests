@@ -128,7 +128,7 @@ class HTMLTestRunner(object):
         if os.path.exists(sum_txt):
             os.unlink(sum_txt)
         html_sum = HTMLTemp(sum_html)
-        html_sum.run_time = timeTaken
+        html_sum.result.run_time = timeTaken
         all_case_name.sort()
         id = 0
         for case in all_case_name:

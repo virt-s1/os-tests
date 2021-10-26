@@ -1,5 +1,18 @@
 # os-tests release notes  
 
+## 0.0.38- 20211025
+
+- new case test_check_locale for bz2000878
+- new case test_check_lsmem_segfault for bz1712768
+- new case test_check_lspci_invalid_domain for bz1551091
+- new case test_cloudinit_sshd_keypair for bz1527649 and bz1862933
+- new case test_route_interfere for bz1977984
+- new case test_check_systemd_analyze_verify_missing for bz2016305
+- new case test_check_nitro_enclaves for bz2011739
+- new case test_check_rpm_V_differences and test_check_rpm_V_missing for general rpm checking
+- new case test_check_journalctl_conflict for general journal checking
+- other minor fixes and enhancements
+
 ## 0.0.37- 20210824  
 
 - new case test_check_cpuusage_exception and test_check_memusage_exception for bz1956248 to catch abnormal high cpu and memory usage
