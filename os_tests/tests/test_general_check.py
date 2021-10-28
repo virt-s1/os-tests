@@ -662,6 +662,9 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         expected_result:
             No segmentation fault found.
         '''
+        product_id = utils_lib.get_product_id(self)
+        if utils_lib.is_arch(self,arch='aarch64') and float(product_id) < 9:
+            self.skipTest('lsmem of version under el9 does not support arm platform ')
         utils_lib.run_cmd(self, 'lsmem', expect_ret=0, expect_not_kw='Segmentation', msg='check no segfault')
         utils_lib.run_cmd(self, 'lsmem -o NODE', expect_ret=0, expect_not_kw='Segmentation', msg='check no segfault')
 
