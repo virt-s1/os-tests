@@ -279,7 +279,8 @@ class TestNetworkTest(unittest.TestCase):
         ena mtu range: 128~9216
         ixgbevf mtu range: 68~9710
         vif mtu range: 68~65535
-        vmxnet3 mtu range: 60~9000
+        vmxnet3 mtu range: 60~9190
+        hv_netvsc mtu range: 68~65521
         '''
 
         utils_lib.is_cmd_exist(self, cmd='ethtool')
@@ -310,9 +311,9 @@ class TestNetworkTest(unittest.TestCase):
             if self.params['remote_node'] is not None:
                 self.skipTest("Skip mtu test while running remotely with vmxnet3")
             self.log.info("vmxnet3 min mtu is 60, because of bz1503193, skip test lower value than 68")
-            mtu_range = [68, 4500, 9000, 9001]
+            mtu_range = [68, 4500, 9190, 9192]
             mtu_min = 60
-            mtu_max = 9000
+            mtu_max = 9190
         elif 'igb' in output:
             self.log.info('igb found!')
             mtu_range = [0, 67, 68, 4500, 9216, 9217]

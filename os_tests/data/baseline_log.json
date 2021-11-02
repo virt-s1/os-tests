@@ -916,5 +916,23 @@
         "link": "https://access.redhat.com/solutions/3683511",
         "path": "journal, dmesg",
         "trigger": ""
+    },
+    "msg_104": {
+        "content": ".*kernel: print_req_error: .* callbacks suppressed.*",
+        "analyze": "information only",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_105": {
+        "content": ".*Unknown command line parameters: BOOT_IMAGE.*64$",
+        "analyze": "BOOT_IMAGE is a know unknow command line parameters",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://lore.kernel.org/all/20210511211009.42259-1-ahalaney@redhat.com/T/#u",
+        "path": "journal, dmesg",
+        "trigger": ""
     }
 }

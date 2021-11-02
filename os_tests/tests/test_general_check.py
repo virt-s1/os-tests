@@ -117,15 +117,34 @@ available_clocksource'
         utils_lib.run_cmd(self, 'dmesg', expect_ret=0, expect_not_kw='Call trace,Call Trace', msg="Check there is no call trace in dmesg")
 
     def test_check_dmesg_unknownsymbol(self):
-        '''
-        bz: 1649215
-        polarion_id:
-        '''
-        utils_lib.run_cmd(self,
-                    'dmesg',
-                    expect_ret=0,
-                    expect_not_kw='Unknown symbol',
-                    msg='Check there is no Unknown symbol in dmesg')
+        """
+        case_name:
+            test_check_dmesg_unknownsymbol
+        case_file:
+            os_tests.tests.test_general_check.TestGeneralCheck.test_check_dmesg_unknownsymbol
+        component:
+            kernel
+        bugzilla_id:
+            1649215, 2018886
+        customer_case_id:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            Make sure there is no 'Unknown' keyword from dmesg output.
+            'BOOT_IMAGE' is a know unknow command line parameters, others are not expected.
+            https://lore.kernel.org/all/20210511211009.42259-1-ahalaney@redhat.com/T/#u
+
+        key_steps:
+            # dmesg|grep -i Unknow
+        expect_result:
+            No unknow value found
+        debug_want:
+            # dmesg
+        """
+        utils_lib.check_log(self, 'Unknown symbol,Unknown command line,Unknown,unknown', log_cmd='dmesg')
 
     def test_check_dmesg_nmi(self):
         '''
@@ -422,6 +441,34 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
             No new unknown denied log found.
         '''
         utils_lib.check_log(self, 'denied', skip_words='test_check_journalctl_denied', rmt_redirect_stdout=True)
+
+    def test_check_journalctl_disabled(self):
+        """
+        case_name:
+            test_check_journalctl_disabled
+        case_file:
+            os_tests.tests.test_general_check.TestGeneralCheck.test_check_journalctl_disabled
+        component:
+            kernel
+        bugzilla_id:
+            N/A
+        customer_case_id:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            - kaslr is enabled by default, check there is no 'KASLR disabled', please ignor this if 'nokaslr' used.
+        key_steps:
+            # journalctl|grep -i 'KASLR disabled'
+        expect_result:
+            "KASLR disabled" not found
+        debug_want:
+            # journalctl
+        """
+        expect_not_kws = 'KASLR disabled'
+        utils_lib.check_log(self, expect_not_kws, skip_words='test_check_journalctl_disabled', rmt_redirect_stdout=True)
 
     def test_check_journalctl_dumpedcore(self):
         '''
