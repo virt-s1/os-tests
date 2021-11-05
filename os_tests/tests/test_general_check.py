@@ -295,6 +295,36 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
                 command += result_out[i] + ' '
             self.fail(f'{command}(pid:{lastpid}) have abnormal usage of CPU.')
 
+    def test_check_hostkey_permissions(self):
+        """
+        case_name:
+            test_check_hostkey_permissions
+        case_file:
+            os_tests.tests.test_general_check.TestGeneralCheck.test_check_hostkey_permissions
+        component:
+            ssh
+        bugzilla_id:
+            2013644
+        customer_case_id:
+            True
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check ssh key files permission set are correct.
+        key_steps:
+            # ls -l /etc/ssh/{ssh_host_ecdsa_key,ssh_host_ed25519_key,ssh_host_rsa_key}
+        expect_result:
+            No '-rw-------' found
+        debug_want:
+            N/A
+        """
+        utils_lib.run_cmd(self,
+            "ls -l /etc/ssh/{ssh_host_ecdsa_key,ssh_host_ed25519_key,ssh_host_rsa_key}",
+            expect_not_kw='-rw-------. 1 root root',
+            msg='check ssh key files permission set are correct')
+
     def test_iostat_x(self):
         '''
         case_name:

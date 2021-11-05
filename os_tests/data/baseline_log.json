@@ -934,5 +934,23 @@
         "link": "https://lore.kernel.org/all/20210511211009.42259-1-ahalaney@redhat.com/T/#u",
         "path": "journal, dmesg",
         "trigger": ""
+    },
+    "msg_106": {
+        "content": ".*xHCI BIOS handoff failed.*",
+        "analyze": "Not the RHEL problem, mostly like bios disable USB function, check with vendor if you wish. skip on amazon",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2018397",
+        "path": "journal, dmesg",
+        "trigger": "AMAZON"
+    },
+    "msg_107": {
+        "content": ".*Unexpected SPCR Access Width.*",
+        "analyze": "Expected behavior in amazon platform and no functional impact.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2018429",
+        "path": "journal, dmesg",
+        "trigger": "AMAZON"
     }
 }

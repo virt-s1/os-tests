@@ -6,6 +6,7 @@ import logging
 import decimal
 import subprocess
 import os_tests
+from os_tests import tests
 import json
 import difflib
 import time
@@ -496,7 +497,7 @@ def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False):
         pkg_name = pkg_names[0].split(':')[-1].strip(' ')
     else:
         test_instance.skipTest("Unable to retrive {} owned by which pkg".format(cmd))
-    run_cmd(test_instance, "sudo yum install -y {}".format(pkg_name), expect_ret=0, timeout=120)
+    run_cmd(test_instance, "sudo yum install -y {}".format(pkg_name), expect_ret=0, timeout=180)
     return True
 
 def is_pkg_installed(test_instance, pkg_name=None, is_install=True, cancel_case=False):

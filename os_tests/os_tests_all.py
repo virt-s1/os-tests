@@ -5,25 +5,8 @@ import os
 import sys
 from os_tests.libs.utils_lib import get_cfg
 from shutil import rmtree
+import os_tests
 from os_tests.libs.html_runner import HTMLTestRunner
-from os_tests.tests.test_cloud_init import TestCloudInit
-from os_tests.tests.test_general_check import TestGeneralCheck
-from os_tests.tests.test_general_test import TestGeneralTest
-from os_tests.tests.test_ltp import TestLTP
-from os_tests.tests.test_network_test import TestNetworkTest
-from os_tests.tests.test_storage import TestStorage
-from os_tests.tests.test_lifecycle import TestLifeCycle
-
-test_cloud_init_suite = unittest.TestLoader().loadTestsFromTestCase(TestCloudInit)
-test_general_check_suite = unittest.TestLoader().loadTestsFromTestCase(TestGeneralCheck)
-test_general_test_suite = unittest.TestLoader().loadTestsFromTestCase(TestGeneralTest)
-test_ltp_suite = unittest.TestLoader().loadTestsFromTestCase(TestLTP)
-test_network_suite = unittest.TestLoader().loadTestsFromTestCase(TestNetworkTest)
-test_storage_suite = unittest.TestLoader().loadTestsFromTestCase(TestStorage)
-test_lifecycle_suite = unittest.TestLoader().loadTestsFromTestCase(TestLifeCycle)
-all_tests = [test_general_check_suite, test_general_test_suite, test_ltp_suite, test_network_suite, test_storage_suite, test_lifecycle_suite]
-TS = unittest.TestSuite(tests=all_tests)
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -43,9 +26,8 @@ def main():
     results_dir = keys_data['results_dir']
     if os.path.exists(results_dir):
         rmtree(results_dir)
-    this_dir = os.path.dirname(__file__)
-    this_dir = os.path.dirname(this_dir)
-    ts = unittest.defaultTestLoader.discover(start_dir=this_dir,pattern='os_tests*.py')
+    os_tests_dir = os.path.dirname(__file__)
+    ts = unittest.defaultTestLoader.discover(start_dir=os_tests_dir,pattern='test_*.py', top_level_dir=os.path.dirname(os_tests_dir))
     tmp_ts = copy.deepcopy(ts)
     final_ts = unittest.TestSuite()
     for ts1 in tmp_ts:
