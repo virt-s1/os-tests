@@ -249,6 +249,8 @@ class TestCloudInit(unittest.TestCase):
         debug_want:
             # cat /var/log/cloud-init.log
         '''
+        cmd = 'cp ~/.ssh/authorized_keys ~/.ssh/authorized_keys.bak'
+        utils_lib.run_cmd(self, cmd, msg='backup .ssh/authorized_keys')
         cmd = 'sudo cp -f /etc/ssh/sshd_config /etc/ssh/sshd_config.bak'
         utils_lib.run_cmd(self, cmd, msg='backup /etc/ssh/sshd_config')
         cmd = "sudo sed -i '/DenyUsers/d' /etc/ssh/sshd_config"
@@ -267,6 +269,13 @@ class TestCloudInit(unittest.TestCase):
                     expect_not_kw='SSH credentials failed',
                     expect_kw='value pair',
                     msg='check /var/log/cloud-init.log')  
+
+    def tearDown(self):
+        if 'test_cloudinit_sshd_keypair' in self.id():
+            cmd = 'cp -f ~/.ssh/authorized_keys.bak ~/.ssh/authorized_keys'
+            utils_lib.run_cmd(self, cmd, msg='restore .ssh/authorized_keys')
+            cmd= 'sudo systemctl restart  sshd'
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='restart sshd service')
 
 if __name__ == '__main__':
     unittest.main()
