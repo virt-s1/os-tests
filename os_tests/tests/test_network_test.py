@@ -432,17 +432,18 @@ class TestNetworkTest(unittest.TestCase):
             cmd = 'sudo systemctl status nm-cloud-setup.timer'
             utils_lib.run_cmd(self, cmd, msg='get nm-cloud-setup.timer status')
             is_cloud_setup_installed = True
+        utils_lib.is_cmd_exist(self, 'podman')
         cmd = "podman rm -a -f"
         utils_lib.run_cmd(self, cmd, msg='try to clean all containers before testing')
         cmd = 'sudo ip -4 route show table all|sort'
         utils_lib.run_cmd(self, cmd, msg='get ip routes')
         cmd = 'sudo mkdir -p /tmp/test'
         utils_lib.run_cmd(self, cmd, msg='create /tmp/test')
-        cmd = "sudo echo 'hello new site!' > /tmp/test/hello"
+        cmd = "sudo bash -c \"echo 'hello new site!' > /tmp/test/hello\""
         utils_lib.run_cmd(self, cmd, msg='create /tmp/test/hello')
         registries = ['docker.io/library/httpd:2.4','docker.mirrors.ustc.edu.cn/library/httpd:2.4']
         for registry in registries:
-            cmd = 'sudo podman run -dit --name httpd_site -p 8188:80 -v "/tmp/test":/usr/local/apache2/htdocs/ {}'.format(registry)
+            cmd = 'podman run -dit --name httpd_site -p 8188:80 -v "/tmp/test":/usr/local/apache2/htdocs/ {}'.format(registry)
             ret = utils_lib.run_cmd(self, cmd, timeout=600, msg='start container httpd_site', ret_status=True)
             if ret == 0:
                 break

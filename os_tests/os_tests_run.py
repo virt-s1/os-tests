@@ -19,13 +19,33 @@ def main():
                     help='match exactly if -p or -s specified', required=False)
     parser.add_argument('-s', dest='skip_pattern', default=None, action='store',
                     help='skip cases, add --strict for skipping exactly', required=False)
+    parser.add_argument('--host', dest='remote_node', default=None, action='store',
+                    help='run tests on remote node', required=False)
+    parser.add_argument('--user', dest='remote_user', default=None, action='store',
+                    help='user to login to remote node', required=False)
+    parser.add_argument('--password', dest='remote_password', default=None, action='store',
+                    help='password to login to remote node', required=False)
+    parser.add_argument('--keyfile', dest='remote_keyfile', default=None, action='store',
+                    help='keyfile to login to remote node', required=False)
+    parser.add_argument('--result', dest='results_dir', default=None, action='store',
+                    help='save result to specific directory', required=False)
     args = parser.parse_args()
 
     print("Run in mode: is_listcase:{} pattern: {}".format(args.is_listcase, args.pattern))
-    cfg_file, keys_data = get_cfg()
-    results_dir = keys_data['results_dir']
-    if os.path.exists(results_dir):
+    cfg_file, cfg_data = get_cfg()
+    if args.results_dir is not None:
+        cfg_data['results_dir'] = args.results_dir
+    if args.remote_node is not None:
+        cfg_data['remote_node'] = args.remote_node
+        cfg_data['remote_user'] = args.remote_user
+        cfg_data['remote_password'] = args.remote_password
+        cfg_data['remote_keyfile'] = args.remote_keyfile
+
+    results_dir = cfg_data['results_dir']
+    results_dir_suffix = None
+    if os.path.exists(results_dir) and not args.is_listcase:
         rmtree(results_dir)
+        print("saving results to {}".format(results_dir))
     os_tests_dir = os.path.dirname(__file__)
     ts = unittest.defaultTestLoader.discover(start_dir=os_tests_dir,pattern='test_*.py', top_level_dir=os.path.dirname(os_tests_dir))
     tmp_ts = copy.deepcopy(ts)
@@ -35,6 +55,7 @@ def main():
             for ts2 in ts1._tests:
                 try:
                     for case in ts2._tests:
+                        case.params = cfg_data
                         is_skip = False
                         if args.skip_pattern is not None:
                                 for skippattern in args.skip_pattern.split(','):

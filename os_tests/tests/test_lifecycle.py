@@ -137,7 +137,7 @@ class TestLifeCycle(unittest.TestCase):
         out = utils_lib.run_cmd(self, cmd)
         if 'hpet' in out:
             utils_lib.run_cmd(self, 'sudo cat /proc/iomem|grep -i hpet', expect_kw='HPET 0')
-        utils_lib.check_log(self, "error,warn,fail,trace,Trace", rmt_redirect_stdout=True)
+        utils_lib.check_log(self, "error,warn,fail,trace,Trace", skip_words='ftrace', rmt_redirect_stdout=True)
 
     def test_boot_mitigations(self):
         '''
@@ -154,7 +154,7 @@ class TestLifeCycle(unittest.TestCase):
         time.sleep(10)
         utils_lib.init_connection(self, timeout=800)
         utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='mitigations=auto,nosmt')
-        utils_lib.check_log(self, "error,warn,fail,trace,Trace", rmt_redirect_stdout=True)
+        utils_lib.check_log(self, "error,warn,fail,trace,Trace", skip_words='ftrace', rmt_redirect_stdout=True)
 
     def test_boot_usbcore_quirks(self):
         '''
@@ -185,7 +185,7 @@ class TestLifeCycle(unittest.TestCase):
         output = utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
         self.is_metal = utils_lib.is_metal(self)
         if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self):
-            self.cancel("Cancel as bug 1654962 in arm guest which \
+            self.skipTest("Cancel as bug 1654962 in arm guest which \
 no plan to fix it in the near future!")
 
         utils_lib.run_cmd(self,
@@ -198,11 +198,11 @@ no plan to fix it in the near future!")
                     r'find /var/crash',
                     expect_ret=0,
                     msg='list /var/crash')
-        utils_lib.run_cmd(self, 'sudo echo c > /proc/sysrq-trigger', msg='trigger crash')
+        utils_lib.run_cmd(self, 'sudo "bash -c echo c > /proc/sysrq-trigger"', msg='trigger crash')
 
         if self.is_metal:
-            self.log.info("Wait 180s")
-            time.sleep(180)
+            self.log.info("Wait 600s in bare metal system")
+            time.sleep(600)
         else:
             self.log.info("Wait 30s")
             time.sleep(30)

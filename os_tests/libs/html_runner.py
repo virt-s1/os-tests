@@ -112,6 +112,9 @@ class HTMLTestRunner(object):
             if startTestRun is not None:
                 startTestRun()
             all_case_name = [ ts.id() for ts in test ]
+            for ts in test:
+                logdir = ts.params['results_dir']
+                break
             try:
                 test(result)
             finally:
@@ -120,9 +123,6 @@ class HTMLTestRunner(object):
                     stopTestRun()
             stopTime = time.perf_counter()
         timeTaken = stopTime - startTime
-        _, cfg_data = utils_lib.get_cfg()
-        if logdir is None:
-            logdir = cfg_data['results_dir']
         sum_html = logdir + '/sum.html'
         sum_txt = logdir + '/sum.log'
         if os.path.exists(sum_txt):

@@ -9,7 +9,7 @@ class TestAzureImage(unittest.TestCase):
     def setUp(self):
         utils_lib.init_case(self)
         if not utils_lib.is_azure(self):
-            self.skipTest('On run for azure image checking.')
+            self.skipTest('Only run for azure image checking.')
 
     def test_check_bash_history(self):
         '''

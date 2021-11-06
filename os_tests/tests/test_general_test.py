@@ -457,7 +457,7 @@ RUN touch /tmp/test.txt
             podman leaks kernel memory due to return code stored in tmpfs
         key_steps:
             1. $ podman run --name test -d ubi
-            2. $ ls /run/libpod/exits/
+            2. $ sudo ls /run/libpod/exits/
         expected_result:
             Step2 return nothing.
         '''
@@ -472,7 +472,7 @@ RUN touch /tmp/test.txt
         time.sleep(2)
         cmd = "podman ps -a"
         utils_lib.run_cmd(self, cmd, msg='try to list all containers after testing')
-        cmd = "ls /run/libpod/exits/"
+        cmd = "sudo ls /run/libpod/exits/"
         utils_lib.run_cmd(self, cmd, expect_output='',msg='check if saved exit code in tmpfs')
 
     def test_podman_rm_stopped(self):

@@ -18,31 +18,32 @@ except ImportError:
     from yaml import Loader, Dumper
 
 def init_connection(test_instance, timeout=600):
-    if test_instance.params['remote_node'] is not None:
-        test_instance.log.info("remote_node specified, all tests will be run in {}".format(test_instance.params['remote_node']))
-        ssh = rmt_ssh.RemoteSSH()
-        ssh.rmt_node = test_instance.params['remote_node']
-        ssh.rmt_user = test_instance.params['remote_user']
-        ssh.rmt_password = test_instance.params['remote_password']
-        ssh.rmt_keyfile = test_instance.params['remote_keyfile']
-        ssh.timeout = 180
-        ssh.log = test_instance.log
-        test_instance.SSH = ssh
-        start_time = time.time()
-        while True:
-            current_time = time.time()
-            if current_time - start_time > timeout:
-                test_instance.log.info("timeout to connect to remote")
-                break
-            test_instance.SSH.create_connection()
-            if test_instance.SSH.ssh_client is not None:
-                break
-            time.sleep(5)
-            test_instance.log.info("Not conncted, retry again! timeout:{}".format(timeout))
-        if test_instance.SSH.ssh_client is None:
-            test_instance.skipTest("Cannot make ssh connection to remote, please check")
-    else:
-        test_instance.SSH.ssh_client = None
+    if test_instance.params['remote_node'] is None:
+        return
+
+    test_instance.log.info("remote_node specified, all tests will be run in {}".format(test_instance.params['remote_node']))
+    ssh = rmt_ssh.RemoteSSH()
+    ssh.rmt_node = test_instance.params['remote_node']
+    ssh.rmt_user = test_instance.params['remote_user']
+    ssh.rmt_password = test_instance.params['remote_password']
+    ssh.rmt_keyfile = test_instance.params['remote_keyfile']
+
+    ssh.timeout = 180
+    ssh.log = test_instance.log
+    test_instance.SSH = ssh
+    start_time = time.time()
+    while True:
+        current_time = time.time()
+        if current_time - start_time > timeout:
+            test_instance.log.info("timeout to connect to remote")
+            break
+        test_instance.SSH.create_connection()
+        if test_instance.SSH.ssh_client is not None:
+            break
+        time.sleep(5)
+        test_instance.log.info("Not conncted, retry again! timeout:{}".format(timeout))
+    if test_instance.SSH.ssh_client is None:
+        test_instance.skipTest("Cannot make ssh connection to remote, please check")
 
 def get_cfg():
     # Config file
@@ -50,6 +51,8 @@ def get_cfg():
     # Result dir
     with open(cfg_file,'r') as fh:
        keys_data = load(fh, Loader=Loader)
+    if os.path.exists(cfg_file):
+        print("{} config file found!".format(cfg_file))
     return cfg_file, keys_data
 
 def init_case(test_instance):
@@ -57,9 +60,7 @@ def init_case(test_instance):
     Arguments:
         test_instance {Test instance} -- unittest.TestCase instance
     """
-    cfg_file, keys_data = get_cfg()
-    test_instance.params = keys_data
-    results_dir = keys_data['results_dir']
+    results_dir = test_instance.params['results_dir']
     debug_dir = results_dir + "/debug"
     test_instance.log_dir = results_dir
     if not os.path.exists(results_dir):
@@ -91,11 +92,6 @@ def init_case(test_instance):
         init_connection(test_instance)
         if  test_instance.SSH.ssh_client is None:
             test_instance.skipTest("Cannot make ssh connection to remote, please check")
-    else:
-        test_instance.SSH = rmt_ssh.RemoteSSH()
-        test_instance.SSH.ssh_client = None
-    if os.path.exists(cfg_file):
-        test_instance.log.info("{} config file found!".format(cfg_file))
 
 def finish_case(test_instance):
     """init case
@@ -179,7 +175,7 @@ def run_cmd(test_instance,
     exception_hit = False
 
     try:
-        if  test_instance.SSH.ssh_client is not None:
+        if test_instance.params['remote_node'] is not None:
             status, output = test_instance.SSH.remote_excute(cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty)
         else:
             ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
@@ -597,7 +593,7 @@ def get_cmd_cursor(test_instance, cmd='dmesg -T', rmt_redirect_stdout=False, rmt
     test_instance.log.info("Get cursor: {}".format(cursor))
     return cursor
 
-def check_log(test_instance, log_keyword, log_cmd="journalctl -b 0", match_word_exact=False, cursor=None, skip_words=None, rmt_redirect_stdout=False, rmt_redirect_stderr=False, rmt_get_pty=False):
+def check_log(test_instance, log_keyword, log_cmd="journalctl -b 0", match_word_exact=False, cursor=None, skip_words=None, rmt_redirect_stdout=False, rmt_redirect_stderr=False, rmt_get_pty=False, msg=None):
     '''
     check journal log
     Arguments:
@@ -611,6 +607,8 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl -b 0", match_word_
     # Baseline data file
     baseline_file = os.path.dirname(os_tests.__file__) + "/data/baseline_log.json"
     # Result dir
+    if msg is not None:
+        test_instance.log.info(msg)
     with open(baseline_file,'r') as fh:
         test_instance.log.info("Loading baseline data file from {}".format(baseline_file))
         baseline_dict = json.load(fh)

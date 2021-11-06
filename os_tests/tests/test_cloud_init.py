@@ -255,7 +255,7 @@ class TestCloudInit(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, msg='backup /etc/ssh/sshd_config')
         cmd = "sudo sed -i '/DenyUsers/d' /etc/ssh/sshd_config"
         utils_lib.run_cmd(self, cmd, msg='delete old config if has')
-        cmd = "sudo echo 'DenyUsers' >> /etc/ssh/sshd_config"
+        cmd = "sudo bash -c 'echo DenyUsers >> /etc/ssh/sshd_config'"
         utils_lib.run_cmd(self, cmd, msg='append empty DenyUsers filed')
         cmd = "sudo cloud-init clean"
         utils_lib.run_cmd(self, cmd, msg='clean cloud-init')

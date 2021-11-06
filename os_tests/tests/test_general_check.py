@@ -389,13 +389,7 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         polarion_id:
         bz: 1801999, 1736818
         '''
-        # redirect journalctl output to a file as it is not get return
-        # normally in RHEL7
-        cmd = 'journalctl -b 0 > /tmp/journalctl.log'
-        utils_lib.run_cmd(self, cmd, expect_ret=0)
-        cmd = 'cat /tmp/journalctl.log'
-        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='Traceback,Backtrace',
-                        msg = "Check no Traceback,Backtrace in journal log")
+        utils_lib.check_log(self, 'Traceback,Backtrace', skip_words='test_check_journal_calltrace', rmt_redirect_stdout=True)
 
     def test_check_journalctl_cannot(self):
         '''
@@ -507,11 +501,8 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         '''
         # redirect journalctl output to a file as it is not get return
         # normally in RHEL7
-        cmd = 'journalctl -b 0 > /tmp/journalctl.log'
-        utils_lib.run_cmd(self, cmd, expect_ret=0)
-        cmd = 'cat /tmp/journalctl.log'
-        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='dumped core',
-                        msg = "Check no dumped core in journal log")
+        utils_lib.check_log(self, 'dumped core', skip_words='test_check_journalctl_dumpedcore', rmt_redirect_stdout=True)
+
     def test_check_journalctl_error(self):
         '''
         polarion_id: RHEL7-103851
@@ -1539,7 +1530,11 @@ current_device"
                 msg="please attach this archive if file bug", timeout=180)
         gz_file = re.findall('/var/.*tar.gz', out)[0]
         file_name = gz_file.split('/')[-1]
-        utils_lib.run_cmd(self, 'sudo cp {} {}'.format(gz_file, self.log_dir))
+        if self.params['remote_node'] is not None:
+            self.log.info('retrive {} from remote'.format(file_name))
+            self.SSH.get_file(rmt_file='/tmp/{}'.format(file_name),local_file='{}/debug/{}'.format(self.log_dir,file_name))
+        else:
+            utils_lib.run_cmd(self, 'sudo cp {} {}'.format(gz_file, self.log_dir))
         try:
             tmp_dict = json.loads(result_out)
             if len(tmp_dict) > 0:
