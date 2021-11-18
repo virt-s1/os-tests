@@ -10,6 +10,11 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.init_case(self)
         if self.params['remote_node'] is None:
             self.skipTest("Only support to run in server-client mode!")
+        if utils_lib.is_metal(self):
+            self.ssh_timeout = 800
+        else:
+            self.ssh_timeout = 180
+        self.log.info('set ssh connection timeout to {}'.format(self.ssh_timeout))
 
     def test_boot_debugkernel(self):
         '''
@@ -30,6 +35,8 @@ class TestLifeCycle(unittest.TestCase):
         else:
             debug_kernel = "/boot/vmlinuz-" + kernel_ver.strip('\n') + "+debug"
 
+        kernel_pkg = 'kernel-debug-' + kernel_ver
+        utils_lib.is_pkg_installed(self, pkg_name=kernel_pkg)
         utils_lib.run_cmd(self,
                     "sudo grubby --info=%s" % debug_kernel,
                     expect_ret=0,
@@ -45,7 +52,7 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="enable kmemleak")
         utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(10)
-        utils_lib.init_connection(self, timeout=800)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         utils_lib.run_cmd(self,
                     'uname -r',
                     expect_ret=0,
@@ -97,7 +104,7 @@ class TestLifeCycle(unittest.TestCase):
             utils_lib.run_cmd(self, cmd, msg='Enable fips!', timeout=600)
             utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
             time.sleep(10)
-            utils_lib.init_connection(self, timeout=800)
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
             utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='fips=1')
             utils_lib.run_cmd(self, 'dmesg', msg='save dmesg')
             cmd = 'sudo grubby --update-kernel=ALL  --remove-args="fips=1"'
@@ -107,7 +114,7 @@ class TestLifeCycle(unittest.TestCase):
             utils_lib.run_cmd(self, cmd, msg='Enable fips!', timeout=600)
             utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
             time.sleep(10)
-            utils_lib.init_connection(self, timeout=800)
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
             utils_lib.run_cmd(self,
                         'sudo fips-mode-setup --check',
                         expect_kw='enabled')
@@ -130,7 +137,7 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, msg='Append hpet_mmap=1 to command line!', timeout=600)
         utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(10)
-        utils_lib.init_connection(self, timeout=800)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='hpet_mmap=1')
         utils_lib.run_cmd(self, 'dmesg | grep -i hpet', expect_kw='enabled', expect_not_kw='6HPET')
         cmd = 'sudo cat /sys/devices/system/clocksource/clocksource0/available_clocksource'
@@ -152,7 +159,7 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, msg='Append mitigations=auto,nosmt to command line!', timeout=600)
         utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(10)
-        utils_lib.init_connection(self, timeout=800)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='mitigations=auto,nosmt')
         utils_lib.check_log(self, "error,warn,fail,trace,Trace", skip_words='ftrace', rmt_redirect_stdout=True)
 
@@ -168,12 +175,53 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, msg='Append {} to command line!'.format(option), timeout=600)
         utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(10)
-        utils_lib.init_connection(self, timeout=800)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
         utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw=option)
         cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50'
         utils_lib.run_cmd(self, cmd, expect_kw='No such file or directory', msg='make sure there is no core generated')
         utils_lib.check_log(self, "error,warn,fail,trace,Trace", skip_words='ftrace', rmt_redirect_stdout=True)
+
+    def test_reboot_resolve_content(self):
+        """
+        case_name:
+            test_reboot_resolve_content
+        case_file:
+            https://github.com/liangxiao1/os-tests/blob/master/os_tests/tests/test_lifecycle.py
+        component:
+            NetworkManager
+        bugzilla_id:
+            1748015
+        is_customer_case:
+            True
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            Check /etc/resolv.conf content is regenerated and consistent before and after reboot
+        key_steps:
+            # sudo cp -f /etc/resolv.conf /etc/resolv.conf.orig
+            # sudo truncate -s0 /etc/resolv.conf
+            # sudo reboot
+            # sudo diff -u /etc/resolv.conf /etc/resolv.conf.orig
+        expect_result:
+            diff returen 0
+        debug_want:
+            # rpm -q NetworkManager
+        """
+        utils_lib.run_cmd(self, r'sudo cat /etc/resolv.conf',
+                    expect_ret=0, expect_kw='search,nameserver', msg='check resolv.conf content')
+        utils_lib.run_cmd(self, r'sudo cp -f /etc/resolv.conf /etc/resolv.conf.orig',
+                    expect_ret=0, msg='backup /etc/resolv.conf')
+        utils_lib.run_cmd(self, r'sudo truncate -s0 /etc/resolv.conf',
+                    expect_ret=0, msg='cleanup /etc/resolv.conf')
+        utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
+        time.sleep(10)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+
+        utils_lib.run_cmd(self, r'sudo diff -u /etc/resolv.conf /etc/resolv.conf.orig',
+                    expect_ret=0, msg='check if content identical after reboot')
 
     def test_kdump_no_specify_cpu(self):
         '''
@@ -183,7 +231,6 @@ class TestLifeCycle(unittest.TestCase):
         cmd = 'systemctl is-active kdump'
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check kdump service')
         output = utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
-        self.is_metal = utils_lib.is_metal(self)
         if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self):
             self.skipTest("Cancel as bug 1654962 in arm guest which \
 no plan to fix it in the near future!")
@@ -198,15 +245,9 @@ no plan to fix it in the near future!")
                     r'find /var/crash',
                     expect_ret=0,
                     msg='list /var/crash')
-        utils_lib.run_cmd(self, 'sudo "bash -c echo c > /proc/sysrq-trigger"', msg='trigger crash')
+        utils_lib.run_cmd(self, "sudo bash -c \"echo c > /proc/sysrq-trigger\"", msg='trigger crash')
 
-        if self.is_metal:
-            self.log.info("Wait 600s in bare metal system")
-            time.sleep(600)
-        else:
-            self.log.info("Wait 30s")
-            time.sleep(30)
-        utils_lib.init_connection(self)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         self.log.info("After system crash")
         utils_lib.run_cmd(self,
                     r'find /var/crash',
@@ -216,22 +257,27 @@ no plan to fix it in the near future!")
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='write_sysrq_trigger')
 
     def tearDown(self):
+        reboot_require = False
         if 'test_boot_debugkernel' in self.id():
             cmd = "sudo grubby --set-default-index=%s" % self.old_grub_index
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="restore default boot index to {}".format(self.old_grub_index))
+            reboot_require = True
         if 'test_boot_hpet_mmap_enabled' in self.id():
             cmd = 'sudo grubby --update-kernel=ALL  --remove-args="hpet_mmap=1"'
             utils_lib.run_cmd(self, cmd, msg='Remove "hpet_mmap=1"')
+            reboot_require = True
         if 'test_boot_mitigations' in self.id():
             cmd = 'sudo grubby --update-kernel=ALL  --remove-args="mitigations=auto,nosmt"'
             utils_lib.run_cmd(self, cmd, msg='Remove "mitigations=auto,nosmt"')
+            reboot_require = True
         if 'test_boot_usbcore_quirks' in self.id():
             cmd = 'sudo grubby --update-kernel=ALL  --remove-args="usbcore.quirks=quirks=0781:5580:bk,0a5c:5834:gij"'
             utils_lib.run_cmd(self, cmd, msg='Remove "usbcore.quirks=quirks=0781:5580:bk,0a5c:5834:gij"')
-        if 'test_kdump_no_specify_cpu' not in self.id():
-            utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
+            reboot_require = True
+        if reboot_require:
+            utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test to restore setting')
             time.sleep(10)
-            utils_lib.init_connection(self, timeout=800)
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
 if __name__ == '__main__':
     unittest.main()

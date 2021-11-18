@@ -243,7 +243,7 @@ class TestNetworkTest(unittest.TestCase):
             4. # xdp-loader $cmd -vv
 
         '''
-        product_id = utils_lib.get_product_id(self)
+        product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
         cmd = "sudo ethtool -i {}".format(self.nic)
         output = utils_lib.run_cmd(self, cmd, expect_ret=0)
         if 'ena' in output:

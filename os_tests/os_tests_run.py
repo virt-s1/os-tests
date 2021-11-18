@@ -29,9 +29,10 @@ def main():
                     help='keyfile to login to remote node', required=False)
     parser.add_argument('--result', dest='results_dir', default=None, action='store',
                     help='save result to specific directory', required=False)
+    parser.add_argument('--image', dest='image', default=None, action='store',
+                    help='specify azure to run azure image check only', required=False)
     args = parser.parse_args()
 
-    print("Run in mode: is_listcase:{} pattern: {}".format(args.is_listcase, args.pattern))
     cfg_file, cfg_data = get_cfg()
     if args.results_dir is not None:
         cfg_data['results_dir'] = args.results_dir
@@ -47,6 +48,31 @@ def main():
         rmtree(results_dir)
         print("saving results to {}".format(results_dir))
     os_tests_dir = os.path.dirname(__file__)
+    skip_patterns = args.skip_pattern
+    test_patterns = args.pattern
+    if args.image is not None:
+        if 'azure' in args.image:
+            print("only run azure image checks")
+            test_patterns = 'test_azure_image'
+        else:
+            print("only azure image check supported for now")
+            sys.exit(0)
+    else:
+        print("skip azure image check by default")
+        if skip_patterns:
+            skip_patterns = skip_patterns + ',test_azure_image'
+        else:
+            skip_patterns = 'test_azure_image'
+
+    if cfg_data['remote_node'] is None:
+        print("skip lifecycle tests as no remote node found")
+        if skip_patterns:
+            skip_patterns = skip_patterns + ',test_lifecycle'
+        else:
+            skip_patterns = 'test_lifecycle'
+
+    print("Run in mode: is_listcase:{} test_patterns:{} skip_patterns:{}".format(args.is_listcase, test_patterns, skip_patterns))
+
     ts = unittest.defaultTestLoader.discover(start_dir=os_tests_dir,pattern='test_*.py', top_level_dir=os.path.dirname(os_tests_dir))
     tmp_ts = copy.deepcopy(ts)
     final_ts = unittest.TestSuite()
@@ -57,15 +83,15 @@ def main():
                     for case in ts2._tests:
                         case.params = cfg_data
                         is_skip = False
-                        if args.skip_pattern is not None:
-                                for skippattern in args.skip_pattern.split(','):
+                        if skip_patterns is not None:
+                                for skippattern in skip_patterns.split(','):
                                     if skippattern in case.id():
                                         if args.is_strict and case.id().endswith(skippattern):
                                             is_skip = True
                                         elif not args.is_strict:
                                             is_skip = True
-                        if args.pattern is not None:
-                            for pattern in args.pattern.split(','):
+                        if test_patterns is not None:
+                            for pattern in test_patterns.split(','):
                                 if pattern in case.id() and not is_skip:
                                     if args.is_strict and case.id().endswith(pattern):
                                         final_ts.addTest(case)

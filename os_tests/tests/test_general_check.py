@@ -757,6 +757,7 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         expected_result:
             'lspci' can list devices normally without "Invalid domain"
         '''
+        utils_lib.is_cmd_exist(self, cmd='lspci')
         utils_lib.run_cmd(self, 'lspci', expect_ret=0, expect_not_kw='Invalid', msg='check no invalid domain')
 
     def test_check_lspci_nvme(self):
@@ -939,6 +940,9 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         '''
         if not utils_lib.is_aws(self):
             self.skipTest('encalve is only for aws platform')
+        product_name = utils_lib.get_os_release_info(self, field='NAME')
+        if 'Red Hat Enterprise Linux' not in product_name:
+            self.skipTest('Only support run in RHEL for now.')
         utils_lib.run_cmd(self, 'sudo yum -y install gcc make git podman-docker',timeout=300, msg='install required pkgs')
         utils_lib.run_cmd(self, 'sudo setenforce 0', msg='disable SElinux')
         utils_lib.run_cmd(self, 'git clone https://github.com/GAO567/aws-nitro-enclaves-cli.git', msg='clone nitro-enclaves-cli ')
@@ -1043,7 +1047,7 @@ in cmdline as bug1859088")
         expected_result:
             No 'unknown' in this file
         '''
-        utils_lib.run_cmd(self, 'cat /proc/self/status', expect_not_kw='unknown', msg='Check no unknown in "/proc/self/status"')
+        utils_lib.check_log(self, 'unknown', log_cmd='uname -r;cat /proc/self/status', msg='Check no unknown in "/proc/self/status"')
 
     def test_check_product_id(self):
         '''

@@ -710,11 +710,13 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
     # compare 2 string, if similary over fail_rate, consider it as same.
     fail_rate = 70
     no_fail = True
+    check_done = False
     for line1 in tmp_list:
         find_it = False
         if baseline_dict is not None:
             for basekey in baseline_dict:
                 for sub_basekey_content in baseline_dict[basekey]["content"].split(';'):
+                    check_done = False
                     if re.search(sub_basekey_content, line1):
                         if baseline_dict[basekey]["status"] == 'active':
                             test_instance.log.info("Found a similar issue matched in baseline.")
@@ -723,6 +725,14 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
                             test_instance.log.info("Found a similar issue matched in baseline. But it is not active, please check manually")
                             find_it = False
                             no_fail = False
+                            check_done = True
+                            break
+                        if baseline_dict[basekey]["trigger"] in check_str and len(baseline_dict[basekey]["trigger"]) > 3:
+                            test_instance.log.info("Guess it is expected because trigger keywords found '{}'".format(baseline_dict[basekey]["trigger"]))
+                            find_it = True
+                        elif len(baseline_dict[basekey]["trigger"]) > 3:
+                            test_instance.log.info("Guess it is unexpected because trigger keywords not found '{}'".format(baseline_dict[basekey]["trigger"]))
+                            find_it = False
                         test_instance.log.info("log:{}, base:{}".format(line1, sub_basekey_content))
                         test_instance.log.info("ID:%s Baseline analyze:%s Branch:%s Status:%s Link:%s Path:%s" %
                              (basekey,
@@ -731,8 +741,9 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
                               baseline_dict[basekey]["status"],
                               baseline_dict[basekey]["link"],
                               baseline_dict[basekey]["path"]))
+                        check_done = True
                         break
-                if find_it:
+                if find_it or check_done:
                     break
                 line1_tmp = line1
                 line2_tmp = baseline_dict[basekey]["content"]
@@ -752,9 +763,13 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
                               baseline_dict[basekey]["status"],
                               baseline_dict[basekey]["link"],
                               baseline_dict[basekey]["path"]))
-                    if baseline_dict[basekey]["trigger"] in check_str and len(baseline_dict[basekey]["trigger"]) > 2:
-                        test_instance.log.info("Maybe it is expected because found '{}' too".format(baseline_dict[basekey]["trigger"]))
+                    if baseline_dict[basekey]["trigger"] in check_str and len(baseline_dict[basekey]["trigger"]) > 3:
+                        test_instance.log.info("Guess it is expected because trigger keywords found '{}'".format(baseline_dict[basekey]["trigger"]))
                         find_it = True
+                    elif len(baseline_dict[basekey]["trigger"]) > 3:
+                        test_instance.log.info("Guess it is unexpected because trigger keywords not found '{}'".format(baseline_dict[basekey]["trigger"]))
+                        find_it = False
+                        break
                     if baseline_dict[basekey]["status"] == 'active':
                         find_it = True
                     else:
@@ -770,8 +785,14 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
     return no_fail
 
 def get_product_id(test_instance):
-    check_cmd = "sudo cat /etc/redhat-release"
-    output = run_cmd(test_instance,check_cmd, expect_ret=0, msg='check release name')
-    product_id = re.findall('[\d.]{2,3}', output)[0]
+    cmd = "source /etc/os-release ;echo $VERSION_ID"
+    product_id = run_cmd(test_instance,cmd, expect_ret=0, msg='check release name')
     test_instance.log.info("Get product id: {}".format(product_id))
     return product_id
+
+def get_os_release_info(test_instance, field="VERSION_ID"):
+    data_file = '/etc/os-release'
+    cmd = "source {} ;echo ${}".format(data_file, field)
+    output = run_cmd(test_instance,cmd, expect_ret=0, msg='get {} from {}'.format(field, data_file))
+    test_instance.log.info("Got: {}".format(output))
+    return output

@@ -213,7 +213,7 @@ int main(int argc, char *argv[])
 	fips_test(1);
 }
         """
-        product_id = utils_lib.get_product_id(self)
+        product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
         if float(product_id) >= 9.0:
             self.skipTest('openssl-3.0.0 does not provide FIPS_selftest() API bz:1969692')
         utils_lib.is_pkg_installed(self, pkg_name="openssl-devel")
@@ -297,9 +297,11 @@ int main(int argc, char *argv[])
         '''
         bz: 1932802, 1905398
         '''
+        product_name = utils_lib.get_os_release_info(self, field='NAME')
+        if 'Red Hat Enterprise Linux' not in product_name:
+            self.skipTest('Only for RHEL test.')
         if not (utils_lib.is_aws(self) or utils_lib.is_azure(self)):
             self.skipTest('Auto registeration only supports AWS and Azure platforms for now.')
-
         product_id = utils_lib.get_product_id(self)
         if float(product_id) < 8.4:
             self.skipTest('skip in earlier than el8.4')
@@ -345,12 +347,13 @@ int main(int argc, char *argv[])
         des: "subscription-manager config" output should equal "subscription-manager config --list"
         '''
         utils_lib.is_cmd_exist(self, 'subscription-manager')
-        cmd1 = "sudo subscription-manager config"
+        cmd1 = "sudo subscription-manager config > /tmp/sm_config.log"
         out1 = utils_lib.run_cmd(self, cmd1, expect_ret=0, msg='get {} output'.format(cmd1))
-        cmd2 = "sudo subscription-manager config --list"
+        cmd2 = "sudo subscription-manager config --list > /tmp/sm_config_list.log"
         out2 = utils_lib.run_cmd(self, cmd2, expect_ret=0, msg='get {} output'.format(cmd2))
-        if out1 != out2:
-            self.fail('"{}" output not same with "{}"'.format(cmd1,cmd2))
+        utils_lib.run_cmd(self, 'sudo cat /tmp/sm_config.log', expect_ret=0)
+        cmd = "sudo diff -u /tmp/sm_config.log /tmp/sm_config_list.log"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check if both are identical')
 
     def test_podman_build_image(self):
         '''
@@ -472,8 +475,10 @@ RUN touch /tmp/test.txt
         time.sleep(2)
         cmd = "podman ps -a"
         utils_lib.run_cmd(self, cmd, msg='try to list all containers after testing')
-        cmd = "sudo ls /run/libpod/exits/"
-        utils_lib.run_cmd(self, cmd, expect_output='',msg='check if saved exit code in tmpfs')
+        product_name = utils_lib.get_os_release_info(self, field='NAME')
+        if 'Red Hat Enterprise Linux' in product_name:
+            cmd = "sudo ls /run/libpod/exits/"
+            utils_lib.run_cmd(self, cmd, expect_output='',msg='check if saved exit code in tmpfs')
 
     def test_podman_rm_stopped(self):
         '''

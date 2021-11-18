@@ -126,13 +126,13 @@
         "trigger": ""
     },
     "msg_16": {
-        "content": "ACPI: NUMA: Failed to initialise from firmware",
-        "analyze": "arm specified msg",
-        "branch": "rhel7,rhel8",
+        "content": ".*NUMA: Failed to initialise from firmware.*",
+        "analyze": "this happens in non-metal arm instance only, eg. aws,hyper-v,esxi",
+        "branch": "rhel",
         "status": "active",
         "link": "",
-        "path": "dmesg or journal",
-        "trigger": ""
+        "path": "journal, dmesg",
+        "trigger": "HYP mode not available"
     },
     "msg_17": {
         "content": "ena 0000:00:05.0: irq 45 for MSI/MSI-X",
@@ -555,7 +555,7 @@
         "status": "active",
         "link": "",
         "path": "journal",
-        "trigger": "dnf[4394]: Metadata cache created."
+        "trigger": "Metadata cache created."
     },
     "msg_64": {
         "content": "kernel: SGI XFS with ACLs, security attributes, verbose warnings, no debug enabled",
@@ -909,7 +909,7 @@
         "trigger": ""
     },
     "msg_103": {
-        "content": ".*dracut module .* will not be installed, because command .* could not be found!.*",
+        "content": ".*dracut module.* will not be installed, because command .* could not be found!.*",
         "analyze": "These warnings are safe to be ignored.",
         "branch": "rhel",
         "status": "active",
@@ -952,5 +952,59 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2018429",
         "path": "journal, dmesg",
         "trigger": "AMAZON"
+    },
+    "msg_108": {
+        "content": ".*Hibernation image not present or could not be loaded.*",
+        "analyze": "Because of hibernation partition on the hypervisor is not populated.",
+        "branch": "rhel-7.9",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2018933,https://bugzilla.redhat.com/show_bug.cgi?id=2019530",
+        "path": "journal, dmesg",
+        "trigger": "el7"
+    },
+    "msg_109": {
+        "content": ".*Could not set AlternativeName.*File exists.*;.*Could not apply link config.*File exists.*",
+        "analyze": "Known issue in RHEL-8.5",
+        "branch": "rhel-8.5",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2022432",
+        "path": "journal, dmesg",
+        "trigger": "el8"
+    },
+    "msg_110": {
+        "content": ".*mtrr_cleanup: can not find optimal value.*;.*BAD*gran_size.*",
+        "analyze": "there is similar explaination in ks file, try attach 'cat /proc/mtrr' if you want a bz",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/87433",
+        "path": "journal, dmesg",
+        "trigger": "metal"
+    },
+    "msg_111": {
+        "content": ".*ftrace: allocating.*;.*Mount.*Kernel Trace File System.*",
+        "analyze": "this is not a real trace back",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_112": {
+        "content": ".*SpeculationIndirectBranch:.*unknown.*",
+        "analyze": "SpeculationIndirectBranch status unknow under proc in arm, same in upstream too",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "/proc/self/status",
+        "trigger": "aarch64"
+    },
+    "msg_113": {
+        "content": ".*trace event string verifier disabled.*",
+        "analyze": "information only started from rhel-9",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": "aarch64"
     }
 }
