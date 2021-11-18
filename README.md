@@ -10,8 +10,8 @@ os-tests is a lightweight, fast and customer centric tests collection for Linux 
 
 `# pip install os-tests`
 
-note: you must install paramiko module if run in server-client mode.  
-    This requires libffi-devel,openssl-devel,python-devel are required in aarch64 to compile cryptography
+note: please install [paramiko-fork](https://pypi.org/project/paramiko-fork/) if run os-tests in server-client mode.
+      the main branch of paramiko lacking of rsa-sha2-256 and rsa-sha2-512 support to connect rhel-9[1643](https://github.com/paramiko/paramiko/pull/1643). os-tests do not set it as required because extra pkgs (eg. libffi-devel, openssl-devel, python-devel) are required in aarch64 to compile cryptography.
 
 ### Install from source code
 
@@ -34,12 +34,16 @@ note: you must install paramiko module if run in server-client mode.
 
 ## Run test
 
-### Run all os_tests supported cases(os-tests cli was introduced in v0.0.10)
+### Run all supported cases in local or on remote node
 
-`# os-tests`  
+```bash
+# os-tests
+# os-tests --host <remote_node> --user <remote_user> --keyfile <remote_keyfile> --result <result_dir> -p <cases>
+```
+
 note: the default path is "/usr/local/bin" if not in virtual environment.  
 or  
-`# python3 -m unittest -v os_tests.os_tests_all`
+`# python3 -m unittest -v os_tests.os_tests_run`
 
 ### List all supported cases only without run
 
@@ -75,9 +79,7 @@ remote_node:
 remote_user: ec2-user  
 remote_keyfile:   
 
-It equals calling in command line option:
-
-`os-tests --host <remote_node> --user <remote_user> --keyfile <remote_keyfile> --result <result_dir> -p <cases>`
+It equals calling in command line directly.
 
 ### The log file
 
