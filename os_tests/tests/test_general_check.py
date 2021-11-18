@@ -924,17 +924,28 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         description:
             Test whether nitro enclave is enabled.
         key_steps:
-            1.#sudo yum -y install gcc make git podman-docker
-            2.#sudo setenforce 0
-            3.#git clone https://github.com/GAO567/aws-nitro-enclaves-cli.git
-            4.#cd aws-nitro-enclaves-cli; sudo make && sudo make vsock-proxy;sudo NITRO_CLI_INSTALL_DIR=/ make install-tools; cd ..
-            5.#sudo mkdir /run/nitro_enclaves/
-            6.#sudo systemctl enable nitro-enclaves-allocator.service && sudo systemctl start nitro-enclaves-allocator.service
-            7.#curl -O http://people.redhat.com/~vkuznets/hello_v2.eif
-            8.#sudo nitro-cli run-enclave --cpu-count 2 --memory 256 --eif-path hello_v2.eif --debug-mode
-            9.#nitro-cli describe-enclaves
-            10.#nitro-cli console --enclave-id $EnclaveID
-            11.#sudo nitro-cli terminate-enclave --enclave-id $EnclaveID
+            1.$ sudo dnf groupinstall "Development Tools"
+            2.$ for version under 9 add centos docker repo
+                and for rhel9 add fedora34 docker repo
+            3.$ sudo dnf install docker-ce docker-ce-cli containerd.io -y
+            4.$ sudo systemctl start docker
+            5.$ sudo systemctl enable docker
+            6.$ sudo usermod -aG docker $USER and re-login
+            7.$ git clone https://github.com/aws/aws-nitro-enclaves-cli.git
+            8.$ cd aws-nitro-enclaves-cli/ and change bootstrap/nitro-cli-config,bootstrap/env.sh,Makefile
+            9.$export NITRO_CLI_INSTALL_DIR=/
+            10.$make nitro-cli
+            11.$make vsock-proxy
+            12.$sudo make NITRO_CLI_INSTALL_DIR=/ install
+            13.$source /etc/profile.d/nitro-cli-env.sh
+            14.$echo source /etc/profile.d/nitro-cli-env.sh >> ~/.bashrc
+            15.$nitro-cli-config -i
+            16.$sudo systemctl enable nitro-enclaves-allocator.service && sudo systemctl start nitro-enclaves-allocator.service
+            17.$nitro-cli build-enclave --docker-dir /usr/share/nitro_enclaves/examples/hello --docker-uri hello:latest --output-file hello.eif
+            18.$nitro-cli run-enclave --cpu-count 2 --memory 512 --enclave-cid 16 --eif-path hello.eif --debug-mode
+            19.$nitro-cli describe-enclaves
+            20.$nitro-cli console --enclave-id $EnclaveID
+            21.$nitro-cli terminate-enclave --enclave-id $EnclaveID
         expected_result:
             Enclave can be started and terminated successfully.
         '''
@@ -943,18 +954,66 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         product_name = utils_lib.get_os_release_info(self, field='NAME')
         if 'Red Hat Enterprise Linux' not in product_name:
             self.skipTest('Only support run in RHEL for now.')
-        utils_lib.run_cmd(self, 'sudo yum -y install gcc make git podman-docker',timeout=300, msg='install required pkgs')
-        utils_lib.run_cmd(self, 'sudo setenforce 0', msg='disable SElinux')
-        utils_lib.run_cmd(self, 'git clone https://github.com/GAO567/aws-nitro-enclaves-cli.git', msg='clone nitro-enclaves-cli ')
-        utils_lib.run_cmd(self, 'cd aws-nitro-enclaves-cli; sudo make && sudo make vsock-proxy;sudo NITRO_CLI_INSTALL_DIR=/ make install-tools; cd ..', timeout=600,msg='make and install nitro-cli')
-        utils_lib.run_cmd(self, 'sudo mkdir /run/nitro_enclaves/')
-        utils_lib.run_cmd(self, 'sudo systemctl enable nitro-enclaves-allocator.service && sudo systemctl start nitro-enclaves-allocator.service')
-        utils_lib.run_cmd(self, 'curl -O http://people.redhat.com/~vkuznets/hello_v2.eif', msg='download test enclave')
-        utils_lib.run_cmd(self, 'sudo nitro-cli run-enclave --cpu-count 2 --memory 256 --eif-path hello_v2.eif --debug-mode', expect_kw='Started', msg='run enclave')
-        EnclaveID=utils_lib.run_cmd(self, 'nitro-cli describe-enclaves |grep EnclaveID', msg='get EnclaveID')
-        EnclaveID=EnclaveID[18:-3]
-        utils_lib.run_cmd(self, f'timeout 5 nitro-cli console --enclave-id {EnclaveID}', expect_kw='Successfully', msg='get the console')
-        utils_lib.run_cmd(self, f'sudo nitro-cli terminate-enclave --enclave-id {EnclaveID}', expect_kw='Successfully', msg='terminate enclave')
+        update_files = ["aws-nitro-enclaves-cli/bootstrap/nitro-cli-config", "aws-nitro-enclaves-cli/bootstrap/env.sh",
+                        "aws-nitro-enclaves-cli/Makefile"]
+        first = ["# Remove an older driver if it is inserted.", "lsmod | grep -q nitro_enclaves || ",
+                 "install: install-tools nitro_enclaves"]
+        end = ['[ "$(lsmod | grep -cw $DRIVER_NAME)" -eq 1 ] || fail "The driver is not visible."',
+               'sudo insmod ${NITRO_CLI_INSTALL_DIR}/lib/modules/extra/nitro_enclaves/nitro_enclaves.ko',
+               '${NITRO_CLI_INSTALL_DIR}/lib/modules/$(uname -r)/extra/nitro_enclaves/nitro_enclaves.ko']
+        utils_lib.run_cmd(self, 'sudo dnf groupinstall "Development Tools" -y', msg='install development tools')
+        product_id = utils_lib.get_product_id(self)
+        if float(product_id) < 9:
+            utils_lib.run_cmd(self,
+                              'sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo',
+                              msg='add docker repo')
+            utils_lib.run_cmd(self, 'sudo dnf install docker-ce docker-ce-cli containerd.io --allowerasing -y',
+                              msg='install docker')
+        else:
+            utils_lib.run_cmd(self,
+                              'echo -e "[fedora]\nname=Fedora 34 - \$basearch\nbaseurl=https://download-ib01.fedoraproject.org/pub/fedora/linux/releases/34/Everything/\$basearch/os/" |sudo tee /etc/yum.repos.d/fedora34.repo')
+            utils_lib.run_cmd(self,
+                              'sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo',
+                              msg='add docker repo')
+            utils_lib.run_cmd(self, "sudo sed -i 's/$releasever/34/g' /etc/yum.repos.d/docker-ce.repo")
+            utils_lib.run_cmd(self, 'sudo dnf module disable container-tools -y')
+            utils_lib.run_cmd(self,
+                              'sudo dnf install docker-ce docker-ce-cli containerd.io --nogpgcheck --allowerasing -y',
+                              msg='install docker')
+            utils_lib.run_cmd(self, 'sudo dnf module enable container-tools -y')
+            utils_lib.run_cmd(self, 'sudo dnf config-manager --disable fedora')
+        utils_lib.run_cmd(self, 'sudo systemctl start docker && sudo systemctl enable docker',
+                          msg='enable and start docker')
+        utils_lib.run_cmd(self, 'sudo usermod -aG docker $USER', msg='add to the docker group')
+        utils_lib.run_cmd(self, 'sudo chmod a+rw /var/run/docker.sock')
+        utils_lib.run_cmd(self, 'git clone https://github.com/aws/aws-nitro-enclaves-cli.git',
+                          msg='clone nitro-enclaves-cli ')
+        for i in range(3):
+            first_row = int(utils_lib.run_cmd(self, f"grep -n '{first[i]}' {update_files[i]} | cut -f1 -d:"))
+            end_row = int(utils_lib.run_cmd(self, f"grep -n '{end[i]}' {update_files[i]} | cut -f1 -d:"))
+            utils_lib.run_cmd(self, f"sed -i '{first_row}, {end_row}d' {update_files[i]}")
+        utils_lib.run_cmd(self, f"sed -i '{first_row}i\install: install-tools' aws-nitro-enclaves-cli/Makefile ")
+        utils_lib.run_cmd(self,
+                          'cd aws-nitro-enclaves-cli ; export NITRO_CLI_INSTALL_DIR=/ && make nitro-cli && make vsock-proxy;sudo make NITRO_CLI_INSTALL_DIR=/ install',
+                          timeout=1200, msg='make and install nitro-cli')
+        utils_lib.run_cmd(self, 'echo source /etc/profile.d/nitro-cli-env.sh >> ~/.bashrc')
+        utils_lib.run_cmd(self,
+                          'source /etc/profile.d/nitro-cli-env.sh ; cd aws-nitro-enclaves-cli ; timeout 5 nitro-cli-config -i',
+                          expect_not_kw='Could not')
+        utils_lib.run_cmd(self,
+                          'sudo systemctl enable nitro-enclaves-allocator.service && sudo systemctl start nitro-enclaves-allocator.service')
+        utils_lib.run_cmd(self,
+                          'nitro-cli build-enclave --docker-dir /usr/share/nitro_enclaves/examples/hello --docker-uri hello:latest --output-file hello.eif',
+                          msg='build enclave')
+        utils_lib.run_cmd(self,
+                          'sudo nitro-cli run-enclave --cpu-count 2 --memory 512 --enclave-cid 16 --eif-path hello.eif --debug-mode',
+                          expect_kw='Started', msg='run enclave')
+        EnclaveID = utils_lib.run_cmd(self, 'nitro-cli describe-enclaves |grep EnclaveID', msg='get EnclaveID')
+        EnclaveID = EnclaveID[18:-3]
+        utils_lib.run_cmd(self, f'timeout 10 nitro-cli console --enclave-id {EnclaveID}', expect_kw='Successfully',
+                          msg='get the console')
+        utils_lib.run_cmd(self, f'sudo nitro-cli terminate-enclave --enclave-id {EnclaveID}',
+                          expect_kw='"Terminated": true', msg='terminate enclave')
 
     def test_check_nouveau(self):
         '''
