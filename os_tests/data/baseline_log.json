@@ -1006,5 +1006,23 @@
         "link": "",
         "path": "journal, dmesg",
         "trigger": "aarch64"
+    },
+    "msg_114": {
+        "content": ".*Could not find 'strip'. Not stripping the initramfs.*",
+        "analyze": "warning information only",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=867829",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_115": {
+        "content": ".*imjournal: No statefile exists.*",
+        "analyze": "can be ignored if system first boot",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
     }
 }

@@ -36,7 +36,7 @@ class TestLifeCycle(unittest.TestCase):
             debug_kernel = "/boot/vmlinuz-" + kernel_ver.strip('\n') + "+debug"
 
         kernel_pkg = 'kernel-debug-' + kernel_ver
-        utils_lib.is_pkg_installed(self, pkg_name=kernel_pkg)
+        utils_lib.is_pkg_installed(self, pkg_name=kernel_pkg, timeout=360)
         utils_lib.run_cmd(self,
                     "sudo grubby --info=%s" % debug_kernel,
                     expect_ret=0,
@@ -78,7 +78,7 @@ class TestLifeCycle(unittest.TestCase):
             time.sleep(1)
         utils_lib.run_cmd(self, "dmesg", expect_not_kw="Call trace,Call Trace")
         if int(mini_mem) < 17:
-            cmd = 'sudo echo scan > /sys/kernel/debug/kmemleak'
+            cmd = 'sudo bash -c "echo scan > /sys/kernel/debug/kmemleak"'
             utils_lib.run_cmd(self, cmd, expect_ret=0, timeout=1800)
 
             cmd = 'sudo cat /sys/kernel/debug/kmemleak'

@@ -195,7 +195,7 @@ def run_cmd(test_instance,
         test_cmd = 'uname -a'
         test_instance.log.info("Test system is alive via cmd:{}. If still fail, check no hang or panic happens.".format(test_cmd))
         try:
-            if test_instance.SSH.ssh_client is not None:
+            if test_instance.params['remote_node'] is not None:
                 status, output = test_instance.SSH.remote_excute(test_cmd, timeout)
                 status, output = test_instance.SSH.remote_excute(cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty)
             else:
@@ -496,7 +496,7 @@ def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False):
     run_cmd(test_instance, "sudo yum install -y {}".format(pkg_name), expect_ret=0, timeout=180)
     return True
 
-def is_pkg_installed(test_instance, pkg_name=None, is_install=True, cancel_case=False):
+def is_pkg_installed(test_instance, pkg_name=None, is_install=True, cancel_case=False, timeout=120):
     '''
     check cmd exists status, if no, try to install it.
     Arguments:
@@ -512,7 +512,7 @@ def is_pkg_installed(test_instance, pkg_name=None, is_install=True, cancel_case=
         test_instance.log.info("No %s found!" % pkg_name)
         if is_install:
             cmd = 'sudo yum install -y {}'.format(pkg_name)
-            ret = run_cmd(test_instance, cmd, ret_status=True, msg='try to install it')
+            ret = run_cmd(test_instance, cmd, ret_status=True, msg='try to install it', timeout=timeout)
             if ret == 0:
                 return True
         return False
