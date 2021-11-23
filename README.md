@@ -11,7 +11,7 @@ os-tests is a lightweight, fast and customer centric tests collection for Linux 
 `# pip install os-tests`
 
 note: please install [paramiko-fork](https://pypi.org/project/paramiko-fork/) if run os-tests in server-client mode.
-      the main branch of paramiko lacking of rsa-sha2-256 and rsa-sha2-512 support to connect rhel-9[1643](https://github.com/paramiko/paramiko/pull/1643). os-tests do not set it as required because extra pkgs (eg. libffi-devel, openssl-devel, python-devel) are required in aarch64 to compile cryptography.
+      the main branch of paramiko lacking of rsa-sha2-256 and rsa-sha2-512 support to connect rhel-9 ([1643](https://github.com/paramiko/paramiko/pull/1643)). Keeping its lightweight, os-tests do not set it as required. Because it is not required when run in single node model and extra pkgs (eg. libffi-devel, openssl-devel, python-devel) are required in aarch64 to compile cryptography when install paramiko.
 
 ### Install from source code
 
@@ -69,9 +69,13 @@ or
 or  
 `# python3 -m unittest -v os_tests.tests.test_general_test.TestGeneralTest.test_change_clocksource`
 
-### The config file
+### All installed files
 
-You can change the default setting in "cfg/os-tests.yaml".
+You can list all installed files via `pip show -f os-tests` simply.  
+The test files are under "os_tests/tests" directory.
+
+The config files with defaul setting are under "os_tests/cfg".  
+You can update the default setting in "os-tests.yaml".
 
 If you want to run os-tests all cases in remote node to support lifecyce cases which needs reboot.  
 Please specify below options in static configuration:  
@@ -83,9 +87,9 @@ It equals calling in command line directly.
 
 ### The log file
 
-The suite saves summary to sum.html and sum.log under /tmp/os_tests_result/.
+The suite saves summary to sum.html and sum.log under "/tmp/os_tests_result/" by default.
 The test debug log files are saved in "/tmp/os_tests_result/debug" following case name by default.
-You can change "results_dir" in "cfg/os-tests.yaml" to save log to other place.
+You can change "results_dir" in "cfg/os-tests.yaml" to save log to other place or passing as command option.
 
 Below is an example:
 
@@ -104,36 +108,6 @@ OK
 # ls -l /tmp/os_tests_result/debug/
 total 8
 -rw-r--r--. 1 root root 5472 Mar 30 16:44 os_tests.tests.test_general_test.TestGeneralTest.test_change_clocksource.debug
-```
-
-### The installed files
-
-All test files are located in "os_tests/tests" directory.
-
-```bash
-# pip3 show -f os-tests
-Name: os-tests
-Version: 0.0.5
-Summary: Lightweight, fast check and tests collection for Linux OS
-Home-page: https://github.com/liangxiao1/os-tests
-Author: Xiao Liang
-Author-email: xiliang@redhat.com
-License: GPLv3+
-Location: /usr/local/lib/python3.6/site-packages
-Requires: PyYAML
-Files:
-  os_tests/__init__.py
-  os_tests/cfg/os-tests.yaml
-  os_tests/data/baseline_log.json
-  os_tests/libs/__init__.py
-  os_tests/libs/utils_lib.py
-  os_tests/os_tests_all.py
-  os_tests/tests/__init__.py
-  os_tests/tests/test_cloud_init.py
-  os_tests/tests/test_general_check.py
-  os_tests/tests/test_general_test.py
-  os_tests/tests/test_ltp.py
-
 ```
 
 ### Recommend test matrix to catch potiential issues
