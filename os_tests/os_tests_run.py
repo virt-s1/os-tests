@@ -31,11 +31,15 @@ def main():
                     help='save result to specific directory', required=False)
     parser.add_argument('--image', dest='image', default=None, action='store',
                     help='specify azure to run azure image check only', required=False)
+    parser.add_argument('--disks', dest='blk_devs', default=None, action='store',
+                    help='free disks for storage test, eg. "/dev/nvme0n1", data on disk has lost risks', required=False)
     args = parser.parse_args()
 
     cfg_file, cfg_data = get_cfg()
     if args.results_dir is not None:
         cfg_data['results_dir'] = args.results_dir
+    if args.blk_devs is not None:
+        cfg_data['blk_devs'] = args.blk_devs
     if args.remote_node is not None:
         cfg_data['remote_node'] = args.remote_node
         cfg_data['remote_user'] = args.remote_user

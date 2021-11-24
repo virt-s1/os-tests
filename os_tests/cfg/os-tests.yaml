@@ -8,6 +8,7 @@ pkg_reinstall: False
 # blk_devs defines the block device to test, caution, all data on this device will be erased.
 # the blktests runtime is pending on your disk/cpu/mem perf, please stay tunned.
 # blk_devs: "/dev/nvme0n1 /dev/sdb"
+blk_devs: 
 # public server for ping connection test
 ping_server: 8.8.8.8
 # max disk utils accepted
