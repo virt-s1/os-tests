@@ -1024,5 +1024,14 @@
         "link": "",
         "path": "journal, dmesg",
         "trigger": ""
+    },
+    "msg_116": {
+        "content": ".*x86/split lock detection: disabled.*",
+	"analyze": "Debug kernel only. This https://elixir.bootlin.com/linux/latest/source/arch/x86/kernel/cpu/intel.c#L1273 is the function that does the reporting of the split lock detection feature. Linux's default setting for split lock detection is off, see https://elixir.bootlin.com/linux/latest/source/arch/x86/kernel/cpu/intel.c#L53. Hence, the message is expected. Also, this cannot appear on gen5 and gen4 (i3.metal) since the feature isn't available there.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2017161#c17",
+        "path": "journal, dmesg",
+        "trigger": "metal"
     }
 }
