@@ -22,9 +22,9 @@
   <!-- Table -->
   <table class="table table-bordered">
     <tr>
-    <td>Summary</td><td>Total:<b>{{ result.total|e }}</b>, PASS:<b class="text-success">{{ result.case_pass|e }}</b>, FAIL:<b class="text-danger">{{ result.case_fail|e }}</b>, SKIP:<b class="text-warning">{{ result.case_skip|e }}</b>, ERROR:<b class="text-danger">{{ result.case_error|e }}</b> - success rate of <b>{{ result.pass_rate|e }}</b>% (excluding SKIP and CANCEL)</tr>
+    <td>Summary</td><td>Total:<b>{{ result.total }}</b>, PASS:<b class="text-success">{{ result.case_pass }}</b>, FAIL:<b class="text-danger">{{ result.case_fail }}</b>, SKIP:<b class="text-warning">{{ result.case_skip }}</b>, ERROR:<b class="text-danger">{{ result.case_error }}</b> - success rate of <b>{{ '%0.2f' % result.pass_rate|float }}</b>% (excluding SKIP and CANCEL)</tr>
     <tr>
-    <td>RunTime(s)</td><td>{{ result.run_time|e }}</td></tr>
+    <td>RunTime(s)</td><td>{{ '%0.2f' % result.run_time|float }}</td></tr>
   </table>
   <table id="result" class="table table-hover table-bordered">
     <thead>
@@ -38,7 +38,7 @@
     <tbody>
       {% for row in result.table_rows %}
         <tr>
-          <td>{{ row[0]|e }}</td><td>{{ row[1]|e }}</td><td>{{ row[2]|e }}</td><td>{{ row[3]|e }}</td><td><a href={{ row[4]|e }}>debug</a></td>
+          <td>{{ row[0] }}</td><td>{{ row[1]|e }}</td><td>{{ row[2] }}</td><td>{{ row[3]|e }}</td><td><a href={{ row[4]|e }}>debug</a></td>
         </tr>
       {% endfor %}
     </tbody>
