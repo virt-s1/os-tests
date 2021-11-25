@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<testsuites>
+  <testsuite name="os-tests" time="{{ result.run_time }}" tests="{{ result.total }}" errors="{{ result.case_error }}" skipped="{{ result.case_skip }}" failures="{{ result.case_fail }}">
+  {% for row in result.table_rows %}
+  <testcase name="{{ row[1] }}">
+    {% if row[2] == 'FAIL' %}
+    <failure>{{ row[3] }}</failure>
+    {% endif %}
+    {% if row[2] == 'ERROR' %}
+    <error>{{ row[3] }}</error>
+    {% endif %}
+    {% if row[2] == 'SKIP' %}
+    <skipped />
+    {% endif %}
+  </testcase>
+  {% endfor %}
+  </testsuite>
+</testsuites>
