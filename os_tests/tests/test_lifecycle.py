@@ -11,7 +11,7 @@ class TestLifeCycle(unittest.TestCase):
         if self.params['remote_node'] is None:
             self.skipTest("Only support to run in server-client mode!")
         if utils_lib.is_metal(self):
-            self.ssh_timeout = 800
+            self.ssh_timeout = 1200
         else:
             self.ssh_timeout = 180
         self.log.info('set ssh connection timeout to {}'.format(self.ssh_timeout))
@@ -155,13 +155,17 @@ class TestLifeCycle(unittest.TestCase):
                     r'sudo rm -rf /var/crash/*',
                     expect_ret=0,
                     msg='clean /var/crash firstly')
+        cmd = 'cat /proc/cpuinfo |grep processor|wc -l'
+        cpucount = utils_lib.run_cmd(self, cmd, msg='get cpu count')
+        if int(cpucount) > 36:
+            self.skipTest("skip when cpu count over 36 when nosmt passing")
         cmd = 'sudo grubby --update-kernel=ALL --args="mitigations=auto,nosmt"'
         utils_lib.run_cmd(self, cmd, msg='Append mitigations=auto,nosmt to command line!', timeout=600)
         utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(10)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='mitigations=auto,nosmt')
-        utils_lib.check_log(self, "error,warn,fail,trace,Trace", skip_words='ftrace', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, "error,warn,fail,trace,Trace", skip_words='ftrace,Failed to write ATTR', rmt_redirect_stdout=True)
 
     def test_boot_usbcore_quirks(self):
         '''

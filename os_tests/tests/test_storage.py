@@ -12,7 +12,7 @@ class TestStorage(unittest.TestCase):
         Arguments:
             test_instance {avocado Test instance} -- avocado test instance
         '''
-        cmd = "echo 'TEST_DEVS=({})' > /usr/local/blktests/config".format(self.test_dev)
+        cmd = "sudo bash -c \"echo 'TEST_DEVS=({})' > /usr/local/blktests/config\"".format(self.test_dev)
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         cmd = "cd /usr/local/blktests/; sudo ./check {}".format(case_name)
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw="failed", timeout=2400)
@@ -26,18 +26,18 @@ class TestStorage(unittest.TestCase):
         utils_dir = os.path.dirname(utils_dir) + '/utils'
         if utils_lib.is_arch(self, arch='aarch64'):
             blktests_rpm = utils_dir + '/blktests-master.aarch64.rpm'
-            blktests_rpm_tmp = '/tmp/ltp-master.aarch64.rpm'
+            blktests_rpm_tmp = '/tmp/blktests-master.aarch64.rpm'
         else:
             blktests_rpm = utils_dir + '/blktests-master.x86_64.rpm'
             blktests_rpm_tmp = '/tmp/blktests-master.x86_64.rpm'
-        if not utils_lib.is_pkg_installed(self, pkg_name='ltp',is_install=False) and 'blktests' in self.id():
+        if not utils_lib.is_pkg_installed(self, pkg_name='blktests',is_install=False) and 'blktests' in self.id():
             if self.params['remote_node'] is not None:
                 self.log.info('Copy {} to remote'.format(blktests_rpm))
                 self.SSH.put_file(local_file=blktests_rpm, rmt_file=blktests_rpm_tmp)
                 blktests_rpm = blktests_rpm_tmp
         if 'blktests' in self.id():
             utils_lib.pkg_install(self, pkg_name='blktests', pkg_url=blktests_rpm)
-        self.cursor = utils_lib.get_cmd_cursor(self, cmd='journalctl --since today')
+        self.cursor = utils_lib.get_cmd_cursor(self, timeout=120)
 
     def test_storage_blktests_block(self):
         '''
@@ -125,9 +125,9 @@ class TestStorage(unittest.TestCase):
 
     def tearDown(self):
         if 'blktests' in self.id():
-            utils_lib.check_log(self, "trace", cursor=self.cursor)
+            utils_lib.check_log(self, "trace", log_cmd='dmesg -T', cursor=self.cursor)
         else:
-            utils_lib.check_log(self, "error,warn,fail,trace", cursor=self.cursor)
+            utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', cursor=self.cursor)
 
 if __name__ == '__main__':
     unittest.main()

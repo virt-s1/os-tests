@@ -114,31 +114,22 @@ current_clocksource'
         '''
         case_name:
             test_dracut_f_v
-
         case_priority:
             1
-
         component:
             kernel
-
         bugzilla_id:
             1849082,1906301
-
         customer_case_id:
             02925130
-
         polarion_id:
             n/a
-
         maintainer:
             xiliang@redhat.com
-
         description:
             Test no failed items in generating an initramfs/initrd image.
-
         key_steps:
             1. # dracut -f -v
-
         expected_result:
             No failed items found.
         '''
@@ -229,31 +220,23 @@ int main(int argc, char *argv[])
         '''
         case_name:
             test_fork_pte
-
         case_priority:
             2
-
         component:
             kernel
-
         bugzilla_id:
             1908439
-
         polarion_id:
             n/a
-
         maintainer:
             xiliang@redhat.com
-
         description:
             Ensure dirty bit is preserved across pte_wrprotect
-
         key_steps:
             1. # wget https://github.com/redis/redis/files/5717040/redis_8124.c.txt
             2. # mv redis_8124.c.txt redis_8124.c
             3. # gcc -o reproduce redis_8124.c
             4. # systemd-run --scope -p MemoryLimit=550M ./reproduce
-
         expected_result:
             Your kernel looks fine.
         '''
@@ -355,35 +338,92 @@ int main(int argc, char *argv[])
         cmd = "sudo diff -u /tmp/sm_config.log /tmp/sm_config_list.log"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check if both are identical')
 
+    def test_systemd_coredump(self):
+        """
+        case_name:
+            test_systemd_coredump
+        case_file:
+            os_tests.tests.test_general_test.TestGeneralTest.test_systemd_coredump
+        component:
+            systemd
+        bugzilla_id:
+            2025479, 1905582
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            The DefaultLimitCORESoft is set to 0 by default.
+            Test systemd-coredump can save process core successfully when process crashed
+        key_steps:
+            1. # systemctl show | grep CORE
+               DefaultLimitCORE=infinity
+               DefaultLimitCORESoft=0 (rhel default set)
+            2. create test.c
+               #include <stdio.h>
+               #include <stdlib.h>
+               void main(){
+               int x;
+               free(&x);
+               }
+            3. # gcc -g -o pp test1.c
+            4. # ./pp
+        expect_result:
+            pp crashed and new core file is generated under /var/lib/systemd/coredump
+        debug_want:
+            - journal log
+        """
+        test_str = '''
+        #include <stdio.h>
+        #include <stdlib.h>
+        void main(){
+            int x;
+            free(&x);
+        }
+        '''
+        product_name = utils_lib.get_os_release_info(self, field='NAME')
+        if 'Red Hat Enterprise Linux' in product_name:
+            cmd = 'systemctl show | grep CORE'
+            utils_lib.run_cmd(self, cmd, expect_kw='DefaultLimitCORESoft=0,DefaultLimitCORE=infinity', msg='check default limit core setting')
+        utils_lib.run_cmd(self, 'ulimit -c 0', expect_ret=0, msg='test user can change limit core setting')
+        utils_lib.run_cmd(self, 'ulimit -c', expect_kw='0', msg='check result')
+        utils_lib.run_cmd(self, 'ulimit -c unlimited', expect_ret=0, msg='test user can change limit core setting')
+        utils_lib.run_cmd(self, 'ulimit -c', expect_kw='unlimited', msg='check result')
+        utils_lib.run_cmd(self, 'sudo rm -rf /var/lib/systemd/coredump/core*', msg='clean up core files before testing')
+        self.cursor = utils_lib.get_cmd_cursor(self, cmd='journalctl -b0', rmt_redirect_stdout=True)
+        test_file = '/tmp/test.c'
+        utils_lib.is_cmd_exist(self, 'gcc')
+        cmd = "echo '{}' > {}".format(test_str, test_file)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='generate {}'.format(test_file))
+        cmd = "gcc -g -o /tmp/pp {}".format(test_file)
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        utils_lib.run_cmd(self, '/tmp/pp', msg='run it to trigger core dump')
+        utils_lib.run_cmd(self, 'sudo ls /var/lib/systemd/coredump/core*', expect_ret=0, msg='check core file generated')
+        utils_lib.check_log(self, "error,warn,fail", log_cmd='journalctl -b0', cursor=self.cursor, rmt_redirect_stdout=True)
+
     def test_podman_build_image(self):
         '''
         case_name:
             test_podman_build_image
-
         case_priority:
             2
-
         component:
             podman
-
         bugzilla_id:
             1903412
-
         polarion_id:
             n/a
-
         maintainer:
             xiliang@redhat.com
-
         description:
             podman can build an image using '--network container' in rootless or root mode
-
         key_steps:
             1. $ cat Dockerfile
                FROM registry.access.redhat.com/ubi8/ubi
                RUN touch /tmp/test.txt
             2. # podman build --network container -t build_test .
-
         expected_result:
             Build successfully.
         '''
@@ -780,6 +820,9 @@ if __name__ == "__main__":
                           msg='get the console')
         utils_lib.run_cmd(self, f'sudo nitro-cli terminate-enclave --enclave-id {EnclaveID}',
                           expect_kw='"Terminated": true', msg='terminate enclave')
+
+    def tearDown(self):
+        pass
 
 if __name__ == '__main__':
     unittest.main()

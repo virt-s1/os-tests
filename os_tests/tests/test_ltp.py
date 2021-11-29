@@ -39,13 +39,19 @@ class TestLTP(unittest.TestCase):
         else:
             ltp_rpm = utils_dir + '/ltp-master.x86_64.rpm'
             ltp_rpm_tmp = '/tmp/ltp-master.x86_64.rpm'
-        if not utils_lib.is_pkg_installed(self, pkg_name='ltp',is_install=False):
+        cmd = 'ls -l /opt/ltp/runtest/smoketest'
+        ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='Check if it is ltp version with smoketest')
+        if not utils_lib.is_pkg_installed(self, pkg_name='ltp',is_install=False) or ret != 0:
             if self.params['remote_node'] is not None:
                 self.log.info('Copy {} to remote'.format(ltp_rpm))
                 self.SSH.put_file(local_file=ltp_rpm, rmt_file=ltp_rpm_tmp)
                 ltp_rpm = ltp_rpm_tmp
-        utils_lib.pkg_install(self, pkg_name='ltp', pkg_url=ltp_rpm)
-        self.cursor = utils_lib.get_cmd_cursor(self, cmd='journalctl --since today', rmt_redirect_stdout=True)
+        if ret != 0:
+            force = True
+        else:
+            force = False
+        utils_lib.pkg_install(self, pkg_name='ltp', pkg_url=ltp_rpm, force=force)
+        self.cursor = utils_lib.get_cmd_cursor(self, rmt_redirect_stdout=True)
 
     def test_ltp_add_key02(self):
         '''
@@ -116,10 +122,38 @@ at least which ltp not handle')
             self.log.info("Try to remove ccm module after test.")
             utils_lib.run_cmd(self, 'sudo modprobe -r ccm', expect_ret=0)
 
-    def test_ltp_quickhit(self):
+    def test_ltp_kernel_misc(self):
+        """
+        case_name:
+            test_ltp_kernel_misc
+        case_file:
+            os_tests.tests.test_ltp.TestLTP.test_ltp_kernel_misc
+        component:
+            kernel
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            Ran ltp kernel_misc senario to test kernel quickly.
+        key_steps:
+            1. Install ltp pkg
+            2. # /opt/ltp/runltp -f kernel_misc
+        expect_result:
+            No failure found.
+        debug_want:
+            N/A
+        """
+        self._ltp_run(file_name="kernel_misc")
+
+    def test_ltp_smoketest(self):
         '''
         case_name:
-            test_ltp_quickhit
+            test_ltp_smoketest
         case_priority:
             1
         component:
@@ -131,17 +165,17 @@ at least which ltp not handle')
         maintainer:
             xiliang@redhat.com
         description:
-            Ran ltp quickhit senario to test kernel quickly.
+            Ran ltp smoketest senario to test kernel quickly.
         key_steps:
             1. Install ltp pkg
-            2. # /opt/ltp/runltp -f quickhit
+            2. # /opt/ltp/runltp -f smoketest
         expected_result:
             No panic or hang or other exception happen.
         '''
-        self._ltp_run(file_name="quickhit")
+        self._ltp_run(file_name="smoketest")
 
     def tearDown(self):
-        utils_lib.check_log(self, "error,warn,fail,trace", cursor=self.cursor, rmt_redirect_stdout=True)
+        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', cursor=self.cursor, rmt_redirect_stdout=True)
 
 if __name__ == '__main__':
     unittest.main()

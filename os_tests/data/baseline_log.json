@@ -909,7 +909,7 @@
         "trigger": ""
     },
     "msg_103": {
-        "content": ".*dracut module.* will not be installed, because command .* could not be found!.*",
+        "content": ".*dracut module.* will not be installed, because command .* could not be found!.*;.*dracut.*Could not find any command of.*",
         "analyze": "These warnings are safe to be ignored.",
         "branch": "rhel",
         "status": "active",
@@ -1033,5 +1033,32 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2017161#c17",
         "path": "journal, dmesg",
         "trigger": "metal"
+    },
+    "msg_117": {
+        "content": ".*Could not generate persistent MAC address for.*No such file or directory.*",
+        "analyze": "known issue in rhel8 about veth interface",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2026544",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_118": {
+        "content": ".*iommu: DMA domain TLB invalidation policy: lazy mode.*",
+        "analyze": "known log if iommu.strict=0 used in boot or x86 system",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1836058",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_119": {
+        "content": ".*rh-cloud-firstboot.*action: command not found.*",
+        "analyze": "missing initscripts pkg",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2027233",
+        "path": "journal, dmesg",
+        "trigger": ""
     }
 }

@@ -522,8 +522,7 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
     #     utils_lib.run_cmd(self, "sudo cat {}".format(file_check), expect_ret=0, expect_kw=expect_kw, msg='check grub parameters in {}'.format(file_check))
 
     def tearDown(self):
-        self.log.info("{} test done".format(self.id()))
-
+        pass
 
 if __name__ == '__main__':
     unittest.main()

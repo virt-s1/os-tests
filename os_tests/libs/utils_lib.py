@@ -10,6 +10,7 @@ from os_tests import tests
 import json
 import difflib
 import time
+import logging
 from tipset.libs import rmt_ssh
 from yaml import load, dump
 try:
@@ -17,32 +18,47 @@ try:
 except ImportError:
     from yaml import Loader, Dumper
 
-def init_connection(test_instance, timeout=600):
-    if test_instance.params['remote_node'] is None:
-        return
-
-    test_instance.log.info("remote_node specified, all tests will be run in {}".format(test_instance.params['remote_node']))
+def init_ssh(params=None, timeout=600, log=None):
+    if log is None:
+        LOG_FORMAT = '%(levelname)s:%(message)s'
+        log = logging.getLogger(__name__)
+        logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
     ssh = rmt_ssh.RemoteSSH()
-    ssh.rmt_node = test_instance.params['remote_node']
-    ssh.rmt_user = test_instance.params['remote_user']
-    ssh.rmt_password = test_instance.params['remote_password']
-    ssh.rmt_keyfile = test_instance.params['remote_keyfile']
-
-    ssh.timeout = 180
-    ssh.log = test_instance.log
-    test_instance.SSH = ssh
+    ssh.rmt_node = params['remote_node']
+    ssh.rmt_user = params['remote_user']
+    ssh.rmt_password = params['remote_password']
+    ssh.rmt_keyfile = params['remote_keyfile']
+    ssh.log = log
     start_time = time.time()
     while True:
         current_time = time.time()
         if current_time - start_time > timeout:
-            test_instance.log.info("timeout to connect to remote")
-            break
-        test_instance.SSH.create_connection()
-        if test_instance.SSH.ssh_client is not None:
-            break
+            log.info("timeout to connect to remote")
+            return None
+        ssh.create_connection()
+        if ssh.ssh_client is not None:
+            return ssh
         time.sleep(5)
-        test_instance.log.info("Not conncted, retry again! timeout:{}".format(timeout))
-    if test_instance.SSH.ssh_client is None:
+        log.info("Not conncted, retry again! timeout:{}".format(timeout))
+    return None
+
+def init_connection(test_instance, timeout=600):
+    if test_instance.params['remote_node'] is None:
+        return
+    test_instance.log.info("remote_node specified, all tests will be run in {}".format(test_instance.params['remote_node']))
+    try:
+        if hasattr(test_instance.SSH, 'ssh_client'):
+            test_instance.SSH.log = test_instance.log
+            ret, _, _ = test_instance.SSH.cli_run(cmd='uname -r')
+            if ret == 0:
+                test_instance.log.info("connection is live")
+                return
+    except AttributeError:
+        pass
+    except Exception:
+        test_instance.log.info("connection is not live")
+    test_instance.SSH = init_ssh(params=test_instance.params, timeout=timeout, log=test_instance.log)
+    if test_instance.SSH is None:
         test_instance.skipTest("Cannot make ssh connection to remote, please check")
 
 def get_cfg():
@@ -60,6 +76,9 @@ def init_case(test_instance):
     Arguments:
         test_instance {Test instance} -- unittest.TestCase instance
     """
+    if not hasattr(test_instance,'params'):
+        cfg_file, keys_data = get_cfg()
+        test_instance.params = keys_data
     results_dir = test_instance.params['results_dir']
     debug_dir = results_dir + "/debug"
     test_instance.log_dir = results_dir
@@ -76,7 +95,7 @@ def init_case(test_instance):
         handler.close()
         logging.root.removeHandler(handler)
     FORMAT = "%(levelname)s:%(message)s"
-    logging.basicConfig(level=logging.DEBUG, format=FORMAT, filename=log_file)
+    logging.basicConfig(level=logging.INFO, format=FORMAT, filename=log_file)
     test_instance.log.info("-"*80)
     test_instance.log.info("Code Repo: {}".format(test_instance.params['code_repo']))
     test_instance.log.info("Case ID: {}".format(test_instance.id()))
@@ -90,6 +109,7 @@ def init_case(test_instance):
     test_instance.log.info("-"*80)
     if test_instance.params['remote_node'] is not None:
         init_connection(test_instance)
+        test_instance.SSH.log = test_instance.log
         if  test_instance.SSH.ssh_client is None:
             test_instance.skipTest("Cannot make ssh connection to remote, please check")
 
@@ -517,7 +537,7 @@ def is_pkg_installed(test_instance, pkg_name=None, is_install=True, cancel_case=
                 return True
         return False
 
-def pkg_install(test_instance, pkg_name=None, pkg_url=None):
+def pkg_install(test_instance, pkg_name=None, pkg_url=None, force=False):
         """
         Install pkg in target system from default repo or pkg_url.
         $pkg_url_$arch is defined in configuration file.
@@ -531,7 +551,6 @@ def pkg_install(test_instance, pkg_name=None, pkg_url=None):
             pkg_name {string} -- pkg name
             pkg_url {string} -- pkg url or location if it is not in default repo
         """
-
         if not is_pkg_installed(test_instance, pkg_name=pkg_name):
             test_instance.log.info("Try install {} automatically!".format(pkg_name))
             if pkg_url is not None:
@@ -551,9 +570,11 @@ def pkg_install(test_instance, pkg_name=None, pkg_url=None):
                 cmd = 'sudo yum -y reinstall %s' % pkg_name
             run_cmd(test_instance, cmd, timeout=1200)
 
-        if not is_pkg_installed(test_instance, pkg_name=pkg_name) and pkg_url is not None:
+        if not is_pkg_installed(test_instance, pkg_name=pkg_name) and pkg_url is not None or force:
             test_instance.log.info('Install without dependences!')
             cmd = 'sudo rpm -ivh %s --nodeps' % pkg_url
+            if force:
+                cmd = cmd + " --force"
             run_cmd(test_instance, cmd, timeout=1200)
         if not is_pkg_installed(test_instance, pkg_name=pkg_name):
             test_instance.skipTest("Cannot install {} automatically!".format(pkg_name))
@@ -575,7 +596,7 @@ def get_memsize(test_instance, action=None):
     test_instance.log.info("Total memory: {:0,.1f}GiB".format(mem_gb))
     return mem_gb
 
-def get_cmd_cursor(test_instance, cmd='dmesg -T', rmt_redirect_stdout=False, rmt_get_pty=False):
+def get_cmd_cursor(test_instance, cmd='dmesg -T', rmt_redirect_stdout=False, rmt_get_pty=False, timeout=60):
     '''
     Get command cursor by last matched line.
     Arguments:
@@ -583,7 +604,7 @@ def get_cmd_cursor(test_instance, cmd='dmesg -T', rmt_redirect_stdout=False, rmt
     Return:
         cursor {string}
     '''
-    output = run_cmd(test_instance, cmd, expect_ret=0, is_log_output=False, rmt_redirect_stdout=rmt_redirect_stdout, rmt_get_pty=rmt_get_pty)
+    output = run_cmd(test_instance, cmd, expect_ret=0, is_log_output=False, rmt_redirect_stdout=rmt_redirect_stdout, rmt_get_pty=rmt_get_pty, timeout=timeout)
     if len(output.split('\n')) < 5:
         return output.split('\n')[-1]
     for i in range(-1, -10, -1):

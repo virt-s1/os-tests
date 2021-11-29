@@ -3,7 +3,7 @@ import argparse
 import copy
 import os
 import sys
-from os_tests.libs.utils_lib import get_cfg
+from os_tests.libs.utils_lib import get_cfg, init_ssh
 from shutil import rmtree
 import os_tests
 from os_tests.libs.html_runner import HTMLTestRunner
@@ -68,12 +68,15 @@ def main():
         else:
             skip_patterns = 'test_azure_image'
 
+    ssh = None
     if cfg_data['remote_node'] is None:
         print("skip lifecycle tests as no remote node found")
         if skip_patterns:
             skip_patterns = skip_patterns + ',test_lifecycle'
         else:
             skip_patterns = 'test_lifecycle'
+    elif not args.is_listcase:
+        ssh = init_ssh(params=cfg_data)
 
     print("Run in mode: is_listcase:{} test_patterns:{} skip_patterns:{}".format(args.is_listcase, test_patterns, skip_patterns))
 
@@ -86,6 +89,8 @@ def main():
                 try:
                     for case in ts2._tests:
                         case.params = cfg_data
+                        if ssh is not None:
+                            case.SSH = ssh
                         is_skip = False
                         if skip_patterns is not None:
                                 for skippattern in skip_patterns.split(','):

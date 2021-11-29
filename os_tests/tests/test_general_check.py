@@ -1498,7 +1498,7 @@ current_device"
             self.log.error("insights rule hit or other unexpected error")
 
     def tearDown(self):
-        self.log.info("{} test done".format(self.id()))
+        pass
 
 if __name__ == '__main__':
     unittest.main()
