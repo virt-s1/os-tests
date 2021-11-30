@@ -127,4 +127,5 @@ Below tools are shiped under 'utils' directory with os-tests because not all sys
 
 ### Contribution
 
-You are welcomed to create pull request or raise issue. New case from real customer senario or rhbz is prefered.
+You are welcome to create pull request or raise issue. New case from real customer senario or rhbz is prefered.  
+Developing tool VS code is recommended with [refnow](https://marketplace.visualstudio.com/items?itemName=FrankLiang.refnow) plugin which ships the newest case doc template.

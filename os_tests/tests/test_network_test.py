@@ -329,6 +329,11 @@ class TestNetworkTest(unittest.TestCase):
             mtu_range = [0, 67, 68, 1500,1600]
             mtu_min = 68
             mtu_max = 1500
+        elif 'hv_netvsc' in output and not utils_lib.is_azure(self):
+            self.log.info('hv_netvsc found on azure, rhbz#2017612')
+            mtu_range = [0, 67, 68, 1600, 4500]
+            mtu_min = 68
+            mtu_max = 4500
         elif 'hv_netvsc' in output:
             self.log.info('hv_netvsc found, linux/drivers/net/hyperv/netvsc_drv.c  MTU range: 68 - 1500 or 65521')
             mtu_range = [0, 67, 68, 4500, 65521, 65525]
