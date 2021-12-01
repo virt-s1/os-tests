@@ -26,33 +26,17 @@ class Result:
             self.pass_rate = self.case_pass / (self.total - self.case_skip) * 100
 
 
-def generated_html_report(logfile, result):
-    if os.path.exists(logfile):
-        os.unlink(logfile)
-
-    result.run_time = format(result.run_time,'0.2f')
-    result.pass_rate = format(result.pass_rate,'0.2f')
-
-    file_loader = PackageLoader("os_tests", "templates")
-    env = Environment(loader=file_loader)
-    template = env.get_template("sum.html")
-    output = template.render(result=result)
-    with open(logfile, "w+") as fh:
-        print(output, file=fh)
-    print("summary in html: {}".format(os.path.realpath(logfile)))
-
-
-def generated_junit_report(logfile, result):
+def generated_report(logfile, template_name, result):
     if os.path.exists(logfile):
         os.unlink(logfile)
 
     file_loader = PackageLoader("os_tests", "templates")
     env = Environment(loader=file_loader)
-    template = env.get_template("sum.xml")
+    template = env.get_template(template_name)
     output = template.render(result=result)
     with open(logfile, "w+") as fh:
         fh.write(output)
-    print("junit file: {}".format(os.path.realpath(logfile)))
+    print("{} generated".format(os.path.realpath(logfile)))
 
 
 class _WritelnDecorator(object):
@@ -200,10 +184,10 @@ class HTMLTestRunner(object):
         if hasattr(result, 'separator2'):
             self.stream.writeln(result.separator2)
         test_result.compute_totals()
-        sum_html = os.path.join(logdir, 'sum.html')
-        generated_html_report(sum_html, test_result)
-        sum_junit = os.path.join(logdir, 'sum.xml')
-        generated_junit_report(sum_junit, test_result)
+        sum_html = os.path.join(logdir, "sum.html")
+        generated_report(sum_html, "sum.html", test_result)
+        sum_junit = os.path.join(logdir, "sum.xml")
+        generated_report(sum_junit, "sum.xml", test_result)
         self.stream.writeln("summary in text: {}".format(os.path.realpath(sum_txt)))
         #result.printErrors()
         if hasattr(result, 'separator2'):
