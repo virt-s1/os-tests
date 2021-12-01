@@ -8,8 +8,11 @@ import string
 import os
 from jinja2 import Template, FileSystemLoader, Environment, PackageLoader, select_autoescape
 
-class Result():
+
+class Result:
     def __init__(self):
+        self.total = 0
+        self.pass_rate = 0
         self.case_pass = 0
         self.case_fail = 0
         self.case_skip = 0
@@ -17,29 +20,40 @@ class Result():
         self.run_time = 0
         self.table_rows = []
 
-class HTMLTemp():
-    def __init__(self, logfile):
-        self.result = Result()
-        self.logfile = logfile
+    def compute_totals(self):
+        self.total = self.case_pass + self.case_error + self.case_fail + self.case_skip
+        if self.total - self.case_skip > 0:
+            self.pass_rate = self.case_pass / (self.total - self.case_skip) * 100
 
-    def generated_report(self):
-        if os.path.exists(self.logfile):
-            os.unlink(self.logfile)
-        self.result.total = self.result.case_pass + self.result.case_error + self.result.case_fail + self.result.case_skip
-        if self.result.total - self.result.case_skip > 0:
-            self.result.pass_rate = self.result.case_pass/(self.result.total - self.result.case_skip) * 100
-        else:
-            self.result.pass_rate = 0
-        self.result.run_time = format(self.result.run_time,'0.2f')
-        self.result.pass_rate = format(self.result.pass_rate,'0.2f')
 
-        file_loader = PackageLoader('os_tests','templates')
-        env = Environment(loader=file_loader)
-        template = env.get_template('sum.html')
-        output = template.render(result=self.result)
-        with open(self.logfile, 'w+') as fh:
-            print(output, file=fh)
-        print("summary in html: {}".format(os.path.realpath(self.logfile)))
+def generated_html_report(logfile, result):
+    if os.path.exists(logfile):
+        os.unlink(logfile)
+
+    result.run_time = format(result.run_time,'0.2f')
+    result.pass_rate = format(result.pass_rate,'0.2f')
+
+    file_loader = PackageLoader("os_tests", "templates")
+    env = Environment(loader=file_loader)
+    template = env.get_template("sum.html")
+    output = template.render(result=result)
+    with open(logfile, "w+") as fh:
+        print(output, file=fh)
+    print("summary in html: {}".format(os.path.realpath(logfile)))
+
+
+def generated_junit_report(logfile, result):
+    if os.path.exists(logfile):
+        os.unlink(logfile)
+
+    file_loader = PackageLoader("os_tests", "templates")
+    env = Environment(loader=file_loader)
+    template = env.get_template("sum.xml")
+    output = template.render(result=result)
+    with open(logfile, "w+") as fh:
+        fh.write(output)
+    print("junit file: {}".format(os.path.realpath(logfile)))
+
 
 class _WritelnDecorator(object):
     """Used to decorate file-like objects with a handy 'writeln' method"""
@@ -123,12 +137,11 @@ class HTMLTestRunner(object):
                     stopTestRun()
             stopTime = time.perf_counter()
         timeTaken = stopTime - startTime
-        sum_html = logdir + '/sum.html'
         sum_txt = logdir + '/sum.log'
         if os.path.exists(sum_txt):
             os.unlink(sum_txt)
-        html_sum = HTMLTemp(sum_html)
-        html_sum.result.run_time = timeTaken
+        test_result = Result()
+        test_result.run_time = timeTaken
         all_case_name.sort()
         id = 0
         for case in all_case_name:
@@ -139,8 +152,8 @@ class HTMLTestRunner(object):
             for ts, err in result.failures:
                 if case == ts.id():
                     is_pass = False
-                    html_sum.result.case_fail += 1
-                    html_sum.result.table_rows.append((id, case, 'FAIL', err, debug_log))
+                    test_result.case_fail += 1
+                    test_result.table_rows.append((id, case, 'FAIL', err, debug_log))
                     with open(debug_log, 'a+') as fh:
                         fh.write(err)
                         fh.write('{} - FAIL'.format(case))
@@ -153,8 +166,8 @@ class HTMLTestRunner(object):
             for ts, err in result.errors:
                 if case == ts.id():
                     is_pass = False
-                    html_sum.result.case_error += 1
-                    html_sum.result.table_rows.append((id, case, 'ERROR', err, debug_log))
+                    test_result.case_error += 1
+                    test_result.table_rows.append((id, case, 'ERROR', err, debug_log))
                     with open(debug_log, 'a+') as fh:
                         fh.write(err)
                         fh.write('{} - ERROR'.format(case))
@@ -167,8 +180,8 @@ class HTMLTestRunner(object):
             for ts, reason in result.skipped:
                 if case == ts.id():
                     is_pass = False
-                    html_sum.result.case_skip += 1
-                    html_sum.result.table_rows.append((id, case, 'SKIP', reason, debug_log))
+                    test_result.case_skip += 1
+                    test_result.table_rows.append((id, case, 'SKIP', reason, debug_log))
                     with open(debug_log, 'a+') as fh:
                         fh.write(reason)
                         fh.write('{} - SKIP'.format(case))
@@ -178,15 +191,19 @@ class HTMLTestRunner(object):
                     break
             if not is_pass:
                 continue
-            html_sum.result.case_pass += 1
-            html_sum.result.table_rows.append((id, case, 'PASS', '', debug_log))
+            test_result.case_pass += 1
+            test_result.table_rows.append((id, case, 'PASS', '', debug_log))
             with open(debug_log, 'a+') as fh:
                 fh.write('{} - PASS'.format(case))
             with open(sum_txt, 'a+') as fh:
                 fh.write('case: {} - PASS\n'.format(case))
         if hasattr(result, 'separator2'):
             self.stream.writeln(result.separator2)
-        html_sum.generated_report()
+        test_result.compute_totals()
+        sum_html = os.path.join(logdir, 'sum.html')
+        generated_html_report(sum_html, test_result)
+        sum_junit = os.path.join(logdir, 'sum.xml')
+        generated_junit_report(sum_junit, test_result)
         self.stream.writeln("summary in text: {}".format(os.path.realpath(sum_txt)))
         #result.printErrors()
         if hasattr(result, 'separator2'):
