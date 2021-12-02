@@ -7,18 +7,29 @@ class TestNetworkTest(unittest.TestCase):
     def setUp(self):
         utils_lib.init_case(self)
         self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='dmesg -T')
-        cmd = "sudo ip link show|grep mtu|grep -v lo|awk -F':' '{print $2}'"
+        cmd = "ip link show|grep mtu|grep -v lo|awk -F':' '{print $2}'"
         output = utils_lib.run_cmd(self, cmd, expect_ret=0)
         self.nic = "eth0"
-        self.log.info("Test which nic connecting to public, if no found, use {} by default".format(self.nic))
+        self.log.info("Test which nic connects to public")
+        nic_found = False
         for net in output.split('\n'):
+            if len(net) < 3:
+                continue
             cmd = "ping {} -c 6 -I {}".format(self.params.get('ping_server'), net)
             ret = utils_lib.run_cmd(self, cmd, ret_status=True)
             if ret == 0:
                 self.nic = net
+                nic_found = True
                 break
+        if not nic_found:
+            for net in output.split('\n'):
+                #man systemd.net-naming-scheme
+                if net.startswith(('eth','en')):
+                    self.nic = net
+                    break
+        self.log.info("Pick up nic {}".format(self.nic))
         cmd = "ip addr show {}".format(self.nic)
-        output = utils_lib.run_cmd(self, cmd, msg='try to get {} ipv4 address'.format(self.nic))
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to get {} ipv4 address'.format(self.nic))
         self.ipv4 = re.findall('[\d.]{7,16}', output)[0]
 
 
@@ -160,33 +171,24 @@ class TestNetworkTest(unittest.TestCase):
         '''
         case_name:
             test_ethtool_P
-
         case_priority:
             1
-
         component:
             kernel
-
         bugzilla_id:
             1704435
-
         polarion_id:
             n/a
-
         maintainer:
             xiliang@redhat.com
-
         description:
             Use ethtool to query the specified network device for permanent hardware address.
-
         key_steps:
             1. # ethtool -P $nic
-
         expected_result:
             Mac address is not "00:00:00:00:00:00"
             eg. # ethtool -P eth0
                 Permanent address: 00:16:3d:fb:78:34
-
         '''
         cmd = "ethtool -P {}".format(self.nic)
         output = utils_lib.run_cmd(self,

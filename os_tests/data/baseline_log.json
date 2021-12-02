@@ -1060,5 +1060,14 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2027233",
         "path": "journal, dmesg",
         "trigger": ""
+    },
+    "msg_120": {
+        "content": ".*traps: umip_basic_test.* general protection fault ip.*",
+        "analyze": "information only produced by ltp",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
     }
 }

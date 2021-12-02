@@ -8,6 +8,35 @@ import time
 class TestGeneralCheck(unittest.TestCase):
     def setUp(self):
         utils_lib.init_case(self)
+        if self.id().endswith(('test_check_rpm_V_differences', 'test_check_rpm_V_missing')):
+            rpm_V_file = '/tmp/{}_rpm_V.log'.format(self.run_uuid)
+            self.output = utils_lib.run_cmd(self, 'cat {}'.format(rpm_V_file), msg="check if output exists")
+            if 'No such file' in self.output:
+                skips = ['rhui','ltp']
+                pkg = utils_lib.run_cmd(self, 'rpm -qa', msg="list the pkgs")
+                pkgs = pkg.split('\n')
+                import copy
+                check_list = copy.deepcopy(pkgs)
+                for pkg in pkgs:
+                    for i in skips:
+                        if i in pkg:
+                            check_list.remove(pkg)
+                cmd = 'sudo rpm -V {} > {} 2>&1'.format(' '.join(check_list), rpm_V_file)
+                utils_lib.run_cmd(self, cmd, msg="verify pkgs", timeout=600)
+                self.output = utils_lib.run_cmd(self, 'cat {}'.format(rpm_V_file), expect_ret=0, msg="check if output exists again")
+        if self.id().endswith(('test_check_systemd_analyze_verify_missing', 'test_check_systemd_analyze_verify_deprecated_unsafe', 'test_check_systemd_analyze_verify_obsolete', 'test_check_systemd_analyze_verify_ordering_cycle')):
+            self.systemd_analyze_verify_file = '/tmp/{}_systemd_analyze_verify.log'.format(self.run_uuid)
+            output = utils_lib.run_cmd(self, 'cat {}'.format(self.systemd_analyze_verify_file), msg="check if output exists")
+            if 'No such file' in output:
+                services = ['default.target']
+                cmd = "systemctl list-unit-files |grep -v UNIT|grep -v listed|awk -F' ' '{print $1}'"
+                all_services = utils_lib.run_cmd(self, cmd, msg='retrive all systemd unit files').split('\n')
+                for service in all_services:
+                    if not service or service.startswith('-'):
+                        continue
+                    services.append(service)
+                cmd = "sudo systemd-analyze verify {} > {} 2>&1".format(' '.join(services),self.systemd_analyze_verify_file)
+                utils_lib.run_cmd(self, cmd, msg='verify services')
 
     def test_check_avclog(self):
         '''
@@ -622,21 +651,15 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
             - service unit file content
             - output from 'systemd-analyze verify $service'
         """
-
+        services = ['default.target']
         cmd = "systemctl list-unit-files |grep -v UNIT|grep -v listed|awk -F' ' '{print $1}'"
-        all_services = utils_lib.run_cmd(self, cmd, msg='Get all systemd unit files').split('\n')
-
+        all_services = utils_lib.run_cmd(self, cmd, msg='retrive all systemd unit files').split('\n')
         for service in all_services:
-            if len(service) == 0:
-                continue
-            cmd = "systemctl status {}".format(service)
-            utils_lib.run_cmd(self, cmd)
-            cmd = "journalctl --unit {}".format(service)
-            utils_lib.check_log(self,'Unknown lvalue', log_cmd=cmd, rmt_redirect_stdout=True)
             if not service or service.startswith('-'):
                 continue
-            cmd = "sudo systemd-analyze verify {}".format(service)
-            utils_lib.run_cmd(self, cmd, expect_not_kw='Unknown lvalue', msg='Check there is no Unknown lvalue in {}'.format(service))
+            services.append(service)
+        cmd = "sudo systemd-analyze verify {}".format(' '.join(services))
+        utils_lib.run_cmd(self, cmd, expect_not_kw='Unknown lvalue', msg='Check there is no Unknown lvalue')
 
     def test_check_locale(self):
         '''
@@ -917,12 +940,12 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         self.log.info("nouveau is not required in ec2, make sure it is \
 in blacklist and not loaded bug1645772")
         utils_lib.run_cmd(self,
-                    "sudo lsmod",
+                    "lsmod",
                     expect_ret=0,
                     expect_not_kw="nouveau",
                     msg="Checking lsmod")
         utils_lib.run_cmd(self,
-                    "sudo cat /proc/cmdline",
+                    "cat /proc/cmdline",
                     expect_ret=0,
                     expect_kw="rd.blacklist=nouveau",
                     msg="Checking cmdline")
@@ -949,7 +972,7 @@ in cmdline as bug1859088")
         polarion_id: RHEL7-103850
         bz: 1852657
         '''
-        check_cmd = "sudo cat /etc/redhat-release"
+        check_cmd = "cat /etc/redhat-release"
         output = utils_lib.run_cmd(self,check_cmd, expect_ret=0, msg='check release name')
         kernel_ver = utils_lib.run_cmd(self, 'uname -r', msg="Get kernel version")
         name_map = {'el6':'Red Hat Enterprise Linux Server release 6',
@@ -1006,11 +1029,11 @@ in cmdline as bug1859088")
         issue: RHELPLAN-60817
         check if product id matches /etc/redhat-release
         '''
-        check_cmd = "sudo cat /etc/redhat-release"
+        check_cmd = "cat /etc/redhat-release"
         output = utils_lib.run_cmd(self,check_cmd, expect_ret=0, cancel_not_kw='CentOS,Fedora', msg='check release name')
         product_id = re.findall('\d.\d', output)[0]
         self.log.info("Get product id: {}".format(product_id))
-        cmd = 'sudo rpm -qa|grep redhat-release'
+        cmd = 'rpm -qa|grep redhat-release'
         utils_lib.run_cmd(self,cmd, cancel_ret='0', msg='get redhat-release-server version')
         cmd = 'sudo rct cat-cert /etc/pki/product-default/*.pem'
         utils_lib.run_cmd(self,cmd, expect_ret=0, expect_kw="Version: {}".format(product_id), msg='check product certificate')
@@ -1111,16 +1134,7 @@ in cmdline as bug1859088")
         expected_result:
             No 'deprecated' or 'unsafe' found in output
         '''
-        cmd = "sudo systemd-analyze verify default.target"
-        utils_lib.run_cmd(self, cmd, expect_not_kw='deprecated,nsafe', msg='Check there is no "deprecated" or "unsafe" keyword in output')
-        cmd = "systemctl list-unit-files |grep -v UNIT|grep -v listed|awk -F' ' '{print $1}'"
-        all_services = utils_lib.run_cmd(self, cmd, msg='retrive all systemd unit files').split('\n')
-
-        for service in all_services:
-            if not service or service.startswith('-'):
-                continue
-            cmd = "sudo systemd-analyze verify {}".format(service)
-            utils_lib.run_cmd(self, cmd, expect_not_kw='deprecated,unsafe', msg='Check there is no "deprecated" or "unsafe" keyword in output from {}'.format(service))
+        utils_lib.run_cmd(self, 'cat {}'.format(self.systemd_analyze_verify_file),expect_ret=0, expect_not_kw='deprecated,unsafe', msg='Check there is no "deprecated" or "unsafe" keyword')
 
     def test_check_systemd_analyze_verify_missing(self):
         """
@@ -1148,16 +1162,7 @@ in cmdline as bug1859088")
             - service unit file content
             - output from 'systemd-analyze verify $service'
         """
-        cmd = "sudo systemd-analyze verify default.target"
-        utils_lib.run_cmd(self, cmd, expect_not_kw='is obsolet', msg='Check there is no obsolet keyword in output')
-        cmd = "systemctl list-unit-files |grep -v UNIT|grep -v listed|awk -F' ' '{print $1}'"
-        all_services = utils_lib.run_cmd(self, cmd, msg='retrive all systemd unit files').split('\n')
-
-        for service in all_services:
-            if not service or service.startswith('-'):
-                continue
-            cmd = "sudo systemd-analyze verify {}".format(service)
-            utils_lib.run_cmd(self, cmd, expect_not_kw='Missing,ignoring line', msg='Check there is no Missing keyword in output from {}'.format(service))
+        utils_lib.run_cmd(self, 'cat {}'.format(self.systemd_analyze_verify_file),expect_ret=0, expect_not_kw='Missing,ignoring line', msg='Check there is no Missing keyword in output')
 
     def test_check_systemd_analyze_verify_obsolete(self):
         '''
@@ -1182,16 +1187,7 @@ in cmdline as bug1859088")
         expected_result:
             No "is obsolete" found in output
         '''
-        cmd = "sudo systemd-analyze verify default.target"
-        utils_lib.run_cmd(self, cmd, expect_not_kw='is obsolet', msg='Check there is no obsolet keyword in output')
-        cmd = "systemctl list-unit-files |grep -v UNIT|grep -v listed|awk -F' ' '{print $1}'"
-        all_services = utils_lib.run_cmd(self, cmd, msg='retrive all systemd unit files').split('\n')
-
-        for service in all_services:
-            if not service or service.startswith('-'):
-                continue
-            cmd = "sudo systemd-analyze verify {}".format(service)
-            utils_lib.run_cmd(self, cmd, expect_not_kw='is obsolet', msg='Check there is no obsolet keyword in output from {}'.format(service))
+        utils_lib.run_cmd(self, 'cat {}'.format(self.systemd_analyze_verify_file),expect_ret=0, expect_not_kw='is obsolet', msg='Check there is no obsolet keyword in output')
 
     def test_check_systemd_analyze_verify_ordering_cycle(self):
         '''
@@ -1219,18 +1215,7 @@ in cmdline as bug1859088")
         '''
         cmd = 'sudo journalctl -b0'
         utils_lib.run_cmd(self, cmd, expect_not_kw='ordering cycle', msg='Check there is no ordering cycle in journal log')
-        cmd = "sudo systemd-analyze verify default.target"
-        utils_lib.run_cmd(self, cmd, expect_not_kw='ordering cycle', msg='Check there is no ordering cycle which may block boot up.')
-        #cmd = "sudo systemctl list-units --type target|grep target|awk -F' ' '{print $1}'"
-        cmd = "systemctl list-unit-files |grep -v UNIT|grep -v listed|awk -F' ' '{print $1}'"
-        all_services = utils_lib.run_cmd(self, cmd, msg='retrive all systemd unit files').split('\n')
-
-        for service in all_services:
-            if not service or service.startswith('-'):
-                continue
-            cmd = "sudo systemd-analyze verify {}".format(service)
-            utils_lib.run_cmd(self, cmd, expect_not_kw='ordering cycle', msg='Check there is no ordering cycle which may block boot up in {}'.format(service))
-
+        utils_lib.run_cmd(self, 'cat {}'.format(self.systemd_analyze_verify_file),expect_ret=0, expect_not_kw='ordering cycle', msg='Check there is no ordering cycle which may block boot up')
 
     def test_check_tsc_deadline_timer(self):
         '''
@@ -1342,8 +1327,8 @@ current_device"
         description:
             check the pkg differences with information from database
         key_steps:
-            1. # sudo rpm -qa
-            2. # sudo rpm -V $(pkg)
+            1. # rpm -qa
+            2. # sudo rpm -V $(pkgs)
         expected_result:
             No pkg differences with information from database.
         '''
@@ -1357,22 +1342,18 @@ current_device"
               'T':'mTime differs',
               'P':'caPabilities differ',
               '?':'test could not be performed'}
-        pkg=utils_lib.run_cmd(self, 'sudo rpm -qa', msg="list the pkgs")
-        pkg=pkg.split('\n')
         count=0
         differ=''
-        for i in range(len(pkg)-1):
-            out=utils_lib.run_cmd(self, f'sudo rpm -V {pkg[i]}', msg="check pkg differences")
-            if out != '':
-                out = out.split('\n')
-                if out[0][0] in '.S':
-                    count += 1
-                    differ += f'{count}.{pkg[i]}:\n'
-                    for j in out[:-1]:
-                        differ+=j+'\n'
-                        for k in j[0:9]:
-                            if k!='.' and k in character.keys():
-                                differ+=character[k]+'\n'
+        for line in self.output.split('\n'):
+            if line.startswith(('.','S')):
+                count += 1
+                pkg_file = line.split(' ')[-1]
+                pkg = utils_lib.run_cmd(self, 'sudo rpm -qf {}'.format(pkg_file), timeout=600)
+                differ += f'{count}.{pkg}\n'
+                differ+=line+'\n'
+                for k in line[0:9]:
+                    if k!='.' and k in character.keys():
+                        differ+=character[k]+'\n'
         self.log.info("{}".format(differ))
         allow_count = 25
         if count>=allow_count:
@@ -1410,23 +1391,20 @@ current_device"
         description:
             check pkg missing file problem
         key_steps:
-            1. # sudo rpm -qa
+            1. # rpm -qa
             2. # sudo rpm -V $(pkg)
         expected_result:
             No missing file found in output.
         '''
-        skip = ['rhui']
-        pkg = utils_lib.run_cmd(self, 'sudo rpm -qa', msg="list the pkgs")
-        pkg = pkg.split('\n')
-        for i in range(len(pkg) - 1):
-            status = 0
-            for j in skip:
-                if re.search(j, pkg[i]):
-                    status += 1
-                else:
-                    pass
-            if status == 0:
-                utils_lib.run_cmd(self, f'sudo rpm -V {pkg[i]}', expect_not_kw="missing", msg="check pkg missing problem")
+        count=0
+        differ=''
+        for line in self.output.split('\n'):
+            if 'missing' in line:
+                count += 1
+                pkg_file = line.split(' ')[-1]
+                pkg = utils_lib.run_cmd(self, 'sudo rpm -qf {}'.format(pkg_file), timeout=600)
+                differ += f'{count}.{pkg}:\n'
+                differ+=line+'\n'
 
     def test_collect_insights_result(self):
         '''
@@ -1458,10 +1436,10 @@ current_device"
         if not utils_lib.is_cmd_exist(self, cmd="insights-client"):
             self.skipTest('No insights-client installation found!')
         utils_lib.run_cmd(self,
-                    'sudo lscpu',
+                    'lscpu',
                     msg="get cpu information")
         utils_lib.run_cmd(self,
-                    'sudo rpm -q insights-client',
+                    'rpm -q insights-client',
                     msg="get insights-client version")
         utils_lib.run_cmd(self,
                     'sudo insights-client --register',
