@@ -276,6 +276,7 @@ class TestCloudInit(unittest.TestCase):
             utils_lib.run_cmd(self, cmd, msg='restore .ssh/authorized_keys')
             cmd= 'sudo systemctl restart  sshd'
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='restart sshd service')
+        #utils_lib.finish_case(self)
 
 if __name__ == '__main__':
     unittest.main()

@@ -19,6 +19,7 @@ class Result:
         self.case_error = 0
         self.run_time = 0
         self.table_rows = []
+        self.node_info = None
 
     def compute_totals(self):
         self.total = self.case_pass + self.case_error + self.case_fail + self.case_skip
@@ -184,11 +185,13 @@ class HTMLTestRunner(object):
         if hasattr(result, 'separator2'):
             self.stream.writeln(result.separator2)
         test_result.compute_totals()
+        with open("{}/debug/node_info".format(logdir)) as fh:
+            test_result.node_info = fh.read()
         sum_html = os.path.join(logdir, "sum.html")
         generated_report(sum_html, "sum.html", test_result)
         sum_junit = os.path.join(logdir, "sum.xml")
         generated_report(sum_junit, "sum.xml", test_result)
-        self.stream.writeln("summary in text: {}".format(os.path.realpath(sum_txt)))
+        self.stream.writeln("{} generated".format(os.path.realpath(sum_txt)))
         #result.printErrors()
         if hasattr(result, 'separator2'):
             self.stream.writeln(result.separator2)

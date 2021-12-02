@@ -7,6 +7,7 @@ from os_tests.libs.utils_lib import get_cfg, init_ssh
 from shutil import rmtree
 import os_tests
 from os_tests.libs.html_runner import HTMLTestRunner
+import uuid
 
 def main():
     parser = argparse.ArgumentParser(
@@ -80,6 +81,8 @@ def main():
 
     print("Run in mode: is_listcase:{} test_patterns:{} skip_patterns:{}".format(args.is_listcase, test_patterns, skip_patterns))
 
+    run_uuid = str(uuid.uuid4())
+
     ts = unittest.defaultTestLoader.discover(start_dir=os_tests_dir,pattern='test_*.py', top_level_dir=os.path.dirname(os_tests_dir))
     tmp_ts = copy.deepcopy(ts)
     final_ts = unittest.TestSuite()
@@ -89,6 +92,7 @@ def main():
                 try:
                     for case in ts2._tests:
                         case.params = cfg_data
+                        case.run_uuid = run_uuid
                         if ssh is not None:
                             case.SSH = ssh
                         is_skip = False

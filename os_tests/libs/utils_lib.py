@@ -112,9 +112,17 @@ def init_case(test_instance):
         test_instance.SSH.log = test_instance.log
         if  test_instance.SSH.ssh_client is None:
             test_instance.skipTest("Cannot make ssh connection to remote, please check")
+    node_info = "{}/node_info".format(debug_dir)
+    if not os.path.exists(node_info):
+        test_instance.log.info("retrive node info.")
+        release_name = get_os_release_info(test_instance, field="NAME")
+        release_version = get_os_release_info(test_instance, field="VERSION")
+        kernel_version = run_cmd(test_instance, 'uname -r')
+        with open(node_info, 'w+') as fh:
+            fh.write("{} {} - {}".format(release_name, release_version, kernel_version))
 
 def finish_case(test_instance):
-    """init case
+    """finish case
     Arguments:
         test_instance {Test instance} -- unittest.TestCase instance
     """
@@ -338,22 +346,22 @@ def getboottime(test_instance):
     Arguments:
         test_instance {Test instance} -- unittest.TestCase instance
     '''
-    run_cmd(test_instance, "sudo which systemd-analyze", expect_ret=0)
+    run_cmd(test_instance, "which systemd-analyze", expect_ret=0)
     time_start = int(time.time())
     while True:
-        output = run_cmd(test_instance, "sudo systemd-analyze")
+        output = run_cmd(test_instance, "systemd-analyze")
         if 'Bootup is not yet finished' not in output:
             break
         time_end = int(time.time())
-        run_cmd(test_instance, 'sudo systemctl list-jobs')
+        run_cmd(test_instance, 'systemctl list-jobs')
         if time_end - time_start > 60:
             test_instance.fail("Bootup is not yet finished after 60s")
         test_instance.log.info("Wait for bootup finish......")
         time.sleep(1)
-    cmd = "sudo systemd-analyze blame > /tmp/blame.log"
+    cmd = "systemd-analyze blame > /tmp/blame.log"
     run_cmd(test_instance, cmd, expect_ret=0)
     run_cmd(test_instance, "cat /tmp/blame.log", expect_ret=0)
-    output = run_cmd(test_instance, "sudo systemd-analyze", expect_ret=0)
+    output = run_cmd(test_instance, "systemd-analyze", expect_ret=0)
     boot_time = re.findall("=.*s", output)[0]
     boot_time = boot_time.strip("=\n")
     boot_time_sec = re.findall('[0-9.]+s', boot_time)[0]
@@ -417,7 +425,9 @@ def is_azure(test_instance, action=None):
         azure: return True
         other: return False
     '''
-    output = run_cmd(test_instance, "sudo route -n", expect_ret=0)
+    output = run_cmd(test_instance, "route -n")
+    if 'not found' in output:
+        return False
     if '168.63.129.16' in output:
         test_instance.log.info("Azure system.")
         return True
@@ -638,6 +648,8 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl -b 0", match_word_
 
     if match_word_exact:
         check_cmd = check_cmd + '|grep -iw %s' % log_keyword
+    if skip_words:
+        check_cmd = check_cmd + '|grep -Ev "%{}"'.format(skip_words.replace(',','|'))
     ret = False
     if cursor is not None:
         out = run_cmd(test_instance,
@@ -816,4 +828,18 @@ def get_os_release_info(test_instance, field="VERSION_ID"):
     cmd = "source {} ;echo ${}".format(data_file, field)
     output = run_cmd(test_instance,cmd, expect_ret=0, msg='get {} from {}'.format(field, data_file))
     test_instance.log.info("Got: {}".format(output))
-    return output
+    return output.strip('\n')
+
+def set_service(test_instance, service="systemd-journald-audit.socket", enable_it = False, check_ret = False):
+    if not enable_it:
+        cmd_dict = [{'cmd':'sudo systemctl stop {}'.format(service), 'msg':'stop {}'.format(service)},
+                {'cmd':'sudo systemctl disable {}'.format(service), 'msg':'disable {}'.format(service)},
+                {'cmd':'sudo systemctl mask {}'.format(service), 'msg':'mask {} to prevent others bring it up'.format(service)}]
+    else:
+        cmd_dict = [{'cmd':'sudo systemctl unmask {}'.format(service), 'msg':'unmask {}'.format(service)},
+                {'cmd':'sudo systemctl enable --now {}'.format(service), 'msg':'enable and start {}'.format(service)}]
+    for cmd in cmd_dict:
+        if check_ret:
+            run_cmd(test_instance,cmd['cmd'], expect_ret=0, msg=cmd['msg'])
+        else:
+            run_cmd(test_instance,cmd['cmd'], msg=cmd['msg'])
