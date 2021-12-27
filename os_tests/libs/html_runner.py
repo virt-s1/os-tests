@@ -89,6 +89,7 @@ class HTMLTestRunner(object):
     def run(self, test, logdir=None):
         "Run the given test case or test suite."
         result = self._makeResult()
+        test_result = Result()
         registerResult(result)
         result.failfast = self.failfast
         result.buffer = self.buffer
@@ -107,25 +108,56 @@ class HTMLTestRunner(object):
                             category=DeprecationWarning,
                             message=r'Please use assert\w+ instead.')
             startTime = time.perf_counter()
-            startTestRun = getattr(result, 'startTestRun', None)
-            if startTestRun is not None:
-                startTestRun()
+            id = 0
             all_case_name = [ ts.id() for ts in test ]
             for ts in test:
                 logdir = ts.params['results_dir']
-                break
-            try:
-                test(result)
-            finally:
-                stopTestRun = getattr(result, 'stopTestRun', None)
-                if stopTestRun is not None:
-                    stopTestRun()
+                sum_txt = logdir + '/sum.log'
+                case_status = None
+                case_reason = None
+                id += 1
+                case_startTime = time.perf_counter()
+                startTestRun = getattr(result, 'startTestRun', None)
+                if startTestRun is not None:
+                    startTestRun()
+                try:
+                    ts(result)
+                finally:
+                    stopTestRun = getattr(result, 'stopTestRun', None)
+                    if stopTestRun is not None:
+                        stopTestRun()
+                    ts.duration = timeTaken = time.perf_counter() - case_startTime
+                debug_log = "debug/" + ts.id() + '.debug'
+                os.chdir(logdir)
+                mapped_result = {'FAIL':result.failures, 'ERROR':result.errors, 'SKIP':result.skipped}
+                for status in mapped_result.keys():
+                    for ts_finished, reason in mapped_result[status]:
+                        if ts_finished == ts:
+                            if status == 'FAIL':
+                                test_result.case_fail += 1
+                            if status == 'ERROR':
+                                test_result.case_error += 1
+                            if status == 'SKIP':
+                                test_result.case_skip += 1
+                            case_status = status
+                            case_reason = reason
+                            with open(debug_log, 'a+') as fh:
+                                fh.write(reason)
+                                fh.write('{} - {}'.format(ts.id(), status))
+                            break
+                if not case_status:
+                    test_result.case_pass += 1
+                    with open(debug_log, 'a+') as fh:
+                        fh.write('{} - PASS'.format(ts.id()))
+                    case_status = 'PASS'
+                    case_reason = ''
+                test_result.table_rows.append((id, ts.id(), case_status, case_reason, ts.duration, debug_log))
+                with open(sum_txt, 'a+') as fh:
+                    fh.write('case: {} - {}\n'.format(ts.id(),case_status))
+                    if case_reason:
+                        fh.write('info: {}\n'.format(case_reason))
             stopTime = time.perf_counter()
         timeTaken = stopTime - startTime
-        sum_txt = logdir + '/sum.log'
-        if os.path.exists(sum_txt):
-            os.unlink(sum_txt)
-        test_result = Result()
         test_result.run_time = timeTaken
         all_case_name.sort()
         id = 0
@@ -134,54 +166,6 @@ class HTMLTestRunner(object):
             is_pass = True
             os.chdir(logdir)
             debug_log = "debug/" + case + '.debug'
-            for ts, err in result.failures:
-                if case == ts.id():
-                    is_pass = False
-                    test_result.case_fail += 1
-                    test_result.table_rows.append((id, case, 'FAIL', err, debug_log))
-                    with open(debug_log, 'a+') as fh:
-                        fh.write(err)
-                        fh.write('{} - FAIL'.format(case))
-                    with open(sum_txt, 'a+') as fh:
-                        fh.write('case: {} - FAIL\n'.format(case))
-                        fh.write('info: {}\n'.format(err))
-                    break
-            if not is_pass:
-                continue
-            for ts, err in result.errors:
-                if case == ts.id():
-                    is_pass = False
-                    test_result.case_error += 1
-                    test_result.table_rows.append((id, case, 'ERROR', err, debug_log))
-                    with open(debug_log, 'a+') as fh:
-                        fh.write(err)
-                        fh.write('{} - ERROR'.format(case))
-                    with open(sum_txt, 'a+') as fh:
-                        fh.write('case: {} - ERROR\n'.format(case))
-                        fh.write('info: {}\n'.format(err))
-                    break
-            if not is_pass:
-                continue
-            for ts, reason in result.skipped:
-                if case == ts.id():
-                    is_pass = False
-                    test_result.case_skip += 1
-                    test_result.table_rows.append((id, case, 'SKIP', reason, debug_log))
-                    with open(debug_log, 'a+') as fh:
-                        fh.write(reason)
-                        fh.write('{} - SKIP'.format(case))
-                    with open(sum_txt, 'a+') as fh:
-                        fh.write('case: {} - SKIP\n'.format(case))
-                        fh.write('info: {}\n'.format(reason))
-                    break
-            if not is_pass:
-                continue
-            test_result.case_pass += 1
-            test_result.table_rows.append((id, case, 'PASS', '', debug_log))
-            with open(debug_log, 'a+') as fh:
-                fh.write('{} - PASS'.format(case))
-            with open(sum_txt, 'a+') as fh:
-                fh.write('case: {} - PASS\n'.format(case))
         if hasattr(result, 'separator2'):
             self.stream.writeln(result.separator2)
         test_result.compute_totals()
