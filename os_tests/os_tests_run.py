@@ -125,8 +125,6 @@ def main():
         print("Total case num: %s"%final_ts.countTestCases())
     else:
         HTMLTestRunner(verbosity=2).run(final_ts)
-        #unittest.TextTestRunner(verbosity=2).run(final_ts)
 
 if __name__ == "__main__":
     main()
-    #unittest.TextTestRunner().run(TS)

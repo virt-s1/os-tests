@@ -649,7 +649,7 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl -b 0", match_word_
     if match_word_exact:
         check_cmd = check_cmd + '|grep -iw %s' % log_keyword
     if skip_words:
-        check_cmd = check_cmd + '|grep -Ev "%{}"'.format(skip_words.replace(',','|'))
+        check_cmd = check_cmd + '|grep -Ev "{}"'.format(skip_words.replace(',','|'))
     ret = False
     if cursor is not None:
         out = run_cmd(test_instance,
@@ -760,11 +760,12 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
                             no_fail = False
                             check_done = True
                             break
-                        if baseline_dict[basekey]["trigger"] in check_str and len(baseline_dict[basekey]["trigger"]) > 3:
-                            test_instance.log.info("Guess it is expected because trigger keywords found '{}'".format(baseline_dict[basekey]["trigger"]))
+                        trigger = baseline_dict[basekey]["trigger"]
+                        if trigger and re.search(trigger,check_str,flags=re.I):
+                            test_instance.log.info("Guess it is expected because trigger keywords found '{}'".format(trigger))
                             find_it = True
-                        elif len(baseline_dict[basekey]["trigger"]) > 3:
-                            test_instance.log.info("Guess it is unexpected because trigger keywords not found '{}'".format(baseline_dict[basekey]["trigger"]))
+                        elif trigger:
+                            test_instance.log.info("Guess it is unexpected because trigger keywords not found '{}'".format(trigger))
                             find_it = False
                         test_instance.log.info("log:{}, base:{}".format(line1, sub_basekey_content))
                         test_instance.log.info("ID:%s Baseline analyze:%s Branch:%s Status:%s Link:%s Path:%s" %
@@ -796,11 +797,12 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
                               baseline_dict[basekey]["status"],
                               baseline_dict[basekey]["link"],
                               baseline_dict[basekey]["path"]))
-                    if baseline_dict[basekey]["trigger"] in check_str and len(baseline_dict[basekey]["trigger"]) > 3:
-                        test_instance.log.info("Guess it is expected because trigger keywords found '{}'".format(baseline_dict[basekey]["trigger"]))
+                    trigger = baseline_dict[basekey]["trigger"]
+                    if trigger and re.search(trigger,check_str,flags=re.I):
+                        test_instance.log.info("Guess it is expected because trigger keywords found '{}'".format(trigger))
                         find_it = True
-                    elif len(baseline_dict[basekey]["trigger"]) > 3:
-                        test_instance.log.info("Guess it is unexpected because trigger keywords not found '{}'".format(baseline_dict[basekey]["trigger"]))
+                    elif trigger:
+                        test_instance.log.info("Guess it is unexpected because trigger keywords not found '{}'".format(trigger))
                         find_it = False
                         break
                     if baseline_dict[basekey]["status"] == 'active':

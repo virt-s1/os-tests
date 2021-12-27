@@ -12,6 +12,7 @@
     {% if row[2] == 'SKIP' %}
     <skipped />
     {% endif %}
+    <time>{{ row[4] }}</time>
   </testcase>
   {% endfor %}
   </testsuite>

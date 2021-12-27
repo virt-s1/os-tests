@@ -175,9 +175,9 @@
         "analyze": "appears in bare metal instance",
         "branch": "rhel7,rhel8",
         "status": "active",
-        "link": "",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1538887",
         "path": "dmesg or journal",
-        "trigger": ""
+        "trigger": "amazon"
     },
     "msg_22": {
         "content": "ena 0002:04:00.0: Adding to iommu group 53",
@@ -450,13 +450,13 @@
         "trigger": ""
     },
     "msg_52": {
-        "content": "kernel: DMAR-IR: Queued invalidation will be enabled to support x2apic and Intr-remapping.",
+        "content": "kernel: DMAR-IR: Queued invalidation will be enabled to support x2apic and Intr-remapping.;.*Using Queued invalidation.*",
         "analyze": "Feature enabled, RFEBZ 1358653",
         "branch": "rhel",
         "status": "active",
         "link": "",
         "path": "journal or dmesg",
-        "trigger": "Using Queued invalidation"
+        "trigger": ""
     },
     "msg_53": {
         "content": "iscsid[466]: iscsid: Warning: InitiatorName file /etc/iscsi/initiatorname.iscsi does not exist or does not contain a properly formatted InitiatorName. If using software iscsi (iscsi_tcp or ib_iser) or partial offload (bnx2i or cxgbi iscsi), you may not be able to log into or discover targets. Please create a file /etc/iscsi/initiatorname.iscsi that contains a sting with the format: InitiatorName=iqn.yyyy-mm.<reversed domain name>[:identifier].",
@@ -855,7 +855,7 @@
         "trigger": ""
     },
     "msg_97": {
-        "content": "kernel: system .*: [mem .*] could not be reserved",
+        "content": ".*kernel: system .*: [mem .*] could not be reserved.*",
         "analyze": "this is information level message and harmless if no functional impaction",
         "branch": "rhel",
         "status": "active",
@@ -1067,6 +1067,15 @@
         "branch": "rhel",
         "status": "active",
         "link": "",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_121": {
+        "content": ".*lock detection:.*crashing the kernel on kernel split_locks and warning.*",
+        "analyze": "information only",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://lore.kernel.org/all/20210322135325.682257-3-fenghua.yu@intel.com/",
         "path": "journal, dmesg",
         "trigger": ""
     }
