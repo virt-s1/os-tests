@@ -46,6 +46,33 @@ current_clocksource'
         polarion_id:
         bz: 1650273
         '''
+        """
+        case_name:
+            test_change_tracer
+        case_file:
+            https://github.com/liangxiao1/os-tests/blob/8ec8531d5d9e58f5dc2293aa4b2c15fe209d27c6/os_tests/tests/test_general_test.py#L43
+        component:
+            kernel
+        bugzilla_id:
+            1650273
+        maintainer:
+             xiliang@redhat.com
+        description:
+             When running function tracing on a Linux guest running on VMware Workstation, the guest would crash.
+        key_steps:
+            1. install one clean RHEL 8.0 guest, start it.
+            2. # mount -t debugfs nodev /sys/kernel/debug
+            3. # cat /sys/kernel/debug/tracing/available_tracers
+            4. # echo function > /sys/kernel/debug/tracing/current_tracer
+            5. # echo 1 > /sys/kernel/debug/tracing/tracing_on (enables tracing)
+            6. # cat /sys/kernel/debug/tracing//trace |grep vmware_sched_clock
+            7. check the result
+
+        expect_result:
+            There is no vmware_sched_clock related ftrace log.
+        debug_want:
+            <optional: N/A or debug information required when file new bug if case failed>
+        """
         cmd = 'sudo mount -t debugfs nodev /sys/kernel/debug'
         utils_lib.run_cmd(self, cmd, msg='mount debugfs')
 
