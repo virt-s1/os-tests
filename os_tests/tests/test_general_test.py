@@ -41,12 +41,6 @@ current_clocksource'
         utils_lib.run_cmd(self, 'dmesg|tail -30', expect_ret=0)
 
     def test_change_tracer(self):
-        '''
-        no hang/panic happen
-        polarion_id:
-        bz: 1650273
-        '''
-        
         """
         case_name:
             test_change_tracer
@@ -59,17 +53,16 @@ current_clocksource'
         maintainer:
             xiliang@redhat.com
         description:
-            There is no vmware_sched_clock related ftrace log. 
+            Test system can switch to available clocksource successfully
         key_steps:
             1. install one clean RHEL 8.0 guest, start it.
             2. # mount -t debugfs nodev /sys/kernel/debug
             3. # cat /sys/kernel/debug/tracing/available_tracers
             4. # echo function > /sys/kernel/debug/tracing/current_tracer
-            5. # cat /sys/kernel/debug/tracing//trace |grep vmware_sched_clock
-            6. check the result
-
+            5. # cat /sys/kernel/debug/tracing/current_tracer
+            6. check the current tracer
         expect_result:
-            When running function tracing on a Linux guest, the guest would crash.
+            no hang/panic happen after switched clocksource
         debug_want:
             test log and full dmesg log
         """
