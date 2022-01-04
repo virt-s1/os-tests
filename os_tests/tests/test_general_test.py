@@ -56,9 +56,9 @@ current_clocksource'
         bugzilla_id:
             1650273
         maintainer:
-             xiliang@redhat.com
+            xiliang@redhat.com
         description:
-             When running function tracing on a Linux guest running on VMware Workstation, the guest would crash.
+            tracing of the sched_clock internal call of the VMware vmware_sched_clock(), which causes an infinite recursion within the tracing code (clock calls mustnot be traced).
         key_steps:
             1. install one clean RHEL 8.0 guest, start it.
             2. # mount -t debugfs nodev /sys/kernel/debug
@@ -69,9 +69,9 @@ current_clocksource'
             7. check the result
 
         expect_result:
-            There is no vmware_sched_clock related ftrace log.
+            When running function tracing on a Linux guest, the guest would crash.
         debug_want:
-            <optional: N/A or debug information required when file new bug if case failed>
+            There is no vmware_sched_clock related ftrace log.  
         """
         cmd = 'sudo mount -t debugfs nodev /sys/kernel/debug'
         utils_lib.run_cmd(self, cmd, msg='mount debugfs')
