@@ -927,7 +927,7 @@
         "trigger": ""
     },
     "msg_105": {
-        "content": ".*Unknown command line parameters: BOOT_IMAGE.*64$",
+        "content": ".*Unknown command line parameters: BOOT_IMAGE.*64$;.*Unknown kernel \"BOOT_IMAGE=.*64\", will be passed to user space.$",
         "analyze": "BOOT_IMAGE is a know unknow command line parameters",
         "branch": "rhel",
         "status": "active",
@@ -1076,6 +1076,15 @@
         "branch": "rhel",
         "status": "active",
         "link": "https://lore.kernel.org/all/20210322135325.682257-3-fenghua.yu@intel.com/",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_122": {
+        "content": ".*Unable to open /dev/kvm: No such file or directory.*",
+        "analyze": "information only",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/4621651",
         "path": "journal, dmesg",
         "trigger": ""
     }

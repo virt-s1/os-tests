@@ -1,6 +1,5 @@
 import unittest
 from os_tests.libs import utils_lib
-import os_tests
 import time
 import os
 
@@ -14,13 +13,13 @@ class TestLTP(unittest.TestCase):
         '''
         utils_lib.run_cmd(self, 'sudo rm -rf /opt/ltp/results/*')
         if file_name is not None and case_name is not None:
-            ltp_cmd = 'sudo /opt/ltp/runltp -f %s -s %s > /tmp/ltplog 2>&1' % (
+            ltp_cmd = 'sudo /opt/ltp/runltp -f {} -s {} > /tmp/ltplog 2>&1'.format(
                 file_name, case_name)
         elif file_name is None and case_name is not None:
-            ltp_cmd = 'sudo /opt/ltp/runltp -s %s > /tmp/ltplog 2>&1' % case_name
+            ltp_cmd = 'sudo /opt/ltp/runltp -s {} > /tmp/ltplog 2>&1'.format(case_name)
         elif file_name is not None and case_name is None:
-            ltp_cmd = 'sudo /opt/ltp/runltp -f %s > /tmp/ltplog 2>&1' % file_name
-        self.log.info("LTP cmd: %s" % ltp_cmd)
+            ltp_cmd = 'sudo /opt/ltp/runltp -f {} > /tmp/ltplog 2>&1'.format(file_name)
+        self.log.info("LTP cmd:{}".format(ltp_cmd))
         utils_lib.run_cmd(self, '\n')
         utils_lib.run_cmd(self, ltp_cmd, timeout=600)
         time.sleep(5)
@@ -31,13 +30,11 @@ class TestLTP(unittest.TestCase):
 
     def setUp(self):
         utils_lib.init_case(self)
-        utils_dir = os.path.realpath(os_tests.__file__)
-        utils_dir = os.path.dirname(utils_dir) + '/utils'
         if utils_lib.is_arch(self, arch='aarch64'):
-            ltp_rpm = utils_dir + '/ltp-master.aarch64.rpm'
+            ltp_rpm = self.utils_dir + '/ltp-master.aarch64.rpm'
             ltp_rpm_tmp = '/tmp/ltp-master.aarch64.rpm'
         else:
-            ltp_rpm = utils_dir + '/ltp-master.x86_64.rpm'
+            ltp_rpm = self.utils_dir + '/ltp-master.x86_64.rpm'
             ltp_rpm_tmp = '/tmp/ltp-master.x86_64.rpm'
         cmd = 'ls -l /opt/ltp/runtest/smoketest'
         ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='Check if it is ltp version with smoketest')

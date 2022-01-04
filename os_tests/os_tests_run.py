@@ -1,41 +1,27 @@
 import unittest
-import argparse
 import copy
 import os
 import sys
-from os_tests.libs.utils_lib import get_cfg, init_ssh
+from os_tests.libs.utils_lib import get_cfg, init_ssh, init_args, init_vm
 from shutil import rmtree
 import os_tests
 from os_tests.libs.html_runner import HTMLTestRunner
 import uuid
+import logging
+LOG_FORMAT = '%(asctime)s:%(levelname)s:%(message)s'
 
 def main():
-    parser = argparse.ArgumentParser(
-    description="os-tests is a lightweight, fast check and tests collection for Linux OS.")
-    parser.add_argument('-l', dest='is_listcase', action='store_true',
-                    help='list supported cases without run', required=False)
-    parser.add_argument('-p', dest='pattern', default=None, action='store',
-                    help='filter case by name, add --strict for matching exactly', required=False)
-    parser.add_argument('--strict', dest='is_strict', action='store_true',
-                    help='match exactly if -p or -s specified', required=False)
-    parser.add_argument('-s', dest='skip_pattern', default=None, action='store',
-                    help='skip cases, add --strict for skipping exactly', required=False)
-    parser.add_argument('--host', dest='remote_node', default=None, action='store',
-                    help='run tests on remote node', required=False)
-    parser.add_argument('--user', dest='remote_user', default=None, action='store',
-                    help='user to login to remote node', required=False)
-    parser.add_argument('--password', dest='remote_password', default=None, action='store',
-                    help='password to login to remote node', required=False)
-    parser.add_argument('--keyfile', dest='remote_keyfile', default=None, action='store',
-                    help='keyfile to login to remote node', required=False)
-    parser.add_argument('--result', dest='results_dir', default=None, action='store',
-                    help='save result to specific directory', required=False)
-    parser.add_argument('--image', dest='image', default=None, action='store',
-                    help='specify azure to run azure image check only', required=False)
-    parser.add_argument('--disks', dest='blk_devs', default=None, action='store',
-                    help='free disks for storage test, eg. "/dev/nvme0n1", data on disk has lost risks', required=False)
-    args = parser.parse_args()
-
+    log = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
+    args = init_args()
+    vm = None
+    if args.platform_profile and not args.is_listcase:
+        log.info("{}Stage: Provision System{}".format('='*20,'='*20))
+        cfg_file, cfg_data = get_cfg(cfg_file=args.platform_profile)
+        vm = init_vm(params=cfg_data)
+        if not vm:
+            log.info('cannot provision vm, please check.')
+            sys.exit(1)
     cfg_file, cfg_data = get_cfg()
     if args.results_dir is not None:
         cfg_data['results_dir'] = args.results_dir
@@ -43,6 +29,12 @@ def main():
         cfg_data['blk_devs'] = args.blk_devs
     if args.remote_node is not None:
         cfg_data['remote_node'] = args.remote_node
+        cfg_data['remote_user'] = args.remote_user
+        cfg_data['remote_password'] = args.remote_password
+        cfg_data['remote_keyfile'] = args.remote_keyfile
+
+    if vm:
+        cfg_data['remote_node'] = vm.floating_ip
         cfg_data['remote_user'] = args.remote_user
         cfg_data['remote_password'] = args.remote_password
         cfg_data['remote_keyfile'] = args.remote_keyfile
@@ -75,13 +67,17 @@ def main():
         if skip_patterns:
             skip_patterns = skip_patterns + ',test_lifecycle'
         else:
-            skip_patterns = 'test_lifecycle'
+            skip_patterns = 'test_lifecycle' 
     elif not args.is_listcase:
+        log.info("{}Stage: Init Connection to System{}".format('='*20,'='*20))
         ssh = init_ssh(params=cfg_data)
 
+    log.info("{}Stage: Run Test{}".format('='*20,'='*20))
     print("Run in mode: is_listcase:{} test_patterns:{} skip_patterns:{}".format(args.is_listcase, test_patterns, skip_patterns))
 
     run_uuid = str(uuid.uuid4())
+    utils_dir = os.path.realpath(os_tests.__file__)
+    utils_dir = os.path.dirname(utils_dir) + '/utils'
 
     ts = unittest.defaultTestLoader.discover(start_dir=os_tests_dir,pattern='test_*.py', top_level_dir=os.path.dirname(os_tests_dir))
     tmp_ts = copy.deepcopy(ts)
@@ -93,6 +89,7 @@ def main():
                     for case in ts2._tests:
                         case.params = cfg_data
                         case.run_uuid = run_uuid
+                        case.utils_dir = utils_dir
                         if ssh is not None:
                             case.SSH = ssh
                         is_skip = False
@@ -125,6 +122,8 @@ def main():
         print("Total case num: %s"%final_ts.countTestCases())
     else:
         HTMLTestRunner(verbosity=2).run(final_ts)
+    if vm:
+        vm.delete()
 
 if __name__ == "__main__":
     main()
