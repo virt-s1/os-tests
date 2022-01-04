@@ -40,11 +40,31 @@ current_clocksource'
         utils_lib.run_cmd(self, 'dmesg|tail -30', expect_ret=0)
 
     def test_change_tracer(self):
-        '''
-        no hang/panic happen
-        polarion_id:
-        bz: 1650273
-        '''
+        """
+        case_name:
+            test_change_tracer
+        case_file:
+            https://github.com/liangxiao1/os-tests/blob/8ec8531d5d9e58f5dc2293aa4b2c15fe209d27c6/os_tests/tests/test_general_test.py#L43
+        component:
+            kernel
+        bugzilla_id:
+            1650273
+        maintainer:
+            xiliang@redhat.com
+        description:
+            Test system can switch to available clocksource successfully
+        key_steps:
+            1. install one clean RHEL 8.0 guest, start it.
+            2. # mount -t debugfs nodev /sys/kernel/debug
+            3. # cat /sys/kernel/debug/tracing/available_tracers
+            4. # echo function > /sys/kernel/debug/tracing/current_tracer
+            5. # cat /sys/kernel/debug/tracing/current_tracer
+            6. check the current tracer
+        expect_result:
+            no hang/panic happen after switched clocksource
+        debug_want:
+            test log and full dmesg log
+        """
         cmd = 'sudo mount -t debugfs nodev /sys/kernel/debug'
         utils_lib.run_cmd(self, cmd, msg='mount debugfs')
 
