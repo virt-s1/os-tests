@@ -1,6 +1,5 @@
 import unittest
 import re
-import os_tests
 from os_tests.libs import utils_lib
 import time
 import os
@@ -245,9 +244,7 @@ int main(int argc, char *argv[])
             self.skipTest('skip when mem lower than 4GiB')
         utils_lib.is_cmd_exist(self, cmd='gcc', cancel_case=True)
         utils_lib.is_cmd_exist(self, cmd='wget', cancel_case=True)
-        utils_dir = os.path.realpath(os_tests.__file__)
-        utils_dir = os.path.dirname(utils_dir) + '/utils'
-        redis_src = utils_dir + '/redis_8124.c'
+        redis_src = self.utils_dir + '/redis_8124.c'
         redis_src_tmp = '/tmp/redis_8124.c'
         if self.params['remote_node'] is not None:
             self.log.info('Copy {} to remote'.format(redis_src))

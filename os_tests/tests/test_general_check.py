@@ -25,18 +25,22 @@ class TestGeneralCheck(unittest.TestCase):
                 utils_lib.run_cmd(self, cmd, msg="verify pkgs", timeout=600)
                 self.output = utils_lib.run_cmd(self, 'cat {}'.format(rpm_V_file), expect_ret=0, msg="check if output exists again")
         if self.id().endswith(('test_check_systemd_analyze_verify_missing', 'test_check_systemd_analyze_verify_deprecated_unsafe', 'test_check_systemd_analyze_verify_obsolete', 'test_check_systemd_analyze_verify_ordering_cycle')):
+            check_file = self.utils_dir + '/systemd_analyze_services.sh'
+            check_file_tmp = '/tmp/systemd_analyze_services.sh'
+            if self.params['remote_node'] is not None:
+                cmd = 'ls -l {}'.format(check_file_tmp)
+                ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='check if {} exists'.format(check_file))
+                if ret != 0:
+                    self.log.info('Copy {} to remote'.format(check_file))
+                    self.SSH.put_file(local_file=check_file, rmt_file=check_file_tmp)
+            else:
+                cmd = 'sudo cp -f {} {}'.format(check_file,check_file)
+                utils_lib.run_cmd(self, cmd)
+            check_file = check_file_tmp
+            utils_lib.run_cmd(self, 'sudo chmod 755 {}'.format(check_file_tmp))
             self.systemd_analyze_verify_file = '/tmp/{}_systemd_analyze_verify.log'.format(self.run_uuid)
-            output = utils_lib.run_cmd(self, 'cat {}'.format(self.systemd_analyze_verify_file), msg="check if output exists")
-            if 'No such file' in output:
-                services = ['default.target']
-                cmd = "systemctl list-unit-files |grep -v UNIT|grep -v listed|awk -F' ' '{print $1}'"
-                all_services = utils_lib.run_cmd(self, cmd, msg='retrive all systemd unit files').split('\n')
-                for service in all_services:
-                    if not service or service.startswith('-'):
-                        continue
-                    services.append(service)
-                cmd = "sudo systemd-analyze verify {} > {} 2>&1".format(' '.join(services),self.systemd_analyze_verify_file)
-                utils_lib.run_cmd(self, cmd, msg='verify services')
+            cmd = 'sudo bash -c "{} {}"'.format(check_file, self.systemd_analyze_verify_file)
+            output = utils_lib.run_cmd(self, cmd, timeout=240, msg="start analyze......")
 
     def test_check_avclog(self):
         '''

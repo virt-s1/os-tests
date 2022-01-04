@@ -28,24 +28,37 @@ note: please install [paramiko-fork](https://pypi.org/project/paramiko-fork/) if
 # pip install -U dist/os_tests-0.0.3-py3-none-any.whl
 ```
 
+note: the default bin path is "/usr/local/bin" if not in virtual environment.
+
 ### Public new wheels on [pypi](https://pypi.org/project/os-tests/) (maintainer use only)
 
 `# python3 -m twine upload  dist/*`
 
 ## Run test
 
-### Run all supported cases in local or on remote node
+### os-tests supports 3 working modes
 
-```bash
-# os-tests
-# os-tests --host <remote_node> --user <remote_user> --keyfile <remote_keyfile> --result <result_dir> -p <cases>
-```
+#### Mode 1 -  single node used  
 
-note: the default path is "/usr/local/bin" if not in virtual environment.  
+Install and run tests inside the RHEL system directly, fewer cases than Mode 2 and 3, lacking of tests requiring reboot system and instance control access.  
+`# os-tests`  
 or  
 `# python3 -m unittest -v os_tests.os_tests_run`
 
-### List all supported cases only without run
+#### Mode 2 - server client with 2 nodes used  
+
+ Require ssh user, key/password and IP to access existing RHEL system, all tests are done remotely, can do lifecyle, kdump test, but without device hotplug capability and other tests requires instance access.  
+`# os-tests --host <remote_node> --user <remote_user> --keyfile <remote_keyfile> --result <result_dir> -p <cases>`
+
+#### Mode 3 - server client with 1 node used, os-tests can provision test system self  
+
+Require cloud/platform account to provison remote system self, can do full test with full control of instance. Eg. device hotplug, snapshot creation, send nmi events......  
+Note: only support aws for now, other platforms is in planning. The config template is under cfg dir.  
+`# os-tests -p cloudinit --user ec2-user --keyfile /home/virtqe_s1.pem --platform_profile aws_env.yaml`
+
+### More options  
+
+#### List all supported cases only without run
 
 `# os-tests -l`
 
@@ -60,14 +73,10 @@ or
 ### Run all cases in one file
 
 `# os-tests -p test_general_check`  
-or  
-`# python3 -m unittest -v os_tests.tests.test_general_check`
 
-### Run single case in one file
+#### Run single case in one file
 
 `# os-tests -p test_change_clocksource`  
-or  
-`# python3 -m unittest -v os_tests.tests.test_general_test.TestGeneralTest.test_change_clocksource`
 
 ### All installed files
 

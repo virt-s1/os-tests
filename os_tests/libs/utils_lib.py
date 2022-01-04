@@ -11,12 +11,55 @@ import json
 import difflib
 import time
 import logging
+import argparse
+from functools import wraps
 from tipset.libs import rmt_ssh
 from yaml import load, dump
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
     from yaml import Loader, Dumper
+
+LOG = logging.getLogger('os_tests.os_tests_run')
+logging.basicConfig(level=logging.INFO)
+
+def init_args():
+    parser = argparse.ArgumentParser(
+    description="os-tests is a lightweight, fast check and tests collection for Linux OS.")
+    parser.add_argument('-l', dest='is_listcase', action='store_true',
+                    help='list supported cases without run', required=False)
+    parser.add_argument('-p', dest='pattern', default=None, action='store',
+                    help='filter case by name, add --strict for matching exactly', required=False)
+    parser.add_argument('--strict', dest='is_strict', action='store_true',
+                    help='match exactly if -p or -s specified', required=False)
+    parser.add_argument('-s', dest='skip_pattern', default=None, action='store',
+                    help='skip cases, add --strict for skipping exactly', required=False)
+    parser.add_argument('--host', dest='remote_node', default=None, action='store',
+                    help='run tests on remote node', required=False)
+    parser.add_argument('--user', dest='remote_user', default=None, action='store',
+                    help='user to login to remote node', required=False)
+    parser.add_argument('--password', dest='remote_password', default=None, action='store',
+                    help='password to login to remote node', required=False)
+    parser.add_argument('--keyfile', dest='remote_keyfile', default=None, action='store',
+                    help='keyfile to login to remote node', required=False)
+    parser.add_argument('--result', dest='results_dir', default=None, action='store',
+                    help='save result to specific directory', required=False)
+    parser.add_argument('--image', dest='image', default=None, action='store',
+                    help='specify azure to run azure image check only', required=False)
+    parser.add_argument('--disks', dest='blk_devs', default=None, action='store',
+                    help='free disks for storage test, eg. "/dev/nvme0n1", data on disk has lost risks', required=False)
+    parser.add_argument('--platform_profile', dest='platform_profile', default=None, action='store',
+                    help='specify platform profile if enable os-tests provison vms self, only supports aws for now', required=False)
+    args = parser.parse_args()
+    return args
+
+def init_vm(params=None):
+    vm = None
+    if 'aws' in params['Cloud']['provider']:
+        from .resources_aws import EC2VM
+        vm = EC2VM(params)
+        vm.create()
+    return vm
 
 def init_ssh(params=None, timeout=600, log=None):
     if log is None:
@@ -61,9 +104,10 @@ def init_connection(test_instance, timeout=600):
     if test_instance.SSH is None:
         test_instance.skipTest("Cannot make ssh connection to remote, please check")
 
-def get_cfg():
+def get_cfg(cfg_file = None):
     # Config file
-    cfg_file = os.path.dirname(os_tests.__file__) + "/cfg/os-tests.yaml"
+    if not cfg_file:
+        cfg_file = os.path.dirname(os_tests.__file__) + "/cfg/os-tests.yaml"
     # Result dir
     with open(cfg_file,'r') as fh:
        keys_data = load(fh, Loader=Loader)
@@ -845,3 +889,27 @@ def set_service(test_instance, service="systemd-journald-audit.socket", enable_i
             run_cmd(test_instance,cmd['cmd'], expect_ret=0, msg=cmd['msg'])
         else:
             run_cmd(test_instance,cmd['cmd'], msg=cmd['msg'])
+
+def wait_for(ret=None, not_ret=None, ck_ret=False, ck_not_ret=False, timeout=60, interval=1):
+    '''
+    wait for a func return expected value within specified time
+    '''
+    def decorate(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            start_time = time.time()
+            while True:
+                LOG.info("{} called, timeout {}".format(func.__name__, timeout))
+                result = func(*args, **kwargs)
+                if ck_ret and result == ret:
+                    break
+                if ck_not_ret and not_ret != result:
+                    break
+                end_time = time.time()
+                time.sleep(interval)
+                if end_time - start_time > timeout:
+                    LOG.info('timeout, exit!')
+                    break
+            return result
+        return wrapper
+    return decorate

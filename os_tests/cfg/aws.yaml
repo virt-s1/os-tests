@@ -1,0 +1,24 @@
+# This is a template for provison aws resources
+Cloud:
+    provider : aws
+# aws account profile name, default is default
+profile_name : default
+ami_id : 
+region : 
+subnet_id_ipv6 : 
+subnet_id_ipv4 : 
+security_group_ids : 
+ssh_key_name : 
+# optional, default is os_tests_aws
+tagname : os_tests_aws
+# optional, amazon and ubuntu AMIs for boot preformance comparing
+amzn2_ami_id_x86 : ami-0a36eb8fadc976275
+amzn2_ami_id_arm : ami-0bdfb42effc4b150f
+amzn2_ssh_user : ec2-user
+ubuntu_ami_id_x86 : ami-07dd19a7900a1f049
+ubuntu_ami_id_arm : ami-03c1b544a7566b3e5
+ubuntu_ssh_user : ubuntu
+# specify allowed ration in test eg. amazon 23s, rhel 40s, (40-23/23)*100 > 70, the test will fail
+boottime_max_ratio : 70
+net_max_ratio : 10
+instance_type: is4gen.large
