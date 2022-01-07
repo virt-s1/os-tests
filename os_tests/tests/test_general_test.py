@@ -11,7 +11,6 @@ class TestGeneralTest(unittest.TestCase):
 
     def test_change_clocksource(self):
         '''
-        :avocado: tags=test_change_clocksource,fast_check
         polarion_id:
         '''
         output = utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
