@@ -2,7 +2,7 @@
 
 ## Introduction
 
-os-tests is a lightweight, fast and customer centric tests collection for Linux OS.
+os-tests is a lightweight, portable and customer centric tests collection for Linux OS.
 
 ## Installation
 

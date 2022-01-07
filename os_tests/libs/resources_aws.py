@@ -1,4 +1,4 @@
-from .resources import VMResource,NICResource
+from .resources import VMResource,StorageResource
 from os_tests.libs import utils_lib
 import logging
 import time
@@ -45,7 +45,6 @@ class EC2VM(VMResource):
             self.ssh_user = params.get('ubuntu_ssh_user')
         else:
             self.ami_id = params.get('ami_id')
-        LOG.info("AMI picked vendor:{} ami:{} key:{}".format(vendor, self.ami_id, self.ssh_key_name))
         self.instance_type = params.get('instance_type')
         if params.get('ipv6'):
             self.subnet_id = params.get('subnet_id_ipv6')
@@ -64,12 +63,17 @@ class EC2VM(VMResource):
             self.tag = 'os_tests_vm_ec2'
         self.ssh_key_name = params.get('ssh_key_name')
         self.ssh_key_path = params.get('ssh_key_path')
+        LOG.info("AMI picked vendor:{} ami:{} key:{}".format(vendor, self.ami_id, self.ssh_key_name))
         self.vm_username = self.ssh_user
         self.vm_password = None
         self.ssh_conn = None
         self.volume_id = None
         self.is_created = False
         self.another_ip = None
+
+    def show(self):
+        if self.is_exist():
+            LOG.info("Instance ID: {}".format(self.ec2_instance.id))
 
     def create(self, wait=True):
         self.is_created = False
@@ -273,23 +277,36 @@ class EC2VM(VMResource):
                       self.ec2_instance.id)
             return False
 
-    def get_console_log(self):
+    def send_hibernation(self):
+        LOG.info("Wow, will add support later!")
+        return False
+
+    def get_console_log(self, silient=False):
+        ret = None
         try:
-            output = self.ec2_instance.console_output(Latest=True).get('Output')
-            return True, output
+            LOG.info("try to retrive console log......")
+            ret = self.ec2_instance.console_output(Latest=True).get('Output')
+            if not silient: LOG.info(ret)
+            return ret
         except Exception as err:
-            LOG.error("Failed to get console log, try without latest! %s" % err)
+            LOG.error("Failed to get console log, try without latest option! {}".format(err))
         try:
-            output = self.ec2_instance.console_output().get('Output')
-            return True, output
+            ret = self.ec2_instance.console_output().get('Output')
+            if not silient: LOG.info(ret)
+            return ret
         except Exception as err:
             LOG.error("Failed to get console log! %s" % err)
-            return False, err
+            if not silient: LOG.info(err)
+            return err
 
     def get_state(self):
-        self.ec2_instance.reload()
-        state = self.ec2_instance.state['Name']
-        LOG.info("instance is in {}".format(state))
+        try:
+            state = 'unknow'
+            self.ec2_instance.reload()
+            state = self.ec2_instance.state['Name']
+            LOG.info("instance is in {}".format(state))
+        except Exception as err:
+            return state
         return state
 
     def is_exist(self):
@@ -297,4 +314,320 @@ class EC2VM(VMResource):
             self.ec2_instance.reload()
             return True
         except Exception as exc:
+            return False
+
+    def is_stopped(self):
+        if self.get_state() == 'stopped':
+            return True
+        else:
+            return False
+
+    def is_started(self):
+        if self.get_state() == 'running':
+            return True
+        else:
+            return False
+
+class EC2Volume(StorageResource):
+    '''
+    Volume classs
+    '''
+    __volume = None
+
+    def __init__(self, params):
+        config = Config(retries=dict(max_attempts=10, ))
+        super(EC2Volume, self).__init__(params)
+        self.profile_name = params.get('profile_name')
+        if self.profile_name is None:
+            self.profile_name = 'default'
+        self.session = boto3.session.Session(profile_name=self.profile_name, region_name=params.get('region'))
+        self._resource = self.session.resource('ec2', config=config, region_name=params.get('region'))
+        self.disksize = 100
+        if params.get('ipv6'):
+            self.subnet_id = params.get('subnet_id_ipv6')
+            LOG.info('Instance support ipv6, use subnet %s', self.subnet_id)
+        else:
+            self.subnet_id = params.get('subnet_id_ipv4')
+            LOG.info('Instance only support ipv4, use subnet %s',
+                     self.subnet_id)
+        self.subnet = self._resource.Subnet(self.subnet_id)
+
+        #self.zone = params.get('availability_zone', '*/Cloud/*')
+        self.zone = self.subnet.availability_zone
+        LOG.info('Get zone from subnet {}'.format(self.zone))
+        #self.zone = params.get('availability_zone', '*/Cloud/*')
+        self.tagname = params.get('ec2_tagname')
+        self.outpostarn = params.get('outpostarn')
+        self.disktype = 'standard'
+        self.id = None
+        self.iops = 3000
+
+    def reuse_init(self, volume_id):
+        '''
+        To reuse an exist volume than create a new one
+        :params volume_id: id of existing volume
+        '''
+        if volume_id is None:
+            return False
+        try:
+            self.__volume = self._resource.Volume(volume_id)
+            if self.is_attached():
+                return False
+            LOG.info("Existing %s state is %s" %
+                     (self.__volume.id, self.__volume.state))
+            return True
+        except ClientError as err:
+            LOG.error(err)
+            return False
+
+    def is_attached(self):
+        self.__volume.reload()
+        if self.__volume.state == 'in-use':
+            LOG.info("%s disk is in use.", self.__volume.id)
+            return True
+        return False
+
+    def create(self, wait=True, disksize=100, disktype='standard', iops=3000, loops=5):
+        """
+        Create volume
+        :param wait: Wait for instance created
+        :param disksize: disk size required, byt default it is 100GiBs
+        :param disktype: options 'standard'|'io1'|'gp2'|'sc1'|'st1'
+        :param iops: must for io1 type volume, range 100~20000
+        :return: True|False
+        """
+        try:
+            self.disksize = disksize
+            self.disktype = disktype
+            # sc1 type disk size minimal 500 GiB
+            if self.disktype == 'sc1' and self.disksize < 500:
+                self.disksize = 500
+                LOG.info("sc1 type disk size minimal 500G, so will create \
+500G disk!")
+            self.iops = iops
+            if self.outpostarn is None:
+                if self.disktype == 'io1':
+                    self.__volume = self.__snapshot = self._resource.create_volume(
+                        AvailabilityZone=self.zone,
+                        Size=self.disksize,
+                        VolumeType=self.disktype,
+                        Iops=self.iops,
+                        TagSpecifications=[
+                            {
+                                'ResourceType': 'volume',
+                                'Tags': [
+                                    {
+                                        'Key': 'Name',
+                                        'Value': self.tagname
+                                    },
+                                ]
+                            },
+                        ])
+                else:
+                    self.__volume = self.__snapshot = self._resource.create_volume(
+                        AvailabilityZone=self.zone,
+                        Size=self.disksize,
+                        VolumeType=self.disktype,
+                        TagSpecifications=[
+                            {
+                                'ResourceType': 'volume',
+                                'Tags': [
+                                    {
+                                        'Key': 'Name',
+                                        'Value': self.tagname
+                                    },
+                                ]
+                            },
+                        ])
+            else:
+                if self.disktype == 'io1':
+                    self.__volume = self.__snapshot = self._resource.create_volume(
+                        AvailabilityZone=self.zone,
+                        Size=self.disksize,
+                        VolumeType=self.disktype,
+                        Iops=self.iops,
+                        OutpostArn=self.outpostarn,
+                        TagSpecifications=[
+                            {
+                                'ResourceType': 'volume',
+                                'Tags': [
+                                    {
+                                        'Key': 'Name',
+                                        'Value': self.tagname
+                                    },
+                                ]
+                            },
+                        ])
+                else:
+                    self.__volume = self.__snapshot = self._resource.create_volume(
+                        AvailabilityZone=self.zone,
+                        Size=self.disksize,
+                        VolumeType=self.disktype,
+                        OutpostArn=self.outpostarn,
+                        TagSpecifications=[
+                            {
+                                'ResourceType': 'volume',
+                                'Tags': [
+                                    {
+                                        'Key': 'Name',
+                                        'Value': self.tagname
+                                    },
+                                ]
+                            },
+                        ])
+            self.id = self.__volume.id
+            if wait:
+                for i in xrange(0, loops):
+                    LOG.info("Wait loop %s, max loop %s" % (i, loops))
+                    try:
+                        self.__volume.reload()
+                        if self.__volume.state == 'available':
+                            break
+                        time.sleep(10)
+                    except ClientError as err:
+                        LOG.error("%s" % err)
+            LOG.info("Volume created %s, state %s" % (self.id, self.__volume.state))
+            return True
+
+        except Exception as err:
+            LOG.error(err)
+            return False
+
+    def delete(self, wait=True):
+        """
+        Delete volume
+        :param wait: Wait for volume deleted
+        :return: True|False  and raise Exception if volume delete failed
+        """
+        if self.__volume is not None:
+            LOG.info("Delete %s" % self.res_id)
+            try:
+                self.__volume.delete()
+                return True
+            except Exception as err:
+                LOG.error(err)
+                return False
+        else:
+            LOG.info("No specify volume delete.")
+
+    def exists(self):
+        """
+        Judge if volume exists
+        :return: True if exists.
+        Example:
+        return True if self._get_status() != -1 else False
+        """
+        try:
+            self.__volume.reload()
+            if self.__volume.state in "deleting | deleted":
+                LOG.info("Volume is deleted %s" % self.id)
+                return False
+            else:
+                LOG.info("Volume exists %s" % self.id)
+                return True
+        except Exception as err:
+            LOG.info("Volume does not exists %s" % self.id)
+            return False
+
+    def attach_to_instance(self, instance_id, device_name, wait=True, timeout=120):
+        """
+        Attach disk to instance as $device_name
+        :param instance_id: id of instance
+        :param device_name: like sdX or xvdX
+        :return: True if success, False as failed
+        """
+        try:
+            LOG.info("Try to attach %s to %s" %
+                     (self.__volume.id, instance_id))
+            self.__volume.attach_to_instance(
+                Device=device_name,
+                InstanceId=instance_id,
+            )
+
+            if wait:
+                start_time = time.time()
+                while True:
+                    self.__volume.reload()
+                    if self.__volume.state == 'in-use':
+                        LOG.info('Volume attached!')
+                        return True
+                    else:
+                        end_time = time.time()
+                        if int(end_time) - int(start_time) > timeout:
+                            LOG.error(
+                                "Failed to attach to instance after %ss! Current state:%s" %
+                                (timeout, self.__volume.state))
+                            return False
+                    time.sleep(10)
+                    LOG.info("Waiting volume %s attached, current state %s, timeout %s" % (self.__volume.id, self.__volume.state, timeout))
+
+            return True
+        except Exception as err:
+            LOG.error("Volume cannot attach to %s error %s" %
+                      (instance_id, err))
+            return False
+
+    def detach_from_instance(self, wait=True, force=False):
+        """Detach disk from instance as $device_name
+
+        Arguments:
+            instance_id {string} -- instance id
+            device_name {string} -- target device name from instance, like
+                                    'sdX','xvdx'
+
+        Keyword Arguments:
+            wait {bool} -- wait or not wait detach operation complete
+                           (default: {True})
+            force {bool} -- force or not force detach from instance
+                            (default: {False})
+
+        Returns:
+            bool -- True if success, False as failed
+        """
+        try:
+            instance_id = self.__volume.attachments[0]['InstanceId']
+            device_name = self.__volume.attachments[0]['Device']
+        except Exception as err:
+            LOG.error("Cannot get attached instance id %s", self.__volume.id)
+            LOG.error("error %s", err)
+            LOG.info(self.__volume)
+        try:
+            self.__volume.load()
+            instance_id = self.__volume.attachments[0]['InstanceId']
+            device_name = self.__volume.attachments[0]['Device']
+        except Exception as err:
+            LOG.error("Cannot get attached instance id %s", self.__volume.id)
+            LOG.error("error %s", err)
+            LOG.info(self.__volume)
+            return False
+        try:
+            instance_id = self.__volume.attachments[0]['InstanceId']
+            device_name = self.__volume.attachments[0]['Device']
+            LOG.info("Try to dettach %s from %s" %
+                     (self.__volume.id, instance_id))
+
+            self.__volume.detach_from_instance(
+                Device=device_name,
+                Force=force,
+                InstanceId=instance_id,
+            )
+            if wait:
+                start_time = time.time()
+                while True:
+                    self.__volume.reload()
+                    if self.__volume.state == 'available':
+                        LOG.info('Volume dettached!')
+                        return True
+                    else:
+                        end_time = time.time()
+                        LOG.info("Wait volume available, current state:{}".format(self.__volume.state))
+                        if int(end_time) - int(start_time) > 180:
+                            LOG.error(
+                                "Failed to dettach to instance after 180s! %s"
+                                % self.__volume.state)
+                            return False
+                    time.sleep(10)
+        except Exception as err:
+            LOG.error("Volume cannot detach from %s error %s" %
+                      (instance_id, err))
             return False

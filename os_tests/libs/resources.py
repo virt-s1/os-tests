@@ -1,8 +1,14 @@
 from abc import ABCMeta, abstractmethod
 
+class UnSupportedOperation(Exception):
+    """
+    raise it if the operation is not supported
+    """
+    pass
+
 class BaseResource(metaclass=ABCMeta):
     """
-    This is a abstract class for the base resource.
+    This is an abstract class for the base resource.
     The resource type can be instance, network, disk.
     """
 
@@ -10,6 +16,14 @@ class BaseResource(metaclass=ABCMeta):
         self.params = params
         # mark the resource created, default is os_tests
         self.tag = 'os_tests'
+        self.provider = params['Cloud']['provider']
+
+    @abstractmethod
+    def show(self):
+        """
+        show any information about resource information when call it
+        :return: return str
+        """
 
     @abstractmethod
     def create(self, wait=False):
@@ -45,7 +59,7 @@ class BaseResource(metaclass=ABCMeta):
 
 class VMResource(BaseResource):
     """
-    This is a abstract class for the base vm resource.
+    This is an abstract class for the base vm resource.
     """
     def __init__(self, params):
         super().__init__(params)
@@ -91,62 +105,72 @@ class VMResource(BaseResource):
         :return: raise Exception if VM send nmi failed
         """
 
+    @abstractmethod
+    def send_hibernation(self):
+        """
+        send hibernation request to vm
+        :return: raise Exception if VM send hibernation failed
+        """
+
+    @abstractmethod
     def get_console_log(self):
         """
         get console log or retrive debug log if vm hang or panic
         :return: console log as str
         """
 
-class NICResource(BaseResource):
+    @abstractmethod
+    def is_started(self):
+        """
+        check if vm is started
+        :return: return True or False
+        """
+
+    @abstractmethod
+    def is_stopped(self):
+        """
+        check if vm is stopped
+        :return: return True or False
+        """
+
+class StorageResource(BaseResource):
     """
-    This is a abstract class for the base vm resource.
+    This is an abstract class for the base storage resource.
     """
     def __init__(self, params):
         super().__init__(params)
         # mark the resource created, default is os_tests
-        self.tag = 'os_tests_vm'
+        self.tag = 'os_tests_storage'
 
-    @property
-    @abstractmethod
-    def floating_ip(self):
+    def is_free(self):
         """
-        get vm's floating ip
-        :return: vm's ip or FQDN
+        check if disk is free
+        :return: return True or False
         """
 
     @abstractmethod
-    def start(self, wait=False):
+    def attach_to_vm(self, vm, device_name, wait=True, timeout=120):
         """
-        start VM
-        :param wait: Wait for vm started
-        :return: raise Exception if VM start failed
+        attach disk to vm
+        :param vm: vm instance
+        :param device_name: None or something like sda,xvda......
+        :param wait: wait disk is not free
+        :param timeout: timeout for this operation
+        :return: True or False
         """
 
     @abstractmethod
-    def stop(self, wait=False):
+    def detach_from_vm(self, wait=True, force=False):
         """
-        stop VM
-        :param wait: wait for vm stopped
+        detach disk from vm if it is in use
+        :param wait: wait for device is free
         :return: raise Exception if VM stop failed
         """
 
     @abstractmethod
-    def reboot(self, wait=False):
+    def create(self, wait=True, disksize=100, disktype='standard', iops=3000, loops=5):
         """
         reboot VM
         :param wait: Wait for vm rebooted
         :return: raise Exception if VM reboot failed
-        """
-    
-    @abstractmethod
-    def send_nmi(self):
-        """
-        send nmi event to vm
-        :return: raise Exception if VM send nmi failed
-        """
-
-    def get_console_log(self):
-        """
-        get console log or retrive debug log if vm hang or panic
-        :return: console log as str
         """

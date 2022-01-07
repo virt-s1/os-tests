@@ -61,7 +61,7 @@ def init_vm(params=None):
         vm.create()
     return vm
 
-def init_ssh(params=None, timeout=600, log=None):
+def init_ssh(params=None, timeout=600, interval=10, log=None):
     if log is None:
         LOG_FORMAT = '%(levelname)s:%(message)s'
         log = logging.getLogger(__name__)
@@ -72,20 +72,14 @@ def init_ssh(params=None, timeout=600, log=None):
     ssh.rmt_password = params['remote_password']
     ssh.rmt_keyfile = params['remote_keyfile']
     ssh.log = log
-    start_time = time.time()
-    while True:
-        current_time = time.time()
-        if current_time - start_time > timeout:
-            log.info("timeout to connect to remote")
-            return None
-        ssh.create_connection()
-        if ssh.ssh_client is not None:
-            return ssh
-        time.sleep(5)
-        log.info("Not conncted, retry again! timeout:{}".format(timeout))
+    ssh.timeout = timeout
+    ssh.interval = interval
+    ssh.create_connection()
+    if ssh.ssh_client is not None:
+        return ssh
     return None
 
-def init_connection(test_instance, timeout=600):
+def init_connection(test_instance, timeout=600, interval=10):
     if test_instance.params['remote_node'] is None:
         return
     test_instance.log.info("remote_node specified, all tests will be run in {}".format(test_instance.params['remote_node']))
@@ -100,7 +94,7 @@ def init_connection(test_instance, timeout=600):
         pass
     except Exception:
         test_instance.log.info("connection is not live")
-    test_instance.SSH = init_ssh(params=test_instance.params, timeout=timeout, log=test_instance.log)
+    test_instance.SSH = init_ssh(params=test_instance.params, timeout=timeout, interval=interval, log=test_instance.log)
     if test_instance.SSH is None:
         test_instance.skipTest("Cannot make ssh connection to remote, please check")
 
@@ -285,6 +279,8 @@ def run_cmd(test_instance,
                    output = ret.stdout
         except Exception as err:
             test_instance.log.error("Run cmd failed again {}".format(err))
+    if status is None and test_instance.vm:
+        test_instance.vm.get_console_log()
     if cursor is not None and cursor in output:
         output = output[output.index(cursor):]
     if is_log_output:

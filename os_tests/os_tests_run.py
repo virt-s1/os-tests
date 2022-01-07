@@ -72,6 +72,9 @@ def main():
         log.info("{}Stage: Init Connection to System{}".format('='*20,'='*20))
         ssh = init_ssh(params=cfg_data)
 
+    if not vm:
+        skip_patterns = skip_patterns + ',test_vm_operation'
+
     log.info("{}Stage: Run Test{}".format('='*20,'='*20))
     print("Run in mode: is_listcase:{} test_patterns:{} skip_patterns:{}".format(args.is_listcase, test_patterns, skip_patterns))
 
@@ -92,6 +95,7 @@ def main():
                         case.utils_dir = utils_dir
                         if ssh is not None:
                             case.SSH = ssh
+                        case.vm = vm
                         is_skip = False
                         if skip_patterns is not None:
                                 for skippattern in skip_patterns.split(','):
