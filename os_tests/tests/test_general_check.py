@@ -50,6 +50,8 @@ class TestGeneralCheck(unittest.TestCase):
             sysstat
         bugzilla_id:
             1670060
+        is_customer_case:
+            True
         maintainer:
             xuazhao@redhat.com
         description:
@@ -60,12 +62,14 @@ class TestGeneralCheck(unittest.TestCase):
             3. strace -fttT -o sadc.trc /usr/lib64/sa/sadc -F -L 1 2 sa.new
             4. grep mtab sadc.trc
         expect_result:
-            No check of mtab or triggering of automounts.
+            no mstab keyword found,eg.17234 13:38:38.058270 open("/etc/mtab", O_RDONLY) = 3 <0.000428>
         debug_want:
-            17234 13:38:38.058270 open("/etc/mtab", O_RDONLY) = 3 <0.000428>
+            version of sysstat
         """
-        cmd = 'sudo yum install -y sysstat strace'
-        utils_lib.run_cmd(self,cmd,msg='install component')
+        cmd = 'rpm -q sysstat'
+        utils_lib.run_cmd(self,cmd)
+        
+        utils_lib.is_pkg_installed(self,'sysstat strace')
 
         cmd = 'rm -rf sa.new'
         utils_lib.run_cmd(self,cmd,msg='clean old data')
@@ -74,7 +78,7 @@ class TestGeneralCheck(unittest.TestCase):
         utils_lib.run_cmd(self,cmd,msg='generate report')
 
         cmd = 'grep mtab sadc.trc'
-        utils_lib.run_cmd(self,cmd, expect_ret=1, msg='check ret')
+        utils_lib.run_cmd(self,cmd, expect_not_ret=0, msg='check ret')
 
     def test_check_avclog(self):
         '''
