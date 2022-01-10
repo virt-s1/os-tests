@@ -12,9 +12,25 @@ class TestLifeCycle(unittest.TestCase):
             self.skipTest("Only support to run in server-client mode!")
         if utils_lib.is_metal(self):
             self.ssh_timeout = 1200
+            self.SSH.interval = 60
         else:
             self.ssh_timeout = 180
         self.log.info('set ssh connection timeout to {}'.format(self.ssh_timeout))
+
+        if 'kdump' in self.id():
+            timeout = 120
+            interval = 5
+            time_start = int(time.time())
+            while True:
+               cmd = 'sudo systemctl is-active kdump'
+               ret = utils_lib.run_cmd(self, cmd,ret_status=True, msg='check kdump is active')
+               if ret == 0: break
+               time_end = int(time.time())
+               if time_end - time_start > timeout:
+                  self.log.info('timeout ended: {}'.format(timeout))
+                  break
+               self.log.info('retry after {}s'.format(interval))
+               time.sleep(interval)
 
     def test_boot_debugkernel(self):
         '''
@@ -259,6 +275,81 @@ no plan to fix it in the near future!")
                     msg='list /var/crash after crash')
         cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='write_sysrq_trigger')
+
+    def test_kdump_fastboot_systemctl_kexec(self):
+        '''
+        description:
+            Test loading kernel via kexec with RHEL.
+        testplan:
+            N/A
+        bugzilla_id: 
+            1758323, 1841578
+        is_customer_case:
+            True
+        maintainer: 
+            xiliang
+        case_priority: 
+            0
+        case_component: 
+            Kdump
+        key_steps:
+            1. Launch an instance with multi kernels installed.
+            2. Load each kernel with command "sudo kexec -l /boot/vmlinuz-$version --initrd=/boot/initramfs-$version.img --reuse-cmdline"
+        pass_criteria: 
+            System shutdown and reboot with the specified kernel version, kernel can be loaded via kexec.
+        '''
+        utils_lib.run_cmd(self,'uname -r', cancel_not_kw='el7,el6', msg='Not full support earlier than el8, skip!')
+        cmd = 'sudo rpm -qa|grep -e "kernel-[0-9]"'
+        output = utils_lib.run_cmd(self, cmd, msg='Get kernel version')
+        kernels_list = output.split('\n')
+        for kernel in kernels_list:
+            kernel_vmlinuz = "/boot/" + kernel.replace('kernel','vmlinuz')
+            kernel_initramfs = "/boot/" + kernel.replace('kernel','initramfs') + ".img"
+            cmd = "sudo kexec -l %s --initrd=%s --reuse-cmdline" % (kernel_vmlinuz, kernel_initramfs)
+            utils_lib.run_cmd(self, cmd, msg='Switch kernel', expect_ret=0)
+            cmd = "sudo systemctl kexec"
+            utils_lib.run_cmd(self, cmd, msg='fast reboot system')
+            time.sleep(10)
+            self.SSH.create_connection()
+            utils_lib.run_cmd(self, 'uname -r', msg='check kernel', expect_ret=0, expect_kw=kernel[7:])
+
+    def test_kdump_fastboot_kexec_e(self):
+        '''
+        description:
+            Test loading kernel via kexec with RHEL on AWS.
+        testplan:
+            N/A
+        bugzilla_id: 
+            1758323, 1841578
+        is_customer_case:
+            True
+        maintainer: 
+            xiliang
+        case_priority: 
+            0
+        case_component: 
+            Kdump
+        key_steps:
+            1. Launch an instance with multi kernels installed.
+            2. Load each kernel with command "sudo kexec -l /boot/vmlinuz-$version --initrd=/boot/initramfs-$version.img --reuse-cmdline"
+            3. When the kernel is loaded, run command "sudo kexec -e".
+        pass_criteria: 
+            Kernel can be loaded via kexec, and system will reboot into the loaded kernel via kexec -e without calling shutdown(8).
+        '''
+        utils_lib.run_cmd(self,'uname -r', cancel_not_kw='el7,el6', msg='Not full support earlier than el8, skip!')
+        cmd = 'sudo rpm -qa|grep -e "kernel-[0-9]"'
+        output = utils_lib.run_cmd(self, cmd, msg='Get kernel version')
+        kernels_list = output.split('\n')
+        for kernel in kernels_list:
+            kernel_vmlinuz = "/boot/" + kernel.replace('kernel','vmlinuz')
+            kernel_initramfs = "/boot/" + kernel.replace('kernel','initramfs') + ".img"
+            cmd = "sudo kexec -l %s --initrd=%s --reuse-cmdline" % (kernel_vmlinuz, kernel_initramfs)
+            utils_lib.run_cmd(self, cmd, msg='Switch kernel', expect_ret=0)
+            cmd = "sudo kexec -e"
+            utils_lib.run_cmd(self, cmd, msg='fast reboot system')
+            time.sleep(10)
+            self.SSH.create_connection()
+            utils_lib.run_cmd(self, 'uname -r', msg='check kernel', expect_ret=0, expect_kw=kernel[7:])
 
     def tearDown(self):
         reboot_require = False
