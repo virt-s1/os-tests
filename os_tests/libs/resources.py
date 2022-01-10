@@ -63,15 +63,23 @@ class VMResource(BaseResource):
     """
     def __init__(self, params):
         super().__init__(params)
-        # mark the resource created, default is os_tests
+        # mark the resource created, default is os_tests_vm
         self.tag = 'os_tests_vm'
 
     @property
     @abstractmethod
     def floating_ip(self):
         """
-        get vm's floating ip
+        get vm's floating ipv4
         :return: vm's ip or FQDN
+        """
+
+    @property
+    @abstractmethod
+    def disk_count(self):
+        """
+        get vm's disk count assigned
+        :return: the disk count
         """
 
     @abstractmethod
@@ -133,26 +141,32 @@ class VMResource(BaseResource):
         :return: return True or False
         """
 
-class StorageResource(BaseResource):
-    """
-    This is an abstract class for the base storage resource.
-    """
-    def __init__(self, params):
-        super().__init__(params)
-        # mark the resource created, default is os_tests
-        self.tag = 'os_tests_storage'
-
-    def is_free(self):
+    @abstractmethod
+    def attach_block(self, disk, target, wait=True, timeout=120):
         """
-        check if disk is free
-        :return: return True or False
+        attach disk to vm
+        :param disk: storage instance
+        :param target: None or something like sda,xvda......
+        :param wait: wait disk is not free
+        :param timeout: timeout for this operation
+        :return: True or False
         """
 
     @abstractmethod
-    def attach_to_vm(self, vm, device_name, wait=True, timeout=120):
+    def detach_block(self, disk, wait=True, force=False):
         """
-        attach disk to vm
-        :param vm: vm instance
+        detach disk from vm
+        :param disk: storage instance
+        :param wait: wait for device is free
+        :param force: force detach even in use
+        :return: raise Exception if detach failed
+        """
+
+    @abstractmethod
+    def attach_nic(self, nic, wait=True, timeout=120):
+        """
+        attach nic to vm
+        :param nic: network instance
         :param device_name: None or something like sda,xvda......
         :param wait: wait disk is not free
         :param timeout: timeout for this operation
@@ -160,17 +174,51 @@ class StorageResource(BaseResource):
         """
 
     @abstractmethod
-    def detach_from_vm(self, wait=True, force=False):
+    def detach_nic(self, nic, wait=True, force=False):
         """
-        detach disk from vm if it is in use
+        detach nic from vm if it is in use
+        :param nic: network instance
         :param wait: wait for device is free
-        :return: raise Exception if VM stop failed
+        :param force: force detach even in use
+        :return: raise Exception if detach failed
         """
 
+class StorageResource(BaseResource):
+    """
+    This is an abstract class for the base storage resource.
+    """
+    def __init__(self, params):
+        super().__init__(params)
+        # mark the resource created, default is os_tests_storage
+        self.tag = 'os_tests_storage'
+        self.type = None
+        self.size = 10
+        self.iops = None
+        self.id = None
+        # specif if the disk is in local
+        self.path = None
+
     @abstractmethod
-    def create(self, wait=True, disksize=100, disktype='standard', iops=3000, loops=5):
+    def is_free(self):
         """
-        reboot VM
-        :param wait: Wait for vm rebooted
-        :return: raise Exception if VM reboot failed
+        check if disk is free
+        :return: return True or False
+        """
+
+class NetworkResource(BaseResource):
+    """
+    This is an abstract class for the base network resource.
+    """
+    def __init__(self, params):
+        super().__init__(params)
+        # mark the resource created, default is os_tests_nic
+        self.tag = 'os_tests_nic'
+        self.type = None
+        self.id = None
+
+    @abstractmethod
+    def is_free(self):
+        """
+        check if nic is free
+        :return: return True or False
         """

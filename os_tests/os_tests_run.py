@@ -2,7 +2,7 @@ import unittest
 import copy
 import os
 import sys
-from os_tests.libs.utils_lib import get_cfg, init_ssh, init_args, init_vm
+from os_tests.libs.utils_lib import get_cfg, init_ssh, init_args, init_provider
 from shutil import rmtree
 import os_tests
 from os_tests.libs.html_runner import HTMLTestRunner
@@ -14,11 +14,12 @@ def main():
     log = logging.getLogger(__name__)
     logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
     args = init_args()
-    vm = None
+    vm, disk = None, None
     if args.platform_profile and not args.is_listcase:
         log.info("{}Stage: Provision System{}".format('='*20,'='*20))
         cfg_file, cfg_data = get_cfg(cfg_file=args.platform_profile)
-        vm = init_vm(params=cfg_data)
+        cfg_data['remote_user'] = args.remote_user
+        vm, disk = init_provider(params=cfg_data)
         if not vm:
             log.info('cannot provision vm, please check.')
             sys.exit(1)
@@ -62,7 +63,7 @@ def main():
             skip_patterns = 'test_azure_image'
 
     ssh = None
-    if cfg_data['remote_node'] is None:
+    if cfg_data['remote_node'] is None and not args.platform_profile:
         print("skip lifecycle tests as no remote node found")
         if skip_patterns:
             skip_patterns = skip_patterns + ',test_lifecycle'
@@ -72,7 +73,7 @@ def main():
         log.info("{}Stage: Init Connection to System{}".format('='*20,'='*20))
         ssh = init_ssh(params=cfg_data)
 
-    if not vm:
+    if not args.platform_profile:
         skip_patterns = skip_patterns + ',test_vm_operation'
 
     log.info("{}Stage: Run Test{}".format('='*20,'='*20))
@@ -96,6 +97,7 @@ def main():
                         if ssh is not None:
                             case.SSH = ssh
                         case.vm = vm
+                        case.disk = disk
                         is_skip = False
                         if skip_patterns is not None:
                                 for skippattern in skip_patterns.split(','):
@@ -128,6 +130,8 @@ def main():
         HTMLTestRunner(verbosity=2).run(final_ts)
     if vm:
         vm.delete()
+        if disk.is_exist():
+            disk.delete()
 
 if __name__ == "__main__":
     main()

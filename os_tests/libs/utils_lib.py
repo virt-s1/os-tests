@@ -53,13 +53,15 @@ def init_args():
     args = parser.parse_args()
     return args
 
-def init_vm(params=None):
+def init_provider(params=None):
     vm = None
     if 'aws' in params['Cloud']['provider']:
-        from .resources_aws import EC2VM
+        from .resources_aws import EC2VM,EC2Volume
         vm = EC2VM(params)
         vm.create()
-    return vm
+        # init disk and do not create disk at very beginning
+        disk = EC2Volume(params)
+    return vm, disk
 
 def init_ssh(params=None, timeout=600, interval=10, log=None):
     if log is None:
@@ -281,6 +283,8 @@ def run_cmd(test_instance,
             test_instance.log.error("Run cmd failed again {}".format(err))
     if status is None and test_instance.vm:
         test_instance.vm.get_console_log()
+        test_instance.vm.stop()
+        test_instance.vm.start()
     if cursor is not None and cursor in output:
         output = output[output.index(cursor):]
     if is_log_output:
@@ -645,6 +649,16 @@ def get_memsize(test_instance, action=None):
     mem_gb = (mem_kb/1024/1024)
     test_instance.log.info("Total memory: {:0,.1f}GiB".format(mem_gb))
     return mem_gb
+
+def get_disk_online(test_instance):
+    '''
+    Get online disks in system.
+    '''
+    cmd = 'lsblk -d'
+    output = run_cmd(test_instance, cmd, expect_ret=0, msg='Get online disk count.')
+    count = output.count('disk') - output.count('SWAP')
+    test_instance.log.info('Online disks: %s' % count)
+    return count
 
 def get_cmd_cursor(test_instance, cmd='dmesg -T', rmt_redirect_stdout=False, rmt_get_pty=False, timeout=60):
     '''
