@@ -55,7 +55,7 @@ class TestGeneralCheck(unittest.TestCase):
         maintainer:
             xuazhao@redhat.com
         description:
-            check sysstat not triggering a mount of all automount filesystem and statistic gather even when not selected.
+            sysstat triggering a mount of all automount filesystem and statistic gather even when not selected.
         key_steps:
             1. sudo yum install -y sysstat strace
             2. rm -rf sa.new
@@ -66,11 +66,10 @@ class TestGeneralCheck(unittest.TestCase):
         debug_want:
             version of sysstat
         """
-        
-        utils_lib.is_pkg_installed(self,'sysstat strace')
-
         cmd = 'rpm -q sysstat'
         utils_lib.run_cmd(self,cmd)
+        
+        utils_lib.is_pkg_installed(self,'sysstat strace')
 
         cmd = 'rm -rf sa.new'
         utils_lib.run_cmd(self,cmd,msg='clean old data')
