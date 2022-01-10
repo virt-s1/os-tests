@@ -55,7 +55,7 @@ class TestGeneralCheck(unittest.TestCase):
         maintainer:
             xuazhao@redhat.com
         description:
-            sysstat triggering a mount of all automount filesystem and statistic gather even when not selected.
+            check sysstat not triggering a mount of all automount filesystem and statistic gather even when not selected.
         key_steps:
             1. sudo yum install -y sysstat strace
             2. rm -rf sa.new
