@@ -71,7 +71,7 @@ class TestGeneralCheck(unittest.TestCase):
 
         cmd = 'rpm -q sysstat'
         utils_lib.run_cmd(self,cmd)
-        
+
         cmd = 'rm -rf sa.new'
         utils_lib.run_cmd(self,cmd,msg='clean old data')
 
@@ -120,10 +120,27 @@ class TestGeneralCheck(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='check if new avc log generated', rmt_get_pty=True)
 
     def test_check_available_clocksource(self):
-        '''
-        bz: 1726487
-        polarion_id:
-        '''
+        """
+        case_name:
+            test_check_available_clocksource
+        component:
+            kernel
+        bugzilla_id:
+            1726487
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
+        description:
+            No kvm-clock in available_clocksource in aws kvm instances 
+        key_steps:
+            1.lscpu
+            2.sudo cat /sys/devices/system/clocksource/clocksource0/\
+available_clocksource
+            3.check available_clocksource
+        expect_result:
+            the clocksource matched to the system is expected
+        """
         output = utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
         if 'Xen' in output:
             expect_clocks = 'xen,tsc,hpet,acpi_pm'
@@ -278,10 +295,27 @@ available_clocksource'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='Segmentation')
 
     def test_check_dmidecode_outofspec(self):
-        '''
-        bz: 1858350
-        des: make sure there is no "OUT OF SPEC" in dmidecode output
-        '''
+        """
+        case_name:
+            test_check_dmidecode_outofspec
+        component:
+            dmidecode
+        bugzilla_id:
+            1858350
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
+        description:
+            dmidecode command prints "OUT OF SPEC" messages for empty NVMe and DIMM slots
+        key_steps:
+            1.sudo dmidecode --dump-bin {log_dir}/debug/dmidecode_debug.bin
+            2.sudo dmidecode
+        expect_result:
+            It should not print "OUT OF SPEC" in output
+        debug_want:
+            dmidecode_debug.bin
+        """
         utils_lib.is_cmd_exist(self, cmd='dmidecode')
         cmd = "sudo dmidecode --dump-bin {}/debug/dmidecode_debug.bin".format(self.log_dir)
         utils_lib.run_cmd(self, cmd, msg='save dmidecode_debug.bin for debug purpose, please attach it if file bug')
@@ -457,10 +491,26 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
                                   (util, expect_utils))
 
     def test_check_journal_calltrace(self):
-        '''
-        polarion_id:
-        bz: 1801999, 1736818
-        '''
+        """
+        case_name:
+            test_check_journal_calltrace
+        component:
+            Operations
+        bugzilla_id:
+            1801999,1736818
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.conm
+        description:
+            choose_repo.py should check redhat-rhui-beta.repo existing status before renaming it
+        key_steps:
+            Check the journalctl log
+        expect_result:
+            choose_repo.py run without error throw out.
+        debug_want:
+            journalctl log
+        """
         utils_lib.check_log(self, 'Traceback,Backtrace', skip_words='test_check_journal_calltrace', rmt_redirect_stdout=True)
 
     def test_check_journalctl_cannot(self):
