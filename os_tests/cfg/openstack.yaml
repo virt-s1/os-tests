@@ -1,0 +1,37 @@
+# This is a template for provison openstack resources, you can copy it any place you want to edit
+Cloud:
+  provider: openstack
+  auth_url: https://rhos-d.infra.prod.upshift.rdu2.redhat.com:13000/v3/
+  project_name: xenqe
+  project_domain_name: redhat.com
+  user_domain_name: redhat.com
+Credential:
+  username: psi-xenqe
+  password:
+#  access_key_id:
+#  secretaccess_key:
+Subscription:
+  username:
+  password:
+  baseurl:
+  serverurl:
+VM:
+  rhel_ver: '8.0'
+  username: cloud-user
+  password: 
+  keypair: xen-jenkins
+  vm_name: avocado_cloud
+  image_name: rhel-guest-image-8.0-1795.x86_64.qcow2
+  network_name: provider_net_cci_4
+  network_id: 68a8220a-20f4-4940-99b4-45b6f98bce6b
+SecurityGroups:
+  name:
+    - default
+Flavor: !mux
+    m1.medium:
+        name: m1.medium
+        id: 2550ff80-8b69-4697-b020-f8c22ed33495
+        cpu: 2
+        memory: 4
+        size: 40G
+        virt: kvm

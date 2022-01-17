@@ -15,10 +15,12 @@ def main():
     logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
     args = init_args()
     vm, disk = None, None
+    run_uuid = str(uuid.uuid4())
     if args.platform_profile and not args.is_listcase:
         log.info("{}Stage: Provision System{}".format('='*20,'='*20))
         cfg_file, cfg_data = get_cfg(cfg_file=args.platform_profile)
         cfg_data['remote_user'] = args.remote_user
+        cfg_data['run_uuid'] = run_uuid
         vm, disk = init_provider(params=cfg_data)
         if not vm:
             log.info('cannot provision vm, please check.')
@@ -35,6 +37,9 @@ def main():
         cfg_data['remote_keyfile'] = args.remote_keyfile
 
     if vm:
+        if vm.floating_ip is None:
+            vm.delete()
+            sys.exit(1)
         cfg_data['remote_node'] = vm.floating_ip
         cfg_data['remote_user'] = args.remote_user
         cfg_data['remote_password'] = args.remote_password
@@ -79,7 +84,6 @@ def main():
     log.info("{}Stage: Run Test{}".format('='*20,'='*20))
     print("Run in mode: is_listcase:{} test_patterns:{} skip_patterns:{}".format(args.is_listcase, test_patterns, skip_patterns))
 
-    run_uuid = str(uuid.uuid4())
     utils_dir = os.path.realpath(os_tests.__file__)
     utils_dir = os.path.dirname(utils_dir) + '/utils'
 
@@ -130,7 +134,7 @@ def main():
         HTMLTestRunner(verbosity=2).run(final_ts)
     if vm:
         vm.delete()
-        if disk.is_exist():
+        if disk is not None and disk.is_exist():
             disk.delete()
 
 if __name__ == "__main__":

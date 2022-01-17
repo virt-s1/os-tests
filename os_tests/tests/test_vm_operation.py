@@ -1,6 +1,7 @@
 import unittest
 import time
 from os_tests.libs import utils_lib
+from os_tests.libs.resources import UnSupportedAction,UnSupportedStatus
 
 class TestVMOperation(unittest.TestCase):
     '''
@@ -41,10 +42,16 @@ class TestVMOperation(unittest.TestCase):
         pass_criteria: 
             The IPv6 address shows in NIC and can be connected.
         '''
-        if not self.vm.ipv6_address:
-            self.skipTest("current instance setup not support ipv6, skip check!")
+        ipv6 = None
+        try:
+            ipv6 = self.vm.ipv6_address
+        except NotImplementedError:
+            self.skipTest("current {} not bring out this ipv6_address property".format(self.vm.provider))
+
+        if not ipv6:
+            self.skipTest("current instance setup might not support ipv6, skip checking.")
         cmd = 'ip addr show eth0'
-        utils_lib.run_cmd(self, cmd, expect_kw=self.vm.ipv6_address)
+        utils_lib.run_cmd(self, cmd, expect_kw=ipv6)
         cmd = 'cat /etc/sysconfig/network-scripts/ifcfg-eth0'
         utils_lib.run_cmd(self, cmd, expect_kw='IPV6INIT=yes')
 
@@ -168,6 +175,8 @@ class TestVMOperation(unittest.TestCase):
             Disks can be detached successfully in step 6.
         '''
         online_disk_1 = utils_lib.get_disk_online(self)
+        if not self.disk:
+            self.skipTest('Skip as lacking of storage provision support.')
         if not self.disk.is_exist():
             self.disk.create()
         time.sleep(20)
@@ -226,19 +235,18 @@ class TestVMOperation(unittest.TestCase):
         case_component: 
             cloud-init
         key_steps:
-            1. Launch an instance on AWS EC2 with passing userdata, e.g., passing an script like this:
+            1. Launch an instance with custom scrtip, eg. passing an script to create a dir:
                 #!/bin/bash
-                 date > /home/ec2-user/time.log
-            2. Connect the instance and check time.log appears after system boot up.
+                mkdir /tmp/userdata_${uuid}
+            2. Connect the instance and check /tmp/userdata_${uuid} appears after system boot up.
         pass_criteria: 
-            The passed userdata (time.log) should exist and can be edit and remove.
+            The passed userdata /tmp/userdata_${uuid} exists and can be edit and remove.
         '''
         user_name = self.params.get('remote_user')
-        user_dir = "/home/%s/instance_create_%s" % (user_name,
-                                                    self.vm.instance_type)
+        user_dir =  "/tmp/userdata_{}".format(self.run_uuid)
         cmd = "ls -l %s" % user_dir
         utils_lib.run_cmd(self, cmd, expect_ret=0)
-        cmd = "rm -rf %s" % user_dir
+        cmd = "sudo rm -rf %s" % user_dir
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         utils_lib.run_cmd(self, 'uname -r', msg='Get instance kernel version')
 
@@ -270,7 +278,11 @@ class TestVMOperation(unittest.TestCase):
         utils_lib.run_cmd(self, r'sudo rm -rf /var/crash/*', expect_ret=0, msg='clean /var/crash firstly')
         utils_lib.run_cmd(self, r'sudo sysctl kernel.unknown_nmi_panic=0',expect_ret=0,msg='disable unknown_nmi_panic')
         utils_lib.run_cmd(self, r'sudo sysctl -a|grep -i nmi', expect_ret=0, expect_kw='kernel.unknown_nmi_panic = 0')
-        if not self.vm.send_nmi():
+        try:
+            is_success = self.vm.send_nmi()
+        except UnSupportedAction as err:
+            self.skipTest("current {} support nmi operation".format(self.vm.provider))
+        if not is_success:
             self.fail("Cannot trigger panic via nmi!")
         time.sleep(10)
         self.SSH.create_connection()
@@ -319,7 +331,11 @@ class TestVMOperation(unittest.TestCase):
         utils_lib.run_cmd(self, r'sudo rm -rf /var/crash/*', expect_ret=0, msg='clean /var/crash firstly')
         utils_lib.run_cmd(self, r'sudo sysctl kernel.unknown_nmi_panic=1', expect_ret=0, msg='enable unknown_nmi_panic')
         utils_lib.run_cmd(self, r'sudo sysctl -a|grep -i nmi', expect_ret=0, expect_kw='kernel.unknown_nmi_panic = 1')
-        if not self.vm.send_nmi():
+        try:
+            is_success = self.vm.send_nmi()
+        except UnSupportedAction as err:
+            self.skipTest("current {} support nmi operation".format(self.vm.provider))
+        if not is_success:
             self.fail("Cannot trigger panic via nmi!")
         time.sleep(10)
         self.SSH.create_connection()

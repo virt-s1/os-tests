@@ -61,6 +61,11 @@ def init_provider(params=None):
         vm.create()
         # init disk and do not create disk at very beginning
         disk = EC2Volume(params)
+    if 'openstack' in params['Cloud']['provider']:
+        from .resources_openstack import OpenstackVM
+        vm = OpenstackVM(params)
+        vm.create()
+        disk = None
     return vm, disk
 
 def init_ssh(params=None, timeout=600, interval=10, log=None):
@@ -578,17 +583,18 @@ def is_pkg_installed(test_instance, pkg_name=None, is_install=True, cancel_case=
         cmd {string} -- checked command
         is_install {bool} -- try to install it or not
     '''
-    cmd_check = "rpm -qa|grep {}".format(pkg_name)
-    ret = run_cmd(test_instance, cmd_check, ret_status=True)
+    cmd = "rpm -q {}".format(pkg_name)
+    ret = run_cmd(test_instance, cmd, ret_status=True)
     if ret == 0:
         return True
     else:
-        test_instance.log.info("No %s found!" % pkg_name)
+        test_instance.log.info("No {} found!".format(pkg_name))
         if is_install:
             cmd = 'sudo yum install -y {}'.format(pkg_name)
             ret = run_cmd(test_instance, cmd, ret_status=True, msg='try to install it', timeout=timeout)
             if ret == 0:
                 return True
+        if cancel_case: test_instance.skipTest("Unable to install {}".format(pkg_name))
         return False
 
 def pkg_install(test_instance, pkg_name=None, pkg_url=None, force=False):
@@ -923,3 +929,29 @@ def wait_for(ret=None, not_ret=None, ck_ret=False, ck_not_ret=False, timeout=60,
             return result
         return wrapper
     return decorate
+
+def iterate_timeout(timeout, message, wait=2):
+    start = time.time()
+    count = 0
+    while (timeout is None) or (time.time() < start + timeout):
+        count += 1
+        yield count
+        logging.debug('Have been waiting for %ss/%ss.' %
+                      (int(time.time() - start), timeout))
+        time.sleep(wait)
+    raise TimeoutError(message)
+
+def get_value(x={}, key=None, path=None):
+    # walk through the dict and get key under parent path
+    ret = None
+    if path is None and isinstance(x,dict):
+        return x.get(key)
+    if isinstance(x,dict):
+        for i in x.keys():
+            if path == i:
+                if isinstance(x.get(i),dict):
+                    ret = x.get(i).get(key)
+                    break
+            else:
+                ret = get_value(x=x.get(i), key=key, path=path)
+    return ret

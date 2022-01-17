@@ -1,4 +1,4 @@
-from .resources import VMResource,StorageResource,NetworkResource
+from .resources import VMResource,StorageResource,NetworkResource,UnSupportedAction,UnSupportedStatus
 from os_tests.libs import utils_lib
 import logging
 import time
@@ -70,6 +70,7 @@ class EC2VM(VMResource):
         self.volume_id = None
         self.is_created = False
         self.another_ip = None
+        self.run_uuid = params.get('run_uuid')
 
     def show(self):
         if self.is_exist():
@@ -106,8 +107,7 @@ class EC2VM(VMResource):
                             ]
                         },
                     ],
-                    UserData='#!/bin/bash\nmkdir /home/%s/instance_create_%s' %
-                    (self.ssh_user, self.instance_type))[0]
+                    UserData='#!/bin/bash\nmkdir /tmp/userdata_{}'.format(self.run_uuid))[0]
                 self.is_created = True
             except ClientError as err:
                 LOG.error("Failed to create instance!")
@@ -282,6 +282,12 @@ class EC2VM(VMResource):
             return 'terminated' in self.get_state()
         return True
 
+    def pause(self, wait=False):
+        raise UnSupportedAction('No such operation in ec2')
+
+    def unpause(self, wait=False):
+        raise UnSupportedAction('No such operation in ec2')
+
     def send_nmi(self):
         try:
             LOG.info("Send diagnostic interrupt to %s" %
@@ -344,6 +350,9 @@ class EC2VM(VMResource):
             return True
         else:
             return False
+
+    def is_paused(self):
+        raise UnSupportedStatus("No such state in ec2")
 
     def attach_block(self, disk, target, wait=True, timeout=120):
         try:
