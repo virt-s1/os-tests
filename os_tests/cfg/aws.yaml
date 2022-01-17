@@ -1,4 +1,4 @@
-# This is a template for provison aws resources
+# This is a template for provison aws resources, you can copy it any place you want to edit
 Cloud:
     provider : aws
 # aws account profile name, default is default

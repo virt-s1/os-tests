@@ -1,8 +1,14 @@
 from abc import ABCMeta, abstractmethod
 
-class UnSupportedOperation(Exception):
+class UnSupportedAction(Exception):
     """
-    raise it if the operation is not supported
+    raise if the action is not supported
+    """
+    pass
+
+class UnSupportedStatus(Exception):
+    """
+    raise it if the status is not supported
     """
     pass
 
@@ -74,6 +80,12 @@ class VMResource(BaseResource):
         :return: vm's ip or FQDN
         """
 
+    def ipv6_address(self):
+        """
+        get vm's floating ipv6
+        :return: vm's ipv6 or FQDN
+        """
+
     @property
     @abstractmethod
     def disk_count(self):
@@ -105,26 +117,42 @@ class VMResource(BaseResource):
         :param wait: Wait for vm rebooted
         :return: raise Exception if VM reboot failed
         """
-    
+
+    @abstractmethod
+    def pause(self, wait=False):
+        """
+        pause VM
+        :param wait: Wait for vm paused
+        :return: return True|False|UnSupportedAction
+        """
+
+    @abstractmethod
+    def unpause(self, wait=False):
+        """
+        unpause VM
+        :param wait: Wait for vm active
+        :return: return True|False|UnSupportedAction
+        """
+
     @abstractmethod
     def send_nmi(self):
         """
         send nmi event to vm
-        :return: raise Exception if VM send nmi failed
+        :return: return True|False|UnSupportedAction
         """
 
     @abstractmethod
     def send_hibernation(self):
         """
         send hibernation request to vm
-        :return: raise Exception if VM send hibernation failed
+        :return: return True|False|UnSupportedAction
         """
 
     @abstractmethod
     def get_console_log(self):
         """
         get console log or retrive debug log if vm hang or panic
-        :return: console log as str
+        :return: console log as str or other info when call it
         """
 
     @abstractmethod
@@ -139,6 +167,13 @@ class VMResource(BaseResource):
         """
         check if vm is stopped
         :return: return True or False
+        """
+
+    @abstractmethod
+    def is_paused(self):
+        """
+        check if vm is paused
+        :return: return True|False|UnSupportedStatus
         """
 
     @abstractmethod
