@@ -78,21 +78,28 @@ Note: only support aws for now, other platforms is in planning. The config templ
 
 `# os-tests -p test_change_clocksource`  
 
-### All installed files
+### All installed files and dirs
 
 You can list all installed files via `pip show -f os-tests` simply.  
-The test files are under "os_tests/tests" directory.
 
-The config files with defaul setting are under "os_tests/cfg".  
-You can update the default setting in "os-tests.yaml".
+```bash
+os_tests
+├── cfg       ->configration files
+├── data      ->data files for log checking
+├── libs      ->libs including resource(vm, disk, network)/func definenation
+├── templates ->template for generating html,xml report
+├── tests     ->all tests files location
+└── utils     ->3rd party utils, ltp, blktests and others
+```
 
-If you want to run os-tests all cases in remote node to support lifecyce cases which needs reboot.  
-Please specify below options in static configuration:  
-remote_node:   
-remote_user: ec2-user  
-remote_keyfile:   
+### Recommended pkgs in test system  
 
-It equals calling in command line directly.
+os-tests will try to install required pkgs from default repo during run, but it would be better to have them if no repo provided.
+List RHEL only because CentOS Stream and Fedora usually have public repo available.
+
+RHEL-7: install,automake,autoconf,sysstat,gcc,unzip,wget,quota,bzip2,iperf3,pciutils,fio,psmisc,expect,ntpdate,perf,nvme-cli,pciutils,fio,git,tar,nfs-utils,libvirt,qemu-kvm,kernel-debug,python3,dracut-fips,podman,strace  
+RHEL-8: make,automake,autoconf,sysstat,gcc,unzip,wget,quota,bzip2,iperf3,pciutils,fio,psmisc,expect,perf,nvme-cli,pciutils,fio,php-cli,php-xml,php-json,libaio-devel,blktrace,fio,nvme-cli,git,tar,rng-tools,nfs-utils,libvirt,qemu-kvm,kernel-debug,python3,dracut-fips,podman,xdp-tools,openssl-devel,strace  
+RHEL-9: make,automake,autoconf,sysstat,gcc,unzip,wget,quota,bzip2,iperf3,pciutils,fio,psmisc,expect,perf,nvme-cli,pciutils,fio,libaio-devel,blktrace,fio,nvme-cli,git,tar,rng-tools,nfs-utils,libvirt,qemu-kvm,python3,dracut-fips,kernel-debug,python3-pip,hostname,podman,xdp-tools,openssl-devel,glibc-all-langpacks,strace
 
 ### The log file
 

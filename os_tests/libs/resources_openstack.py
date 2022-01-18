@@ -217,6 +217,7 @@ class OpenstackVM(VMResource):
             LOG.error("Failed to get console log! %s" % err)
             return False, err
 
+    @property
     def disk_count(self):
         raise NotImplementedError
 
