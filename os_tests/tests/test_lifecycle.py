@@ -231,7 +231,7 @@ class TestLifeCycle(unittest.TestCase):
             # rpm -q NetworkManager
         """
         utils_lib.run_cmd(self, r'sudo cat /etc/resolv.conf',
-                    expect_ret=0, expect_kw='search,nameserver', msg='check resolv.conf content')
+                    expect_ret=0, expect_kw='nameserver', msg='check resolv.conf content')
         utils_lib.run_cmd(self, r'sudo cp -f /etc/resolv.conf /etc/resolv.conf.orig',
                     expect_ret=0, msg='backup /etc/resolv.conf')
         utils_lib.run_cmd(self, r'sudo truncate -s0 /etc/resolv.conf',
@@ -240,6 +240,8 @@ class TestLifeCycle(unittest.TestCase):
         time.sleep(10)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
+        utils_lib.run_cmd(self, r'sudo cat /etc/resolv.conf',
+                    expect_ret=0, expect_kw='nameserver', msg='check content after reboot')
         utils_lib.run_cmd(self, r'sudo diff -u /etc/resolv.conf /etc/resolv.conf.orig',
                     expect_ret=0, msg='check if content identical after reboot')
 
@@ -303,6 +305,9 @@ no plan to fix it in the near future!")
         output = utils_lib.run_cmd(self, cmd, msg='Get kernel version')
         kernels_list = output.split('\n')
         for kernel in kernels_list:
+            if kernel is None or kernel == '' or len(kernel) < 6:
+                continue
+            self.log.info('try to swith {}'.format(kernel))
             kernel_vmlinuz = "/boot/" + kernel.replace('kernel','vmlinuz')
             kernel_initramfs = "/boot/" + kernel.replace('kernel','initramfs') + ".img"
             cmd = "sudo kexec -l %s --initrd=%s --reuse-cmdline" % (kernel_vmlinuz, kernel_initramfs)
@@ -341,6 +346,9 @@ no plan to fix it in the near future!")
         output = utils_lib.run_cmd(self, cmd, msg='Get kernel version')
         kernels_list = output.split('\n')
         for kernel in kernels_list:
+            if kernel is None or kernel == '' or len(kernel) < 6:
+                continue
+            self.log.info('try to swith {}'.format(kernel))
             kernel_vmlinuz = "/boot/" + kernel.replace('kernel','vmlinuz')
             kernel_initramfs = "/boot/" + kernel.replace('kernel','initramfs') + ".img"
             cmd = "sudo kexec -l %s --initrd=%s --reuse-cmdline" % (kernel_vmlinuz, kernel_initramfs)

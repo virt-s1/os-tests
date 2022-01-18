@@ -138,7 +138,11 @@ class TestVMOperation(unittest.TestCase):
         pass_criteria: 
             The online disks count is the same with attached disks.
         '''
-        assigned_disk = self.vm.disk_count
+        try:
+            assigned_disk = self.vm.disk_count
+        except NotImplementedError as err:
+            self.skipTest("current {} not bring out this disk_count property".format(self.vm.provider))
+
         online_disk = utils_lib.get_disk_online(self)
         if assigned_disk != online_disk:
             self.fail('disk assigned:{} not match disk online:{}'.format(assigned_disk, online_disk))
@@ -281,7 +285,7 @@ class TestVMOperation(unittest.TestCase):
         try:
             is_success = self.vm.send_nmi()
         except UnSupportedAction as err:
-            self.skipTest("current {} support nmi operation".format(self.vm.provider))
+            self.skipTest("current {} not support nmi operation".format(self.vm.provider))
         if not is_success:
             self.fail("Cannot trigger panic via nmi!")
         time.sleep(10)
@@ -334,7 +338,7 @@ class TestVMOperation(unittest.TestCase):
         try:
             is_success = self.vm.send_nmi()
         except UnSupportedAction as err:
-            self.skipTest("current {} support nmi operation".format(self.vm.provider))
+            self.skipTest("current {} not support nmi operation".format(self.vm.provider))
         if not is_success:
             self.fail("Cannot trigger panic via nmi!")
         time.sleep(10)

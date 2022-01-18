@@ -296,8 +296,15 @@ available_clocksource'
             No segmentation fault found.
         '''
         utils_lib.is_cmd_exist(self, cmd='dmidecode')
-        cmd = "sudo dmidecode --dump-bin {}/debug/dmidecode_debug.bin".format(self.log_dir)
-        utils_lib.run_cmd(self, cmd, msg='save dmidecode_debug.bin for debug purpose, please attach it if file bug')
+        if self.params['remote_node'] is not None:
+            binfile = '/tmp/dmidecode_debug.bin'
+            cmd = "sudo dmidecode --dump-bin {}".format(binfile)
+            utils_lib.run_cmd(self, cmd, msg='save dmidecode_debug.bin for debug purpose, please attach it if file bug')
+            self.log.info('retrive {} from remote'.format(binfile))
+            self.SSH.get_file(rmt_file=binfile,local_file='{}/debug/dmidecode_debug.bin'.format(self.log_dir))
+        else:
+            cmd = "sudo dmidecode --dump-bin {}/debug/dmidecode_debug.bin".format(self.log_dir)
+            utils_lib.run_cmd(self, cmd, msg='save dmidecode_debug.bin for debug purpose, please attach it if file bug')
         cmd = "sudo dmidecode --dump"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='Segmentation')
 
