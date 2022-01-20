@@ -82,17 +82,49 @@ class TestGeneralCheck(unittest.TestCase):
         utils_lib.run_cmd(self,cmd, expect_not_ret=0, msg='check ret')
 
     def test_check_avclog(self):
-        '''
-        polarion_id: N/A
-        '''
+        """
+        case_name:
+            test_check_avclog
+        component:
+            selinux-policy
+        bugzilla_id:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            test if avc log exist
+        key_steps:
+            sudo ausearch -m AVC -ts today
+        expect_result:
+            no avc log returned
+        """
         cmd = "sudo ausearch -m AVC -ts today"
         utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='Checking avc log!', rmt_get_pty=True)
 
     def test_check_avclog_nfs(self):
-        '''
-        bz: 1771856
-        polarion_id: N/A
-        '''
+        """
+        case_name:
+            test_check_avclog_nfs
+        component:
+            kernel
+        bugzilla_id:
+            1771856
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
+        description:
+            Check if there's avc log after mounting
+        key_steps:
+            1.check if there's nfs installed
+            2.# systemctl start nfs-server.service
+            3.# mkdir /tmp/testrw
+            4.# chmod -R 777 /tmp/testrw
+            5.# exportfs -o rw,insecure_locks,all_squash,fsid=1 *:/tmp/testrw
+            6.# mount -t nfs 127.0.0.1:/tmp/testrw /mnt
+        expect_result:
+            no new avc log generated
+        """
         time_start = utils_lib.run_cmd(self, "date '+%T'", msg='retrive test system current time')
         self.log.info("Check no permission denied at nfs server - bug1655493")
         utils_lib.is_pkg_installed(self,pkg_name='nfs-utils')
@@ -171,11 +203,27 @@ available_clocksource'
                     msg='Checking available clocksource')
 
     def test_check_boot_time(self):
-        '''
-        bz: 1776710
-        polarion_id: RHEL7-93100
-        check the boot time.
-        '''
+        """
+        case_name:
+            test_check_boot_time
+        component:
+            rng-tools
+        bugzilla_id:
+            1776710
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if there's boot time delay
+        key_steps:
+            1.check journal log and system bootup time,
+            2.compare the bootup time with max boot time
+        expect_result:
+            real boot time doesn't delay compared to max_boot_time
+        debug_want:
+            journal log
+        """
         max_boot_time = self.params.get('max_boot_time')
         boot_time_sec = utils_lib.getboottime(self)
         utils_lib.compare_nums(self, num1=boot_time_sec, num2=max_boot_time, ratio=0, msg="Compare with cfg specified max_boot_time")
@@ -199,17 +247,49 @@ available_clocksource'
         utils_lib.check_log(self, 'warn', log_cmd='dmesg')
 
     def test_check_dmesg_unable(self):
-        '''
-        bz: 1779454
-        polarion_id:
-        '''
+        """
+        case_name:
+            test_check_dmesg_unable
+        component:
+            kernel
+        bugzilla_id:
+            1779454
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if there's any unable in dmesg
+        key_steps:
+            ckeck dmesg log
+        expect_result:
+            There's no unable in dmesg log
+        debug_want:
+            dmesg log
+        """
         utils_lib.check_log(self, 'unable', log_cmd='dmesg')
 
     def test_check_dmesg_calltrace(self):
-        '''
-        bz: 1777179
-        polarion_id: RHEL7-103851
-        '''
+        """
+        case_name:
+            test_check_dmesg_calltrace
+        component:
+            kernel
+        bugzilla_id:
+            1777179
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
+        description:
+            Check if there is cal trace in dmesg
+        key_steps:
+            dmesg
+        expect_result:
+            no call trace returned
+        debug_want:
+            dmesg output
+        """
         utils_lib.run_cmd(self, 'dmesg', expect_ret=0, expect_not_kw='Call trace,Call Trace', msg="Check there is no call trace in dmesg")
 
     def test_check_dmesg_unknownsymbol(self):
@@ -631,10 +711,27 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         utils_lib.check_log(self, expect_not_kws, skip_words='test_check_journalctl_disabled', rmt_redirect_stdout=True)
 
     def test_check_journalctl_dumpedcore(self):
-        '''
-        polarion_id:
-        bz: 1797973
-        '''
+        """
+        case_name:
+            test_check_journalctl_dumpedcore
+        component:
+            sssd
+        bugzilla_id:
+            1797973
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if system can enable fips successfully
+        key_steps:
+            1.enable fips and reboot the system.
+            2.dumped core
+        expect_result:
+            no core dump
+        debug_want:
+            redirected output file
+        """
         # redirect journalctl output to a file as it is not get return
         # normally in RHEL7
         utils_lib.check_log(self, 'dumped core', skip_words='test_check_journalctl_dumpedcore', rmt_redirect_stdout=True)
@@ -726,6 +823,26 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         utils_lib.check_log(self, 'warn', skip_words='test_check',rmt_redirect_stdout=True)
 
     def test_check_journalctl_invalid(self):
+        """
+        case_name:
+            test_check_journalctl_invalid
+        component:
+            sg3_utils
+        bugzilla_id:
+            1750417
+        is_customer_case:
+            True
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if there's invalid in journal log
+        key_steps:
+            check journal log
+        expect_result:
+            no unexpected invalid in journal log
+        debug_want:
+            journal log
+        """
         '''
         polarion_id:
         bz:1750417
@@ -945,6 +1062,7 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
             self.log.info("memused:{} < memtotal:{}".format(memused, memtotal))
 
     def test_check_memleaks(self):
+
         '''
         polarion_id: RHEL-117648
         '''

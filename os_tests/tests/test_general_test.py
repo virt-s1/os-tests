@@ -10,9 +10,26 @@ class TestGeneralTest(unittest.TestCase):
         self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='dmesg -T')
 
     def test_change_clocksource(self):
-        '''
-        polarion_id:
-        '''
+        """
+        case_name:
+            test_change_clocksource
+        component:
+            kernal
+        bugzilla_id:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            test if can change clock source
+        key_steps:
+            1.sudo cat /sys/devices/system/clocksource/clocksource0/current_clocksource
+            2.sudo cat /sys/devices/system/clocksource/clocksource0/available_clocksource
+            3.sudo bash -c \'echo "%s" > /sys/devices/system/clocksource/clocksource0/current_clocksource
+            4.sudo cat /sys/devices/system/clocksource/clocksource0/current_clocksource
+            5.dmesg|tail -30
+        expect_result:
+            current clock source is changed
+        """
         output = utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
         cmd = 'sudo cat /sys/devices/system/clocksource/clocksource0/\
 current_clocksource'
@@ -279,15 +296,25 @@ int main(int argc, char *argv[])
             self.fail("'Your kernel looks fine' not found in {}".format(out))
 
     def test_fsadm_resize(self):
-        '''
-        bz: 1905705
-        polarion_id: N/A
-        fsadm resize should not crash as below without NEW_SIZE specified
-        # fsadm resize $(findmnt -n -o source /)
-        /sbin/fsadm: line 818: $3: unbound variable
-        expected result:
-        fsadm does nothing since the filesystem is already at maximum size
-        '''
+        """
+        case_name:
+            test_fsadm_resize
+        component:
+            lvm2
+        bugzilla_id:
+            1905705
+        is_customer_case:
+            True
+        maintainer:
+            xiliang@redhat.com
+        description:
+            test if "fsdadm resize" can run normally
+        key_steps:
+            1.check cmd fsadm
+            2.sudo fsadm resize $(findmnt -n -o source /)
+        expect_result:
+            fsadm does nothing since the filesystem is already at maximum size
+        """
         utils_lib.is_cmd_exist(self, 'fsadm')
         utils_lib.run_cmd(self, 'sudo fsadm resize $(findmnt -n -o source /)', expect_ret=0,
             expect_not_kw="unbound variable", msg="fsadm should not crash")
@@ -543,10 +570,36 @@ RUN touch /tmp/test.txt
                 self.log.info('no leak found')
 
     def test_podman_rm_stopped(self):
-        '''
-        bz: 1913295
-        des: podman can remove a stopped container
-        '''
+        """
+        case_name:
+            test_podman_rm_stopped
+        component:
+            podman
+        bugzilla_id:
+            1913295
+        is_customer_case:
+            True
+        maintainer:
+            xiliang@redhat.com
+        description:
+            Test podman can remove a stopped container
+        key_steps:
+            1.podman ps -a
+            2.podman rm -a -f
+            3.podman run --name myctr1 -td quay.io/libpod/alpine
+            4.podman run --name myctr2 -td quay.io/libpod/alpine
+            5.timeout 5 podman exec myctr1 sleep 10
+            6.podman kill myctr1
+            7.podman inspect myctr1
+            8.podman rm myctr1
+            9.timeout 5 podman exec myctr2 sleep 10
+            10.podman stop myctr2
+            11.podman inspect myctr2
+            12.podman rm myctr2
+            13.podman ps
+        expect_result:
+            There's no myctr1 and myctr2 left after removing them
+        """
         self.log.info("Test podman can remove a stopped container")
         utils_lib.is_cmd_exist(self, 'podman')
         cmd = "podman ps -a"
