@@ -232,18 +232,84 @@ available_clocksource'
         '''
         polarion_id: RHEL7-103851
         '''
+        """
+        case_name:
+            test_check_dmesg_error
+        component:
+            kernal
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if there are error in dmesg
+        key_steps:
+            dmesg
+        expect_result:
+            no error return
+        debug_want:
+            dmesg
+        """
         utils_lib.check_log(self, 'error', log_cmd='dmesg')
 
     def test_check_dmesg_fail(self):
         '''
         polarion_id: RHEL7-103851
         '''
+        """
+        case_name:
+            test_check_dmesg_fail
+        component:
+            kernal
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if there are fail in dmesg
+        key_steps:
+            dmesg
+        expect_result:
+            no fail return
+        debug_want:
+            dmesg
+        """
         utils_lib.check_log(self, 'fail', log_cmd='dmesg')
 
     def test_check_dmesg_warn(self):
         '''
         polarion_id: RHEL7-103851
         '''
+        """
+        case_name:
+            test_check_dmesg_warn
+        component:
+            kernal
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if there are warn in dmesg
+        key_steps:
+            dmesg
+        expect_result:
+            no warn return
+        debug_want:
+            dmesg
+        """
         utils_lib.check_log(self, 'warn', log_cmd='dmesg')
 
     def test_check_dmesg_unable(self):
