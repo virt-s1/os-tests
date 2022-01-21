@@ -479,10 +479,31 @@ available_clocksource'
                     msg='Check there is no "OUT OF SPEC" in dmidecode output')
 
     def test_check_cpu_vulnerabilities(self):
-        '''
-        check if cpu has unexpected Vulnerable
-        '''
-
+        """
+        case_name:
+            test_check_cpu_vulnerabilities
+        component:
+            kenel
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if cpu has unexpected Vulnerable
+        key_steps:
+            1.rpm -qa|grep microcode
+            2.rpm -qa|grep linux-firmware
+            3.sudo grep . /sys/devices/system/cpu/vulnerabilities/* | sed 's/:/^/' | column -t -s^
+            4.get cpu vulnerabilities according to server type
+        expect_result:
+            There's no vulnerable returned
+        debug_want:
+            N/A
+        """
         utils_lib.run_cmd(self, "rpm -qa|grep microcode", msg='Get microcode version')
         utils_lib.run_cmd(self, "rpm -qa|grep linux-firmware",msg='get linux-firmware pkg version')
         check_cmd = r"sudo grep . /sys/devices/system/cpu/vulnerabilities/* | \
@@ -493,7 +514,7 @@ sed 's/:/^/' | column -t -s^"
         if utils_lib.is_metal(self):
             self.log.info(
                 "Bare metal instance should not have any vulnerable (microload loaded).")
-            cmd = r"sudo grep . /sys/devices/system/cpu/vulnerabilities/* | \
+            check_cmd = r"sudo grep . /sys/devices/system/cpu/vulnerabilities/* | \
 sed 's/:/^/' | column -t -s^"
         elif 'el7' in output:
             self.log.info(
@@ -796,6 +817,29 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         utils_lib.check_log(self, 'dumped core', skip_words='test_check_journalctl_dumpedcore', rmt_redirect_stdout=True)
 
     def test_check_journalctl_error(self):
+        """
+        case_name:
+            test_check_journalctl_error
+        component:
+            kernel
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check the boot message
+        key_steps:
+            check dmesg
+            check /var/log/mesages
+        expect_result:
+            no unexpected error
+        debug_want:
+            dmesg
+        """
         '''
         polarion_id: RHEL7-103851
         '''
@@ -876,6 +920,29 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         utils_lib.check_log(self, 'unexpected', skip_words='test_check_journalctl_unexpected', rmt_redirect_stdout=True)
 
     def test_check_journalctl_warn(self):
+        """
+        case_name:
+            test_check_journalctl_warn
+        component:
+            kernel
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check the boot message
+        key_steps:
+            check dmesg
+            check /var/log/mesages
+        expect_result:
+            no unexpected warn
+        debug_want:
+            dmesg
+        """
         '''
         polarion_id: RHEL7-103851
         '''
@@ -1097,6 +1164,30 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         self.assertEqual(lspci_out, lsblk_out, msg="No all nvme pci device nvme driver are loaded")
 
     def test_check_meminfo_memfree(self):
+        """
+        case_name:
+            test_check_meminfo_memfree
+        component:
+            kernel
+        bugzilla_id:
+            1880090
+        is_customer_case:
+            True
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if the numa information is correct
+        key_steps:
+            1.sudo cat /sys/devices/system/node/node0/meminfo
+            2.compare memfree,memtotal and memused
+        expect_result:
+            memfree < memtotal
+            memused < memtotal
+        debug_want:
+            /sys/devices/system/node/node0/meminfo
+        """
         '''
         rhbz: 1880090
         MemFree should less than MemTotal
@@ -1121,7 +1212,29 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
             self.log.info("memused:{} < memtotal:{}".format(memused, memtotal))
 
     def test_check_memleaks(self):
-
+        """
+        case_name:
+            test_check_memleaks
+        component:
+            kernel
+        bugzilla_id:
+            161666
+        is_customer_case:
+            True
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if there are memory leak
+        key_steps:
+            1.sudo echo scan > /sys/kernel/debug/kmemleak
+            2.cat /sys/kernel/debug/kmemleak
+        expect_result:
+            no return
+        debug_want:
+            /sys/kernel/debug/kmemleak
+        """
         '''
         polarion_id: RHEL-117648
         '''
@@ -1190,11 +1303,30 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
             self.fail(f'{command}(pid:{lastpid}) have abnormal usage of Memory.')
 
     def test_check_microcode_load(self):
-        '''
-        bz: 1607899
-        des: Don't attempt to perform early microcode update on virtualized guests
-        This case checks it from dmesg output.
-        '''
+        """
+        case_name:
+            test_check_microcode_load
+        component:
+            kernel
+        bugzilla_id:
+            1607899
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if microbe performed early update
+        key_steps:
+            1.rpm -qa|grep microcode
+            2.rpm -qa|grep linux-firmware
+            3.dmesg|grep microcode
+        expect_result:
+            microme didn't updated early
+        debug_want:
+            dmesg log
+        """
         cpu_info = utils_lib.run_cmd(self,
                     'lscpu',
                     expect_ret=0,
@@ -1215,10 +1347,29 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
                         msg='microcode should not load in VMs')
 
     def test_check_nouveau(self):
-        '''
-        polarion_id: N/A
-        bz: 1349927, 1645772
-        '''
+        """
+        case_name:
+            test_check_nouveau
+        component:
+            kernel
+        bugzilla_id:
+            1349927, 1645772
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if nouveau is in blacklist and is not loaded
+        key_steps:
+            lsmod
+            cat /proc/cmdline
+        expect_result:
+            nouveau is no in lsmod and is in blacklist
+        debug_want:
+            lsmod
+        """
         utils_lib.is_aws(self, action='cancel')
         utils_lib.run_cmd(self, 'cat /etc/redhat-release', cancel_not_kw='CentOS', msg='skip this check on centos, rhbz1645772')
         self.log.info("nouveau is not required in ec2, make sure it is \
