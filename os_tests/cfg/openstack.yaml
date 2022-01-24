@@ -1,4 +1,6 @@
-# This is a template for provison openstack resources, you can copy it any place you want to edit
+# This is ONLY a template for provision openstack resources. 
+# Please copy it to other place that you want to edit
+# Not recommend you edit it directly in case leaking sensitive information.
 Cloud:
   provider: openstack
   auth_url: https://rhos-d.infra.prod.upshift.rdu2.redhat.com:13000/v3/

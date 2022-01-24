@@ -77,6 +77,9 @@ def main():
     elif not args.is_listcase:
         log.info("{}Stage: Init Connection to System{}".format('='*20,'='*20))
         ssh = init_ssh(params=cfg_data)
+        if ssh is None and vm:
+            vm.delete()
+            sys.exit(1)
 
     if not args.platform_profile:
         skip_patterns = skip_patterns + ',test_vm_operation'

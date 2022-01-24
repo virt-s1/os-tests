@@ -66,6 +66,11 @@ def init_provider(params=None):
         vm = OpenstackVM(params)
         vm.create()
         disk = None
+    if 'ali' in params['Cloud']['provider']:
+        from .resources_alicloud import AlibabaVM
+        vm = AlibabaVM(params)
+        vm.create()
+        disk = None
     return vm, disk
 
 def init_ssh(params=None, timeout=600, interval=10, log=None):
@@ -112,8 +117,8 @@ def get_cfg(cfg_file = None):
     # Result dir
     with open(cfg_file,'r') as fh:
        keys_data = load(fh, Loader=Loader)
-    if os.path.exists(cfg_file):
-        print("{} config file found!".format(cfg_file))
+    if not os.path.exists(cfg_file):
+        print("{} config file not found!".format(cfg_file))
     return cfg_file, keys_data
 
 def init_case(test_instance):
@@ -158,13 +163,21 @@ def init_case(test_instance):
         if  test_instance.SSH.ssh_client is None:
             test_instance.skipTest("Cannot make ssh connection to remote, please check")
     node_info = "{}/node_info".format(debug_dir)
+    node_info_data = {}
     if not os.path.exists(node_info):
         test_instance.log.info("retrive node info.")
-        release_name = get_os_release_info(test_instance, field="NAME")
-        release_version = get_os_release_info(test_instance, field="VERSION")
-        kernel_version = run_cmd(test_instance, 'uname -r')
+        node_info_data['release_name'] = get_os_release_info(test_instance, field="NAME").rstrip('\n| ')
+        node_info_data['release_version'] = get_os_release_info(test_instance, field="VERSION").rstrip('\n| ')
+        node_info_data['kernel_version'] = run_cmd(test_instance, 'uname -r').rstrip('\n| ')
+        node_info_data['product_name'] = run_cmd(test_instance, 'cat /sys/devices/virtual/dmi/id/product_name').rstrip('\n| ')
+        node_info_data['sys_vendor'] = run_cmd(test_instance, 'cat /sys/devices/virtual/dmi/id/sys_vendor').rstrip('\n| ')
+        #with open(node_info, 'w+') as fh:
+        #    fh.write("{} {} - {}".format(release_name, release_version, kernel_version))
         with open(node_info, 'w+') as fh:
-            fh.write("{} {} - {}".format(release_name, release_version, kernel_version))
+            dump(node_info_data,fh)
+        test_instance.node_info = node_info_data
+    else:
+        _, test_instance.node_info = get_cfg(cfg_file=node_info)
 
 def finish_case(test_instance):
     """finish case
@@ -504,6 +517,25 @@ def is_ali(test_instance, action=None):
         if action == "cancel":
             test_instance.skipTest("Cancel it in non ali system.")
         test_instance.log.info("Not an ali system.")
+    return False
+
+def is_openstack(test_instance, action=None):
+    '''
+    Check whether system is a openstack system.
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+        action {string} -- cancel case if it is not a ali system
+    Return:
+        openstack: return True
+        other: return False
+    '''
+    if 'OpenStack' in test_instance.node_info.get('product_name'):
+        test_instance.log.info("Openstack system.")
+        return True
+    else:
+        if action == "cancel":
+            test_instance.skipTest("Cancel it in non Openstack system.")
+        test_instance.log.info("Not an Openstack system.")
     return False
 
 def is_metal(test_instance, action=None):

@@ -1,4 +1,6 @@
-# This is a template for provison aws resources, you can copy it any place you want to edit
+# This is ONLY a template for provision aws resources. 
+# Please copy it to other place that you want to edit
+# Not recommend you edit it directly in case leaking sensitive information.
 Cloud:
     provider : aws
 # aws account profile name, default is default
