@@ -229,21 +229,78 @@ available_clocksource'
         utils_lib.compare_nums(self, num1=boot_time_sec, num2=max_boot_time, ratio=0, msg="Compare with cfg specified max_boot_time")
 
     def test_check_dmesg_error(self):
-        '''
-        polarion_id: RHEL7-103851
-        '''
+        """
+        case_name:
+            test_check_dmesg_error
+        component:
+            kernal
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if there are error in dmesg
+        key_steps:
+            dmesg
+        expect_result:
+            no error return
+        debug_want:
+            dmesg
+        """
         utils_lib.check_log(self, 'error', log_cmd='dmesg')
 
     def test_check_dmesg_fail(self):
-        '''
-        polarion_id: RHEL7-103851
-        '''
+        """
+        case_name:
+            test_check_dmesg_fail
+        component:
+            kernal
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if there are fail in dmesg
+        key_steps:
+            dmesg
+        expect_result:
+            no fail return
+        debug_want:
+            dmesg
+        """
         utils_lib.check_log(self, 'fail', log_cmd='dmesg')
 
     def test_check_dmesg_warn(self):
-        '''
-        polarion_id: RHEL7-103851
-        '''
+        """
+        case_name:
+            test_check_dmesg_warn
+        component:
+            kernal
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if there are warn in dmesg
+        key_steps:
+            dmesg
+        expect_result:
+            no warn return
+        debug_want:
+            dmesg
+        """
         utils_lib.check_log(self, 'warn', log_cmd='dmesg')
 
     def test_check_dmesg_unable(self):
@@ -420,10 +477,31 @@ available_clocksource'
                     msg='Check there is no "OUT OF SPEC" in dmidecode output')
 
     def test_check_cpu_vulnerabilities(self):
-        '''
-        check if cpu has unexpected Vulnerable
-        '''
-
+        """
+        case_name:
+            test_check_cpu_vulnerabilities
+        component:
+            kenel
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if cpu has unexpected Vulnerable
+        key_steps:
+            1.rpm -qa|grep microcode
+            2.rpm -qa|grep linux-firmware
+            3.sudo grep . /sys/devices/system/cpu/vulnerabilities/* | sed 's/:/^/' | column -t -s^
+            4.get cpu vulnerabilities according to server type
+        expect_result:
+            There's no vulnerable returned
+        debug_want:
+            N/A
+        """
         utils_lib.run_cmd(self, "rpm -qa|grep microcode", msg='Get microcode version')
         utils_lib.run_cmd(self, "rpm -qa|grep linux-firmware",msg='get linux-firmware pkg version')
         check_cmd = r"sudo grep . /sys/devices/system/cpu/vulnerabilities/* | \
@@ -434,7 +512,7 @@ sed 's/:/^/' | column -t -s^"
         if utils_lib.is_metal(self):
             self.log.info(
                 "Bare metal instance should not have any vulnerable (microload loaded).")
-            cmd = r"sudo grep . /sys/devices/system/cpu/vulnerabilities/* | \
+            check_cmd = r"sudo grep . /sys/devices/system/cpu/vulnerabilities/* | \
 sed 's/:/^/' | column -t -s^"
         elif 'el7' in output:
             self.log.info(
@@ -737,9 +815,29 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         utils_lib.check_log(self, 'dumped core', skip_words='test_check_journalctl_dumpedcore', rmt_redirect_stdout=True)
 
     def test_check_journalctl_error(self):
-        '''
-        polarion_id: RHEL7-103851
-        '''
+        """
+        case_name:
+            test_check_journalctl_error
+        component:
+            kernel
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check the boot message
+        key_steps:
+            check dmesg
+            check /var/log/mesages
+        expect_result:
+            no unexpected error
+        debug_want:
+            dmesg
+        """
         utils_lib.check_log(self, 'error', skip_words='test_check,UpdateGSErrors', rmt_redirect_stdout=True)
 
     def test_check_journalctl_fail(self):
@@ -817,9 +915,29 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         utils_lib.check_log(self, 'unexpected', skip_words='test_check_journalctl_unexpected', rmt_redirect_stdout=True)
 
     def test_check_journalctl_warn(self):
-        '''
-        polarion_id: RHEL7-103851
-        '''
+        """
+        case_name:
+            test_check_journalctl_warn
+        component:
+            kernel
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check the boot message
+        key_steps:
+            check dmesg
+            check /var/log/mesages
+        expect_result:
+            no unexpected warn
+        debug_want:
+            dmesg
+        """
         utils_lib.check_log(self, 'warn', skip_words='test_check',rmt_redirect_stdout=True)
 
     def test_check_journalctl_invalid(self):
@@ -1038,14 +1156,30 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         self.assertEqual(lspci_out, lsblk_out, msg="No all nvme pci device nvme driver are loaded")
 
     def test_check_meminfo_memfree(self):
-        '''
-        rhbz: 1880090
-        MemFree should less than MemTotal
-        Fail output:
-        # cat /sys/devices/system/node/node0/meminfo
-        Node 0 MemTotal:       30774804 kB
-        Node 0 MemFree:        31505560 kB
-        '''
+        """
+        case_name:
+            test_check_meminfo_memfree
+        component:
+            kernel
+        bugzilla_id:
+            1880090
+        is_customer_case:
+            True
+        testplan:
+            N/A
+        maintainer:check if the numa information is correct
+            xiliang@redhat.com
+        description:
+            check if the numa node memory information is correct
+        key_steps:
+            1.sudo cat /sys/devices/system/node/node0/meminfo
+            2.compare memfree,memtotal and memused
+        expect_result:
+            memfree < memtotal
+            memused < memtotal
+        debug_want:
+            /sys/devices/system/node/node0/meminfo
+        """
         out = utils_lib.run_cmd(self, 'sudo cat /sys/devices/system/node/node0/meminfo', expect_ret=0,
                     msg="Check MemFree less than MemTotal")
         memtotal = re.findall('[\d]+',re.findall('MemTotal:.*[\d]*',out)[0])[0]
@@ -1062,10 +1196,29 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
             self.log.info("memused:{} < memtotal:{}".format(memused, memtotal))
 
     def test_check_memleaks(self):
-
-        '''
-        polarion_id: RHEL-117648
-        '''
+        """
+        case_name:
+            test_check_memleaks
+        component:
+            kernel
+        bugzilla_id:
+            161666
+        is_customer_case:
+            True
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if there are memory leak
+        key_steps:
+            1.sudo echo scan > /sys/kernel/debug/kmemleak
+            2.cat /sys/kernel/debug/kmemleak
+        expect_result:
+            no return
+        debug_want:
+            /sys/kernel/debug/kmemleak
+        """
         self.log.info("Check memory leaks")
         utils_lib.run_cmd(self,
                     'uname -a',
@@ -1131,11 +1284,30 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
             self.fail(f'{command}(pid:{lastpid}) have abnormal usage of Memory.')
 
     def test_check_microcode_load(self):
-        '''
-        bz: 1607899
-        des: Don't attempt to perform early microcode update on virtualized guests
-        This case checks it from dmesg output.
-        '''
+        """
+        case_name:
+            test_check_microcode_load
+        component:
+            kernel
+        bugzilla_id:
+            1607899
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if microbe performed early update in x86 metal systems
+        key_steps:
+            1.rpm -qa|grep microcode
+            2.rpm -qa|grep linux-firmware
+            3.dmesg|grep microcode
+        expect_result:
+            microcode loaded in metal system and microcode not loaded in virtual system.
+        debug_want:
+            dmesg log
+        """
         cpu_info = utils_lib.run_cmd(self,
                     'lscpu',
                     expect_ret=0,
@@ -1156,10 +1328,29 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
                         msg='microcode should not load in VMs')
 
     def test_check_nouveau(self):
-        '''
-        polarion_id: N/A
-        bz: 1349927, 1645772
-        '''
+        """
+        case_name:
+            test_check_nouveau
+        component:
+            kernel
+        bugzilla_id:
+            1349927, 1645772
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if nouveau is in blacklist and is not loaded in aws
+        key_steps:
+            lsmod
+            cat /proc/cmdline
+        expect_result:
+            nouveau is no in lsmod and is in blacklist
+        debug_want:
+            lsmod
+        """
         utils_lib.is_aws(self, action='cancel')
         utils_lib.run_cmd(self, 'cat /etc/redhat-release', cancel_not_kw='CentOS', msg='skip this check on centos, rhbz1645772')
         self.log.info("nouveau is not required in ec2, make sure it is \
@@ -1176,10 +1367,29 @@ in blacklist and not loaded bug1645772")
                     msg="Checking cmdline")
 
     def test_check_nvme_io_timeout(self):
-        '''
-        polarion_id: N/A
-        bz: 1859088
-        '''
+        """
+        case_name:
+            test_check_nvme_io_timeout
+        component:
+            distribution
+        bugzilla_id:
+            1859088
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if the nvme_core.io_timeout is 4294967295 in aws
+        key_steps:
+            1.sudo cat /sys/module/nvme_core/parameters/io_timeout
+            2.sudo cat /proc/cmdline
+        expect_result:
+            nvme_core.io_timeout=4294967295
+        debug_want:
+            io_timeout,cmdline
+        """
         utils_lib.is_aws(self, action='cancel')
         self.log.info("nvme_core.io_timeout=4294967295 is recommended in ec2, make sure it is \
 in cmdline as bug1859088")
@@ -1193,10 +1403,30 @@ in cmdline as bug1859088")
                     msg="Checking cmdline")
 
     def test_check_release_name(self):
-        '''
-        polarion_id: RHEL7-103850
-        bz: 1852657
-        '''
+        """
+        case_name:
+            test_check_release_name
+        component:
+            ec2-images
+        bugzilla_id:
+            1852657
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if the release name is correct
+        key_steps:
+            1.cat /etc/redhat-release
+            2.uname -r
+            3.compare real name and true name
+        expect_result:
+            no other release name found and current name is correct
+        debug_want:
+            redhat-release
+        """
         check_cmd = "cat /etc/redhat-release"
         output = utils_lib.run_cmd(self,check_cmd, expect_ret=0, msg='check release name')
         kernel_ver = utils_lib.run_cmd(self, 'uname -r', msg="Get kernel version")
@@ -1249,11 +1479,30 @@ in cmdline as bug1859088")
         utils_lib.check_log(self, 'unknown', log_cmd='uname -r;cat /proc/self/status', msg='Check no unknown in "/proc/self/status"')
 
     def test_check_product_id(self):
-        '''
-        bz: 1938930
-        issue: RHELPLAN-60817
-        check if product id matches /etc/redhat-release
-        '''
+        """
+        case_name:
+            test_check_product_id
+        component:
+            ec2-images
+        bugzilla_id:
+            1938930
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if product id matches /etc/redhat-release
+        key_steps:
+            1.cat /etc/redhat-release
+            2.rpm -qa|grep redhat-release
+            3.sudo rct cat-cert /etc/pki/product-default/*.pem
+        expect_result:
+            product id matches the one in redhat-release
+        debug_want:
+            /etc/pki/product-default/*.pem
+        """
         check_cmd = "cat /etc/redhat-release"
         output = utils_lib.run_cmd(self,check_cmd, expect_ret=0, cancel_not_kw='CentOS,Fedora', msg='check release name')
         product_id = re.findall('\d.\d', output)[0]
@@ -1443,11 +1692,29 @@ in cmdline as bug1859088")
         utils_lib.run_cmd(self, 'cat {}'.format(self.systemd_analyze_verify_file),expect_ret=0, expect_not_kw='ordering cycle', msg='Check there is no ordering cycle which may block boot up')
 
     def test_check_tsc_deadline_timer(self):
-        '''
-        des: check TSC deadline timer enabled in dmesg
-        bz: 1503160
-        polarion_id: RHEL7-111006
-        '''
+        """
+        case_name:
+            test_check_tsc_deadline_timer
+        component:
+            kernel
+        bugzilla_id:
+            1503160
+        is_customer_case:
+            True
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if TSC deadline timer enabled in dmesg on intel cpu
+        key_steps:
+            1.lscpu
+            2.grep tsc_deadline_timer /proc/cpuinfo
+            3.dmesg|egrep 'TSC deadline timer enabled|TSC deadline timer available
+            4.sudo cat /sys/devices/system/clockevents/clockevent0/current_device
+        expect_result:
+            deadline timer enabled and current device has lapic-deadline
+        debug_want:
+            current_device
+        """
         utils_lib.run_cmd(self,
                     'lscpu',
                     expect_ret=0,
@@ -1499,11 +1766,31 @@ current_device"
             utils_lib.run_cmd(self, 'tuned-adm active', expect_kw='virtual-guest', msg='Should load virtual-guest in vm by default')
 
     def test_check_virtwhat(self):
-        '''
-        bz: 1782435
-        polarion_id: RHEL7-103857
-        test virt-what, not use systemd-detect-virt
-        '''
+        """
+        case_name:
+            test_check_virtwhat
+        component:
+            virt-what
+        bugzilla_id:
+            1782435
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            test if virt-what can run normally
+        key_steps:
+            1.rpm -q virt-what
+            2.sudo virt-what
+            3.lscpu
+            4.compare virt-what result with system type
+        expect_result:
+            virt-what result matchs cpu type without segfault
+        debug_want:
+            N/A
+        """
         utils_lib.is_cmd_exist(self, cmd='virt-what')
         utils_lib.run_cmd(self, "rpm -q virt-what", expect_ret=0, msg='get virt-what version')
         virt_what_output = utils_lib.run_cmd(self, r"sudo virt-what", expect_ret=0)
@@ -1587,9 +1874,29 @@ current_device"
             self.log.info("Found few ({}) differs less than {}".format(count,allow_count))
 
     def test_check_rpm_V_efi(self):
-        '''
-        bz: 1845052
-        '''
+        """
+        case_name:
+            test_check_rpm_V_efi
+        component:
+            efi-rpm-macros
+        bugzilla_id:
+            1845052
+        is_customer_case:
+            True
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check rpm verify status
+        key_steps:
+            1.sudo rpm -q efi-filesystem
+            2.sudo rpm -V efi-filesystem
+        expect_result:
+            cmd pass without err or fail
+        debug_want:
+            N/A
+        """
         utils_lib.run_cmd(self,
                     'sudo rpm -q efi-filesystem',
                     cancel_not_kw="not installed", msg="check if efi-filesystem is installed")

@@ -173,6 +173,27 @@ current_clocksource'
 
 
     def test_fio_cpuclock(self):
+        """
+        case_name:
+            test_fio_cpuclock
+        component:
+            fio
+        bugzilla_id:
+            1943474
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
+        description:
+            test if fio can run normally
+        key_steps:
+            1.check cpu is not aarch64
+            2.sudo fio --cpuclock-test
+        expect_result:
+            pass the test without return
+        debug_want:
+            N/A
+        """
         '''
         bz: 1943474
         polarion_id: N/A
@@ -320,9 +341,35 @@ int main(int argc, char *argv[])
             expect_not_kw="unbound variable", msg="fsadm should not crash")
 
     def test_subscription_manager_auto(self):
-        '''
-        bz: 1932802, 1905398
-        '''
+        """
+        case_name:
+            test_subscription_manager_auto
+        component:
+            subscription-manager
+        bugzilla_id:
+            1932802, 1905398
+        is_customer_case:
+            <optional: True or False>
+        maintainer:
+            xiliang@redhat.com
+        description:
+            test if subscription-manager can run normally in AWS and Azure, RHEL system without timeout.
+        key_steps:
+            1.sudo subscription-manager config --rhsmcertd.auto_registration=1 --rhsm.manage_repos=0 --rhsmcertd.auto_registration_interval=1
+            2.sudo systemctl restart rhsmcertd
+            3.sudo subscription-manager config
+            4.sudo systemctl is-active rhsmcertd
+            5.sudo cat /var/log/rhsm/rhsmcertd.log
+            6.sudo cat /var/log/rhsm/rhsm.log
+            7.sudo subscription-manager identity
+            8.sudo subscription-manager list --installed
+            9.sudo subscription-manager status
+            10.sudo insights-client --register
+        expect_result:
+            all registration successfully without timeout failure.
+        debug_want:
+            N/A
+        """
         product_name = utils_lib.get_os_release_info(self, field='NAME')
         if 'Red Hat Enterprise Linux' not in product_name:
             self.skipTest('Only for RHEL test.')
@@ -368,6 +415,28 @@ int main(int argc, char *argv[])
             time.sleep(interval)
 
     def test_subscription_manager_config(self):
+        """
+        case_name:
+            test_subscription_manager_config
+        component:
+            subscription-manager
+        bugzilla_id:
+            1862431
+        is_customer_case:
+            True
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if "subscription-manager config" output equals "subscription-manager config --list" output
+        key_steps:
+            1.sudo subscription-manager config > /tmp/sm_config.log
+            2.sudo subscription-manager config --list > /tmp/sm_config_list.log
+            3.sudo diff -u /tmp/sm_config.log /tmp/sm_config_list.log
+        expect_result:
+            These two configs are same
+        debug_want:
+            sm_config and sm_config_list
+        """
         '''
         bz: 1862431
         des: "subscription-manager config" output should equal "subscription-manager config --list"
@@ -742,10 +811,27 @@ grep -i pci|grep n1' % boot_pci
         utils_lib.check_log(self, "error,warn,fail,trace,Trace", log_cmd='dmesg -T', cursor=self.dmesg_cursor)
 
     def test_xenfs_write_inability(self):
-        '''
-        polarion_id:
-        bz: 1663266
-        '''
+        """
+        case_name:
+            test_xenfs_write_inability
+        component:
+            kernel
+        bugzilla_id:
+            1663266
+        is_customer_case:
+            True
+        maintainer:
+            xiliang@redhat.com
+        description:
+            test xen instance system stability after running specfic python script
+        key_steps:
+            1.use python to run t.py
+            2.dmesg
+        expect_result:
+            no call trace return
+        debug_want:
+            N/A
+        """
         utils_lib.run_cmd(self,
                     'lscpu',
                     expect_ret=0,
