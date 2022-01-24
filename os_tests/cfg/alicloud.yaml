@@ -1,0 +1,33 @@
+# This is ONLY a template for provision alicloud resources. 
+# Please copy it to other place that you want to edit
+# Not recommend you edit it directly in case leaking sensitive information.
+Cloud:
+    provider: alibaba
+Credential:
+    access_key_id: LTAIxxxxxxxxxxxx
+    secretaccess_key: HOBIxxxxxxxxxxxxxxxxxxxxxxxxxx
+Subscription:
+    username:
+    password:
+VM:
+    rhel_ver: '8.1'
+    username: root
+    password: RedHatQE@7
+    keypair: cheshi-docker
+    vm_name: cheshi-avocado-cloud-d00
+    az: cn-qingdao-c
+    region: cn-qingdao
+Image:
+    name: redhat_8_1_x64_20G_alibase_20200110_copied.vhd
+    id: m-m5eeytldeh1323qpaxs7
+Network:
+    VSwitch:
+        id: vsw-m5edmrxkpghe3xh5w8rvm
+SecurityGroup:
+    id: sg-m5ej0zywmf2jtdlbw3bb
+Disk:
+    cloud_disk_count: 16
+    cloud_disk_name: avocado_cloud_disk_d00
+    cloud_disk_size: 100
+NIC:
+    nic_name: avocado_cloud_nic_d00

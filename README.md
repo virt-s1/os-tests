@@ -53,7 +53,7 @@ or
 #### Mode 3 - server client with 1 node used, os-tests can provision test system self  
 
 Require cloud/platform account to provison remote system self, can do full test with full control of instance. Eg. device hotplug, snapshot creation, send nmi events......  
-Note: only support aws for now, other platforms is in planning. The config template is under cfg dir.  
+Note: only support aws, openstack for now, other platforms is in planning. The config template is under cfg dir.  
 `# os-tests -p cloudinit --user ec2-user --keyfile /home/virtqe_s1.pem --platform_profile aws_env.yaml`
 
 ### More options  

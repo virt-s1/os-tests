@@ -202,7 +202,7 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, expect_kw='No such file or directory', msg='make sure there is no core generated')
         utils_lib.check_log(self, "error,warn,fail,trace,Trace", skip_words='ftrace', rmt_redirect_stdout=True)
 
-    def test_reboot_resolve_content(self):
+    def test_reboot_resolve_content_cloud_init(self):
         """
         case_name:
             test_reboot_resolve_content
@@ -222,7 +222,7 @@ class TestLifeCycle(unittest.TestCase):
             Check /etc/resolv.conf content is regenerated and consistent before and after reboot
         key_steps:
             # sudo cp -f /etc/resolv.conf /etc/resolv.conf.orig
-            # sudo truncate -s0 /etc/resolv.conf
+            # sudo truncate -s0 /etc/resolv.conf (skip in openstack platform)
             # sudo reboot
             # sudo diff -u /etc/resolv.conf /etc/resolv.conf.orig
         expect_result:
@@ -234,8 +234,9 @@ class TestLifeCycle(unittest.TestCase):
                     expect_ret=0, expect_kw='nameserver', msg='check resolv.conf content')
         utils_lib.run_cmd(self, r'sudo cp -f /etc/resolv.conf /etc/resolv.conf.orig',
                     expect_ret=0, msg='backup /etc/resolv.conf')
-        utils_lib.run_cmd(self, r'sudo truncate -s0 /etc/resolv.conf',
-                    expect_ret=0, msg='cleanup /etc/resolv.conf')
+        if not utils_lib.is_openstack(self):
+            utils_lib.run_cmd(self, r'sudo truncate -s0 /etc/resolv.conf',
+                        expect_ret=0, msg='cleanup /etc/resolv.conf')
         utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(10)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
