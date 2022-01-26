@@ -13,6 +13,7 @@ os-tests is a lightweight, portable and customer centric tests collection for Li
 note: please install [paramiko-fork](https://pypi.org/project/paramiko-fork/) if run os-tests in server-client mode.
       the main branch of paramiko lacking of rsa-sha2-256 and rsa-sha2-512 support to connect rhel-9 ([1643](https://github.com/paramiko/paramiko/pull/1643)). Keeping its lightweight, os-tests do not set it as required. Because it is not required when run in single node model and extra pkgs (eg. libffi-devel, openssl-devel, python-devel) are required in aarch64 to compile cryptography when install paramiko.
 
+There is an pynacl issue when installing paramiko-for on RHEL-8.6. Please install previous pynacl version (1.4.0) instead.
 ### Install from source code
 
 ```bash
