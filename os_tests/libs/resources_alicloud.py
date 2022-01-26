@@ -113,7 +113,7 @@ class AlibabaSDK(object):
         self.vm_params["ImageName"] = params['Image'].get('name')
         self.vm_params["ImageId"] = params['Image'].get('id', '*/Image/*')
         self.vm_params["SecurityGroupId"] = params['SecurityGroup'].get('id')
-        self.vm_params["VSwitchId"] = params["Network"]["VSwitchId"].get('id')
+        self.vm_params["VSwitchId"] = params["Network"]["VSwitch"].get('id')
         self.vm_params["DiskName"] = params['Disk'].get('cloud_disk_name')
         self.vm_params["Size"] = params['Disk'].get('cloud_disk_size')
         self.vm_params["NetworkInterfaceName"] = params['NIC'].get('nic_name')
@@ -462,7 +462,7 @@ class AlibabaSDK(object):
         return self._send_request(request)
 
 
-class AlibabaVM(VM):
+class AlibabaVM(VMResource):
     def __init__(self, params):
         super(AlibabaVM, self).__init__(params)
         self._data = None
@@ -502,6 +502,7 @@ class AlibabaVM(VM):
         return self._data
 
     @property
+    @utils_lib.wait_for(not_ret=None, ck_not_ret=True, timeout=120)
     def floating_ip(self):
         f_ip = None
         for ip in self.data.get('PublicIpAddress').get('IpAddress'):
@@ -859,3 +860,39 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         except Exception as err:
             logging.error("Failed to get console log! %s" % err)
             return False, err
+
+    def disk_count(self):
+        raise NotImplementedError
+
+    def get_state(self):
+        raise NotImplementedError
+
+    def send_nmi(self):
+        raise UnSupportedAction('No such operation in openstack')
+
+    def send_hibernation(self):
+        raise NotImplementedError
+
+    def attach_block(self, disk, target, wait=True, timeout=120):
+        raise NotImplementedError
+
+    def detach_block(self, disk, wait=True, force=False):
+        raise NotImplementedError
+
+    def attach_nic(self, nic, wait=True, timeout=120):
+        raise NotImplementedError
+
+    def detach_nic(self, nic, wait=True, force=False):
+        raise NotImplementedError
+
+    def is_exist(self):
+        raise NotImplementedError
+
+    def is_paused(self):
+        raise NotImplementedError
+
+    def pause(self):
+        raise NotImplementedError
+
+    def unpause(self):
+        raise NotImplementedError
