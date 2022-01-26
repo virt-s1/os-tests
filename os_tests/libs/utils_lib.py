@@ -69,7 +69,9 @@ def init_provider(params=None):
     if 'ali' in params['Cloud']['provider']:
         from .resources_alicloud import AlibabaVM
         vm = AlibabaVM(params)
-        vm.create()
+        vm.create(wait=True)
+        if vm.is_stopped():
+            vm.start(wait=True)
         disk = None
     return vm, disk
 
