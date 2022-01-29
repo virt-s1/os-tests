@@ -97,8 +97,12 @@ class TestGeneralCheck(unittest.TestCase):
             sudo ausearch -m AVC -ts today
         expect_result:
             no avc log returned
+        debug_want:
+            # rpm -qa selinux\* container\* | sort
         """
-        cmd = "sudo ausearch -m AVC -ts today"
+        cmd = "rpm -qa selinux\* container\* | sort"
+        utils_lib.run_cmd(self, cmd, msg='please attach this log if bug is found')
+        cmd = "sudo ausearch -m AVC -ts today -i"
         utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='Checking avc log!', rmt_get_pty=True)
 
     def test_check_avclog_nfs(self):
@@ -124,7 +128,11 @@ class TestGeneralCheck(unittest.TestCase):
             6.# mount -t nfs 127.0.0.1:/tmp/testrw /mnt
         expect_result:
             no new avc log generated
+        debug_want:
+            # rpm -qa selinux\* container\* | sort
         """
+        cmd = "rpm -qa selinux\* container\* | sort"
+        utils_lib.run_cmd(self, cmd, msg='please attach this log if bug is found')
         time_start = utils_lib.run_cmd(self, "date '+%T'", msg='retrive test system current time')
         self.log.info("Check no permission denied at nfs server - bug1655493")
         utils_lib.is_pkg_installed(self,pkg_name='nfs-utils')
@@ -148,7 +156,7 @@ class TestGeneralCheck(unittest.TestCase):
         utils_lib.run_cmd(self, "sudo umount /mnt")
 
         time.sleep(10)
-        cmd = "sudo ausearch -m AVC -ts today {}".format(time_start)
+        cmd = "sudo ausearch -i -m AVC -ts today {}".format(time_start)
         utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='check if new avc log generated', rmt_get_pty=True)
 
     def test_check_available_clocksource(self):
