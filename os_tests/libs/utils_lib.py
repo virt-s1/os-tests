@@ -116,12 +116,24 @@ def get_cfg(cfg_file = None):
     # Config file
     if not cfg_file:
         cfg_file = os.path.dirname(os_tests.__file__) + "/cfg/os-tests.yaml"
-    # Result dir
-    with open(cfg_file,'r') as fh:
-       keys_data = load(fh, Loader=Loader)
     if not os.path.exists(cfg_file):
         print("{} config file not found!".format(cfg_file))
+        return cfg_file, None
+    keys_data = load_yaml(yaml_file=cfg_file)
     return cfg_file, keys_data
+
+def load_yaml(yaml_file = None, yaml_content = None):
+    keys_data = None
+    try:
+        if yaml_file:
+            with open(yaml_file,'r') as fh:
+                keys_data = load(fh, Loader=Loader)
+            return keys_data
+        if yaml_content:
+            keys_data = load(yaml_content,Loader=Loader)
+    except Exception as err:
+        print(err)
+    return keys_data
 
 def init_case(test_instance):
     """init case

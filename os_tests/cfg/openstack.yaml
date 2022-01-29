@@ -29,11 +29,10 @@ VM:
 SecurityGroups:
   name:
     - default
-Flavor: !mux
-    m1.medium:
-        name: m1.medium
-        id: 2550ff80-8b69-4697-b020-f8c22ed33495
-        cpu: 2
-        memory: 4
-        size: 40G
-        virt: kvm
+Flavor:
+  name: m1.medium
+  id: 2550ff80-8b69-4697-b020-f8c22ed33495
+  cpu: 2
+  memory: 4
+  size: 40G
+  virt: kvm

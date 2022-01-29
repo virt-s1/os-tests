@@ -90,7 +90,12 @@ class OpenstackVM(VMResource):
         raise NotImplementedError
 
     def create(self, wait=False, auto_ip=True):
-        image_id = self.conn.compute.find_image(self.image_name).id
+        #https://docs.openstack.org/api-ref/compute/?expanded=create-server-detail
+        try:
+            image_id = self.conn.compute.find_image(self.image_name).id
+        except AttributeError as err:
+            LOG.info("cannot retrive image id from given image_name")
+            return None
 
         args = {
             'name': self.vm_name,
@@ -98,7 +103,7 @@ class OpenstackVM(VMResource):
             'flavor_id': self.flavor_id,
             'networks': [{
                 "uuid": self.network_id
-            }],
+            }]
         }
         if self.keypair:
             args['key_name'] = self.keypair
