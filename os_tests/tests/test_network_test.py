@@ -465,7 +465,51 @@ class TestNetworkTest(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, msg='get ip routes')
         cmd = "curl --connect-timeout 5 http://{}:8188/hello".format(self.ipv4)
         utils_lib.run_cmd(self, cmd, expect_kw='new site', msg='test site is available')
-
+    def test_iptables_restore_hangs(self):
+        """
+        case_tag:
+            N/A
+        case_name:
+            test_iptables_restore_hangs
+        component:
+            iptables
+        bugzilla_id:
+            1840936
+        is_customer_case:
+            True
+        testplan:
+            N/A
+        maintainer:
+            xuazhao@redhat.com
+        description:
+            test if iptables-restore can run normally
+        key_steps:
+            1. Create a very simple multi-table iptables file to restore.
+            2. iptables-restore --test <file>
+        expect_result:
+            run to completion as documented
+        debug_want:
+            N/A
+        """
+        cmd = "touch /tmp/iptable.txt"
+        utils_lib.run_cmd(self,cmd,msg="create a txt file")
+        tablestr = '''
+*filter
+:FORWARD ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+COMMIT
+*testfilter
+:FORWARD ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+:PREROUTING ACCEPT [0:0]
+COMMIT
+        '''
+        utils_lib.run_cmd(self,"echo'%s'>/tmp/iptable.txt"%tablestr)
+        utils_lib.run_cmd(self,'iptable-restore --test /tmp/iptable.txt',timeout=20,msg="run restore test")
+        utils_lib.run_cmd(self,"rm -f /tmp/iptable.txt")
     def tearDown(self):
         if 'test_mtu_min_max_set' in self.id():
             mtu_cmd = "sudo ip link set dev %s mtu %s" % (self.nic, self.mtu_old)
