@@ -2014,7 +2014,30 @@ current_device"
                 self.fail("{} insights rule hit".format(len(tmp_dict)))
         except json.decoder.JSONDecodeError as exc:
             self.log.error("insights rule hit or other unexpected error")
-
+    def test_check_sos_works(self):
+        """
+        case_name:
+            test_check_sos_works
+        component:
+            sos
+        bugzilla_id:
+            1718087
+        is_customer_case:
+            True
+        maintainer:
+            xuazhao@redhat.com
+        description:
+            check if sos report can run without crash
+        key_steps:
+            1.sosreport --batch
+        expect_result:
+            no Traceback in result
+        debug_want:
+            sos_output.txt
+        """
+        utils_lib.is_cmd_exist(self, cmd='sosreport')
+        cmd = "sosreport --batch"
+        utils_lib.run_cmd(self,cmd,expect_ret=0,msg="test sosreport",timeout=120)
     def tearDown(self):
         pass
 
