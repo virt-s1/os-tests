@@ -24,7 +24,7 @@ class TestGeneralCheck(unittest.TestCase):
                 cmd = 'sudo rpm -V {} > {} 2>&1'.format(' '.join(check_list), rpm_V_file)
                 utils_lib.run_cmd(self, cmd, msg="verify pkgs", timeout=600)
                 self.output = utils_lib.run_cmd(self, 'cat {}'.format(rpm_V_file), expect_ret=0, msg="check if output exists again")
-        if self.id().endswith(('test_check_systemd_analyze_verify_missing', 'test_check_systemd_analyze_verify_deprecated_unsafe', 'test_check_systemd_analyze_verify_obsolete', 'test_check_systemd_analyze_verify_ordering_cycle')):
+        if self.id().endswith(('test_check_systemd_analyze_verify_missing', 'test_check_systemd_analyze_verify_deprecated_unsafe', 'test_check_systemd_analyze_verify_obsolete', 'test_check_systemd_analyze_verify_ordering_cycle', 'test_check_journalctl_service_unknown_lvalue')):
             check_file = self.utils_dir + '/systemd_analyze_services.sh'
             check_file_tmp = '/tmp/systemd_analyze_services.sh'
             if self.params['remote_node'] is not None:
@@ -178,14 +178,13 @@ class TestGeneralCheck(unittest.TestCase):
             2.sudo cat /sys/devices/system/clocksource/clocksource0/available_clocksource
             3.check available_clocksource
         expect_result:
-            the clocksource matched to the system is expected,
-            eg:
-            Xen:xen,tsc,hpet,acpi_pm,
-            aarch64:arch_sys_counter,
-            Microsoft:hyperv_clocksource_tsc_page,acpi_pm,
-            AuthenticAMD:kvm-clock,tsc,acpi_pm,
-            GenuineIntel:kvm-clock,tsc,acpi_pm
-            Others:tsc,hpet,acpi_pm'
+            the clocksource matched to the system is expected.
+            Xen - xen,tsc,hpet,acpi_pm,
+            aarch64 - arch_sys_counter,
+            Microsoft - hyperv_clocksource_tsc_page,acpi_pm,
+            AuthenticAMD - kvm-clock,tsc,acpi_pm,
+            GenuineIntel - kvm-clock,tsc,acpi_pm
+            Others - tsc,hpet,acpi_pm'
 
         """
         output = utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
@@ -629,7 +628,7 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
             Check "iostat -x" report and make sure there is no high utils when there is no obviously read/write operations.
         key_steps:
             1. # iostat -x
-        expected_result:
+        expected_result: |
             No high utils reported when no obviously read/write operations.
             eg. # iostat -x
                 Linux 4.18.0-236.el8.aarch64 (ip-xx-xxx-x-xxx.us-west-2.compute.internal) 	09/28/2020 	_aarch64_	(2 CPU)
@@ -1001,15 +1000,7 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
             - service unit file content
             - output from 'systemd-analyze verify $service'
         """
-        services = ['default.target']
-        cmd = "systemctl list-unit-files |grep -v UNIT|grep -v listed|awk -F' ' '{print $1}'"
-        all_services = utils_lib.run_cmd(self, cmd, msg='retrive all systemd unit files').split('\n')
-        for service in all_services:
-            if not service or service.startswith('-'):
-                continue
-            services.append(service)
-        cmd = "sudo systemd-analyze verify {}".format(' '.join(services))
-        utils_lib.run_cmd(self, cmd, expect_not_kw='Unknown lvalue', msg='Check there is no Unknown lvalue')
+        utils_lib.run_cmd(self, 'cat {}'.format(self.systemd_analyze_verify_file),expect_ret=0, expect_not_kw='Unknown lvalue', msg='Check there is no "Unknown lvalue" keyword')
 
     def test_check_locale(self):
         '''
@@ -1033,7 +1024,7 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
             1. # locale
         expected_result:
             No error information found.
-        debug_want:
+        debug_want: |
             1. # rpm -qa | grep glibc
             2. # uname -r
         '''

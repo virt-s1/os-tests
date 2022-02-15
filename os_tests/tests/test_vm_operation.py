@@ -22,6 +22,8 @@ class TestVMOperation(unittest.TestCase):
 
     def test_cloud_init_config_ipv6(self):
         '''
+        case_tag:
+            cloudinit
         description:
             Check the IPv6 is configured by default for guests.
         testplan:
@@ -57,6 +59,8 @@ class TestVMOperation(unittest.TestCase):
 
     def test_cloud_init_lineoverwrite(self):
         '''
+        case_tag:
+            cloudinit
         description:
             This is a specific case of openstack, because the cloud guest images need to have "NOZEROCONF=yes" in /etc/sysconfig/network so that it works well as an openstack guest. (Bug 983611 - Cloud guest images needs to have "NOZEROCONF=yes" in /etc/sysconfig/network)
             cloud-init removed user configuration in /etc/sysconfig/network and rewrite the default configuration in every prevision before cloud-init-18.2-4.el7, after this version, certain lines in network configuration isn't removed after re-provision. linked case RHEL-152730
@@ -224,6 +228,8 @@ class TestVMOperation(unittest.TestCase):
 
     def test_cloud_init_userdata(self):
         '''
+        case_tag:
+            cloudinit
         description:
             Check the userdata can be passed when creating instance. Linked case RHEL7-87120
         testplan:

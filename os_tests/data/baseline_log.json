@@ -1087,5 +1087,41 @@
         "link": "https://access.redhat.com/solutions/4621651",
         "path": "journal, dmesg",
         "trigger": ""
+    },
+    "msg_123": {
+        "content": ".*Driver has suspect GRO implementation, TCP performance may be compromised.*",
+        "analyze": "informational only and as a warning one which may be safely ignored",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/3152971",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_124": {
+        "content": ".*pci_bus 0000:00: Unknown NUMA node; performance will be reduced.*",
+        "analyze": "this is know information in aws, we care nvme, ena numa node here",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2037069#c17",
+        "path": "journal, dmesg",
+        "trigger": "AMAZON"
+    },
+    "msg_125": {
+        "content": ".*systemd-sysctl.* Couldn't write '1' to 'vm/unprivileged_userfaultfd', ignoring: No such file or directory.*",
+        "analyze": "The error message seen in the log is harmless and it's even marked as NOTICE",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2051329",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_126": {
+        "content": ".*systemd-sysctl.* Couldn't write '0 2147483647' to '-net/ipv4/ping_group_range', ignoring: No such file or directory.*",
+        "analyze": "this should be fixed in systemd-239-57.el8",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2037807",
+        "path": "journal",
+        "trigger": ""
     }
 }

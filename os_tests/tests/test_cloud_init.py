@@ -10,10 +10,13 @@ class TestCloudInit(unittest.TestCase):
 
     def test_check_cloudinit_cfg_no_wheel(self):
         '''
+        case_tag:
+            cloudinit
         bz: 1549638
         cm: 01965459
         polarion_id:
-        des: make sure there is no wheel in default_user's group in "/etc/cloud/cloud.cfg"
+        description:
+            make sure there is no wheel in default_user's group in "/etc/cloud/cloud.cfg"
         '''
         cmd = 'sudo cat /etc/cloud/cloud.cfg'
         utils_lib.run_cmd(self,
@@ -24,9 +27,12 @@ class TestCloudInit(unittest.TestCase):
 
     def test_check_cloudinit_ds_identify_found(self):
         '''
-        polarion_id:
-        bz: 1746627
-        check ds-identify run and ret found
+        case_tag:
+            cloudinit,cloudinit_tier1
+        bz:
+            1746627
+        description:
+            check ds-identify run and ret found
         '''
         cmd = 'rpm -q cloud-init'
         utils_lib.run_cmd(self, cmd, cancel_not_kw='el8_0')
@@ -39,11 +45,14 @@ class TestCloudInit(unittest.TestCase):
 
     def test_check_cloudinit_fingerprints(self):
         '''
+        case_tag:
+            cloudinit
         bz: 1957532
         cm: 02905983
         polarion_id:
-        check fingerprints is saved in /var/log/messages.
-        expected:
+        description:
+            check fingerprints is saved in /var/log/messages.
+        expect_result: |
             # grep -A 4 'BEGIN SSH HOST KEY FINGERPRINTS' /var/log/messages
             May  6 02:57:58 ip-10-116-2-239 ec2[1441]: -----BEGIN SSH HOST KEY FINGERPRINTS-----
             May  6 02:57:58 ip-10-116-2-239 ec2[1441]: 256 SHA256:n+iS6HUI/ApfkE/ZveBzBrIFSsmcL1YR/c3RsbPShd8 no comment (ECDSA)
@@ -59,9 +68,12 @@ class TestCloudInit(unittest.TestCase):
 
     def test_check_cloudinit_log_imdsv2(self):
         '''
+        case_tag:
+            cloudinit
         polarion_id:
         bz: 1810704
-        check cloud-init use imdsv2 in aws
+        description:
+            check cloud-init use imdsv2 in aws
         '''
         cmd = "sudo grep -Ri amazon /sys/devices/virtual/dmi/id/bios*"
         utils_lib.run_cmd(self, cmd, cancel_ret='0', msg = "Only used in EC2 platform")
@@ -79,9 +91,12 @@ class TestCloudInit(unittest.TestCase):
 
     def test_check_cloudinit_log_unexpected(self):
         '''
+        case_tag:
+            cloudinit
         polarion_id:
         bz: 1827207
-        check no unexpected error log in cloudinit logs
+        description:
+            check no unexpected error log in cloudinit logs
         '''
         utils_lib.run_cmd(self,
                     'sudo cat /var/log/cloud-init.log',
@@ -98,9 +113,12 @@ class TestCloudInit(unittest.TestCase):
 
     def test_check_cloudinit_log_critical(self):
         '''
+        case_tag:
+            cloudinit
         polarion_id:
         bz: 1827207
-        check no critical log in cloudinit logs
+        description:
+            check no critical log in cloudinit logs
         '''
         utils_lib.run_cmd(self,
                     'sudo cat /var/log/cloud-init.log',
@@ -117,9 +135,12 @@ class TestCloudInit(unittest.TestCase):
 
     def test_check_cloudinit_log_warn(self):
         '''
+        case_tag:
+            cloudinit
         polarion_id:
         bz: 1821999
-        check no warning log in cloudinit logs
+        description:
+            check no warning log in cloudinit logs
         '''
         utils_lib.run_cmd(self,
                     'sudo cat /var/log/cloud-init.log',
@@ -136,9 +157,12 @@ class TestCloudInit(unittest.TestCase):
 
     def test_check_cloudinit_log_error(self):
         '''
+        case_tag:
+            cloudinit
         polarion_id:
         bz: 1821999
-        check no error log in cloudinit logs
+        description:
+            check no error log in cloudinit logs
         '''
         utils_lib.run_cmd(self,
                     'sudo cat /var/log/cloud-init.log',
@@ -155,8 +179,11 @@ class TestCloudInit(unittest.TestCase):
 
     def test_check_cloudinit_log_traceback(self):
         '''
+        case_tag:
+            cloudinit
         polarion_id:
-        check no traceback log in cloudinit logs
+        description:
+            check no traceback log in cloudinit logs
         '''
         utils_lib.run_cmd(self,
                     'sudo cat /var/log/cloud-init.log',
@@ -173,8 +200,11 @@ class TestCloudInit(unittest.TestCase):
 
     def test_check_metadata(self):
         '''
+        case_tag:
+            cloudinit
         polarion_id:
-        https://cloudinit.readthedocs.io/en/latest/topics/datasources/ec2.html
+        description:
+            https://cloudinit.readthedocs.io/en/latest/topics/datasources/ec2.html
         '''
         cmd = r"curl http://169.254.169.254/latest/meta-data/instance-type"
 
@@ -182,9 +212,12 @@ class TestCloudInit(unittest.TestCase):
 
     def test_check_output_isexist(self):
         '''
+        case_tag:
+            cloudinit
         polarion_id:
         bz: 1626117
-        check whether /var/log/cloud-init-output.log exists
+        description:
+            check whether /var/log/cloud-init-output.log exists
         '''
         utils_lib.run_cmd(self,
                     'uname -r',
@@ -209,9 +242,13 @@ class TestCloudInit(unittest.TestCase):
 
     def test_check_cloudinit_service_status(self):
         '''
+        case_tag:
+            cloudinit
         polarion_id:
-        bz: 1829713
-        The 4 cloud-init services status should be "active"
+        bugzilla_id:
+            1829713
+        description:
+            The 4 cloud-init services status should be "active"
         '''
         service_list = ['cloud-init-local',
                         'cloud-init',
@@ -225,29 +262,32 @@ class TestCloudInit(unittest.TestCase):
 
     def test_cloudinit_sshd_keypair(self):
         '''
+        case_tag:
+            cloudinit
+        case_file:
+            https://github.com/liangxiao1/os-tests/blob/master/os_tests/tests/test_cloud_init.py
         description:
-            '/etc/ssh/sshd_config' allows key value empty, this case check if cloud-init can handle such situation.
-            This bz is reported by customer.
-        polarion_id:
+            The '/etc/ssh/sshd_config' allows key value empty, this case check if cloud-init can handle such situation.
+        testplan:
             n/a
         bugzilla_id: 
             1527649, 1862933
-        customer_case_id: 
-            n/a
+        is_customer_case: 
+            True
         maintainer: 
             xiliang
         case_priority: 
             2
-        case_component: 
+        component: 
             cloud-init
-        key_steps:
+        key_steps: |
             # sudo echo 'DenyUsers'>>/etc/ssh/sshd_config
             # sudo cloud-init clean
             # sudo grep 'SSH credentials failed' /var/log/cloud-init.log
-        pass_criteria: 
+        expect_result: 
             No 'SSH credentials failed' found
         debug_want:
-            # cat /var/log/cloud-init.log
+            Please attach /var/log/cloud-init.log
         '''
         cmd = 'cp ~/.ssh/authorized_keys ~/.ssh/authorized_keys.bak'
         utils_lib.run_cmd(self, cmd, msg='backup .ssh/authorized_keys')

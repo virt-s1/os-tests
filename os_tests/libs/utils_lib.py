@@ -13,7 +13,6 @@ import time
 import logging
 import argparse
 from functools import wraps
-from tipset.libs import rmt_ssh
 from yaml import load, dump
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -34,6 +33,12 @@ def init_args():
                     help='match exactly if -p or -s specified', required=False)
     parser.add_argument('-s', dest='skip_pattern', default=None, action='store',
                     help='skip cases, add --strict for skipping exactly', required=False)
+    parser.add_argument('--verifydoc', dest='verifydoc', action='store_true',
+                    help='verify or show case doc only', required=False)
+    parser.add_argument('--filter_by', dest='filter_by', default='case_name', action='store',
+                    help="filter by 'case_name'(default),'case_tag','case_file','component','bugzilla_id',\
+                        'is_customer_case','testplan','maintainer','description','key_steps',\
+                        'expect_result','debug_want'", required=False)
     parser.add_argument('--host', dest='remote_node', default=None, action='store',
                     help='run tests on remote node', required=False)
     parser.add_argument('--user', dest='remote_user', default=None, action='store',
@@ -76,6 +81,7 @@ def init_provider(params=None):
     return vm, disk
 
 def init_ssh(params=None, timeout=600, interval=10, log=None):
+    from tipset.libs import rmt_ssh
     if log is None:
         LOG_FORMAT = '%(levelname)s:%(message)s'
         log = logging.getLogger(__name__)
@@ -199,6 +205,86 @@ def finish_case(test_instance):
         test_instance {Test instance} -- unittest.TestCase instance
     """
     pass
+
+def filter_case_doc(case=None, patterns=None, skip_patterns=None, filter_field='case_name', strict=False, verify_doc=False ):
+    if patterns is None and skip_patterns is None and not verify_doc:
+        return True
+    yaml_data = {}
+    yaml_fail = None
+    try:
+        yaml_data = load(case._testMethodDoc, Loader=Loader)
+        if not hasattr(yaml_data,'get'):
+            yaml_data = {}
+            yaml_data['case_name'] = case.id()
+        else:
+            yaml_data['case_name'] = case.id()
+    except Exception as err:
+        yaml_fail = err
+        yaml_data['case_name'] = case.id()
+    is_skip = False
+    is_select = False
+    field_value = yaml_data.get(filter_field)
+    if patterns:
+        for p in patterns.split(','):
+            if 'case_tag' in filter_field:
+                if not field_value:
+                    break
+                # case_tag might has multiples
+                for tag in field_value.split(','):
+                    if not strict and p in tag:
+                        is_select = True
+                        break
+                    if strict and p == tag:
+                        is_select = True
+                        break
+                if is_select:
+                    break
+            else:
+                if not strict and field_value and p in field_value:
+                    is_select = True
+                    break
+                if strict and field_value and p == field_value:
+                    is_select = True
+                    break
+    else:
+        is_select = True
+    if skip_patterns:
+        for p in skip_patterns.split(','):
+            if 'case_tag' in filter_field:
+                if not field_value:
+                    break
+                # case_tag might has multiples
+                for tag in field_value.split(','):
+                    if not strict and p in tag:
+                        is_skip = True
+                        break
+                    if strict and p == tag:
+                        is_skip = True
+                        break
+                if is_skip:
+                    break
+            else:
+                if not strict and field_value and p in field_value:
+                    is_skip = True
+                    break
+                if strict and field_value and p == field_value:
+                    is_skip = True
+                    break
+    if verify_doc and is_select and not is_skip:
+        expect_fields = ['case_tag','case_name','case_file','component','bugzilla_id',
+                        'is_customer_case','testplan','maintainer','description','key_steps',
+                        'expect_result','debug_want']
+        print("="*20)
+        print(case.id())
+        print(case._testMethodDoc)
+        print("-"*20)
+        if  yaml_fail:
+            print(yaml_fail)
+            return is_select and not is_skip
+        for i in expect_fields:
+            if not yaml_data.get(i):
+                print('missing {}'.format(i))
+    return is_select and not is_skip
 
 def msg_to_syslog(test_instance, msg=None):
     '''
