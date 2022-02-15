@@ -2,7 +2,7 @@ import unittest
 import copy
 import os
 import sys
-from os_tests.libs.utils_lib import get_cfg, init_ssh, init_args, init_provider
+from os_tests.libs.utils_lib import get_cfg, init_ssh, init_args, init_provider, filter_case_doc
 from shutil import rmtree
 import os_tests
 from os_tests.libs.html_runner import HTMLTestRunner
@@ -16,7 +16,7 @@ def main():
     args = init_args()
     vm, disk = None, None
     run_uuid = str(uuid.uuid4())
-    if args.platform_profile and not args.is_listcase:
+    if args.platform_profile and not args.is_listcase and not args.verifydoc:
         log.info("{}Stage: Provision System{}".format('='*20,'='*20))
         cfg_file, cfg_data = get_cfg(cfg_file=args.platform_profile)
         cfg_data['remote_user'] = args.remote_user
@@ -62,26 +62,27 @@ def main():
             sys.exit(0)
     else:
         print("skip azure image check by default")
-        if skip_patterns:
+        if skip_patterns and not args.verifydoc:
             skip_patterns = skip_patterns + ',test_azure_image'
         else:
-            skip_patterns = 'test_azure_image'
+            if not args.verifydoc:
+                skip_patterns = 'test_azure_image'
 
     ssh = None
     if cfg_data['remote_node'] is None and not args.platform_profile:
         print("skip lifecycle tests as no remote node found")
-        if skip_patterns:
+        if skip_patterns and not args.verifydoc:
             skip_patterns = skip_patterns + ',test_lifecycle'
         else:
             skip_patterns = 'test_lifecycle' 
-    elif not args.is_listcase:
+    elif not args.is_listcase and not args.verifydoc:
         log.info("{}Stage: Init Connection to System{}".format('='*20,'='*20))
         ssh = init_ssh(params=cfg_data)
         if ssh is None and vm:
             vm.delete()
             sys.exit(1)
 
-    if not args.platform_profile:
+    if not args.platform_profile and not args.verifydoc:
         skip_patterns = skip_patterns + ',test_vm_operation'
 
     log.info("{}Stage: Run Test{}".format('='*20,'='*20))
@@ -105,31 +106,16 @@ def main():
                             case.SSH = ssh
                         case.vm = vm
                         case.disk = disk
-                        is_skip = False
-                        if skip_patterns is not None:
-                                for skippattern in skip_patterns.split(','):
-                                    if skippattern in case.id():
-                                        if args.is_strict and case.id().endswith(skippattern):
-                                            is_skip = True
-                                        elif not args.is_strict:
-                                            is_skip = True
-                        if test_patterns is not None:
-                            for pattern in test_patterns.split(','):
-                                if pattern in case.id() and not is_skip:
-                                    if args.is_strict and case.id().endswith(pattern):
-                                        final_ts.addTest(case)
-                                    elif not args.is_strict:
-                                        final_ts.addTest(case)
-                        else:
-                            if not is_skip:
-                                final_ts.addTest(case)
+                        if filter_case_doc(case=case, patterns=test_patterns, skip_patterns=skip_patterns,
+                                           filter_field=args.filter_by, strict=args.is_strict, verify_doc=args.verifydoc):
+                            final_ts.addTest(case)
                 except Exception as err:
                     print("Cannot handle ts discovered:{}".format(ts2))
                     print(err)
     if final_ts.countTestCases() == 0:
         print("No case found!")
         sys.exit(1)
-    if args.is_listcase:
+    if args.is_listcase or args.verifydoc:
         for case in final_ts:
             print(case.id())
         print("Total case num: %s"%final_ts.countTestCases())

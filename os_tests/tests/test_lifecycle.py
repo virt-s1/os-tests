@@ -202,8 +202,10 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, expect_kw='No such file or directory', msg='make sure there is no core generated')
         utils_lib.check_log(self, "error,warn,fail,trace,Trace", skip_words='ftrace', rmt_redirect_stdout=True)
 
-    def test_reboot_resolve_content_cloud_init(self):
+    def test_reboot_resolve_content(self):
         """
+        case_tag:
+            cloudinit
         case_name:
             test_reboot_resolve_content
         case_file:
