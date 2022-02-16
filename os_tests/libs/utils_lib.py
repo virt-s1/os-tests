@@ -1,6 +1,7 @@
 import os
 import random
 import re
+import sys
 import time
 import logging
 import decimal
@@ -41,6 +42,8 @@ def init_args():
                         'expect_result','debug_want'", required=False)
     parser.add_argument('--host', dest='remote_node', default=None, action='store',
                     help='run tests on remote node', required=False)
+    parser.add_argument('--port', dest='remote_port', default=22, action='store',
+                    help='port for ssh connection, default is 22', required=False)
     parser.add_argument('--user', dest='remote_user', default=None, action='store',
                     help='user to login to remote node', required=False)
     parser.add_argument('--password', dest='remote_password', default=None, action='store',
@@ -88,6 +91,7 @@ def init_ssh(params=None, timeout=600, interval=10, log=None):
         logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
     ssh = rmt_ssh.RemoteSSH()
     ssh.rmt_node = params['remote_node']
+    ssh.port = params['remote_port']
     ssh.rmt_user = params['remote_user']
     ssh.rmt_password = params['remote_password']
     ssh.rmt_keyfile = params['remote_keyfile']
@@ -124,6 +128,7 @@ def get_cfg(cfg_file = None):
         cfg_file = os.path.dirname(os_tests.__file__) + "/cfg/os-tests.yaml"
     if not os.path.exists(cfg_file):
         print("{} config file not found!".format(cfg_file))
+        sys.exit(1)
         return cfg_file, None
     keys_data = load_yaml(yaml_file=cfg_file)
     return cfg_file, keys_data

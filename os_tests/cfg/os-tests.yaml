@@ -17,6 +17,8 @@ disk_utils: 30
 # All tests are running in slave node including some reboot operations.
 # remote_node specify remote ip
 remote_node: 
+# open port for ssh connection
+remote_port: 22
 # remote_user: user to login remote
 remote_user: ec2-user
 # ssh key file location for remote access
