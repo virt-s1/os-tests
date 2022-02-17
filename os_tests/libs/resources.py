@@ -87,6 +87,14 @@ class VMResource(BaseResource):
         """
 
     @property
+    def port(self):
+        """
+        get vm's open port for ssh connection
+        :return 22 by default or other dynamic value by overwrite this func.
+        """
+        return 22
+
+    @property
     @abstractmethod
     def disk_count(self):
         """

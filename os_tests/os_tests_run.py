@@ -32,6 +32,7 @@ def main():
         cfg_data['blk_devs'] = args.blk_devs
     if args.remote_node is not None:
         cfg_data['remote_node'] = args.remote_node
+        cfg_data['remote_port'] = args.remote_port
         cfg_data['remote_user'] = args.remote_user
         cfg_data['remote_password'] = args.remote_password
         cfg_data['remote_keyfile'] = args.remote_keyfile
@@ -41,6 +42,7 @@ def main():
             vm.delete()
             sys.exit(1)
         cfg_data['remote_node'] = vm.floating_ip
+        cfg_data['remote_port'] = vm.port
         cfg_data['remote_user'] = args.remote_user
         cfg_data['remote_password'] = args.remote_password
         cfg_data['remote_keyfile'] = args.remote_keyfile
