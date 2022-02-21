@@ -1,0 +1,30 @@
+Cloud:
+  provider: nutanix
+  cvm_ip: 
+Credential:
+  username: 
+  password: 
+Subscription:
+  username: 
+  password: 
+VM:
+  rhel_ver: '8.6'
+  username: cloud-user
+  password: redhat
+  keypair: xen-jenkins
+  vm_name: vm_script
+  image_name: rhel-guest-image-8.6
+  image_name_iso: RHEL-8.5.0-20211013.2
+  image_name_kickstart_iso: kick_start_iso
+  storage_container_uuid: e4a19a2f-0118-4575-af66-317aea98739a 
+  network_uuid: 49ae0bb2-a417-4e97-aa0f-c768d58514a2
+  custom_data:
+Other:
+  packages:
+Flavor:
+      name: m1.medium
+      cpu: 2
+      memory: 4
+      size: 10
+      virt: kvm
+

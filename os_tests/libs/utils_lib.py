@@ -81,6 +81,13 @@ def init_provider(params=None):
         if vm.is_stopped():
             vm.start(wait=True)
         disk = None
+    if 'nutanix' in params['Cloud']['provider']:
+        from .resources_nutanix import NutanixVM
+        vm = NutanixVM(params)
+        vm.create(wait=True)
+        if vm.is_stopped():
+            vm.start(wait=True)
+        disk = None
     return vm, disk
 
 def init_ssh(params=None, timeout=600, interval=10, log=None):
