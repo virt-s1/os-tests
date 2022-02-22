@@ -1,0 +1,16 @@
+# https://github.com/marketplace/actions/google-chat-github-notification
+# https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#on
+name: notify gchat os-tests
+on:
+  pull_request:
+    types: [opened, reopened, closed]
+  pull_request_review_comment:
+    types: [created]
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Google Chat Notification
+      uses: CommonMarvel/google-chat-notification@v1.1.1
+      with:
+        url: ${{ secrets.GOOGLE_CHAT_WEBHOOK_OS_TESTS }}
