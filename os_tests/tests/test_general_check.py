@@ -2020,14 +2020,14 @@ current_device"
         description:
             check if sos report can run without crash
         key_steps:
-            1.sosreport --batch
+            1.sos report --batch
         expect_result:
             no Traceback in result
         debug_want:
             sos_output.txt
         """
         utils_lib.is_cmd_exist(self, cmd='sosreport')
-        cmd = "sosreport --batch"
+        cmd = "sudo sosreport --batch"
         utils_lib.run_cmd(self,cmd,expect_ret=0,msg="test sosreport",timeout=120)
     def tearDown(self):
         pass
