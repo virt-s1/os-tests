@@ -18,7 +18,7 @@ There is an pynacl issue when installing paramiko-fork on RHEL-8.6. Please insta
 ### Install from source code
 
 ```bash
-# git clone https://github.com/liangxiao1/os-tests.git
+# git clone https://github.com/virt-s1/os-tests.git
 # cd os-tests
 # python3 setup.py install
 ```
