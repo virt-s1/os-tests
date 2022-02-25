@@ -368,7 +368,7 @@ no plan to fix it in the near future!")
     def test_kickstart_install_vm(self):
 
         if self.vm and self.vm.provider != 'nutanix':
-            self.logging.info("self.vm.provider is" + self.vm.provider)
+            self.log.info("self.vm.provider is" + self.vm.provider)
             self.skipTest("Skip this test case which is dedicate for Nutanix")
 
         if self.vm.exists():
