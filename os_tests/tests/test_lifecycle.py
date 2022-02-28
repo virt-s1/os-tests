@@ -2,7 +2,6 @@ import unittest
 import time
 from os_tests.libs import utils_lib
 
-import logging
 from tipset.libs import rmt_ssh
 
 class TestLifeCycle(unittest.TestCase):
@@ -364,28 +363,6 @@ no plan to fix it in the near future!")
             time.sleep(10)
             self.SSH.create_connection()
             utils_lib.run_cmd(self, 'uname -r', msg='check kernel', expect_ret=0, expect_kw=kernel[7:])
-
-    def test_kickstart_install_vm(self):
-
-        if self.vm and self.vm.provider != 'nutanix':
-            self.log.info("self.vm.provider is" + self.vm.provider)
-            self.skipTest("Skip this test case which is dedicate for Nutanix")
-
-        if self.vm.exists():
-            self.vm.delete(wait=True)
-        self.vm.create_by_ISO_kickstart(wait=True)
-        self.vm.start(wait=True)
-        logging.info("wait for kickstart automatic installation")
-        time.sleep(3600)
-
-        ssh = rmt_ssh.RemoteSSH()
-        ssh.rmt_node = self.vm.floating_ip
-        ssh.rmt_user = "root"
-        ssh.rmt_password = self.vm.vm_password
-        ssh.create_connection()
-        if ssh.ssh_client is None:
-            logging.info("ssh_client is " + str(ssh.ssh_client))
-            self.fail('failed ssh to vm installed by kickstart')
 
     def tearDown(self):
         reboot_require = False

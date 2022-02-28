@@ -1099,3 +1099,58 @@ def get_value(x={}, key=None, path=None):
             else:
                 ret = get_value(x=x.get(i), key=key, path=path)
     return ret
+
+def get_public_key(client_user=None):
+    """
+    Return a valid string ssh public key for the user executing autoserv or
+    autotest. If there's no DSA or RSA public key, create a RSA keypair with
+    ssh-keygen and return it.
+
+    :param client_user: genenrate the ssh_key for which client
+                        user to login into the server
+    :type client_user: str
+    :returns: a ssh public key
+    :rtype: str
+    """
+
+    if client_user:
+        if os.environ.get('USER') not in ('root', client_user):
+            raise RuntimeError("Can not set ssh-key for OTHER user using"
+                               "non-root account. Permission Denied.")
+        if client_user == 'root':
+            ssh_conf_path = '/root/.ssh'
+        else:
+            ssh_conf_path = '/home/%s/.ssh' % client_user
+    else:
+        ssh_conf_path = os.path.expanduser('~/.ssh')
+        client_user = os.environ.get('USER')
+
+    dsa_public_key_path = os.path.join(ssh_conf_path, 'id_dsa.pub')
+    dsa_private_key_path = os.path.join(ssh_conf_path, 'id_dsa')
+
+    rsa_public_key_path = os.path.join(ssh_conf_path, 'id_rsa.pub')
+    rsa_private_key_path = os.path.join(ssh_conf_path, 'id_rsa')
+
+    has_dsa_keypair = (os.path.isfile(dsa_public_key_path) and
+                       os.path.isfile(dsa_private_key_path))
+    has_rsa_keypair = (os.path.isfile(rsa_public_key_path) and
+                       os.path.isfile(rsa_private_key_path))
+
+    if has_rsa_keypair:
+        logging.info('RSA keypair found, using it')
+        public_key_path = rsa_public_key_path
+
+    elif has_dsa_keypair:
+        logging.info('DSA keypair found, using it')
+        public_key_path = dsa_public_key_path
+
+    else:
+        logging.info('Neither RSA nor DSA keypair found, creating RSA ssh key pair')
+
+        public_key_path = rsa_public_key_path
+
+    public_key = open(public_key_path, 'r')
+    public_key_str = public_key.read()
+    public_key.close()
+
+    return public_key_str
