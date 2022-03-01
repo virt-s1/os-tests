@@ -2,7 +2,6 @@ import unittest
 import time
 from os_tests.libs import utils_lib
 
-from tipset.libs import rmt_ssh
 
 class TestLifeCycle(unittest.TestCase):
     '''
