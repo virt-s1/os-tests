@@ -1,5 +1,6 @@
 # https://packaging.python.org/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/
 # https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#on
+# https://github.com/marketplace/actions/google-chat-notification
 name: Build test and publish
 on: [push, pull_request]
 jobs:
@@ -34,3 +35,11 @@ jobs:
       uses: pypa/gh-action-pypi-publish@master
       with:
         password: ${{ secrets.pypi_token }}
+    - name: Google Chat Notification
+      if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+      uses: Co-qn/google-chat-notification@releases/v1
+      with:
+        name: ${{ github.event.head_commit.message }}
+        url: ${{ secrets.GOOGLE_CHAT_WEBHOOK_OS_TESTS }}
+        status: ${{ job.status }}
+    
