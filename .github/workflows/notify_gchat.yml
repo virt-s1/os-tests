@@ -1,11 +1,13 @@
 # https://github.com/marketplace/actions/google-chat-github-notification
 # https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#on
-name: notify gchat os-tests
-on:
-  pull_request:
-    types: [opened, reopened, closed]
-  pull_request_review_comment:
-    types: [created]
+name: "notify gchat os-tests"
+# do not trigger from pull request because pull request from fork cannot access secrets
+#on:
+#  pull_request:
+#    types: [opened, reopened, closed]
+#  pull_request_review_comment:
+#    types: [created]
+on: [push]
 jobs:
   notify:
     runs-on: ubuntu-latest

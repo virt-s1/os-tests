@@ -2026,9 +2026,21 @@ current_device"
         debug_want:
             sos_output.txt
         """
+        cmd = 'sudo rm -rf /var/tmp/sos*'
+        utils_lib.run_cmd(self,cmd,msg="clean up old sos report")
         utils_lib.is_cmd_exist(self, cmd='sosreport')
         cmd = "sosreport --batch"
-        utils_lib.run_cmd(self,cmd,expect_ret=0,msg="test sosreport",timeout=120)
+        utils_lib.run_cmd(self,cmd,expect_ret=0,msg="test sosreport",timeout=400)
+        cmd = 'sudo ls /var/tmp/sos*.xz'
+        sosfile = utils_lib.run_cmd(self, cmd, expect_ret=0)
+        sosfile = sosfile.strip('\n')
+        if self.params['remote_node'] is not None:
+            self.log.info('retrive {} from remote to {}'.format(sosfile, self.log_dir))
+            self.SSH.get_file(rmt_file=sosfile,local_file='{}/debug/{}'.format(self.log_dir,os.path.basename(sosfile)))
+        else:
+            cmd = "cp {} {}/debug/{}".format(sosfile, self.log_dir,os.path.basename(sosfile) )
+            utils_lib.run_cmd(self, cmd, msg='save {} to {}'.format(sosfile, self.log_dir))
+
     def tearDown(self):
         pass
 
