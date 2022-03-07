@@ -439,12 +439,12 @@ def run_cmd(test_instance,
             else:
                 find_list = re.findall('.*{}.*'.format(key_word), output)
             if len(find_list) > 0:
-                test_instance.log.info('expcted "{}" found in "{}"'.format(key_word, ''.join(find_list)))
+                test_instance.log.info('expected "{}" found in "{}"'.format(key_word, ''.join(find_list)))
             else:
                 if output.count('\n') > 5:
-                    test_instance.fail('expcted "{}" not found in output(check debug log as too many lines)'.format(key_word))
+                    test_instance.fail('expected "{}" not found in output(check debug log as too many lines)'.format(key_word))
                 else:
-                    test_instance.fail('expcted "{}" not found in "{}"'.format(key_word,output))
+                    test_instance.fail('expected "{}" not found in "{}"'.format(key_word,output))
     if expect_not_kw is not None:
         for key_word in expect_not_kw.split(','):
             if output.count('\n') > 5:
@@ -452,12 +452,12 @@ def run_cmd(test_instance,
             else:
                 find_list = re.findall('.*{}.*'.format(key_word), output)
             if len(find_list) == 0:
-                test_instance.log.info('Unexpcted "{}" not found in output'.format(key_word))
+                test_instance.log.info('Unexpected "{}" not found in output'.format(key_word))
             else:
                 if output.count('\n') > 5:
-                    test_instance.fail('Unexpcted "{}" found in {}'.format(key_word, ''.join(find_list)))
+                    test_instance.fail('Unexpected "{}" found in {}'.format(key_word, ''.join(find_list)))
                 else:
-                    test_instance.fail('Unexpcted "{}" found in "{}"'.format(key_word,output))
+                    test_instance.fail('Unexpected "{}" found in "{}"'.format(key_word,output))
     if expect_output is not None:
         test_instance.assertEqual(expect_output,
                          output,

@@ -480,7 +480,7 @@ int main(int argc, char *argv[])
                int x;
                free(&x);
                }
-            3. # gcc -g -o pp test1.c
+            3. # gcc -g -o pp test.c
             4. # ./pp
         expect_result:
             pp crashed and new core file is generated under /var/lib/systemd/coredump
