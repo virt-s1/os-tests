@@ -2,6 +2,7 @@ import unittest
 import time
 from os_tests.libs import utils_lib
 
+
 class TestLifeCycle(unittest.TestCase):
     '''
     Only run in server-client mode.
