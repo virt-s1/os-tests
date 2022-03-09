@@ -655,7 +655,7 @@ def is_ahv(test_instance, action=None):
     Check whether system is a nutanix ahv system.
     Arguments:
         test_instance {Test instance} -- unittest.TestCase instance
-        action {string} -- cancel case if it is not a ali system
+        action {string} -- cancel case if it is not a nutanix ahv system
     Return:
         ahv: return True
         other: return False
