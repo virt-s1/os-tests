@@ -120,6 +120,8 @@ def init_connection(test_instance, timeout=600, interval=10):
         test_instance.log.info("connection is not live")
     test_instance.SSH = init_ssh(params=test_instance.params, timeout=timeout, interval=interval, log=test_instance.log)
     if test_instance.SSH is None:
+        if test_instance.vm:
+            test_instance.vm.get_console_log()
         test_instance.skipTest("Cannot make ssh connection to remote, please check")
 
 def get_cfg(cfg_file = None):
@@ -408,7 +410,8 @@ def run_cmd(test_instance,
         test_instance.vm.get_console_log()
         test_instance.vm.stop()
         test_instance.vm.start()
-    if cursor is not None and cursor in output:
+        test_instance.params['remote_node'] = test_instance.vm.floating_ip
+    if cursor is not None and output is not None and cursor in output:
         output = output[output.index(cursor):]
     if is_log_output:
         test_instance.log.info("CMD ret: {} out:{}".format(status, output))
@@ -695,7 +698,7 @@ def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False):
     pkg_find = "sudo yum provides %s" % cmd
     output = run_cmd(test_instance, pkg_find)
     for i in [arch, 'noarch']:
-        pkg_list_tmp = re.findall(".*%s" % i, output)
+        pkg_list_tmp = re.findall(".*\.{}".format(i), output)
         pkg_list = [i for i in pkg_list_tmp if 'Repo' not in i]
         if len(pkg_list) > 0:
             break

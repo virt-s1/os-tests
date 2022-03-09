@@ -802,23 +802,37 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         component:
             sssd
         bugzilla_id:
-            1797973
+            1797973,2027674
         is_customer_case:
             False
         maintainer:
             xiliang@redhat.com
         description:
-            check if system can enable fips successfully
+            check if there is process core dumped during boot.
         key_steps:
             1.enable fips and reboot the system.
             2.dumped core
         expect_result:
             no core dump
         debug_want:
-            redirected output file
+            attach core files under '/var/lib/systemd/coredump/' if report bz
         """
-        # redirect journalctl output to a file as it is not get return
-        # normally in RHEL7
+        cmd = 'sudo ls  /var/lib/systemd/coredump/core*'
+        core_files = utils_lib.run_cmd(self, cmd, msg='check if core file generated')
+        if 'No such file or directory' not in core_files:
+            self.log.info('Please attached core files when repor bugs')
+            for core_file in core_files.split('\n'):
+                core_file = core_file.strip('\n')
+                if not core_file:
+                    continue
+                cmd = 'sudo chmod 766 {}'.format(core_file)
+                utils_lib.run_cmd(self, cmd, expect_ret=0)
+                if self.params['remote_node'] is not None:
+                    self.log.info('retrive {} from remote to {}'.format(core_file, self.log_dir))
+                    self.SSH.get_file(rmt_file=core_file,local_file='{}/debug/{}'.format(self.log_dir,os.path.basename(core_file)))
+                else:
+                    cmd = "cp {} {}/debug/{}".format(core_file, self.log_dir,os.path.basename(core_file) )
+                    utils_lib.run_cmd(self, cmd, msg='save {} to {}'.format(core_file, self.log_dir))
         utils_lib.check_log(self, 'dumped core', skip_words='test_check_journalctl_dumpedcore', rmt_redirect_stdout=True)
 
     def test_check_journalctl_error(self):
@@ -2034,6 +2048,8 @@ current_device"
         cmd = 'sudo ls /var/tmp/sos*.xz'
         sosfile = utils_lib.run_cmd(self, cmd, expect_ret=0)
         sosfile = sosfile.strip('\n')
+        cmd = 'sudo chmod 766 {}'.format(sosfile)
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
         if self.params['remote_node'] is not None:
             self.log.info('retrive {} from remote to {}'.format(sosfile, self.log_dir))
             self.SSH.get_file(rmt_file=sosfile,local_file='{}/debug/{}'.format(self.log_dir,os.path.basename(sosfile)))

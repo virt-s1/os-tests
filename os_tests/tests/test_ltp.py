@@ -26,7 +26,7 @@ class TestLTP(unittest.TestCase):
         utils_lib.run_cmd(self, 'sudo cat /tmp/ltplog')
         utils_lib.run_cmd(self,
                     'sudo cat /opt/ltp/results/*',
-                    expect_kw='Total Failures: 0')
+                    expect_ret=0,expect_kw='Total Failures: 0')
 
     def setUp(self):
         utils_lib.init_case(self)
