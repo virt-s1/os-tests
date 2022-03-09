@@ -1806,9 +1806,13 @@ current_device"
         elif 'VMware' in lscpu_output:
             self.log.info("Found it is a vmware system!")
             self.assertIn('vmware', virt_what_output)
-        elif 'KVM' in lscpu_output and not utils_lib.is_metal(self):
-            self.log.info("Found it is a kvm system!")
-            self.assertIn('kvm', virt_what_output)
+        elif 'KVM' in lscpu_output:
+            if utils_lib.is_ahv(self):
+                self.log.info("Found it is a Nutanix AHV system!")
+                self.assertIn('ahv', virt_what_output)
+            elif not utils_lib.is_metal(self):
+                self.log.info("Found it is a kvm system!")
+                self.assertIn('kvm', virt_what_output)
         elif utils_lib.is_metal(self) and utils_lib.is_aws(self):
             self.log.info("Found it is a aws bare metal system!")
             self.assertEqual('aws', virt_what_output.strip('\n'))

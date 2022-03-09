@@ -650,6 +650,26 @@ def is_openstack(test_instance, action=None):
         test_instance.log.info("Not an Openstack system.")
     return False
 
+def is_ahv(test_instance, action=None):
+    '''
+    Check whether system is a nutanix ahv system.
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+        action {string} -- cancel case if it is not a ali system
+    Return:
+        ahv: return True
+        other: return False
+    '''
+    output = run_cmd(test_instance, "sudo cat /sys/devices/virtual/dmi/id/product_*", expect_ret=0)
+    if 'ahv' in output.lower():
+        test_instance.log.info("Nutanix AHV system.")
+        return True
+    else:
+        if action == "cancel":
+            test_instance.skipTest("Cancel it in non Nutanix AHV system.")
+        test_instance.log.info("Not a Nutanix AHV system.")
+    return False
+
 def is_metal(test_instance, action=None):
     '''
     Check whether system is a baremetal system.
