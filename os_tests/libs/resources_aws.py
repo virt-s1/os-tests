@@ -147,8 +147,7 @@ class EC2VM(VMResource):
                                 ]
                             },
                         ],
-                        UserData='#!/bin/bash\nmkdir /home/%s/instance_create_%s' %
-                        (self.ssh_user, self.instance_type))[0]
+                        UserData='#!/bin/bash\nmkdir /tmp/userdata_{}'.format(self.run_uuid))[0]
                     self.is_created = True
                 except ClientError as err:
                     LOG.error("Failed to create instance, try another addtionalinfo {}".format(err))

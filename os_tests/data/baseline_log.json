@@ -927,7 +927,7 @@
         "trigger": ""
     },
     "msg_105": {
-        "content": ".*Unknown command line parameters: BOOT_IMAGE.*64$;.*Unknown kernel \"BOOT_IMAGE=.*64\", will be passed to user space.$",
+        "content": ".*Unknown command line parameters: BOOT_IMAGE.*64$;.*Unknown kernel.* \"BOOT_IMAGE=.*64\", will be passed to user space.$",
         "analyze": "BOOT_IMAGE is a know unknow command line parameters",
         "branch": "rhel",
         "status": "active",
@@ -981,7 +981,7 @@
         "trigger": "metal"
     },
     "msg_111": {
-        "content": ".*ftrace: allocating.*;.*Mount.*Kernel Trace File System.*",
+        "content": ".*ftrace: allocat.*;.*Mount.*Kernel Trace File System.*",
         "analyze": "this is not a real trace back",
         "branch": "rhel",
         "status": "active",
@@ -1121,6 +1121,15 @@
         "branch": "rhel",
         "status": "active",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2037807",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_127": {
+        "content": ".*systemd.* condition check.*",
+        "analyze": "not a bug, conditions work behavior in systemd.unit(5)",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2054986",
         "path": "journal",
         "trigger": ""
     }

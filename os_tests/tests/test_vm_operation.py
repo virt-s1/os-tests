@@ -5,7 +5,7 @@ from os_tests.libs.resources import UnSupportedAction,UnSupportedStatus
 
 class TestVMOperation(unittest.TestCase):
     '''
-    Only run in mode 3 with vm provision capbility.
+    Only run in mode 3 with vm provision supported.
     '''
     def setUp(self):
         utils_lib.init_case(self)
@@ -112,7 +112,7 @@ class TestVMOperation(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, msg='clean cloud-init and redo it')
         self.vm.reboot()
         time.sleep(20)
-        self.SSH.create_connection()
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         cmd = 'cat /etc/sysconfig/network'
         output = utils_lib.run_cmd(self, cmd, msg="New network configuration.")
         if "NETWORKING_IPV6=no" in output:
@@ -295,7 +295,7 @@ class TestVMOperation(unittest.TestCase):
         if not is_success:
             self.fail("Cannot trigger panic via nmi!")
         time.sleep(10)
-        self.SSH.create_connection()
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         utils_lib.run_cmd(self, r'sudo cat /var/crash/*/vmcore-dmesg.txt', expect_not_ret=0, msg='list /var/crash after crash')
         cmd = r'sudo dmesg|tail -10'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='NMI received')
@@ -348,7 +348,7 @@ class TestVMOperation(unittest.TestCase):
         if not is_success:
             self.fail("Cannot trigger panic via nmi!")
         time.sleep(10)
-        self.SSH.create_connection()
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         utils_lib.run_cmd(self,
                     r'sudo ls /var/crash/',
                     expect_ret=0,

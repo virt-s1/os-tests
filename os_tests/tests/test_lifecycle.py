@@ -46,30 +46,39 @@ class TestLifeCycle(unittest.TestCase):
         if utils_lib.is_arch(self, 'aarch64') and int(mini_mem) < 4:
             self.skipTest('minimal 4G memory required in aarch64')
 
+        need_reboot = False
         kernel_ver = utils_lib.run_cmd(self, 'uname -r', expect_ret=0)
-        if 'el7' in kernel_ver:
-            debug_kernel = "/boot/vmlinuz-" + kernel_ver.strip('\n') + ".debug"
+        if 'debug' in kernel_ver:
+            self.log.info('already in debug kernel')
         else:
-            debug_kernel = "/boot/vmlinuz-" + kernel_ver.strip('\n') + "+debug"
-
-        kernel_pkg = 'kernel-debug-' + kernel_ver
-        utils_lib.is_pkg_installed(self, pkg_name=kernel_pkg, timeout=360)
-        utils_lib.run_cmd(self,
-                    "sudo grubby --info=%s" % debug_kernel,
-                    expect_ret=0,
-                    msg="check kernel-debug installed")
-        cmd = "sudo grubby --info=%s|grep index|cut -d'=' -f2" % debug_kernel
-        debug_kernel_index = utils_lib.run_cmd(self,
-                                         cmd,
-                                         expect_ret=0, cancel_ret='0',
-                                         msg="check kernel-debug index")
-        cmd = "sudo grubby --set-default-index=%s" % debug_kernel_index
-        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="change default boot index")
-        cmd = 'sudo grubby --update-kernel=ALL --args="kmemleak=on"'
-        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="enable kmemleak")
-        utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
-        time.sleep(10)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+            need_reboot = True
+            if 'el7' in kernel_ver:
+                debug_kernel = "/boot/vmlinuz-" + kernel_ver.strip('\n') + ".debug"
+            else:
+                debug_kernel = "/boot/vmlinuz-" + kernel_ver.strip('\n') + "+debug"
+            kernel_pkg = 'kernel-debug-' + kernel_ver
+            utils_lib.is_pkg_installed(self, pkg_name=kernel_pkg, timeout=360)
+            utils_lib.run_cmd(self,
+                        "sudo grubby --info=%s" % debug_kernel,
+                        expect_ret=0,
+                        msg="check kernel-debug installed")
+            cmd = "sudo grubby --info=%s|grep index|cut -d'=' -f2" % debug_kernel
+            debug_kernel_index = utils_lib.run_cmd(self,
+                                             cmd,
+                                             expect_ret=0, cancel_ret='0',
+                                             msg="check kernel-debug index")
+            cmd = "sudo grubby --set-default-index=%s" % debug_kernel_index
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="change default boot index")
+        cmd = 'cat /proc/cmdline'
+        cmd_options = utils_lib.run_cmd(self, cmd)
+        if 'kmemleak=on' not in cmd_options:
+            need_reboot = True
+        if need_reboot:
+            cmd = 'sudo grubby --update-kernel=ALL --args="kmemleak=on"'
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="enable kmemleak")
+            utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
+            time.sleep(10)
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
         utils_lib.run_cmd(self,
                     'uname -r',
                     expect_ret=0,
@@ -319,7 +328,7 @@ no plan to fix it in the near future!")
             cmd = "sudo systemctl kexec"
             utils_lib.run_cmd(self, cmd, msg='fast reboot system')
             time.sleep(10)
-            self.SSH.create_connection()
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
             utils_lib.run_cmd(self, 'uname -r', msg='check kernel', expect_ret=0, expect_kw=kernel[7:])
 
     def test_kdump_fastboot_kexec_e(self):
@@ -360,7 +369,7 @@ no plan to fix it in the near future!")
             cmd = "sudo kexec -e"
             utils_lib.run_cmd(self, cmd, msg='fast reboot system')
             time.sleep(10)
-            self.SSH.create_connection()
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
             utils_lib.run_cmd(self, 'uname -r', msg='check kernel', expect_ret=0, expect_kw=kernel[7:])
 
     def tearDown(self):

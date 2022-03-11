@@ -499,11 +499,9 @@ int main(int argc, char *argv[])
         if 'Red Hat Enterprise Linux' in product_name:
             cmd = 'systemctl show | grep CORE'
             utils_lib.run_cmd(self, cmd, expect_kw='DefaultLimitCORESoft=0,DefaultLimitCORE=infinity', msg='check default limit core setting')
-        utils_lib.run_cmd(self, 'ulimit -c 0', expect_ret=0, msg='test user can change limit core setting')
-        utils_lib.run_cmd(self, 'ulimit -c', expect_kw='0', msg='check result')
-        utils_lib.run_cmd(self, 'ulimit -c unlimited', expect_ret=0, msg='test user can change limit core setting')
-        utils_lib.run_cmd(self, 'ulimit -c', expect_kw='unlimited', msg='check result')
-        utils_lib.run_cmd(self, 'sudo rm -rf /var/lib/systemd/coredump/core*', msg='clean up core files before testing')
+        utils_lib.run_cmd(self, 'ulimit -c 0;ulimit -c', expect_ret=0, expect_kw='0', msg='test user can change limit core setting')
+        utils_lib.run_cmd(self, 'ulimit -c unlimited;ulimit -c', expect_ret=0, expect_kw='unlimited', msg='test user can change limit core setting')
+        utils_lib.run_cmd(self, 'sudo rm -rf /var/lib/systemd/coredump/core.pp*', msg='clean up core files before testing')
         self.cursor = utils_lib.get_cmd_cursor(self, cmd='journalctl -b0', rmt_redirect_stdout=True)
         test_file = '/tmp/test.c'
         utils_lib.is_cmd_exist(self, 'gcc')
@@ -511,8 +509,8 @@ int main(int argc, char *argv[])
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='generate {}'.format(test_file))
         cmd = "gcc -g -o /tmp/pp {}".format(test_file)
         utils_lib.run_cmd(self, cmd, expect_ret=0)
-        utils_lib.run_cmd(self, '/tmp/pp', msg='run it to trigger core dump')
-        utils_lib.run_cmd(self, 'sudo ls /var/lib/systemd/coredump/core*', expect_ret=0, msg='check core file generated')
+        utils_lib.run_cmd(self, 'ulimit -c unlimited;/tmp/pp', msg='run it to trigger core dump')
+        utils_lib.run_cmd(self, 'sudo ls /var/lib/systemd/coredump/core.pp*', expect_ret=0, msg='check core file generated')
         utils_lib.check_log(self, "error,warn,fail", log_cmd='journalctl -b0', cursor=self.cursor, rmt_redirect_stdout=True)
 
     def test_podman_build_image(self):
@@ -732,12 +730,17 @@ RUN touch /tmp/test.txt
         cmd = "sudo systemctl restart libvirtd"
         utils_lib.run_cmd(self, cmd, cancel_ret='0', msg = "restart libvirtd")
         utils_lib.is_cmd_exist(self, cmd='virsh')
+        self.ssh_timeout = 1200
+        self.log.info('set ssh connection timeout to {}'.format(self.ssh_timeout))
         if utils_lib.is_arch(self, arch='x86_64'):
-            utils_lib.run_cmd(self,
-                   'cat /proc/cmdline',
-                   cancel_kw='intel_iommu=on',
-                   msg='Check boot line')
-
+            boot_param_required = 'intel_iommu=on'
+            out = utils_lib.run_cmd(self, 'cat /proc/cmdline', msg='Check boot line')
+            if boot_param_required not in out:
+                cmd = 'sudo grubby --update-kernel=ALL --args="{}"'.format(boot_param_required)
+                utils_lib.run_cmd(self, cmd, msg="append {} to boot params".format(boot_param_required))
+                utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
+                time.sleep(10)
+                utils_lib.init_connection(self, timeout=self.ssh_timeout)
         utils_lib.run_cmd(self, 'sudo lspci', msg="get pci list")
         tmp_pci = None
         cmd = "lspci|grep 'Non-Volatile memory'|wc -l"
