@@ -3,7 +3,7 @@ import os
 
 setuptools.setup(
     name="os-tests",
-    version="0.1.4",
+    version="0.1.5",
     author="Xiao Liang",
     author_email="xiliang@redhat.com",
     description="Lightweight, portable and customer centric tests collection for Linux OS",

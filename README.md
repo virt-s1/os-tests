@@ -55,7 +55,7 @@ or
 #### Mode 3 - server client with 1 node used, os-tests can provision test system self  
 
 Require cloud/platform account to provision remote system self, can do full test with full control of instance. Eg. device hotplug, snapshot creation, send nmi events......  
-Note: supports aws, openstack, alicloud for now, other platforms are in planning. The config template is under cfg dir.  
+Note: supports aws, openstack, alicloud, nutanix, other platforms are in planning. The config template is under cfg dir.  
 `# os-tests -p cloudinit --user ec2-user --keyfile /home/virtqe_s1.pem --platform_profile aws_env.yaml`
 
 ### More options  
@@ -140,7 +140,7 @@ total 8
 ### Third party utils  
 
 Below tools are shiped under 'utils' directory with os-tests because not all systems can reach github.
-- ltp x86 rpms: https://github.com/liangxiao1/rpmbuild_specs/releases/download/sync_20211124/ltp-master-20211124.x86_64.rpm
+- ltp x86_64 rpm: https://github.com/liangxiao1/rpmbuild_specs/releases/download/sync_20211124/ltp-master-20211124.x86_64.rpm
 - ltp aarch64 rpm: https://github.com/liangxiao1/rpmbuild_specs/releases/download/sync_20211124/ltp-master-20211124.aarch64.rpm
 - blktests x86_64 rpm: https://github.com/liangxiao1/rpmbuild_specs/releases/download/sync_20211124/blktests-master-20211124.x86_64.rpm
 - blktests aarch64 rpm: https://github.com/liangxiao1/rpmbuild_specs/releases/download/sync_20211124/blktests-master-20211124.aarch64.rpm
