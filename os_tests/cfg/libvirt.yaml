@@ -1,0 +1,18 @@
+Cloud:
+  provider: libvirt
+  uri: qemu:///system
+Subscription:
+  username:
+  password:
+VM:
+  rhel_ver: '8.6'
+  username: root
+  password: redhat
+  vm_name: rhel8.6
+  image_name: rhel-guest-image-8.6-1469.x86_64.qcow2
+Flavor:
+  name: small
+  cpu: 1
+  memory: 1
+  size: 10G
+  virt: kvm
