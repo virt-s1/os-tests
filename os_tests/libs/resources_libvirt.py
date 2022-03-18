@@ -236,6 +236,7 @@ dom_xml = """
     <acpi/>
     <apic/>
   </features>
+  <cpu mode='host-model' check='partial'/>
   <devices>
     <emulator>/usr/libexec/qemu-kvm</emulator>
     <disk type='file' device='disk'>
