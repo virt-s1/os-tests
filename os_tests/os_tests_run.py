@@ -28,8 +28,6 @@ def main():
     cfg_file, cfg_data = get_cfg()
     if args.results_dir is not None:
         cfg_data['results_dir'] = args.results_dir
-    if args.blk_devs is not None:
-        cfg_data['blk_devs'] = args.blk_devs
     if args.remote_node is not None:
         cfg_data['remote_node'] = args.remote_node
         cfg_data['remote_port'] = args.remote_port

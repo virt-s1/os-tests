@@ -54,8 +54,6 @@ def init_args():
                     help='save result to specific directory', required=False)
     parser.add_argument('--image', dest='image', default=None, action='store',
                     help='specify azure to run azure image check only', required=False)
-    parser.add_argument('--disks', dest='blk_devs', default=None, action='store',
-                    help='free disks for storage test, eg. "/dev/nvme0n1", data on disk has lost risks', required=False)
     parser.add_argument('--platform_profile', dest='platform_profile', default=None, action='store',
                     help='specify platform profile if enable os-tests provison vms self, only supports aws for now', required=False)
     args = parser.parse_args()
@@ -149,7 +147,10 @@ def init_connection(test_instance, timeout=600, interval=10):
     test_instance.SSH = init_ssh(params=test_instance.params, timeout=timeout, interval=interval, log=test_instance.log)
     if test_instance.SSH is None:
         if test_instance.vm:
-            test_instance.vm.get_console_log()
+            try:
+                test_instance.vm.get_console_log()
+            except NotImplementedError:
+                test_instance.log.info("{} not implement this func: get_console_log".format(test_instance.vm.provider))
         test_instance.skipTest("Cannot make ssh connection to remote, please check")
 
 def get_cfg(cfg_file = None):
@@ -203,6 +204,7 @@ def init_case(test_instance):
     logging.basicConfig(level=logging.INFO, format=FORMAT, filename=log_file)
     test_instance.log.info("-"*80)
     test_instance.log.info("Code Repo: {}".format(test_instance.params['code_repo']))
+    test_instance.log.info("Code Version: v{}".format(os_tests.__version__))
     test_instance.log.info("Case ID: {}".format(test_instance.id()))
     test_instance.log.info("Case Doc: {}".format(eval(test_instance.id()).__doc__))
     test_instance.log.info("Case Params:")
@@ -435,7 +437,10 @@ def run_cmd(test_instance,
         except Exception as err:
             test_instance.log.error("Run cmd failed again {}".format(err))
     if status is None and test_instance.vm:
-        test_instance.vm.get_console_log()
+        try:
+            test_instance.vm.get_console_log()
+        except NotImplementedError:
+            test_instance.log.info("{} not implement this func: get_console_log".format(test_instance.vm.provider))
         test_instance.vm.stop()
         test_instance.vm.start()
         test_instance.params['remote_node'] = test_instance.vm.floating_ip

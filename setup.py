@@ -1,9 +1,10 @@
 import setuptools
 import os
+import os_tests
 
 setuptools.setup(
     name="os-tests",
-    version="0.1.5",
+    version=os_tests.__version__,
     author="Xiao Liang",
     author_email="xiliang@redhat.com",
     description="Lightweight, portable and customer centric tests collection for Linux OS",
