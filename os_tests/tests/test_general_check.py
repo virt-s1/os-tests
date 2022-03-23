@@ -1546,8 +1546,7 @@ in cmdline as bug1859088")
         expected_result:
             No failed service found.
         '''
-        cmd = 'systemctl'
-        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='failed')
+        utils_lib.check_log(self, 'failed', log_cmd='systemctl')
 
     def test_check_sysfs_cpu_list(self):
         '''
