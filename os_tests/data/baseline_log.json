@@ -927,13 +927,13 @@
         "trigger": ""
     },
     "msg_105": {
-        "content": ".*Unknown command line parameters: BOOT_IMAGE.*64$;.*Unknown kernel.* \"BOOT_IMAGE=.*64\", will be passed to user space.$",
+        "content": ".*Unknown command line parameters: BOOT_IMAGE.*64$;.*Unknown kernel.* \"BOOT_IMAGE=.*64\", will be passed to user space.$;.*dracut-cmdline.*: Invalid command.*",
         "analyze": "BOOT_IMAGE is a know unknow command line parameters",
         "branch": "rhel",
         "status": "active",
         "link": "https://lore.kernel.org/all/20210511211009.42259-1-ahalaney@redhat.com/T/#u",
         "path": "journal, dmesg",
-        "trigger": ""
+        "trigger": "BOOT_IMAGE"
     },
     "msg_106": {
         "content": ".*xHCI BIOS handoff failed.*",
@@ -1132,5 +1132,23 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2054986",
         "path": "journal",
         "trigger": ""
+    },
+    "msg_128": {
+        "content": ".*Failed to insert 'ipmi_si': No such device.*;.*systemd-modules-load.service.*",
+        "analyze": "will be fixed in fwupd-1.7.4-1.el8",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2030993",
+        "path": "dmesg,journal",
+        "trigger": ""
+    },
+    "msg_129": {
+        "content": ".*Couldn't stat device /dev/char/10:200: No such file or directory.*;",
+        "analyze": "generated when container run",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1945929",
+        "path": "dmesg,journal",
+        "trigger": "Started libcontainer"
     }
 }
