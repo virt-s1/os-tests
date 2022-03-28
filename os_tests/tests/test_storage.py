@@ -1,4 +1,6 @@
+from ctypes import util
 import unittest
+from build.lib.os_tests.libs.utils_lib import run_cmd
 from os_tests.libs import utils_lib
 import time
 import os
@@ -39,8 +41,14 @@ class TestStorage(unittest.TestCase):
                     disk_in_use = True
                     break
             if not disk_in_use:
-                test_disk = disk
-                break
+                cmd = 'sudo wipefs -a /dev/{}'.format(disk)
+                ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='test can clean fs on {}'.format(disk))
+                if ret == 0:
+                    test_disk = disk
+                    break
+                else:
+                    self.log.info('Cannot clean fs on {} - skip'.format(disk))
+                    continue
         if test_disk:
             self.log.info('Test disk is found: {}'.format(test_disk))
         else:
@@ -116,6 +124,63 @@ class TestStorage(unittest.TestCase):
             No failure case found
         '''
         self._blktests_run(case_name="nvme")
+
+    def test_growpart(self):
+        """
+        case_tag:
+            cloudinit,storage
+        case_name:
+            test_growpart
+        component:
+            cloud-utils-growpart
+        bugzilla_id:
+            2063921
+        is_customer_case:
+            True
+        maintainer:
+            xuazhao@redhat.com
+        description:
+            check if pvs can work after growpart
+        key_steps:
+            1.make disk parted
+            2.pvcreate vgcreate
+            3.growpart
+            4.check if pvs and vgs still exists after growpart
+        expect_result:
+            pvs can show normally,e.g:
+            PV VG Fmt Attr PSize PFree
+        debug_want:
+            N/A
+        """
+        if(not self._get_test_disk()):
+            self.skipTest("test disk not found")
+        else:
+            test_disk = self._get_test_disk()
+        utils_lib.is_cmd_exist(self,"growpart")
+        test_part = test_disk + "1"
+
+        cmd = 'sudo wipefs -a {}'.format(test_disk)
+        utils_lib.run_cmd(self,cmd,msg="wipe all fs from {}".format(test_disk))
+        cmd = " sudo parted -s {} mklabel gpt mkpart primary ext4 1MB 1024MB".format(test_disk)
+        utils_lib.run_cmd(self,cmd,msg = "make disk part")
+
+        cmd = "sudo pvcreate {} -ff -y".format(test_part)
+        utils_lib.run_cmd(self,cmd,msg= "create lvm on disk")
+        utils_lib.run_cmd(self,"sleep 2")
+
+        cmd = "sudo vgcreate datavga {}".format(test_part)
+        utils_lib.run_cmd(self,cmd,msg="create vg group")
+        utils_lib.run_cmd(self,"sleep 2")
+
+        cmd = "sudo growpart {} 1".format(test_disk)
+        utils_lib.run_cmd(self,cmd,msg="run growpart")
+        utils_lib.run_cmd(self,"sleep 2")
+
+        utils_lib.run_cmd(self,"sudo pvs",expect_kw="datavga",msg="check if pv exists")
+        utils_lib.run_cmd(self,"sudo vgs",expect_kw="datavga",msg="check if vg exists")
+
+        utils_lib.run_cmd(self,"sudo vgremove datavga",msg="remove vg group")
+        utils_lib.run_cmd(self,"sudo pvremove {}".format(test_part),msg="remove pv")
 
     def test_storage_parted_s(self):
         """
