@@ -15,7 +15,7 @@ class TestKickstartInstall(unittest.TestCase):
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
         elif self.vm.provider != 'nutanix':
-            self.log.info("self.vm.provider is" + self.vm.provider)
+            self.log.info("self.vm.provider is " + self.vm.provider)
             self.skipTest("Skip this test case which is dedicate for Nutanix")
 
         if self.vm.exists():
@@ -35,8 +35,10 @@ class TestKickstartInstall(unittest.TestCase):
             self.fail('failed ssh to vm installed by kickstart')
 
     def tearDown(self):
-        self.log.info("Enter tearDown procedure")
-        self.vm.delete(wait=True)
+        if self.vm and self.vm.provider == 'nutanix':
+            self.log.info("Enter tearDown procedure")
+            self.vm.delete(wait=True)
+            self.vm.create()
 
 if __name__ == '__main__':
     unittest.main()
