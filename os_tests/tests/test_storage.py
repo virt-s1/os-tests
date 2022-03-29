@@ -1,6 +1,4 @@
-from ctypes import util
 import unittest
-from build.lib.os_tests.libs.utils_lib import run_cmd
 from os_tests.libs import utils_lib
 import time
 import os
@@ -166,15 +164,15 @@ class TestStorage(unittest.TestCase):
 
         cmd = "sudo pvcreate {} -ff -y".format(test_part)
         utils_lib.run_cmd(self,cmd,msg= "create lvm on disk")
-        utils_lib.run_cmd(self,"sleep 2")
+        time.sleep(2)
 
         cmd = "sudo vgcreate datavga {}".format(test_part)
         utils_lib.run_cmd(self,cmd,msg="create vg group")
-        utils_lib.run_cmd(self,"sleep 2")
+        time.sleep(2)
 
         cmd = "sudo growpart {} 1".format(test_disk)
         utils_lib.run_cmd(self,cmd,msg="run growpart")
-        utils_lib.run_cmd(self,"sleep 2")
+        time.sleep(2)
 
         utils_lib.run_cmd(self,"sudo pvs",expect_kw="datavga",msg="check if pv exists")
         utils_lib.run_cmd(self,"sudo vgs",expect_kw="datavga",msg="check if vg exists")
