@@ -89,6 +89,27 @@ def init_provider(params=None):
         if vm.is_stopped():
             vm.start(wait=True)
         disk = None
+    if 'google' in params['Cloud']['provider']:
+        from .resources_gcp import GCPVM
+        vm = GCPVM(params)
+        vm.create(wait=True)
+        if vm.is_stopped():
+            vm.start(wait=True)
+        disk = None
+    if 'libvirt' in params['Cloud']['provider']:
+        from .resources_libvirt import LibvirtVM
+        vm = LibvirtVM(params)
+        vm.create(wait=True)
+        if vm.is_stopped():
+            vm.start(wait=True)
+        disk = None
+    if 'openshift' in params['Cloud']['provider']:
+        from .resources_openshift import OpenShiftVM
+        vm = OpenShiftVM(params)
+        vm.create(wait=True)
+        if vm.is_stopped():
+            vm.start(wait=True)
+        disk = None
     return vm, disk, nic
 
 def init_ssh(params=None, timeout=600, interval=10, log=None):
