@@ -1,5 +1,6 @@
 import unittest
 from os_tests.libs import utils_lib
+import time
 
 class TestCloudInit(unittest.TestCase):
     def setUp(self):
@@ -206,6 +207,8 @@ class TestCloudInit(unittest.TestCase):
         description:
             https://cloudinit.readthedocs.io/en/latest/topics/datasources/ec2.html
         '''
+        if self.vm.provider == 'nutanix':
+            self.skipTest('skip run for nutanix platform on which use config drive to fetch metadata but not http service')
         cmd = r"curl http://169.254.169.254/latest/meta-data/instance-type"
 
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw="Not Found")
@@ -309,6 +312,79 @@ class TestCloudInit(unittest.TestCase):
                     expect_not_kw='SSH credentials failed',
                     expect_kw='value pair',
                     msg='check /var/log/cloud-init.log')  
+
+    def _get_boot_temp_devices(self):
+        boot_dev = utils_lib.run_cmd(self,
+                        "mount|grep 'boot'|head -1|cut -c1-8")
+        temp_dev = '/dev/sda' if boot_dev == '/dev/sdb' else '/dev/sdb'
+        return(boot_dev, temp_dev)
+
+    def test_cloudinit_auto_extend_root_partition_and_filesystem(self):
+        """
+        case_tag:
+            cloudinit
+        case_priority:
+            1
+        component:
+            cloud-init,cloud_utils_growpart
+        description:
+            RHEL7-103839 - CLOUDINIT-TC: Auto extend root partition and filesystem
+        key_steps:
+            1. Install cloud-utils-growpart gdisk if not installed(bug 1447177)
+            2. Check os disk and fs capacity
+            3. Enlarge os disk
+            4. Check os disk and fs capacity
+        """
+        if not self.vm.provider == 'nutanix':
+            self.skipTest('skip run except nutanix platform because in this test case present use nutanix API to expand disk')
+
+        self.log.info("RHEL7-103839 - CLOUDINIT-TC: Auto extend root partition and filesystem")
+        # 1. Install cloud-utils-growpart gdisk
+        if 'growpart-' not in utils_lib.run_cmd(self,
+                                        'rpm -q cloud-utils-growpart gdisk'):
+            utils_lib.run_cmd(self,
+                    "sudo yum install -y cloud-utils-growpart gdisk",
+                    timeout=600)
+        # 2. Check os disk and fs capacity
+        boot_dev = self._get_boot_temp_devices()[0].split('/')[-1].replace('\n', '')
+        partition = utils_lib.run_cmd(self,
+                    "find /dev/ -name {}[0-9]|sort|tail -n 1".format(boot_dev))
+        dev_size = utils_lib.run_cmd(self, "lsblk /dev/{0} --output NAME,SIZE -r |grep -o -P '(?<={0} ).*(?=G)'".format(boot_dev))
+        os_disk_size = int(self.vm.show()['vm_disk_info'][0]['size'])/(1024*1024*1024)
+        self.assertAlmostEqual(
+            first=float(dev_size),
+            second=float(os_disk_size),
+            delta=1,
+            msg="Device size is incorrect. Raw disk: %s, real: %s" %(dev_size, os_disk_size)
+        )
+        # 3. Enlarge os disk size
+        os_disk_uuid = self.vm.show()['vm_disk_info'][0]['disk_address']['vmdisk_uuid']
+        self.vm.prism.expand_disk(disk_uuid=os_disk_uuid, disk_size=os_disk_size+2)
+        utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
+        time.sleep(10)
+        utils_lib.init_connection(self, timeout=1200)
+        boot_dev = self._get_boot_temp_devices()[0].split('/')[-1].replace('\n', '')
+        partition = utils_lib.run_cmd(self,
+            "find /dev/ -name {}[0-9]|sort|tail -n 1".format(boot_dev)).replace('\n', '')
+        new_dev_size = utils_lib.run_cmd(self,
+            "lsblk /dev/{0} --output NAME,SIZE -r"
+            "|grep -o -P '(?<={0} ).*(?=G)'".format(boot_dev))
+        new_fs_size = utils_lib.run_cmd(self,
+            "df {} --output=size -h|grep -o '[0-9]\+'".format(partition))
+        new_os_disk_size=os_disk_size+2
+        self.assertEqual(
+            int(new_dev_size), int(new_os_disk_size),
+            "New device size is incorrect. "
+            "Device: %s, real: %s" % (new_dev_size, new_os_disk_size)
+        )
+        self.assertAlmostEqual(
+            first=float(new_fs_size),
+            second=float(new_os_disk_size),
+            delta=1.5,
+            msg="New filesystem size is incorrect. "
+                "FS: %s, real: %s" %
+                (new_fs_size, new_os_disk_size)
+        )
 
     def tearDown(self):
         if 'test_cloudinit_sshd_keypair' in self.id():
