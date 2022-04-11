@@ -61,12 +61,15 @@ def init_args():
 
 def init_provider(params=None):
     vm = None
+    disk = None
+    nic = None
     if 'aws' in params['Cloud']['provider']:
-        from .resources_aws import EC2VM,EC2Volume
+        from .resources_aws import EC2VM,EC2Volume,EC2NIC
         vm = EC2VM(params)
         vm.create()
         # init disk and do not create disk at very beginning
         disk = EC2Volume(params)
+        nic = EC2NIC(params)
     if 'openstack' in params['Cloud']['provider']:
         from .resources_openstack import OpenstackVM
         vm = OpenstackVM(params)
@@ -107,7 +110,7 @@ def init_provider(params=None):
         if vm.is_stopped():
             vm.start(wait=True)
         disk = None
-    return vm, disk
+    return vm, disk, nic
 
 def init_ssh(params=None, timeout=600, interval=10, log=None):
     from tipset.libs import rmt_ssh

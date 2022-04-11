@@ -380,13 +380,11 @@ class EC2VM(VMResource):
             return False
         return True
 
-    def attach_nic(self):
-        LOG.info("Wow, will add support later!")
-        return False
+    def attach_nic(self,nic,device_index=1, wait=True):
+        return nic.attach_to_instance(self.id, device_index, wait=wait)
 
-    def detach_nic(self):
-        LOG.info("Wow, will add support later!")
-        return False
+    def detach_nic(self,nic,force=False):
+        return nic.detach_from_instance(self.id, wait=True, force=force)
 
 class EC2Volume(StorageResource):
     '''
@@ -561,7 +559,7 @@ class EC2Volume(StorageResource):
 
     def get_state(self):
         try:
-            state = 'unknow'
+            state = 'unknown'
             self.volume.reload()
             state = self.volume.state
             LOG.info("disk state: {}".format(state))
@@ -590,4 +588,230 @@ class EC2Volume(StorageResource):
                 return True
         except Exception as err:
             LOG.info("Volume does not exists %s" % self.id)
+            return False
+
+class EC2NIC(NetworkResource):
+    '''
+    AWS Network class
+    '''
+    __network_interface = None
+
+    def __init__(self, params):
+        super(EC2NIC, self).__init__(params)
+        self.profile_name = params.get('profile_name')
+        if self.profile_name is None:
+            self.profile_name = 'default'
+        self.session = boto3.session.Session(profile_name=self.profile_name, region_name=params.get('region'))
+        self.__ec2 = self.session.resource('ec2', region_name=params.get('region'))
+        self._resource = self.session.resource('ec2', region_name=params.get('region'))
+        if params.get('ipv6'):
+            self.subnet_id = params.get('subnet_id_ipv6')
+            LOG.info('Instance support ipv6, use subnet %s', self.subnet_id)
+        else:
+            self.subnet_id = params.get('subnet_id_ipv4')
+            LOG.info('Instance only support ipv4, use subnet %s',
+                     self.subnet_id)
+        self.subnet = self.__ec2.Subnet(self.subnet_id)
+
+        self.zone = self.subnet.availability_zone
+        LOG.info("Get zone from current instance's subnet {}".format(self.zone))
+        if params.get('tagname'):
+            self.tag = params.get('tagname')
+        else:
+            self.tag = 'os_tests_network_ec2'
+        self.outpostarn = params.get('outpostarn')
+        self.id = None
+        self.security_group_ids = params.get('security_group_ids')
+
+    def show(self):
+        """
+        Show instance properties
+        Must show after VM properties are changed
+        """
+        if self.is_exist():
+            LOG.info("NIC ID: {}".format(self.__network_interface.id))
+
+    def reuse_init(self, network_interface_id):
+        '''
+        To reuse an exist network interface than create a new one
+        :params network-intserface_id: id of existing network_interface
+        '''
+        if network_interface_id is None:
+            return False
+        try:
+            self.__network_interface = self.__ec2.NetworkInterface(
+                network_interface_id)
+            if self.is_attached():
+                return False
+            LOG.info(
+                "Existing %s state is %s" %
+                (self.__network_interface.id, self.__network_interface.status))
+            return True
+        except ClientError as err:
+            LOG.error(err)
+            return False
+
+    def is_free(self):
+        self.__network_interface.reload()
+        if self.__network_interface.status == 'in-use':
+            LOG.info("%s network interface is in use.",
+                     self.__network_interface.id)
+            return True
+        return False
+
+    def get_state(self):
+        try:
+            state = 'unknown'
+            self.__network_interface.reload()
+            state = self.__network_interface.status
+            LOG.info("nic state: {}".format(state))
+        except Exception as err:
+            return state
+        return state
+
+    def is_exist(self):
+        """
+        Judge if nic exists
+        :return: True if exists.
+        Example:
+        return True if self._get_status() != -1 else False
+        """
+        try:
+            self.__network_interface.reload()
+            if self.__network_interface.status in "deleting | deleted":
+                LOG.info("nic is deleted %s" % self.id)
+                return False
+            else:
+                LOG.info("nic exists %s" % self.id)
+                return True
+        except Exception as err:
+            LOG.info("nic does not exists %s" % self.id)
+            return False
+
+    def add_tag(self):
+        try:
+            self.__network_interface.reload()
+            self.__network_interface.create_tags(Tags=[
+                {
+                    'Key': 'Name',
+                    'Value': self.tag
+                },
+            ])
+        except Exception as err:
+            LOG.info("Failed to add tag to %s", self.__network_interface.id)
+            LOG.error(err)
+
+    def create(self):
+        '''Create a new network interface
+        '''
+        try:
+            self.__network_interface = self.subnet.create_network_interface(
+                Description=self.tag, Groups=[
+                    self.security_group_ids,
+                ])
+            LOG.info("%s network interface created!" %
+                     self.__network_interface.id)
+            self.add_tag()
+            self.id = self.__network_interface.id
+            return True
+        except Exception as err:
+            LOG.info("Failed to create interface")
+            LOG.error(err)
+            return False
+
+    def delete(self, wait=True):
+        '''
+        Delete network interface
+        :param wait: Wait for interface deleted
+        :return: True|False  and raise Exception if interface delete failed
+        '''
+
+        if self.__network_interface is not None:
+            LOG.info("Delete {}".format(self.id))
+            try:
+                self.__network_interface.delete()
+                return True
+            except Exception as err:
+                LOG.error(err)
+                return False
+        else:
+            LOG.info("No specify network interface delete.")
+
+    def attach_to_instance(self, instance_id, device_index, wait=True):
+        """
+        Attach nic to instance as $device_index
+        :param instance_id: id of instance
+        :param device_index: [0..9]
+        :return: True if success, False as failed
+        """
+        try:
+            LOG.info("Try to attach %s to %s" %
+                     (self.__network_interface.id, instance_id))
+            self.__network_interface.attach(
+                DeviceIndex=device_index,
+                InstanceId=instance_id,
+            )
+
+            if wait:
+                start_time = time.time()
+                while True:
+                    self.__network_interface.reload()
+                    if self.__network_interface.status == 'in-use':
+                        LOG.info('NIC attached!')
+                        return True
+                    else:
+                        end_time = time.time()
+                        if int(end_time) - int(start_time) > 80:
+                            LOG.error(
+                                "Failed to attach to instance after 80s! %s" %
+                                self.__network_interface.status)
+                            return False
+                    time.sleep(10)
+
+            return True
+        except Exception as err:
+            LOG.error("NIC cannot attach to %s error %s" % (instance_id, err))
+            return False
+
+    def detach_from_instance(self, instance_id, wait=True, force=False):
+        """Detach nic from instance as $device_name
+
+        Arguments:
+            instance_id {string} -- instance id
+            device_name {string} -- target device name from instance,
+                                    like 'sdX','xvdx'
+
+        Keyword Arguments:
+            wait {bool} -- wait or not wait detach operation complete
+                           (default: {True})
+            force {bool} -- force or not force detach from instance
+                            (default: {False})
+
+        Returns:
+            bool -- True if success, False as failed
+        """
+        try:
+            LOG.info("Try to dettach %s from %s" %
+                     (self.__network_interface.id, instance_id))
+            self.__network_interface.reload()
+            self.__network_interface.detach(Force=force)
+            if wait:
+                start_time = time.time()
+                while True:
+                    self.__network_interface.reload()
+                    if self.__network_interface.status == 'available':
+                        LOG.info('NIC dettached!')
+                        return True
+                    else:
+                        end_time = time.time()
+                        if int(end_time) - int(start_time) > 80:
+                            LOG.error(
+                                "Failed to dettach to instance after 80s! %s" %
+                                self.__network_interface.status)
+                            return False
+                    time.sleep(10)
+            return True
+        except Exception as err:
+            LOG.error("NIC cannot detach from %s error %s" %
+                      (instance_id, err))
             return False
