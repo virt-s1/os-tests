@@ -613,4 +613,8 @@ class NutanixVM(VMResource):
 
     def disk_count(self):
         raise NotImplementedError
+
+    def modify_disk_size(self, os_disk_size, expand_num):
+        os_disk_uuid = self.show()['vm_disk_info'][0]['disk_address']['vmdisk_uuid']
+        self.prism.expand_disk(disk_uuid=os_disk_uuid, disk_size=os_disk_size+expand_num)
         

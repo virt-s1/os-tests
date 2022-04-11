@@ -335,16 +335,14 @@ class TestCloudInit(unittest.TestCase):
             3. Enlarge os disk
             4. Check os disk and fs capacity
         """
-        if not self.vm.provider == 'nutanix':
-            self.skipTest('skip run except nutanix platform because in this test case present use nutanix API to expand disk')
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
 
         self.log.info("RHEL7-103839 - CLOUDINIT-TC: Auto extend root partition and filesystem")
         # 1. Install cloud-utils-growpart gdisk
-        if 'growpart-' not in utils_lib.run_cmd(self,
-                                        'rpm -q cloud-utils-growpart gdisk'):
-            utils_lib.run_cmd(self,
-                    "sudo yum install -y cloud-utils-growpart gdisk",
-                    timeout=600)
+        utils_lib.is_cmd_exist(self, cmd='growpart')
+        utils_lib.is_cmd_exist(self, cmd='gdisk')
+        
         # 2. Check os disk and fs capacity
         boot_dev = self._get_boot_temp_devices()[0].split('/')[-1].replace('\n', '')
         partition = utils_lib.run_cmd(self,
@@ -358,8 +356,7 @@ class TestCloudInit(unittest.TestCase):
             msg="Device size is incorrect. Raw disk: %s, real: %s" %(dev_size, os_disk_size)
         )
         # 3. Enlarge os disk size
-        os_disk_uuid = self.vm.show()['vm_disk_info'][0]['disk_address']['vmdisk_uuid']
-        self.vm.prism.expand_disk(disk_uuid=os_disk_uuid, disk_size=os_disk_size+2)
+        self.vm.modify_disk_size(os_disk_size, 2)
         utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(10)
         utils_lib.init_connection(self, timeout=1200)
