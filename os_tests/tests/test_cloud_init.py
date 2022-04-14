@@ -1,5 +1,6 @@
 import unittest
 from os_tests.libs import utils_lib
+from os_tests.libs.resources import UnSupportedAction
 import time
 
 class TestCloudInit(unittest.TestCase):
@@ -345,8 +346,6 @@ class TestCloudInit(unittest.TestCase):
         
         # 2. Check os disk and fs capacity
         boot_dev = self._get_boot_temp_devices()[0].split('/')[-1].replace('\n', '')
-        partition = utils_lib.run_cmd(self,
-                    "find /dev/ -name {}[0-9]|sort|tail -n 1".format(boot_dev))
         dev_size = utils_lib.run_cmd(self, "lsblk /dev/{0} --output NAME,SIZE -r |grep -o -P '(?<={0} ).*(?=G)'".format(boot_dev))
         os_disk_size = int(self.vm.show()['vm_disk_info'][0]['size'])/(1024*1024*1024)
         self.assertAlmostEqual(
@@ -356,7 +355,12 @@ class TestCloudInit(unittest.TestCase):
             msg="Device size is incorrect. Raw disk: %s, real: %s" %(dev_size, os_disk_size)
         )
         # 3. Enlarge os disk size
-        self.vm.modify_disk_size(os_disk_size, 2)
+        try:
+            self.disk.modify_disk_size(os_disk_size, 2)
+        except NotImplementedError:
+            self.skipTest('modify disk size func is not implemented in {}'.format(self.vm.provider))
+        except UnSupportedAction:
+            self.skipTest('modify disk size is not supported in {}'.format(self.vm.provider))
         utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(10)
         utils_lib.init_connection(self, timeout=1200)

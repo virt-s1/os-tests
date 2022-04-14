@@ -39,7 +39,8 @@ class TestStorage(unittest.TestCase):
                     disk_in_use = True
                     break
             if not disk_in_use:
-                cmd = 'sudo wipefs -a /dev/{}'.format(disk)
+                #cmd = 'sudo wipefs -a /dev/{}'.format(disk) #comment this line for bz2074486
+                cmd = 'sudo mkfs.ext3 /dev/{} -F'.format(disk)
                 ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='test can clean fs on {}'.format(disk))
                 if ret == 0:
                     test_disk = disk
@@ -155,6 +156,7 @@ class TestStorage(unittest.TestCase):
         else:
             test_disk = self._get_test_disk()
         utils_lib.is_cmd_exist(self,"growpart")
+        utils_lib.is_pkg_installed(self,"lvm2")
         test_part = test_disk + "1"
 
         cmd = 'sudo wipefs -a {}'.format(test_disk)

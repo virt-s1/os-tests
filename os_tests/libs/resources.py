@@ -225,13 +225,6 @@ class VMResource(BaseResource):
         :param force: force detach even in use
         :return: raise Exception if detach failed
         """
-    @abstractmethod
-    def modify_disk_size(self, os_disk_size, expand_num):
-        """
-        modify os disk size to plus expand number to origianl size
-        :param os_disk_size: os disk original size
-        :param expan_num: number to expan os disk size
-        """
 
 class StorageResource(BaseResource):
     """
@@ -253,6 +246,13 @@ class StorageResource(BaseResource):
         """
         check if disk is free
         :return: return True or False
+        """
+    @abstractmethod
+    def modify_disk_size(self, os_disk_size, expand_num):
+        """
+        modify os disk size to plus expand number to origianl size
+        :param os_disk_size: os disk original size
+        :param expan_num: number to expan os disk size
         """
 
 class NetworkResource(BaseResource):
