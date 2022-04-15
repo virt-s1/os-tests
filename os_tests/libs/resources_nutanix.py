@@ -11,7 +11,7 @@ from requests.compat import urljoin
 import requests
 import subprocess
 
-from .resources import VMResource,UnSupportedAction,UnSupportedStatus
+from .resources import VMResource,StorageResource,UnSupportedAction,UnSupportedStatus
 from abc import ABCMeta, abstractmethod
 
 import os
@@ -116,7 +116,7 @@ class PrismApi(PrismSession):
         #self.storage_container_uuid = params.get('storage_container_uuid', '*/VM/*')
         self.storage_container_uuid = params['VM']['storage_container_uuid']
         #self.disk = params.get('size', '*/Flavor/*')
-        self.disk = params['Flavor']['size']
+        self.disk_size = params['Flavor']['size']
         #self.network_uuid = params.get('network_uuid', '*/VM/*')
         self.network_uuid = params['VM']['network_uuid']
         #self.cpu = params.get('cpu', '*/Flavor/*')
@@ -213,10 +213,24 @@ class PrismApi(PrismSession):
                         'device_index': 0,
                         'vmdisk_uuid': vmdisk_uuid
                     },
-                    'minimum_size': self.disk*1024*1024*1024,
+                    'minimum_size': self.disk_size*1024*1024*1024,
                     'storage_container_uuid': self.storage_container_uuid
                 }
-            }],
+            },
+            {
+                'is_cdrom': False,
+                'is_empty': False,
+                'is_scsi_pass_through': True,
+                'is_thin_provisioned': False,
+                'vm_disk_create': {
+                    "disk_address": {
+                    "device_bus": "scsi"
+                    },
+                    'size': 1*1024*1024*1024,
+                    'storage_container_uuid': self.storage_container_uuid
+                }
+            }
+            ],
             'vm_nics': network_uuids
         }
         return self.make_request(endpoint, 'post', data=data)
@@ -286,7 +300,7 @@ class PrismApi(PrismSession):
                 'is_scsi_pass_through': True,
                 'is_thin_provisioned': False,
                 'vm_disk_create': {
-                    'size': self.disk*1024*1024*1024,
+                    'size': self.disk_size*1024*1024*1024,
                     'storage_container_uuid': self.storage_container_uuid
                 }
             }],
@@ -613,4 +627,38 @@ class NutanixVM(VMResource):
 
     def disk_count(self):
         raise NotImplementedError
-        
+
+    def get_disk_uuid(self, disk_number=0):
+        disk_uuid = self.show()['vm_disk_info'][disk_number]['disk_address']['vmdisk_uuid']
+        return disk_uuid
+
+class NutanixVolume(StorageResource):
+    '''
+    Volume class
+    '''
+    def __init__(self, params):
+        super(NutanixVolume, self).__init__(params)
+        self._data = None
+        self.vm = NutanixVM(params)
+        self.prism = PrismApi(params)
+
+    def is_free(self):
+        raise NotImplementedError
+    def create(self):
+        raise NotImplementedError
+
+    def delete(self):
+        raise NotImplementedError
+
+    def get_state(self):
+        raise NotImplementedError
+    def is_exist(self):
+        if self.vm.show():
+            logging.info("Instance disk: {}".format(self.vm.show()['vm_disk_info']))
+
+    def show(self):
+        raise NotImplementedError
+
+    def modify_disk_size(self, os_disk_size, expand_num):
+        os_disk_uuid = self.vm.get_disk_uuid(0)
+        self.prism.expand_disk(disk_uuid=os_disk_uuid, disk_size=os_disk_size+expand_num)

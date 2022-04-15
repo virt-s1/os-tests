@@ -83,12 +83,12 @@ def init_provider(params=None):
             vm.start(wait=True)
         disk = None
     if 'nutanix' in params['Cloud']['provider']:
-        from .resources_nutanix import NutanixVM
+        from .resources_nutanix import NutanixVM,NutanixVolume
         vm = NutanixVM(params)
         vm.create(wait=True)
         if vm.is_stopped():
             vm.start(wait=True)
-        disk = None
+        disk = NutanixVolume(params)
     if 'google' in params['Cloud']['provider']:
         from .resources_gcp import GCPVM
         vm = GCPVM(params)
@@ -110,6 +110,7 @@ def init_provider(params=None):
         if vm.is_stopped():
             vm.start(wait=True)
         disk = None
+
     return vm, disk, nic
 
 def init_ssh(params=None, timeout=600, interval=10, log=None):
@@ -154,6 +155,7 @@ def init_connection(test_instance, timeout=600, interval=10):
                 test_instance.vm.get_console_log()
             except NotImplementedError:
                 test_instance.log.info("{} not implement this func: get_console_log".format(test_instance.vm.provider))
+
         test_instance.skipTest("Cannot make ssh connection to remote, please check")
 
 def get_cfg(cfg_file = None):
@@ -1204,5 +1206,5 @@ def get_public_key(client_user=None):
     public_key = open(public_key_path, 'r')
     public_key_str = public_key.read()
     public_key.close()
-
+    
     return public_key_str
