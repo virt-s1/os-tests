@@ -859,6 +859,37 @@ if __name__ == "__main__":
         utils_lib.run_cmd(self, 'sudo python3 t.py')
         utils_lib.run_cmd(self, "dmesg", expect_not_kw='Call trace,Call Trace')
 
+
+    def test_grub2_mkconfig(self):
+        """
+        case_tag:
+            osbuild
+        case_name:
+            test_grub2_mkconfig
+        component:
+            osbuild-composer
+        bugzilla_id:
+            bz2056251
+        is_customer_case:
+            True
+        maintainer:
+            xuazhao@redhat.com
+        description:
+            check if grub2-mkconfig can generate a file with set default="${saved_entry}". Without it, system boots into index 0 kernel only.
+        key_steps:|
+            1.grub2-mkconfig -o /tmp/grub.cfg
+            2.cat /tmp/grub.cfg
+        expect_result:
+            there are {saved_entry} in grub.cfg
+        debug_want:
+            grub.cfg
+        """
+        cmd='rpm -qa "grub2*"'
+        utils_lib.run_cmd(self,cmd,msg="show grub version")
+        cmd="grub2-mkconfig -o /tmp/grub.cfg"
+        utils_lib.run_cmd(self,cmd,expect_kw="done",msg="generate file")
+        cmd='cat /tmp/grub.cfg'
+        utils_lib.run_cmd(self,cmd,msg="check if there is saved_entry",expect_kw="{saved_entry"+"}")
     def test_z_nitro_enclaves(self):
         '''
         case_name:

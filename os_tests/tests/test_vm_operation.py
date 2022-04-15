@@ -356,8 +356,85 @@ class TestVMOperation(unittest.TestCase):
         cmd = r'sudo cat /var/crash/1*/vmcore-dmesg.txt|tail -50'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='nmi_panic')
 
+    def test_network_device_hotplug(self):
+        """
+        case_tag:
+            network
+        case_name:
+            test_network_device_hotplug
+        case_file:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_vm_operation.py
+        component:
+            network
+        bugzilla_id:
+            2004072
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            Test hotplug network interface to RHEL.
+        key_steps: |
+            1. Launch an instance.
+            2. Attach a network interface to the instance, check the network appears in guest, e.g., "$ sudo lspci", "$ sudo ip addr show".
+            3. Detach the network interface from the instance, check the network disappears in guest again.
+            4. Check dmesg log of the instance.
+        expect_result: |
+            When the second network interface is attached in step 2, there are 2 Elastic Network Adapters displays in PCI devices, and the IP address are auto assigned to the device.
+            When the second network interface is detached in step 3, there are 1 Elastic Network Adapters displays in PCI devices, and only 1 NIC displays when showing ip information.
+            No crash or panic in system, no related error message or call trace in dmesg.
+        debug_want: |
+            network driver type and version
+            dmesg
+        """
+        if not self.nic:
+            self.skipTest('nic device not init')
+        try:
+            if not self.nic.create():
+                self.fail("network interface create failed")
+        except NotImplementedError:
+            self.skipTest('nic create func is not implemented in {}'.format(self.vm.provider))
+        except UnSupportedAction:
+            self.skipTest('nic create func is not supported in {}'.format(self.vm.provider))
+
+        netdev_index = 1
+        self.vm.attach_nic(self.nic,device_index=1, wait=True)
+        for i in range(1, 4):
+            time.sleep(5)
+            self.log.info('Check network in guest, loop {}'.format(i))
+            cmd = "lspci"
+            output1 = utils_lib.run_cmd(self, cmd)
+            cmd = "ip addr show"
+            output1 = utils_lib.run_cmd(self, cmd)
+            if 'eth%s' % netdev_index not in output1:
+                self.log.info("Added nic not found")
+        timeout = 120
+        interval = 5
+        time_start = int(time.time())
+        while True:
+           if self.vm.detach_nic(self.nic):
+               break
+           time_end = int(time.time())
+           if time_end - time_start > timeout:
+              self.log.info('timeout ended: {}'.format(timeout))
+              break
+           self.log.info('retry after {}s'.format(interval))
+           time.sleep(interval)
+        time.sleep(5)
+        cmd = "ip addr show"
+        utils_lib.run_cmd(self, cmd)
+        self.nic.delete()
+        self.assertIn('eth%d' % netdev_index,
+                      output1,
+                      msg='eth{} not found after attached nic'.format(netdev_index))
+        cmd = 'dmesg'
+        utils_lib.run_cmd(self, cmd, expect_not_kw='Call Trace')
+
     def tearDown(self):
-        pass
+        if self.nic and self.nic.is_exist():
+            self.nic.delete()
 
 if __name__ == '__main__':
     unittest.main()

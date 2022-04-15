@@ -14,14 +14,14 @@ def main():
     log = logging.getLogger(__name__)
     logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
     args = init_args()
-    vm, disk = None, None
+    vm, disk, nic = None, None, None
     run_uuid = str(uuid.uuid4())
     if args.platform_profile and not args.is_listcase and not args.verifydoc:
         log.info("{}Stage: Provision System{}".format('='*20,'='*20))
         cfg_file, cfg_data = get_cfg(cfg_file=args.platform_profile)
         cfg_data['remote_user'] = args.remote_user
         cfg_data['run_uuid'] = run_uuid
-        vm, disk = init_provider(params=cfg_data)
+        vm, disk, nic = init_provider(params=cfg_data)
         if not vm:
             log.info('cannot provision vm, please check.')
             sys.exit(1)
@@ -106,6 +106,7 @@ def main():
                             case.SSH = ssh
                         case.vm = vm
                         case.disk = disk
+                        case.nic = nic
                         if filter_case_doc(case=case, patterns=test_patterns, skip_patterns=skip_patterns,
                                            filter_field=args.filter_by, strict=args.is_strict, verify_doc=args.verifydoc):
                             final_ts.addTest(case)
