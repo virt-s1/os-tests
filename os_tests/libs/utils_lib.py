@@ -826,7 +826,7 @@ def pkg_install(test_instance, pkg_name=None, pkg_url=None, force=False):
                 cmd = 'sudo yum -y reinstall %s' % pkg_name
             run_cmd(test_instance, cmd, timeout=1200)
 
-        if not is_pkg_installed(test_instance, pkg_name=pkg_name) and pkg_url is not None or force:
+        if not is_pkg_installed(test_instance, pkg_name=pkg_name) and pkg_url is not None and force:
             test_instance.log.info('Install without dependences!')
             cmd = 'sudo rpm -ivh %s --nodeps' % pkg_url
             if force:
