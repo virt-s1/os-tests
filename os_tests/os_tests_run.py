@@ -56,7 +56,10 @@ def main():
     if args.image is not None:
         if 'azure' in args.image:
             print("only run azure image checks")
-            test_patterns = 'test_azure_image'
+            if args.pattern:
+                test_patterns = args.pattern
+            else:
+                test_patterns = 'test_azure_image'
         else:
             print("only azure image check supported for now")
             sys.exit(0)
@@ -83,7 +86,7 @@ def main():
             sys.exit(1)
 
     if not args.platform_profile and not args.verifydoc:
-        skip_patterns = skip_patterns + ',test_vm_operation'
+        skip_patterns = skip_patterns + ',test_vm_operation' if skip_patterns else 'test_vm_operation'
 
     log.info("{}Stage: Run Test{}".format('='*20,'='*20))
     print("Run in mode: is_listcase:{} test_patterns:{} skip_patterns:{}".format(args.is_listcase, test_patterns, skip_patterns))
