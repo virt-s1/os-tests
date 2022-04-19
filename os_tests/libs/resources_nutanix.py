@@ -218,19 +218,18 @@ class PrismApi(PrismSession):
                 }
             },
             {
-                'is_cdrom': False,
-                'is_empty': False,
-                'is_scsi_pass_through': True,
-                'is_thin_provisioned': False,
-                'vm_disk_create': {
-                    "disk_address": {
-                    "device_bus": "scsi"
-                    },
-                    'size': 1*1024*1024*1024,
-                    'storage_container_uuid': self.storage_container_uuid
+                "disk_address": {
+                    "device_bus": "scsi",
+                    "device_index": 1
+                },
+                "is_cdrom": False,
+                "is_empty": True,
+                "vm_disk_create": {
+                "size": 1*1024*1024*1024,
+                "storage_container_uuid": "41797d39-e961-4ab5-adcc-e5c9ab817729"
                 }
             }
-            ],
+        ],
             'vm_nics': network_uuids
         }
         return self.make_request(endpoint, 'post', data=data)
@@ -394,18 +393,52 @@ class PrismApi(PrismSession):
                 endpoint = urljoin(self.base_url, "networks/%s" % network["uuid"])
                 self.make_request(endpoint, 'delete')
 
-    def attach_disk(self, vm_uuid, disk_size):
-        logging.debug("Creating a disk and attach to VM")
+    def attach_disk(self, vm_uuid, device_bus, *device_info):
+        '''
+        Attach disk/cdrom, device_info args including disksize, is cdrom or not, and is empty or not
+        '''
+        logging.info("Prism creating and attaching disk, device_bus:{}, device_info: {}".format(device_bus, str(device_info)))
         endpoint = urljoin(self.base_url, "vms/%s/disks/attach" % vm_uuid)
-        data = {"vm_disks": [{
-                    "is_cdrom": False,
-                    "is_empty": True,
-                    "is_scsi_pass_through": True,
-                    "is_thin_provisioned": False,
+        device_label = device_bus + '.2'
+        if not device_info[1]:
+            data = {"vm_disks": [{"disk_address":{"device_bus":device_bus, "device_index":2, "disk_label":device_label},
+                    "is_cdrom": "false",
+                    "is_empty": "false",
                     "vm_disk_create": {
-                        "size": disk_size*1024*1024*1024,
-                         "storage_container_uuid": self.storage_container_uuid
-               }}]}
+                         "storage_container_uuid": self.storage_container_uuid,
+                         "size": device_info[0]*1024*1024*1024}
+                    }]}
+        else:
+            if device_info[2]:
+                data = {"vm_disks": [{"disk_address":{"device_bus":device_bus, "device_index":2},
+                    "is_cdrom": "true",
+                    "is_empty": "true",
+                    "vm_disk_create": {
+                         "size": device_info[0],
+                         "storage_container_uuid": self.storage_container_uuid}
+                    }]}
+            else:
+                images = self.list_images()
+                for image in images['entities']:
+                    if self.image_name_kickstart_iso == image['name']:
+                        vmdisk_uuid = image['vm_disk_id']
+                data = {"vm_disks": [{"disk_address":{"device_bus":device_bus, "device_index":2},
+                    "is_cdrom": "true",
+                    "is_empty": "false",
+                    'vm_disk_clone': {
+                    'disk_address': {
+                        'vmdisk_uuid': vmdisk_uuid
+                    },
+                    'storage_container_uuid': self.storage_container_uuid
+                    }}]}
+        return self.make_request(endpoint, 'post', data=data)
+
+    def detach_disk(self, vm_uuid, device_bus, vmdisk_uuid):
+        logging.info("detach disk, vmdisk uuid: {}".format(str(vmdisk_uuid)))
+        endpoint = urljoin(self.base_url, "vms/%s/disks/detach" % vm_uuid)
+        data = {"uuid": vmdisk_uuid,
+                "vm_disks":[{"disk_address":{"device_bus":device_bus,"device_index":2}}]
+               }
         return self.make_request(endpoint, 'post', data=data)
 
     def get_container(self):
@@ -519,6 +552,7 @@ class NutanixVM(VMResource):
                 "Timed out waiting for server to get deleted.")
 
     def start(self, wait=False):
+        logging.info("start vm")
         res = self.prism.start_vm(self.data.get('uuid'))
         if wait:
             self.wait_for_status(
@@ -578,9 +612,22 @@ class NutanixVM(VMResource):
     def cvm_cmd(self, command):
         return self.prism.cvm_cmd(command)
 
-    def attach_disk(self, size, wait=False):
-        logging.info("Creating and attaching disk")
-        res = self.prism.attach_disk(self.data.get('uuid'), size)
+    def attach_disk(self, device_bus, *device_info, wait=False):
+        '''
+        Attach disk/cdrom, device_info args including disksize, is cdrom or not, and is empty or not
+        '''
+        logging.info("Creating and attaching disk, device_bus, device_info: {}".format(device_bus, device_info))
+        res = self.prism.attach_disk(self.data.get('uuid'), device_bus, *device_info)
+        if wait:
+            self.wait_for_status(
+                res['task_uuid'], 30,
+                "Timed out attaching disk.")
+
+    def detach_disk(self, device_bus, vmdisk_uuid, wait=False):
+        '''
+        Attach disk according to vmdisk_uuid
+        '''
+        res = self.prism.detach_disk(self.data.get('uuid'), device_bus, vmdisk_uuid)
         if wait:
             self.wait_for_status(
                 res['task_uuid'], 30,
@@ -659,6 +706,6 @@ class NutanixVolume(StorageResource):
     def show(self):
         raise NotImplementedError
 
-    def modify_disk_size(self, os_disk_size, expand_num):
-        os_disk_uuid = self.vm.get_disk_uuid(0)
+    def modify_disk_size(self, os_disk_size, disk_num, expand_num):
+        os_disk_uuid = self.vm.get_disk_uuid(disk_num)
         self.prism.expand_disk(disk_uuid=os_disk_uuid, disk_size=os_disk_size+expand_num)

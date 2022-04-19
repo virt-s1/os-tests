@@ -1,8 +1,10 @@
 import unittest
 from os_tests.libs import utils_lib
+from os_tests.libs.resources import UnSupportedAction
 import time
 import os
 import os_tests
+import random
 
 class TestStorage(unittest.TestCase):
 
@@ -215,6 +217,134 @@ class TestStorage(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='create 20 partitions on {}'.format(test_disk))
         cmd = "sudo parted -s {} print free".format(test_disk)
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='106MB', msg="check partitions created")
+
+    def _test_attach_detach_disk(self, attach_or_detach, device_bus, *device_info):
+        '''
+        attach/detach disk/cdrom
+        '''
+        self.log.info('device info including is cdrom or not, is empty or not, device size')
+        if device_info[0]:
+            cmd = 'lsblk -d --output TYPE | grep rom | wc -l'
+        else:
+            cmd = 'lsblk -d --output TYPE | grep disk | wc -l'
+        origin_rom_num = utils_lib.run_cmd(self, cmd, expect_ret=0)
+        if device_bus == 'ide' or device_bus == 'sata':
+            self.vm.stop(wait="True")
+        try:
+            if attach_or_detach == 'attach':
+                self.vm.attach_disk(device_bus, device_info[2], device_info[0], device_info[1], wait=True)
+            else:
+                disk_uuid = self.vm.get_disk_uuid(2)
+                self.vm.detach_disk(device_bus, disk_uuid, wait=True)
+        except NotImplementedError:
+            self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
+        except UnSupportedAction:
+            self.skipTest('attch disk func is not supported in {}'.format(self.vm.provider))
+        if device_bus == 'ide' or device_bus == 'sata':
+            self.vm.start(wait="True")
+        utils_lib.init_connection(self, timeout=180)
+        total_rom_num = utils_lib.run_cmd(self, cmd, expect_ret=0)
+        if attach_or_detach == 'attach':
+            change_num = int(total_rom_num) - int(origin_rom_num)
+        else:
+            change_num = int(origin_rom_num) - int(total_rom_num)
+        self.assertEqual(
+            change_num, 1,
+            "number of new added cdrom is incorrect. "
+            "Expect: %s, real: %s" % (1, change_num)
+        )
+
+    def test_add_ide_empty_cdrom(self):
+        """
+        case_name:
+            test_add_ide_empty_cdrom
+        case_file:
+            os_tests.tests.test_storage.TestStorage.test_add_ide_empty_cdrom
+        component:
+            storage
+        maintainer:
+            mingli@redhat.com
+        description:
+            Test attach empty ide cdrom.
+        key_steps:
+            # Attach empty ide cdrom
+        expect_result:
+            No error threw.
+        debug_want:
+            - output from dmesg or journal
+        """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
+        self._test_attach_detach_disk("attach", "ide", True, True, 0)
+
+    def test_add_sata_clone_cdrom_from_img_service(self):
+        """
+        case_name:
+            test_add_sata_clone_cdrom_from_img_service
+        case_file:
+            os_tests.tests.test_storage.TestStorage.test_add_sata_clone_cdrom_from_img_service
+        component:
+            storage
+        maintainer:
+            mingli@redhat.com
+        description:
+            Test attach sata cdrom clone from image service and then read the content in VM.
+        key_steps:
+            # Attach sata cdrom and then read it's content
+        expect_result:
+            No error threw and cdrom content right.
+        debug_want:
+            - output from dmesg or journal
+        """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
+        self._test_attach_detach_disk("attach", "sata", True, False, 0)
+        new_add_device_name=utils_lib.run_cmd(self, 'blkid --label OEMDRV', expect_ret=0).split('\n')[0]
+        cmd = "sudo mkdir /mnt/mnt_new_cdrom \n sudo mount {} /mnt/mnt_new_cdrom".format(new_add_device_name)
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        read_new_device = utils_lib.run_cmd(self, "sudo ls /mnt/mnt_new_cdrom", expect_ret=0)
+        self.assertIn(
+                    "ks.cfg",
+                    read_new_device,
+                    msg="Read files from new added cdrom failed")
+
+    def test_add_remove_multi_scsi(self):
+        """
+        case_name:
+            test_add_remove_multi_scsi
+        case_file:
+            os_tests.tests.test_storage.TestStorage.test_add_remove_multi_scsi
+        component:
+            storage
+        maintainer:
+            mingli@redhat.com
+        description:
+            Test add and remove scsi disk of random size for 10 times in the VM.
+        key_steps:
+            # Attach/detach scsi disk with random size and check in 10 cycels
+        expect_result:
+            No error threw and size check right.
+        debug_want:
+            - output from dmesg or journal
+        """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
+        for i in range(10):
+            random_dev_size = random.randint(1,10)
+            self.log.info('test add remove scsi for {} time(s), and test size is {}'.format(i+1,random_dev_size))
+            cmd = 'lsblk -d --output NAME|grep -v NAME'
+            origin_lsblk_name_list = utils_lib.run_cmd(self, cmd, expect_ret=0).split('\n')
+            self._test_attach_detach_disk("attach", "scsi", False, False, random_dev_size)
+            new_lsblk_name_list = utils_lib.run_cmd(self, cmd, expect_ret=0).split('\n')
+            new_dev = [x for x in new_lsblk_name_list if x not in origin_lsblk_name_list][0]
+            cmd = 'sudo fdisk -s /dev/{}'.format(new_dev)
+            new_dev_size = utils_lib.run_cmd(self, cmd, expect_ret=0).split('\n')[0]
+            self.assertEqual(
+                int(new_dev_size), random_dev_size*1024*1024,
+                "Device size for new disk is not right"
+                "Expect: %s, real: %s" % (random_dev_size*1024*1024, new_dev_size)
+            )
+            self._test_attach_detach_disk("detach", "scsi", False)
 
     def tearDown(self):
         if 'blktests' in self.id():
