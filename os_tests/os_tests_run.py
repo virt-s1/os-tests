@@ -91,8 +91,9 @@ def main():
     log.info("{}Stage: Run Test{}".format('='*20,'='*20))
     print("Run in mode: is_listcase:{} test_patterns:{} skip_patterns:{}".format(args.is_listcase, test_patterns, skip_patterns))
 
-    utils_dir = os.path.realpath(os_tests.__file__)
-    utils_dir = os.path.dirname(utils_dir) + '/utils'
+    base_dir = os.path.realpath(os_tests.__file__)
+    utils_dir = os.path.dirname(base_dir) + '/utils'
+    data_dir = os.path.dirname(base_dir) + '/data'
 
     ts = unittest.defaultTestLoader.discover(start_dir=os_tests_dir,pattern='test_*.py', top_level_dir=os.path.dirname(os_tests_dir))
     tmp_ts = copy.deepcopy(ts)
@@ -105,6 +106,7 @@ def main():
                         case.params = cfg_data
                         case.run_uuid = run_uuid
                         case.utils_dir = utils_dir
+                        case.data_dir = data_dir
                         if ssh is not None:
                             case.SSH = ssh
                         case.vm = vm

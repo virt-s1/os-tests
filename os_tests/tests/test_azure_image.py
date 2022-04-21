@@ -799,7 +799,7 @@ skip_if_unavailable=False
                 basefile += "_rhel{}".format(project)
             # Get the base file path
             # If remote node, copy the basefile to the remote node /tmp/
-            src_file = self.utils_dir + '/azure/{}'.format(basefile)
+            src_file = self.data_dir + '/azure/{}'.format(basefile)
             if self.params['remote_node'] is not None:
                 base_file = "/tmp/"+basefile
                 self.log.info('Copy {} to remote'.format(basefile))
