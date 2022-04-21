@@ -494,7 +494,7 @@ def run_cmd(test_instance,
                     test_instance.fail('Unexpected "{}" found in "{}"'.format(key_word,output))
     if expect_output is not None:
         test_instance.assertEqual(expect_output,
-                         output,
+                         output.rstrip('\n'),
                          msg='exactly expected %s' %
                          (expect_output))
     if cancel_kw is not None:
@@ -572,7 +572,9 @@ def getboottime(test_instance):
     output = run_cmd(test_instance, "systemd-analyze", expect_ret=0)
     boot_time = re.findall("=.*s", output)[0]
     boot_time = boot_time.strip("=\n")
-    boot_time_sec = re.findall('[0-9.]+s', boot_time)[0]
+    boot_time_sec = re.findall('[0-9.]+s', boot_time)
+    # If ends with 'ms', e.g. 1min 76ms, ignore the ms time.
+    boot_time_sec = boot_time_sec[0] if boot_time_sec else '0s'
     boot_time_sec = boot_time_sec.strip('= s')
     if 'min' in boot_time:
         boot_time_min = re.findall('[0-9]+min', boot_time)[0]
@@ -633,7 +635,7 @@ def is_azure(test_instance, action=None):
         azure: return True
         other: return False
     '''
-    output = run_cmd(test_instance, "route -n")
+    output = run_cmd(test_instance, "/usr/sbin/route -n")
     if 'not found' in output:
         return False
     if '168.63.129.16' in output:
