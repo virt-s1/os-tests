@@ -10,12 +10,9 @@ import base64
 from requests.compat import urljoin
 import requests
 import subprocess
+import time
 
 from .resources import VMResource,StorageResource,UnSupportedAction,UnSupportedStatus
-from abc import ABCMeta, abstractmethod
-
-import os
-from tipset.libs import rmt_ssh
 
 # Disable HTTPS verification warnings.
 try:
@@ -330,7 +327,6 @@ class PrismApi(PrismSession):
         data = {"transition": "ON"}
         return self.make_request(endpoint, 'post', data=data)
         
-
     def list_vm_detail(self):
         logging.debug("Query details about VM")
         endpoint = urljoin(
@@ -347,6 +343,11 @@ class PrismApi(PrismSession):
     def list_images(self):
         logging.debug("Getting list of images")
         endpoint = urljoin(self.base_url, "images")
+        return self.make_request(endpoint, 'get')
+
+    def list_snapshots(self, vm_uuid):
+        logging.debug("Getting list of snapshots")
+        endpoint = urljoin(self.base_url, "snapshots/?vm_uuid=%s" % vm_uuid)
         return self.make_request(endpoint, 'get')
 
     def cvm_cmd(self, command):
@@ -393,35 +394,29 @@ class PrismApi(PrismSession):
                 endpoint = urljoin(self.base_url, "networks/%s" % network["uuid"])
                 self.make_request(endpoint, 'delete')
 
-    def attach_disk(self, vm_uuid, device_bus, *device_info):
+    def attach_disk(self, vm_uuid, device_bus, disk_size, is_cdrom, *is_empty):
         '''
-        Attach disk/cdrom, device_info args including disksize, is cdrom or not, and is empty or not
+        Attach disk/cdrom, need to indicate clone_from_img_service or clone_from_adsf_file when is_empty equals False
         '''
-        logging.info("Prism creating and attaching disk, device_bus:{}, device_info: {}".format(device_bus, str(device_info)))
+        logging.info("Prism creating and attaching disk, device_bus:{}, disk_size: {}, is_cdrom: {}, is_empty: {}".format(device_bus, disk_size, is_cdrom, is_empty))
         endpoint = urljoin(self.base_url, "vms/%s/disks/attach" % vm_uuid)
-        device_label = device_bus + '.2'
-        if not device_info[1]:
-            data = {"vm_disks": [{"disk_address":{"device_bus":device_bus, "device_index":2, "disk_label":device_label},
-                    "is_cdrom": "false",
-                    "is_empty": "false",
-                    "vm_disk_create": {
-                         "storage_container_uuid": self.storage_container_uuid,
-                         "size": device_info[0]*1024*1024*1024}
-                    }]}
-        else:
-            if device_info[2]:
-                data = {"vm_disks": [{"disk_address":{"device_bus":device_bus, "device_index":2},
-                    "is_cdrom": "true",
+        if is_empty[0]:
+            data = {"vm_disks": [{"disk_address":{"device_bus":device_bus, "device_index":2},
+                    "is_cdrom": is_cdrom,
                     "is_empty": "true",
                     "vm_disk_create": {
-                         "size": device_info[0],
-                         "storage_container_uuid": self.storage_container_uuid}
+                         "storage_container_uuid": self.storage_container_uuid,
+                         "size": disk_size*1024*1024*1024}
                     }]}
-            else:
-                images = self.list_images()
-                for image in images['entities']:
-                    if self.image_name_kickstart_iso == image['name']:
-                        vmdisk_uuid = image['vm_disk_id']
+        else:
+            if is_empty[1] == 'clone_from_img_service':
+                if is_cdrom:
+                    images = self.list_images()
+                    for image in images['entities']:
+                        if self.image_name_kickstart_iso == image['name']:
+                            vmdisk_uuid = image['vm_disk_id']
+                else:
+                    logging.info('OPPS.Clone disk form img_service has not yet support.')
                 data = {"vm_disks": [{"disk_address":{"device_bus":device_bus, "device_index":2},
                     "is_cdrom": "true",
                     "is_empty": "false",
@@ -431,6 +426,8 @@ class PrismApi(PrismSession):
                     },
                     'storage_container_uuid': self.storage_container_uuid
                     }}]}
+            else:
+                logging.info('OPPS.Clone disk form adsf file path has not yet support.')
         return self.make_request(endpoint, 'post', data=data)
 
     def detach_disk(self, vm_uuid, device_bus, vmdisk_uuid):
@@ -469,7 +466,24 @@ class PrismApi(PrismSession):
                          "size": disk_size*1024*1024*1024}
                     }]}
         return self.make_request(endpoint, 'put', data=data)
-        
+
+    def take_snapshot(self, vm_uuid, snpst_name):
+        endpoint = urljoin(self.base_url, "snapshots/?vm_uuid=%s" % vm_uuid)
+        data = {"snapshot_specs": [
+                {
+                    "snapshot_name": snpst_name,
+                    "vm_uuid": vm_uuid
+                }
+                ]}
+        return self.make_request(endpoint, 'post', data=data)
+
+    def restore_vm(self, vm_uuid, snpst_uuid):
+        endpoint = urljoin(self.base_url, "vms/%s/restore" % vm_uuid)
+        data = { "restore_network_configuration": True,
+                 "snapshot_uuid": snpst_uuid
+                }
+        return self.make_request(endpoint, 'post', data=data)
+
 class NutanixVM(VMResource):
     def __init__(self, params):
         super(NutanixVM, self).__init__(params)
@@ -612,12 +626,16 @@ class NutanixVM(VMResource):
     def cvm_cmd(self, command):
         return self.prism.cvm_cmd(command)
 
-    def attach_disk(self, device_bus, *device_info, wait=False):
+    def attach_disk(self, device_bus, disk_size, is_cdrom, *is_empty, wait=False):
         '''
         Attach disk/cdrom, device_info args including disksize, is cdrom or not, and is empty or not
         '''
-        logging.info("Creating and attaching disk, device_bus, device_info: {}".format(device_bus, device_info))
-        res = self.prism.attach_disk(self.data.get('uuid'), device_bus, *device_info)
+        if device_bus == 'ide' or device_bus == 'sata':
+            self.stop(wait=True)
+        res = self.prism.attach_disk(self.data.get('uuid'), device_bus, disk_size, is_cdrom, *is_empty)
+        time.sleep(30)
+        if device_bus == 'ide' or device_bus == 'sata':
+            self.start(wait=True)
         if wait:
             self.wait_for_status(
                 res['task_uuid'], 30,
@@ -634,9 +652,6 @@ class NutanixVM(VMResource):
                 "Timed out attaching disk.")
     
     def attach_block(self, disk, target, wait=True, timeout=120):
-        raise NotImplementedError
-    
-    def detach_nic(self, nic, wait=True, force=False):
         raise NotImplementedError
 
     def detach_block(self, disk, wait=True, force=False):
@@ -679,6 +694,28 @@ class NutanixVM(VMResource):
         disk_uuid = self.show()['vm_disk_info'][disk_number]['disk_address']['vmdisk_uuid']
         return disk_uuid
 
+    def take_snapshot(self, snpst_name, wait=False):
+        logging.info("take snapshot for VM")
+        res = self.prism.take_snapshot(self.data.get('uuid'), snpst_name)
+        if wait:
+            self.wait_for_status(
+                res['task_uuid'], 60,
+                "Timed out waiting for taking snapshot.")
+
+    def list_snapshots(self):
+        logging.info("list snapshot for VM")
+        res = self.prism.list_snapshots(self.data.get('uuid'))
+        logging.info("snapshot list for VM is: \n {}".format(res))
+        return res
+
+    def restore_vm(self, snpst_uuid, wait=False):
+        logging.info("restore vm by specific snapshot: {}".format(snpst_uuid))
+        res = self.prism.restore_vm(self.data.get('uuid'), snpst_uuid)
+        if wait:
+            self.wait_for_status(
+                res['task_uuid'], 60,
+                "Timed out waiting for restoring VM.")
+
 class NutanixVolume(StorageResource):
     '''
     Volume class
@@ -706,6 +743,6 @@ class NutanixVolume(StorageResource):
     def show(self):
         raise NotImplementedError
 
-    def modify_disk_size(self, os_disk_size, disk_num, expand_num):
-        os_disk_uuid = self.vm.get_disk_uuid(disk_num)
-        self.prism.expand_disk(disk_uuid=os_disk_uuid, disk_size=os_disk_size+expand_num)
+    def modify_disk_size(self, os_disk_size, disk_index:('int >= 0'), expand_size:('int > 0')):
+        os_disk_uuid = self.vm.get_disk_uuid(disk_index)
+        self.prism.expand_disk(disk_uuid=os_disk_uuid, disk_size=os_disk_size+expand_size)
