@@ -78,36 +78,80 @@ class EC2VM(VMResource):
 
     def create(self, wait=True):
         self.is_created = False
+        # start with efa enabled if it is supported
+        self.efa_support = False
+        self.hibernation_support = False
+        try:
+            self.efa_support = self.client.describe_instance_types(
+                InstanceTypes=[self.instance_type],
+            )['InstanceTypes'][0]['NetworkInfo']['EfaSupported']
+            LOG.info('efa supported status: {}'.format(self.efa_support))
+        except Exception as error:
+            LOG.info('Cannot determin efa status, disable in launch')
+        try:
+            self.hibernation_support = self.client.describe_instance_types(
+                InstanceTypes=[self.instance_type],
+            )['InstanceTypes'][0]['HibernationSupported']
+            LOG.info('Hibernation supported status: {}'.format(self.hibernation_support))
+        except Exception as error:
+            LOG.info('Cannot determin Hibernation status, disable in launch')
+        self.root_device_name = '/dev/sda1'
+        try:
+            self.root_device_name = self.client.describe_images(ImageIds=[self.ami_id])['Images'][0]['RootDeviceName']
+            LOG.info('root device name: {}'.format(self.root_device_name))
+        except Exception as error:
+            LOG.info('Cannot determin root device name, use default {}'.format(self.root_device_name))
+
+        vm_kwargs = {
+            'BlockDeviceMappings':[
+                {
+                    'DeviceName': self.root_device_name,
+                    'Ebs': {
+                        'DeleteOnTermination': True,
+                        'VolumeSize': 10,
+                        # root disk must be encrypted when hibernation enabled
+                        'Encrypted': self.hibernation_support
+                    },
+                },
+            ],
+            "ImageId":self.ami_id,
+            "InstanceType":self.instance_type,
+            "KeyName":self.ssh_key_name,
+            "MaxCount":1,
+            "MinCount":1,
+            "NetworkInterfaces":[
+                {
+                    'AssociatePublicIpAddress': True,
+                    'DeleteOnTermination': True,
+                    'DeviceIndex': 0,
+                    'SubnetId': self.subnet_id,
+                    'Groups': [
+                         self.security_group_ids,
+                     ],
+                },
+            ],
+            "TagSpecifications":[
+                {
+                    'ResourceType': 'instance',
+                    'Tags': [
+                        {
+                            'Key': 'Name',
+                            'Value': self.tag
+                        },
+                    ]
+                },
+            ],
+            'HibernationOptions':{
+                'Configured': self.hibernation_support
+            },
+            "UserData":'#!/bin/bash\nmkdir /tmp/userdata_{}'.format(self.run_uuid)
+        }
+        if self.efa_support:
+            vm_kwargs["NetworkInterfaces"][0]["InterfaceType"] = 'efa'
+        #vm_kwargs["EnclaveOptions"]["Enabled"] = True
         if self.additionalinfo == None or self.additionalinfo == '':
             try:
-                self.ec2_instance = self.resource.create_instances(
-                    ImageId=self.ami_id,
-                    InstanceType=self.instance_type,
-                    KeyName=self.ssh_key_name,
-                    MaxCount=1,
-                    MinCount=1,
-                    NetworkInterfaces=[
-                        {
-                            'AssociatePublicIpAddress': True,
-                            'DeviceIndex': 0,
-                            'SubnetId': self.subnet_id,
-                            'Groups': [
-                                 self.security_group_ids,
-                             ],
-                        },
-                    ],
-                    TagSpecifications=[
-                        {
-                            'ResourceType': 'instance',
-                            'Tags': [
-                                {
-                                    'Key': 'Name',
-                                    'Value': self.tag
-                                },
-                            ]
-                        },
-                    ],
-                    UserData='#!/bin/bash\nmkdir /tmp/userdata_{}'.format(self.run_uuid))[0]
+                self.ec2_instance = self.resource.create_instances(**vm_kwargs)[0]
                 self.is_created = True
             except ClientError as err:
                 LOG.error("Failed to create instance!")
@@ -118,41 +162,12 @@ class EC2VM(VMResource):
         if self.additionalinfo != None and self.additionalinfo != '':
             for additionalinfo in self.additionalinfo.split(';'):
                 try:
-                    LOG.error("Create instance using addtionalinfo: {}".format(additionalinfo))
-                    self.ec2_instance = self.resource.create_instances(
-                        ImageId=self.ami_id,
-                        InstanceType=self.instance_type,
-                        KeyName=self.ssh_key_name,
-                        MaxCount=1,
-                        MinCount=1,
-                        AdditionalInfo=additionalinfo,
-                        NetworkInterfaces=[
-                            {
-                                'AssociatePublicIpAddress': True,
-                                'DeviceIndex': 0,
-                                'SubnetId': self.subnet_id,
-                                'Groups': [
-                                     self.security_group_ids,
-                                 ],
-                            },
-                        ],
-                        TagSpecifications=[
-                            {
-                                'ResourceType': 'instance',
-                                'Tags': [
-                                    {
-                                        'Key': 'Name',
-                                        'Value': self.tag
-                                    },
-                                ]
-                            },
-                        ],
-                        UserData='#!/bin/bash\nmkdir /tmp/userdata_{}'.format(self.run_uuid))[0]
+                    LOG.error("Create instance with AdditionalInfo: {}".format(additionalinfo))
+                    vm_kwargs['AdditionalInfo'] = additionalinfo
+                    self.ec2_instance = self.resource.create_instances(**vm_kwargs)[0]
                     self.is_created = True
-                except ClientError as err:
-                    LOG.error("Failed to create instance, try another addtionalinfo {}".format(err))
                 except Exception as err:
-                    LOG.error("Failed to create instance, try another addtionalinfo {}".format(err))
+                    LOG.error("Failed to create instance, try another AdditionalInfo {}".format(err))
                 if self.is_created:
                     break
             if not self.is_created:
@@ -165,6 +180,7 @@ class EC2VM(VMResource):
                 LOG.error("Failed to wait instance running! %s" % err)
 
         self.id = self.ec2_instance.id
+        self.show()
         # self.ipv4 = self.ec2_instance.public_ip_address
         self.floating_ip
         #self.boot_volume_id
@@ -202,12 +218,12 @@ class EC2VM(VMResource):
         if self.additionalinfo != None and self.additionalinfo != '':
             for additionalinfo in self.additionalinfo.split(';'):
                 try:
-                    LOG.info("Start instance using addtionalinfo: {}".format(additionalinfo))
+                    LOG.info("Start instance using AdditionalInfo: {}".format(additionalinfo))
                     self.ec2_instance.start(AdditionalInfo=additionalinfo)
                     start_ok = True
                     break
                 except Exception as err:
-                    LOG.error("Failed to start instance, try another addtionalinfo {}".format(err))
+                    LOG.error("Failed to start instance, try another AdditionalInfo: {}".format(err))
         if not start_ok:
             try:
                 self.ec2_instance.start()
@@ -228,10 +244,10 @@ class EC2VM(VMResource):
             self.floating_ip
         return True
 
-    def stop(self, wait=True, loops=4):
+    def stop(self, wait=True, loops=4, hibernate=False):
         try:
-            LOG.info("Stopping instance %s " % self.id)
-            self.ec2_instance.stop()
+            LOG.info("Stopping instance {} with hibernation {}".format(self.id, hibernate))
+            self.ec2_instance.stop(Hibernate=hibernate)
         except Exception as err:
             LOG.error("%s" % err)
             return False
@@ -300,8 +316,10 @@ class EC2VM(VMResource):
             return False
 
     def send_hibernation(self):
-        LOG.info("Wow, will add support later!")
-        return False
+        if not self.hibernation_support:
+            LOG.info("this instance not support hibernation")
+            return False
+        return self.stop(hibernate=True)
 
     def get_console_log(self, silient=False):
         ret = None
@@ -323,7 +341,7 @@ class EC2VM(VMResource):
 
     def get_state(self):
         try:
-            state = 'unknow'
+            state = 'unknown'
             self.ec2_instance.reload()
             state = self.ec2_instance.state['Name']
             LOG.info("instance is in {}".format(state))
@@ -444,76 +462,29 @@ class EC2Volume(StorageResource):
             if self.type == 'sc1' and self.size < 500:
                 self.size = 500
                 LOG.info("{} minimal size is 500G, create 500G disk instead.".format(self.type))
-            if self.outpostarn is None:
-                if self.type == 'io1':
-                    self.volume = self.snapshot = self.resource.create_volume(
-                        AvailabilityZone=self.zone,
-                        Size=self.size,
-                        VolumeType=self.type,
-                        Iops=self.iops,
-                        TagSpecifications=[
+            disk_kwargs = {
+                "AvailabilityZone":self.zone,
+                "Size":self.size,
+                "VolumeType":self.type,
+                "Iops":self.iops,
+                "TagSpecifications":[
+                    {
+                        'ResourceType': 'volume',
+                        'Tags': [
                             {
-                                'ResourceType': 'volume',
-                                'Tags': [
-                                    {
-                                        'Key': 'Name',
-                                        'Value': self.tag
-                                    },
-                                ]
+                                'Key': 'Name',
+                                'Value': self.tag
                             },
-                        ])
-                else:
-                    self.volume = self.snapshot = self.resource.create_volume(
-                        AvailabilityZone=self.zone,
-                        Size=self.size,
-                        VolumeType=self.type,
-                        TagSpecifications=[
-                            {
-                                'ResourceType': 'volume',
-                                'Tags': [
-                                    {
-                                        'Key': 'Name',
-                                        'Value': self.tag
-                                    },
-                                ]
-                            },
-                        ])
-            else:
-                if self.disktype == 'io1':
-                    self.volume = self.snapshot = self.resource.create_volume(
-                        AvailabilityZone=self.zone,
-                        Size=self.size,
-                        VolumeType=self.type,
-                        Iops=self.iops,
-                        OutpostArn=self.outpostarn,
-                        TagSpecifications=[
-                            {
-                                'ResourceType': 'volume',
-                                'Tags': [
-                                    {
-                                        'Key': 'Name',
-                                        'Value': self.tag
-                                    },
-                                ]
-                            },
-                        ])
-                else:
-                    self.volume = self.snapshot = self.resource.create_volume(
-                        AvailabilityZone=self.zone,
-                        Size=self.size,
-                        VolumeType=self.type,
-                        OutpostArn=self.outpostarn,
-                        TagSpecifications=[
-                            {
-                                'ResourceType': 'volume',
-                                'Tags': [
-                                    {
-                                        'Key': 'Name',
-                                        'Value': self.tag
-                                    },
-                                ]
-                            },
-                        ])
+                        ]
+                    },
+                ]
+            }
+            if self.type != 'io1':
+                disk_kwargs.pop('Iops')
+            if self.outpostarn:
+                disk_kwargs['OutpostArn'] = self.outpostarn
+            LOG.info(disk_kwargs)
+            self.volume = self.snapshot = self.resource.create_volume(**disk_kwargs)
             self.volume.reload()
             self.id = self.volume.id
             timeout = 120
@@ -791,7 +762,7 @@ class EC2NIC(NetworkResource):
             bool -- True if success, False as failed
         """
         try:
-            LOG.info("Try to dettach %s from %s" %
+            LOG.info("Try to detach %s from %s" %
                      (self.__network_interface.id, instance_id))
             self.__network_interface.reload()
             self.__network_interface.detach(Force=force)
@@ -800,13 +771,13 @@ class EC2NIC(NetworkResource):
                 while True:
                     self.__network_interface.reload()
                     if self.__network_interface.status == 'available':
-                        LOG.info('NIC dettached!')
+                        LOG.info('NIC detached!')
                         return True
                     else:
                         end_time = time.time()
                         if int(end_time) - int(start_time) > 80:
                             LOG.error(
-                                "Failed to dettach to instance after 80s! %s" %
+                                "Failed to detach from instance after 80s! %s" %
                                 self.__network_interface.status)
                             return False
                     time.sleep(10)
