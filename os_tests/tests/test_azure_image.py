@@ -22,7 +22,6 @@ class TestAzureImage(unittest.TestCase):
 
     def test_check_bash_history(self):
         '''
-        :avocado: tags=basic
         '''
         for user in ['azureuser', 'root']:
             cmd = 'sudo cat ~{}/.bash_history'.format(user)
@@ -32,7 +31,6 @@ class TestAzureImage(unittest.TestCase):
         '''
         bz: 966888
         des: make sure there is mounts/growpart in cloud_init_modules group in "/etc/cloud/cloud.cfg"
-        :avocado: tags=basic
         '''
         cmd = 'sudo cat /etc/cloud/cloud.cfg'
         utils_lib.run_cmd(self,
@@ -45,9 +43,7 @@ class TestAzureImage(unittest.TestCase):
         '''
         bz: 1549638
         cm: 01965459
-        polarion_id:
         des: make sure there is no wheel in default_user's group in "/etc/cloud/cloud.cfg"
-        :avocado: tags=basic
         '''
         cmd = 'sudo cat /etc/cloud/cloud.cfg'
         utils_lib.run_cmd(self,
@@ -59,14 +55,12 @@ class TestAzureImage(unittest.TestCase):
     def test_check_cmdline_console(self):
         '''
         console=ttyS0 earlyprintk=ttyS0 rootdelay=300 should be in cmdline
-        :avocado: tags=basic
         '''
         utils_lib.run_cmd(self, "sudo cat /proc/cmdline", expect_ret=0, expect_kw='console=ttyS0,earlyprintk=ttyS0,rootdelay=300', msg='check console,earlyprintk,rootdelay in cmdline')
 
     def test_check_cmdline_crashkernel(self):
         '''
         crashkernel should be enabled in image
-        :avocado: tags=basic
         '''
         product_id = utils_lib.get_product_id(self)
         if float(product_id) < float('9'):
@@ -83,7 +77,6 @@ class TestAzureImage(unittest.TestCase):
         '''
         rhbz: 1645772
         nouveau,lbm-nouveau,floppy should be disabled
-        :avocado: tags=basic
         '''
         utils_lib.run_cmd(self, "sudo lsmod|grep nouveau", expect_not_ret=0, msg='check nouveau is not loaded')
         file_check = '/lib/modprobe.d/blacklist-*.conf'
@@ -94,7 +87,6 @@ class TestAzureImage(unittest.TestCase):
         '''
         rhbz: 1122300
         check no "rhgb" and "quiet" in /proc/cmdline
-        :avocado: tags=basic
         '''
         utils_lib.run_cmd(self, "sudo cat /proc/cmdline", expect_ret=0, expect_not_kw='rhgb,quiet', msg='check no rhgb and quiet in boot cmd')
 
@@ -102,7 +94,6 @@ class TestAzureImage(unittest.TestCase):
         '''
         rhbz: 1061348
         check various cpu flags
-        :avocado: tags=basic
         '''
         utils_lib.is_arch(self, arch='x86_64', action='cancel')
         cmd = "sudo cat /proc/cpuinfo"
@@ -129,7 +120,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
     def test_check_firewalld(self):
         '''
         firewalld should be enabled
-        :avocado: tags=basic
         '''
         cmd = 'sudo systemctl is-active firewalld'
         utils_lib.run_cmd(self,cmd, expect_ret=0, msg='check firewalld is running')
@@ -144,7 +134,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         - boot with efi or legacy bios
         - /boot/grub2/grub.cfg exists and /boot/grub2/grubenv is a file if boot with efi
         - /boot/grub2/grubenv is a file rather than a link if boot with legacy bios
-        :avocado: tags=basic
         '''
         cmd = 'sudo ls /sys/firmware/efi'
         out = utils_lib.run_cmd(self, cmd, msg='check if boot with efi')
@@ -165,7 +154,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
     def test_check_hosts(self):
         '''
         des: localhost ipv6 and ipv4 should be set in /etc/hosts
-        :avocado: tags=basic
         '''
         expect_kws = '127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4,::1         localhost localhost.localdomain localhost6 localhost6.localdomain6'
         cmd = "sudo cat /etc/hosts"
@@ -174,7 +162,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
     def test_check_inittab(self):
         '''
         check default runlevel or systemd target
-        :avocado: tags=basic
         '''
         is_systemd = utils_lib.run_cmd(self, 'rpm -q systemd > /dev/null && echo True || echo False')
         self.log.info("Is systemd system:{}".format(is_systemd))
@@ -191,14 +178,13 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
     def test_check_nameserver(self):
         '''
         check if DNS resolving works
-        :avocado: tags=basic
         '''
         utils_lib.run_cmd(self, "ping -c 5 google-public-dns-a.google.com", expect_ret=0, msg='check if DNS resolving works')
 
     def test_check_network_setup(self):
         '''
-        check for networking setup
-        :avocado: tags=basic
+        1. NETWORKING=yes in /etc/sysconfig/network
+        2. DEVICE=eth0 in /etc/sysconfig/network-scripts/ifcfg-eth0
         '''
         utils_lib.run_cmd(self, 'grep "^NETWORKING=yes" /etc/sysconfig/network', expect_ret=0, msg='check /etc/sysconfig/network')
         utils_lib.run_cmd(self, 'egrep "^DEVICE=(|\\\")eth0(|\\\")" /etc/sysconfig/network-scripts/ifcfg-eth0', expect_ret=0, msg='check eth0 used')
@@ -210,7 +196,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         des: 
         <=8.4: check NetworkManager-cloud-setup is not installed
         >=8.5: check NetworkManager-cloud-setup is installed and nm-cloud-setup.timer is setup for Azure and enabled
-        :avocado: tags=basic
         '''
         product_id = utils_lib.get_product_id(self)
         if float(product_id) < float('8.5'):
@@ -233,7 +218,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
     def test_check_no_avc_denials(self):
         '''
         check there is no avc denials (selinux)
-        :avocado: tags=basic
         '''
         cmd = "x=$(sudo ausearch -m avc 2>&1 &); echo $x"
         utils_lib.run_cmd(self, cmd, expect_kw='no matches', msg='check no avc denials')
@@ -241,7 +225,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
     def test_check_numa(self):
         '''
         check if NUMA is enabled on supported machine
-        :avocado: tags=basic
         '''
         cmd = "sudo lscpu|grep -i 'NUMA node(s)'|awk -F' ' '{print $NF}'"
         numa_nodes = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='get numa nodes')
@@ -260,7 +243,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         '''
         check no pkg signature is none,
         and check that specified gpg keys are installed
-        :avocado: tags=basic
         '''
         cmd = "sudo rpm -qa|grep gpg-pubkey"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check gpg-pubkey installed')
@@ -284,7 +266,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         bz: 1938930
         issue: RHELPLAN-60817
         check if product id matches /etc/redhat-release
-        :avocado: tags=basic
         '''
         product_id = utils_lib.get_product_id(self)
         if float(product_id) < float('8'):
@@ -314,7 +295,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
     def test_check_rhel_version(self):
         '''
         check if rhel provider matches /etc/redhat-release
-        :avocado: tags=basic
         '''
         release_file = 'redhat-release'
         product_id = utils_lib.get_product_id(self)
@@ -323,18 +303,26 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
 
     def test_check_rhui_pkg(self):
         """
-        :avocado: tags=basic
+        8.4 images should have EUS RHUI. 
+        Other versions should have non-EUS RHUI.
         """
         self.log.info('RHEL image found')
-        rhui_pkg = 'rhui-azure-rhel'
-        unwanted_rhui = 'eus'
-        cmd = 'sudo rpm -qa|grep rhui'
-        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=rhui_pkg,expect_not_kw=unwanted_rhui,msg='get rhui pkg version')
+        product_id = utils_lib.get_product_id(self)
+        x_version = self.rhel_x_version
+        if product_id in ['8.4']:
+            cmd = 'sudo rpm -q rhui-azure-rhel{}-eus'.format(x_version)
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Verify EUS RHUI is installed in RHEL-{}".format(product_id))
+            cmd = 'sudo rpm -q rhui-azure-rhel{}'.format(x_version)
+            utils_lib.run_cmd(self, cmd, expect_ret=1, msg="Verify non-EUS RHUI is not installed in RHEL-{}".format(product_id))
+        else:
+            cmd = 'sudo rpm -q rhui-azure-rhel{}'.format(x_version)
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Verify non-EUS RHUI is installed in RHEL-{}".format(product_id))
+            cmd = 'sudo rpm -q rhui-azure-rhel{}-eus'.format(x_version)
+            utils_lib.run_cmd(self, cmd, expect_ret=1, msg="Verify EUS RHUI is not installed in RHEL-{}".format(product_id))
 
     def test_check_root_is_locked(self):
         """
         Root account should be locked
-        :avocado: tags=basic
         """
         self.log.info('RHEL AMI found')
         cmd = 'sudo passwd -S root | grep -q LK'
@@ -343,14 +331,12 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
     def test_check_shells(self):
         """
         Check for bash/nologin shells in /etc/shells
-        :avocado: tags=basic
         """
         utils_lib.run_cmd(self, 'sudo cat /etc/shells', expect_kw='/bin/bash', msg='check /bin/bash in /etc/shells')
 
     def test_check_sshd(self):
         '''
         sshd service shoud be on, password authentication shoud be disabled
-        :avocado: tags=basic
         '''
         is_systemd = utils_lib.run_cmd(self, 'rpm -q systemd > /dev/null && echo True || echo False')
         self.log.info("Is systemd system:{}".format(is_systemd))
@@ -360,7 +346,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
     def test_check_sysconfig_kernel(self):
         '''
         des: UPDATEDEFAULT=yes and DEFAULTKERNEL=kernel should be set in /etc/sysconfig/kernel
-        :avocado: tags=basic
         '''
         expect_kws = 'UPDATEDEFAULT=yes,DEFAULTKERNEL=kernel-core'
         cmd = "sudo cat /etc/sysconfig/kernel"
@@ -370,14 +355,12 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         '''
         rhbz: 1187669
         check that the default timezone is set to UTC
-        :avocado: tags=basic
         '''
         utils_lib.run_cmd(self, 'date', expect_kw='UTC', msg='check timezone is set to UTC')
 
     def test_check_username(self):
         """
         Check no old username in fresh image
-        :avocado: tags=basic
         """
         for user in ['fedora', 'cloud-user']:
             cmd = 'sudo cat /etc/passwd|grep {}'.format(user)
@@ -388,7 +371,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         bz: 1932802
         Verify yum/dnf plugin. For RHUI image, should be disabled. For SCA image, should be enabled
         product-id.conf should be enabled.
-        :avocado: tags=basic
         '''
         cmd = 'sudo cat /etc/yum/pluginconf.d/product-id.conf'
         utils_lib.run_cmd(self,cmd, expect_ret=0, expect_kw='enabled=1', msg='check yum product-id plugin is enabled')
@@ -416,7 +398,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         Check auditd:
         - service should be on
         - config files shoud have specified checksums
-        :avocado: tags=basic
         """
         out = utils_lib.run_cmd(self, 'sudo cat /etc/redhat-release', expect_ret=0, msg='get release name')
         if 'release 8' in out:
@@ -443,7 +424,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         bz: 1103344
         check no "/etc/init/ttyS0.conf" exists.
         check no "/dev/ttyS0: tcgetattr: Input/output error" in "/var/log/secure"
-        :avocado: tags=basic
         """
         utils_lib.run_cmd(self, 'sudo cat /etc/init/ttyS0.conf', expect_not_ret=0, msg='make sure no /etc/init/ttyS0.conf found')
         utils_lib.run_cmd(self, 'sudo cat /etc/init/ttyS0.bak', msg='ttyS0.bak may also not in RHEL nowadays')
@@ -451,14 +431,12 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
     def test_check_rpm_V_unsatisfied_dependencies(self):
         '''
         check unsatisfied dependencies of pkg.
-        :avocado: tags=basic
         '''
         utils_lib.run_cmd(self, "sudo rpm -Va", expect_not_kw='Unsatisfied', timeout=300, msg='check unsatisfied dependencies of pkg')
 
     def test_check_selinux(self):
         '''
         SELinux should be in enforcing/targeted mode
-        :avocado: tags=basic
         '''
         out = utils_lib.run_cmd(self, 'uname -r', msg='get kernel version')
         utils_lib.run_cmd(self, 'sudo getenforce',expect_kw='Enforcing', msg='check selinux current mode is Enforcing')
@@ -466,7 +444,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
 
     def test_check_yum_repoinfo(self):
         '''
-        :avocado: tags=basic
         '''
         cmd = "sudo rpm -qa|grep rhui"
         ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='Check if it is a RHUI image')
@@ -477,7 +454,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
 
     def test_yum_package_install(self):
         '''
-        :avocado: tags=basic
         '''
         cmd = "sudo rpm -qa|grep rhui"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Check if RHUI is installed')
@@ -493,7 +469,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         '''
         bz: 1932802, 1905398
         Verify auto_registration is enabled in the image
-        :avocado: tags=basic
         '''
         product_id = utils_lib.get_product_id(self)
         if float(product_id) < float('8.4'):
@@ -1119,7 +1094,6 @@ X11Forwarding yes
         '''
         * Add "z" in the case name to make it run at last
         Verify auto_registration function works
-        :avocado: tags=basic
         '''
         product_id = utils_lib.get_product_id(self)
         if float(product_id) < float('8.4'):
