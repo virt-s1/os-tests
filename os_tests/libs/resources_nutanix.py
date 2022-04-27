@@ -180,10 +180,14 @@ class PrismApi(PrismSession):
         network_uuids = []
         for network in self.list_networks_detail()["entities"]:
             network_uuids.append({"network_uuid": network["uuid"]})
-        data = {
-            'boot': {
+        data = {'boot': {
+                'disk_address': {
+                'device_bus': 'scsi',
+                'device_index': 0
+                },
+                'boot_device_type': 'disk',
                 'uefi_boot': False
-            },
+	        },
             'memory_mb':
             self.memory * 1024,
             'name':
@@ -400,8 +404,12 @@ class PrismApi(PrismSession):
         '''
         logging.info("Prism creating and attaching disk, device_bus:{}, disk_size: {}, is_cdrom: {}, is_empty: {}".format(device_bus, disk_size, is_cdrom, is_empty))
         endpoint = urljoin(self.base_url, "vms/%s/disks/attach" % vm_uuid)
+        if is_cdrom:
+            is_cdrom = "true"
+        else:
+            is_cdrom = "false"
         if is_empty[0]:
-            data = {"vm_disks": [{"disk_address":{"device_bus":device_bus, "device_index":2},
+            data = {"vm_disks": [{"disk_address":{"device_bus":device_bus},
                     "is_cdrom": is_cdrom,
                     "is_empty": "true",
                     "vm_disk_create": {
@@ -417,7 +425,7 @@ class PrismApi(PrismSession):
                             vmdisk_uuid = image['vm_disk_id']
                 else:
                     logging.info('OPPS.Clone disk form img_service has not yet support.')
-                data = {"vm_disks": [{"disk_address":{"device_bus":device_bus, "device_index":2},
+                data = {"vm_disks": [{"disk_address":{"device_bus":device_bus},
                     "is_cdrom": "true",
                     "is_empty": "false",
                     'vm_disk_clone': {
@@ -446,9 +454,9 @@ class PrismApi(PrismSession):
         endpoint = urljoin(self.base_url, "virtual_disks/%s" % disk_uuid)
         return self.make_request(endpoint, 'get')
         
-    def expand_disk(self, disk_uuid, disk_size):
+    def expand_disk(self, disk_uuid, disk_size, device_index):
         # Shrinking disk is not available in Nutanix.
-        logging.debug("Expanding designated disk.")
+        logging.info("Expanding designated disk. disk_uuid is {}, disk_size is {} and device_index is {}".format(disk_uuid, disk_size, device_index))
         disk = self.get_disk(disk_uuid)
         logging.debug(disk)
         endpoint = urljoin(self.base_url, "vms/%s/disks/update" % disk['attached_vm_uuid'])
@@ -456,7 +464,7 @@ class PrismApi(PrismSession):
                     "disk_address": {
                          "vmdisk_uuid": disk_uuid,
                          "device_uuid": disk['uuid'],
-                         "device_index": 0,
+                         "device_index": device_index,
                          "device_bus": "scsi"},
                     "flash_mode_enabled": False,
                     "is_cdrom": False,
@@ -630,12 +638,9 @@ class NutanixVM(VMResource):
         '''
         Attach disk/cdrom, device_info args including disksize, is cdrom or not, and is empty or not
         '''
-        if device_bus == 'ide' or device_bus == 'sata':
-            self.stop(wait=True)
         res = self.prism.attach_disk(self.data.get('uuid'), device_bus, disk_size, is_cdrom, *is_empty)
         time.sleep(30)
-        if device_bus == 'ide' or device_bus == 'sata':
-            self.start(wait=True)
+
         if wait:
             self.wait_for_status(
                 res['task_uuid'], 30,
@@ -743,6 +748,9 @@ class NutanixVolume(StorageResource):
     def show(self):
         raise NotImplementedError
 
-    def modify_disk_size(self, os_disk_size, disk_index:('int >= 0'), expand_size:('int > 0')):
-        os_disk_uuid = self.vm.get_disk_uuid(disk_index)
-        self.prism.expand_disk(disk_uuid=os_disk_uuid, disk_size=os_disk_size+expand_size)
+    def modify_disk_size(self, origin_disk_size, disk_index:('int >= 0'), expand_size:('int > 0'), wait=True):
+        disk_uuid = self.vm.get_disk_uuid(disk_index)
+        res = self.prism.expand_disk(disk_uuid=disk_uuid, disk_size=origin_disk_size+expand_size, device_index=disk_index)
+        self.vm.wait_for_status(
+                res['task_uuid'], 60,
+                "Timed out waiting for restoring VM.")

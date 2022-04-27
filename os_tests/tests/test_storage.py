@@ -1,3 +1,4 @@
+from cgi import test
 import unittest
 from os_tests.libs import utils_lib
 from os_tests.libs.resources import UnSupportedAction
@@ -246,12 +247,14 @@ class TestStorage(unittest.TestCase):
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
         origin_disk_num = self._get_disk_num('rom')
+        self.vm.stop(wait=True)
         try:
             self.vm.attach_disk('ide', 0, True, True, wait=True)
         except NotImplementedError:
             self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
         except UnSupportedAction:
             self.skipTest('attch disk func is not supported in {}'.format(self.vm.provider))
+        self.vm.start(wait=True)
         utils_lib.init_connection(self, timeout=self.timeout)
         new_disk_num = self._get_disk_num('rom')
         new_add_num = int(new_disk_num) - int(origin_disk_num)
@@ -280,12 +283,14 @@ class TestStorage(unittest.TestCase):
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
         origin_disk_num = self._get_disk_num('rom')
+        self.vm.stop(wait=True)
         try:
             self.vm.attach_disk('sata', 0, True, False, 'clone_from_img_service', wait=True)
         except NotImplementedError:
             self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
         except UnSupportedAction:
             self.skipTest('attch disk func is not supported in {}'.format(self.vm.provider))
+        self.vm.start(wait=True)
         utils_lib.init_connection(self, timeout=self.timeout)
         new_disk_num = self._get_disk_num('rom')
         new_add_num = int(new_disk_num) - int(origin_disk_num)
@@ -294,10 +299,7 @@ class TestStorage(unittest.TestCase):
         cmd = "sudo mkdir /mnt/mnt_new_cdrom \n sudo mount {} /mnt/mnt_new_cdrom".format(new_add_device_name)
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         read_new_device = utils_lib.run_cmd(self, "sudo ls /mnt/mnt_new_cdrom", expect_ret=0)
-        self.assertIn(
-                    "ks.cfg",
-                    read_new_device,
-                    msg="Read files from new added cdrom failed")
+        self.assertIn("ks.cfg", read_new_device, msg="Read files from new added cdrom failed")
 
     def test_add_remove_multi_scsi(self):
         """
@@ -364,7 +366,7 @@ class TestStorage(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         time.sleep(30)
         if is_offline:
-            self.vm.stop(wait="True")
+            self.vm.stop(wait=True)
         try:
             self.vm.take_snapshot('snpst_api', wait=True)
         except NotImplementedError:
@@ -380,8 +382,8 @@ class TestStorage(unittest.TestCase):
         )
         snapshot_uuid=vm_snpst_list['entities'][0]['uuid']
         if is_offline:
-            self.vm.start(wait="True")
-        utils_lib.init_connection(self, timeout=self.timeout)
+            self.vm.start(wait=True)
+            utils_lib.init_connection(self, timeout=self.timeout)
         self.log.info('delete the test file after taking snapshong and before restoring VM')
         cmd = "rm ~/snpst.txt \n ls ~/snpst.txt"
         check_file = utils_lib.run_cmd(self, cmd, expect_ret=2, msg='check No such file or directory')
@@ -392,7 +394,7 @@ class TestStorage(unittest.TestCase):
         except UnSupportedAction:
             self.skipTest("take snapshot func is not supported in {}".format(self.vm.provider))
         time.sleep(90)
-        self.vm.start(wait="True")
+        self.vm.start(wait=True)
         utils_lib.init_connection(self, timeout=self.timeout)
         check_file = utils_lib.run_cmd(self, "ls ~/snpst*", expect_ret=0)
         self.assertIn(
@@ -442,11 +444,142 @@ class TestStorage(unittest.TestCase):
             3. Start VM an then remove the fail ~/snp.test
             4. Restore VM by the new snapshot, start VM, check the removed file exists after restore
         expect_result:
-            No error threw and size check right.
+            No error threw and snapshot check right.
         debug_want:
             - output from dmesg or journal
         """
         self._test_take_restore_snapshot(True)
+
+    def test_expand_scsi_disk_online(self):
+        """
+        case_name:
+            test_expand_scsi_disk_online
+        case_file:
+            os_tests.tests.test_storage.TestStorage.test_expand_scsi_disk_online
+        component:
+            storage
+        maintainer:
+            mingli@redhat.com
+        description:
+            Expand SCSI disk when guest is running.
+        key_steps:
+            1. Login the guest and get the size of the SCSI disk.
+            2. Expand the SCSI disk to a larger size.
+            3. Check the disk size.
+            4. Check the disk that should be readable and writeable
+        expect_result:
+            No error threw.
+        debug_want:
+            - output from dmesg or journal
+        """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
+        if(not self._get_test_disk()):
+            self.skipTest("test disk not found, provision VM should has at least 1 scsi disk")
+        else:
+            test_disk = self._get_test_disk()
+        #Get init size of test disk
+        cmd='sudo fdisk -s {}'.format(test_disk)
+        test_disk_origin_size = int(utils_lib.run_cmd(self, cmd, expect_ret=0))/(1024*1024)
+        self.assertEqual(1, test_disk_origin_size, msg='disk size is not the same with init value, expect: {}, real: {}'.format(1*1024*1024, test_disk_origin_size))
+        #Expand size of test disk when VM running
+        try:
+            self.disk.modify_disk_size(test_disk_origin_size, 1, 1)
+        except NotImplementedError:
+            self.skipTest('modify disk size func is not implemented in {}'.format(self.vm.provider))
+        except UnSupportedAction:
+            self.skipTest('modify disk size func is not supported in {}'.format(self.vm.provider))
+        #Get new size of test disk
+        test_disk_new_size = int(utils_lib.run_cmd(self, cmd, expect_ret=0))/(1024*1024)
+        self.assertEqual(2, int(test_disk_new_size), msg='disk size is not the same with init value, expect: {}, real: {}'.format(2*1024*1024, test_disk_new_size))
+        #Test expanded disk can be read and write
+        cmd='fallocate -l 2G 2G.img \n sudo mkfs -t xfs -f {} \n sudo mkdir /mnt/mnt_disk \n sudo mount {} /mnt/mnt_disk \n'.format(test_disk, test_disk)
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        utils_lib.run_cmd(self, 'sudo cp 2G.img /mnt/mnt_disk', expect_ret=1, msg='No space left on device')
+        init_file_size = int(utils_lib.run_cmd(self, "ls -l 2G.img | awk '{print $5}'", expect_ret=0).strip())/(1024*1024*1024)
+        cp_file_size = int(utils_lib.run_cmd(self, "ls -l /mnt/mnt_disk/2G.img | awk '{print $5}'", expect_ret=0).strip())/(1024*1024*1024)
+        self.assertAlmostEqual(
+            first=float(init_file_size),
+            second=float(cp_file_size),
+            delta=0.1,
+            msg="Gap is two much between copied file and origin file, Expect: %s, real: %s" %('0.1', init_file_size-cp_file_size)
+        )
+        #tear down
+        utils_lib.run_cmd(self, 'sudo umount {}\n'.format(test_disk), expect_ret=0)
+
+    def test_multi_disk(self):
+        """
+        case_name:
+            test_multi_disk
+        case_file:
+            os_tests.tests.test_storage.TestStorage.test_multi_disk
+        component:
+            storage
+        maintainer:
+            mingli@redhat.com
+        description:
+            Add all four kinds of disk and test.
+        key_steps:
+            1. Login the guest and add scsi/pci/ide/sata disk
+            2. Check bus type by lshw
+            3. Check the disks' size.
+            4. Check the disks that should be readable and writeable
+        expect_result:
+            No error threw and all check right.
+        debug_want:
+            - output from dmesg or journal
+        """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
+        scsi_set_size = random.randint(1,10)
+        pci_set_size = random.randint(1,10)
+        ide_set_size = random.randint(1,10)
+        sata_set_size = random.randint(1,10)
+        #attach scsi and pci disk
+        for disk_type, disk_size in zip(['scsi','pci'],[scsi_set_size, pci_set_size]):
+            try:
+                self.vm.attach_disk(disk_type, disk_size, False, True, wait=True)
+            except NotImplementedError:
+                self.skipTest('modify disk size func is not implemented in {}'.format(self.vm.provider))
+            except UnSupportedAction:
+                self.skipTest('modify disk size func is not supported in {}'.format(self.vm.provider))
+        #attach ide and sata disk
+        self.vm.stop(wait=True)
+        time.sleep(60)
+        for disk_type, disk_size in zip(['ide','sata'],[ide_set_size, sata_set_size]):
+            try:
+                self.vm.attach_disk(disk_type, disk_size, False, True, wait=True)
+            except NotImplementedError:
+                self.skipTest('modify disk size func is not implemented in {}'.format(self.vm.provider))
+            except UnSupportedAction:
+                self.skipTest('modify disk size func is not supported in {}'.format(self.vm.provider))
+        self.vm.start(wait=True)
+        time.sleep(30)
+        utils_lib.init_connection(self, timeout=self.timeout)
+        #check disk number
+        num_fdisk=int(utils_lib.run_cmd(self, "sudo fdisk -l | grep 'Disk /dev' | wc -l", expect_ret=0))
+        num_lsblk=int(utils_lib.run_cmd(self, "sudo lsblk -d | grep disk | wc -l", expect_ret=0))
+        self.assertEqual(num_fdisk, 6, msg='Disk number get from fdisk is not right')
+        self.assertEqual(num_lsblk, 6, msg='Disk number get from lsblk is not right')
+        #check disk bustype and size
+        utils_lib.run_cmd(self, "sudo lshw -C disk -C storage", expect_ret=0)
+        scsi_dev_name = utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-scsi:0' -A 63 | grep 'description: SCSI Disk' -A 13 | grep 'logical name:' | awk '{print $3}'", expect_ret=0).strip().split()[-1]
+        pci_dev_name = utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-scsi:1' -A 19 | grep '*-virtio' -A 7 | grep 'logical name:' | awk '{print $3}'", expect_ret=0).strip()
+        ide_dev_name = utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-ide' -A 38 | grep 'description: ATA Disk' -A 8 | grep 'logical name:' | awk '{print $3}'", expect_ret=0).strip()
+        sata_dev_name = utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-sata' -A 37 | grep 'description: ATA Disk' -A 9 | grep 'logical name:' | awk '{print $3}'", expect_ret=0).strip()
+        scsi_dev_size = int(utils_lib.run_cmd(self, "sudo fdisk -s "+scsi_dev_name, expect_ret=0))/(1024*1024)
+        pci_dev_size = int(utils_lib.run_cmd(self, "sudo fdisk -s "+pci_dev_name, expect_ret=0))/(1024*1024)
+        ide_dev_size = int(utils_lib.run_cmd(self, "sudo fdisk -s "+ide_dev_name, expect_ret=0))/(1024*1024)
+        sata_dev_size = int(utils_lib.run_cmd(self, "sudo fdisk -s "+sata_dev_name, expect_ret=0))/(1024*1024)
+        for bus_type, set_size, real_size in zip(['scsi', 'pci', 'ide','sata'], [scsi_set_size, pci_set_size, ide_set_size, sata_set_size],[scsi_dev_size, pci_dev_size, ide_dev_size, sata_dev_size]):
+            self.assertEqual(set_size, real_size, msg="Size of %s disk is not right, Expect: %s, real: %s" % (bus_type, set_size, real_size))
+        #check disk can be read and write
+        for device_type, device_name in zip(['scsi','pci','ide','sata'], [scsi_dev_name, pci_dev_name, ide_dev_name, sata_dev_name]):
+            create_file = '/mnt/mnt_{}/{}_touch_test.txt'.format(device_type, device_type)
+            cmd = 'sudo mkfs.xfs {}\n sudo mkdir /mnt/mnt_{}\nsudo mount {} /mnt/mnt_{}\n sudo touch {}'.format(device_name, device_type, device_name, device_type, create_file)
+            utils_lib.run_cmd(self, cmd, expect_ret=0)
+            check_file = utils_lib.run_cmd(self, 'ls {}'.format(create_file), expect_ret=0)
+            self.assertIn(create_file, check_file, msg="Read files from new added cdrom failed")
 
     def tearDown(self):
         if 'blktests' in self.id():
