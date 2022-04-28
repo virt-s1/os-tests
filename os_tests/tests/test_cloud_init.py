@@ -356,7 +356,7 @@ class TestCloudInit(unittest.TestCase):
         )
         # 3. Enlarge os disk size
         try:
-            self.disk.modify_disk_size(os_disk_size, 0, 2)
+            self.disk.modify_disk_size(os_disk_size, 'scsi', 0, 2)
         except NotImplementedError:
             self.skipTest('modify disk size func is not implemented in {}'.format(self.vm.provider))
         except UnSupportedAction:

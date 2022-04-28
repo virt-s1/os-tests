@@ -249,7 +249,7 @@ class TestStorage(unittest.TestCase):
         origin_disk_num = self._get_disk_num('rom')
         self.vm.stop(wait=True)
         try:
-            self.vm.attach_disk('ide', 0, True, True, wait=True)
+            self.vm.attach_disk('ide', 0, True, 1, True, wait=True)
         except NotImplementedError:
             self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
         except UnSupportedAction:
@@ -259,7 +259,6 @@ class TestStorage(unittest.TestCase):
         new_disk_num = self._get_disk_num('rom')
         new_add_num = int(new_disk_num) - int(origin_disk_num)
         self.assertEqual(new_add_num, 1, msg="Number of new attached rom is not right, Expect: %s, real: %s" % (1, new_add_num))
-
     
     def test_add_sata_clone_cdrom_from_img_service(self):
         """
@@ -285,7 +284,7 @@ class TestStorage(unittest.TestCase):
         origin_disk_num = self._get_disk_num('rom')
         self.vm.stop(wait=True)
         try:
-            self.vm.attach_disk('sata', 0, True, False, 'clone_from_img_service', wait=True)
+            self.vm.attach_disk('sata', 0, True, 0, False, 'clone_from_img_service', wait=True)
         except NotImplementedError:
             self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
         except UnSupportedAction:
@@ -300,6 +299,17 @@ class TestStorage(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         read_new_device = utils_lib.run_cmd(self, "sudo ls /mnt/mnt_new_cdrom", expect_ret=0)
         self.assertIn("ks.cfg", read_new_device, msg="Read files from new added cdrom failed")
+        #tear down
+        disk_uuid = self.vm.get_disk_uuid('sata', 0)
+        self.vm.stop(wait=True)
+        try:
+            self.vm.detach_disk('sata', disk_uuid, 0, wait=True)
+        except NotImplementedError:
+            self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
+        except UnSupportedAction:
+            self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
+        self.vm.start(wait=True)
+        utils_lib.init_connection(self, timeout=self.timeout)
 
     def test_add_remove_multi_scsi(self):
         """
@@ -330,7 +340,7 @@ class TestStorage(unittest.TestCase):
             origin_lsblk_name_list = utils_lib.run_cmd(self, cmd, expect_ret=0).split('\n')
             origin_disk_num = self._get_disk_num('disk')
             try:
-                self.vm.attach_disk('scsi', random_dev_size, False, True, wait=True)
+                self.vm.attach_disk('scsi', random_dev_size, False, 3, True, wait=True)
             except NotImplementedError:
                 self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
             except UnSupportedAction:
@@ -347,13 +357,13 @@ class TestStorage(unittest.TestCase):
                 msg="Device size for new disk is not right, Expect: %s, real: %s" % (random_dev_size*1024*1024, new_dev_size)
             )
             origin_disk_num = self._get_disk_num('disk')
-            disk_uuid = self.vm.get_disk_uuid(2)
+            disk_uuid = self.vm.get_disk_uuid('scsi', 1)
             try:
-                self.vm.detach_disk('scsi', disk_uuid, wait=True)
+                self.vm.detach_disk('scsi', disk_uuid, 3, wait=True)
             except NotImplementedError:
-                self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
+                self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
             except UnSupportedAction:
-                self.skipTest('attch disk func is not supported in {}'.format(self.vm.provider))
+                self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
             new_disk_num = self._get_disk_num('disk')
             detach_num = int(origin_disk_num) - int(new_disk_num)
             self.assertEqual(detach_num, 1, msg="Number of detached disk is not right. Expect: %s, real: %s" % (1, detach_num))
@@ -390,9 +400,9 @@ class TestStorage(unittest.TestCase):
         try:
             self.vm.restore_vm(snapshot_uuid, wait=True)
         except NotImplementedError:
-            self.skipTest("take snapshot func is not implemented in {}".format(self.vm.provider))
+            self.skipTest("restore vm func is not implemented in {}".format(self.vm.provider))
         except UnSupportedAction:
-            self.skipTest("take snapshot func is not supported in {}".format(self.vm.provider))
+            self.skipTest("restore vm func is not supported in {}".format(self.vm.provider))
         time.sleep(90)
         self.vm.start(wait=True)
         utils_lib.init_connection(self, timeout=self.timeout)
@@ -484,7 +494,7 @@ class TestStorage(unittest.TestCase):
         self.assertEqual(1, test_disk_origin_size, msg='disk size is not the same with init value, expect: {}, real: {}'.format(1*1024*1024, test_disk_origin_size))
         #Expand size of test disk when VM running
         try:
-            self.disk.modify_disk_size(test_disk_origin_size, 1, 1)
+            self.disk.modify_disk_size(test_disk_origin_size, 'scsi', 1, 1)
         except NotImplementedError:
             self.skipTest('modify disk size func is not implemented in {}'.format(self.vm.provider))
         except UnSupportedAction:
@@ -538,21 +548,21 @@ class TestStorage(unittest.TestCase):
         #attach scsi and pci disk
         for disk_type, disk_size in zip(['scsi','pci'],[scsi_set_size, pci_set_size]):
             try:
-                self.vm.attach_disk(disk_type, disk_size, False, True, wait=True)
+                self.vm.attach_disk(disk_type, disk_size, False, 2, True, wait=True)
             except NotImplementedError:
-                self.skipTest('modify disk size func is not implemented in {}'.format(self.vm.provider))
+                self.skipTest('attach disk size func is not implemented in {}'.format(self.vm.provider))
             except UnSupportedAction:
-                self.skipTest('modify disk size func is not supported in {}'.format(self.vm.provider))
+                self.skipTest('attach disk size func is not supported in {}'.format(self.vm.provider))
         #attach ide and sata disk
         self.vm.stop(wait=True)
         time.sleep(60)
         for disk_type, disk_size in zip(['ide','sata'],[ide_set_size, sata_set_size]):
             try:
-                self.vm.attach_disk(disk_type, disk_size, False, True, wait=True)
+                self.vm.attach_disk(disk_type, disk_size, False, 2, True, wait=True)
             except NotImplementedError:
-                self.skipTest('modify disk size func is not implemented in {}'.format(self.vm.provider))
+                self.skipTest('attach disk size func is not implemented in {}'.format(self.vm.provider))
             except UnSupportedAction:
-                self.skipTest('modify disk size func is not supported in {}'.format(self.vm.provider))
+                self.skipTest('attach disk size func is not supported in {}'.format(self.vm.provider))
         self.vm.start(wait=True)
         time.sleep(30)
         utils_lib.init_connection(self, timeout=self.timeout)
@@ -579,7 +589,33 @@ class TestStorage(unittest.TestCase):
             cmd = 'sudo mkfs.xfs {}\n sudo mkdir /mnt/mnt_{}\nsudo mount {} /mnt/mnt_{}\n sudo touch {}'.format(device_name, device_type, device_name, device_type, create_file)
             utils_lib.run_cmd(self, cmd, expect_ret=0)
             check_file = utils_lib.run_cmd(self, 'ls {}'.format(create_file), expect_ret=0)
-            self.assertIn(create_file, check_file, msg="Read files from new added cdrom failed")
+            self.assertIn(create_file, check_file, msg="Read files from new added disk failed")
+        #hot detach scsi and pci disk
+        disk_uuid = self.vm.get_disk_uuid('scsi', 2)
+        try:
+            self.vm.detach_disk('scsi', disk_uuid, 2, wait=True)
+        except NotImplementedError:
+            self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
+        except UnSupportedAction:
+            self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
+        utils_lib.run_cmd(self, "ls " + scsi_dev_name, expect_ret=2, expect_kw='No such file or directory')
+        #dettach ide and sata disk
+        self.vm.stop(wait=True)
+        time.sleep(60)
+        for device_type in ['ide','sata', 'pci']:
+            disk_uuid = self.vm.get_disk_uuid(device_type, 2)
+            try:
+                self.vm.detach_disk(device_type, disk_uuid, 2, wait=True)
+            except NotImplementedError:
+                self.skipTest('detach disk size func is not implemented in {}'.format(self.vm.provider))
+            except UnSupportedAction:
+                self.skipTest('detach disk size func is not supported in {}'.format(self.vm.provider))
+        self.vm.start(wait=True)
+        time.sleep(30)
+        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.run_cmd(self, "ls " + ide_dev_name, expect_ret=2, expect_kw='No such file or directory')
+        utils_lib.run_cmd(self, "ls " + sata_dev_name, expect_ret=2, expect_kw='No such file or directory')
+        utils_lib.run_cmd(self, "ls " + pci_dev_name, expect_ret=2, expect_kw='No such file or directory')
 
     def tearDown(self):
         if 'blktests' in self.id():
