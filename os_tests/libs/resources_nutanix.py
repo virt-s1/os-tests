@@ -492,6 +492,44 @@ class PrismApi(PrismSession):
                 }
         return self.make_request(endpoint, 'post', data=data)
 
+    def clone_vm(self, clone_form_vm_or_snapshot, uuid, vm_name, memory, cores_per_vcpu, vcpus, override_network_config, fresh_install, vm_custom_file, vm_userdata_file):
+        if clone_form_vm_or_snapshot == 'clone_from_vm':
+            endpoint = urljoin(self.base_url, "vms/%s/clone" % uuid)
+        else:
+            endpoint = urljoin(self.base_url, "snapshots/%s/clone" % uuid)
+        data = {
+                "spec_list": [
+                {
+                    "memory_mb": memory,
+                    "name": vm_name,
+                    "num_cores_per_vcpu": cores_per_vcpu,
+                    "num_vcpus": vcpus,
+                    "override_network_config": override_network_config
+                }
+                ],
+                "vm_customization_config": {
+                "datasource_type": "CONFIG_DRIVE_V2",
+                "files_to_inject_list": [
+                {
+                    "destination_path": "/tmp/{}".format(vm_custom_file),
+                    "source_path": "adsf:///{}/{}".format(self.get_container()['name'], vm_custom_file)
+                }
+                ],
+                "fresh_install": fresh_install,
+                "userdata_path": "adsf:///{}/{}".format(self.get_container()['name'], vm_userdata_file)
+                }
+            }
+        logging.info('Clone VM for specific VM and data is \n'+str(data))
+        return self.make_request(endpoint, 'post', data=data)
+
+    def get_vm_by_filter(self, filter_name, filter_value):
+        logging.info('Get VM by filter, filter name is {} and filter value is {}'.format(filter_name, filter_value))
+        endpoint = urljoin(
+            self.base_url,
+            "vms/?include_vm_nic_config=True&include_vm_disk_config=True&filter=%s==%s"
+            % (filter_name, filter_value))
+        return self.make_request(endpoint, 'get')
+
 class NutanixVM(VMResource):
     def __init__(self, params):
         super(NutanixVM, self).__init__(params)
@@ -723,6 +761,30 @@ class NutanixVM(VMResource):
             self.wait_for_status(
                 res['task_uuid'], 60,
                 "Timed out waiting for restoring VM.")
+
+    def clone_vm(self, clone_form_vm_or_snapshot, vm_name, memory, cores_per_vcpu, vcpus, override_network_config, fresh_install, vm_custom_file, vm_userdata_file, wait=False):
+        if clone_form_vm_or_snapshot == 'clone_from_vm':
+             uuid = self.data.get('uuid')
+        else:
+            vm_snpst_list = self.list_snapshots()
+            uuid = vm_snpst_list['entities'][0]['uuid']
+        res = self.prism.clone_vm(clone_form_vm_or_snapshot, uuid, vm_name, memory, cores_per_vcpu, vcpus, override_network_config, fresh_install, vm_custom_file, vm_userdata_file)
+        if wait:
+            self.wait_for_status(
+                res['task_uuid'], 60,
+                "Timed out waiting for cloning VM.")
+
+    def get_vm_by_filter(self, filter_name, filter_value):
+        if filter_name == "vm_name":
+            key = "name"
+        else:
+            logging.info("Opps! Other filter besides vm name not be implement yet.")
+            key = "none"
+        for vm in self.prism.get_vm_by_filter(filter_name, filter_value)['entities']:
+                if vm[key] == filter_value:
+                    vm_data = vm
+                    break
+        return vm_data
 
 class NutanixVolume(StorageResource):
     '''

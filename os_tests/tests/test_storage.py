@@ -1,4 +1,3 @@
-from cgi import test
 import unittest
 from os_tests.libs import utils_lib
 from os_tests.libs.resources import UnSupportedAction
@@ -6,6 +5,7 @@ import time
 import os
 import os_tests
 import random
+from tipset.libs import rmt_ssh
 
 class TestStorage(unittest.TestCase):
 
@@ -227,22 +227,30 @@ class TestStorage(unittest.TestCase):
 
     def test_add_ide_empty_cdrom(self):
         """
+        case_tag:
+            Storage
         case_name:
             test_add_ide_empty_cdrom
         case_file:
             os_tests.tests.test_storage.TestStorage.test_add_ide_empty_cdrom
         component:
             storage
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
         maintainer:
-            mingli@redhat.com
+            minl@redhat.com
         description:
             Test attach empty ide cdrom.
         key_steps:
-            # Attach empty ide cdrom
+            Attach empty ide cdrom.
         expect_result:
-            No error threw.
+            Number of rom increased and no error threw.
         debug_want:
-            - output from dmesg or journal
+            output from dmesg or journal
         """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
@@ -262,22 +270,30 @@ class TestStorage(unittest.TestCase):
     
     def test_add_sata_clone_cdrom_from_img_service(self):
         """
+        case_tag:
+            Storage
         case_name:
             test_add_sata_clone_cdrom_from_img_service
         case_file:
             os_tests.tests.test_storage.TestStorage.test_add_sata_clone_cdrom_from_img_service
         component:
             storage
+         bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
         maintainer:
             mingli@redhat.com
         description:
             Test attach sata cdrom clone from image service and then read the content in VM.
         key_steps:
-            # Attach sata cdrom and then read it's content
+            Attach sata cdrom and then read it's content
         expect_result:
             No error threw and cdrom content right.
         debug_want:
-            - output from dmesg or journal
+            output from dmesg or journal
         """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
@@ -313,22 +329,30 @@ class TestStorage(unittest.TestCase):
 
     def test_add_remove_multi_scsi(self):
         """
+        case_tag:
+            Storage
         case_name:
             test_add_remove_multi_scsi
         case_file:
             os_tests.tests.test_storage.TestStorage.test_add_remove_multi_scsi
         component:
             storage
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
         maintainer:
             mingli@redhat.com
         description:
             Test add and remove scsi disk of random size for 10 times in the VM.
         key_steps:
-            # Attach/detach scsi disk with random size and check in 10 cycles.
+            Attach/detach scsi disk with random size and check in 10 cycles.
         expect_result:
             No error threw and size check right.
         debug_want:
-            - output from dmesg or journal
+            output from dmesg or journal
         """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
@@ -414,65 +438,94 @@ class TestStorage(unittest.TestCase):
 
     def test_online_take_restore_snapshot(self):
         """
+        case_tag:
+            Storage
         case_name:
             test_take_restore_snapshot
         case_file:
             os_tests.tests.test_storage.TestStorage.test_take_restore_snapshot
         component:
             storage
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
         maintainer:
             mingli@redhat.com
         description:
             Test take snapshot from VM and then restore it after removing file action.
-        key_steps:
-            1. Create a file ~/snp.test
-            2. Take VM snapshot
-            3. Remove the fail ~/snp.test
+        key_steps: |
+            1. Create a file ~/snp.test.
+            2. Take VM snapshot.
+            3. Remove the fail ~/snp.test.
             4. Restore VM by the new snapshot, start VM, check the removed file exists after restore
         expect_result:
             No error threw and size check right.
         debug_want:
-            - output from dmesg or journal
+            output from dmesg or journal
         """
         self._test_take_restore_snapshot(False)
 
-    def test_offline_take_restore_snapshot(self):
+    def test_offline_take_restore_snapshot_clone_snapshot(self):
         """
+        case_tag:
+            Storage
         case_name:
             test_take_restore_snapshot
         case_file:
             os_tests.tests.test_storage.TestStorage.test_take_restore_snapshot
         component:
             storage
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
         maintainer:
             mingli@redhat.com
         description:
             Test take snapshot from VM and then restore it after removing file action.
-        key_steps:
+        key_steps: |
             1. Create a file ~/snp.test
             2. Stop VM and then take VM snapshot
             3. Start VM an then remove the fail ~/snp.test
             4. Restore VM by the new snapshot, start VM, check the removed file exists after restore
+            5. Clone VM from snapshot and check specific memory value, vcpus number, custom data and user data.
         expect_result:
-            No error threw and snapshot check right.
+            No error threw and snapshot/VM cloned from snapshot check right.
         debug_want:
-            - output from dmesg or journal
+            output from dmesg or journal
         """
         self._test_take_restore_snapshot(True)
+        cloneVM_set_Memory = 1024
+        cloneVM_set_Cores_per_CPU = 1
+        cloneVM_set_vcpus = 1
+        self._test_clone("clone_from_snapshot", "ClonedByScriptFromSnapshot", cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus)
 
     def test_expand_scsi_disk_online(self):
         """
+        case_tag:
+            Storage
         case_name:
             test_expand_scsi_disk_online
         case_file:
             os_tests.tests.test_storage.TestStorage.test_expand_scsi_disk_online
         component:
             storage
+         bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
         maintainer:
             mingli@redhat.com
         description:
             Expand SCSI disk when guest is running.
-        key_steps:
+        key_steps: |
             1. Login the guest and get the size of the SCSI disk.
             2. Expand the SCSI disk to a larger size.
             3. Check the disk size.
@@ -480,7 +533,7 @@ class TestStorage(unittest.TestCase):
         expect_result:
             No error threw.
         debug_want:
-            - output from dmesg or journal
+            output from dmesg or journal
         """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
@@ -519,25 +572,33 @@ class TestStorage(unittest.TestCase):
 
     def test_multi_disk(self):
         """
+        case_tag:
+            Storage
         case_name:
             test_multi_disk
         case_file:
             os_tests.tests.test_storage.TestStorage.test_multi_disk
         component:
             storage
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
         maintainer:
             mingli@redhat.com
         description:
             Add all four kinds of disk and test.
-        key_steps:
-            1. Login the guest and add scsi/pci/ide/sata disk
-            2. Check bus type by lshw
+        key_steps: |
+            1. Login the guest and add scsi/pci/ide/sata disk.
+            2. Check bus type by lshw.
             3. Check the disks' size.
-            4. Check the disks that should be readable and writeable
+            4. Check the disks that should be readable and writeable.
         expect_result:
             No error threw and all check right.
         debug_want:
-            - output from dmesg or journal
+            output from dmesg or journal
         """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
@@ -591,8 +652,8 @@ class TestStorage(unittest.TestCase):
             check_file = utils_lib.run_cmd(self, 'ls {}'.format(create_file), expect_ret=0)
             self.assertIn(create_file, check_file, msg="Read files from new added disk failed")
         #hot detach scsi and pci disk
-        disk_uuid = self.vm.get_disk_uuid('scsi', 2)
         try:
+            disk_uuid = self.vm.get_disk_uuid('scsi', 2)
             self.vm.detach_disk('scsi', disk_uuid, 2, wait=True)
         except NotImplementedError:
             self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
@@ -603,8 +664,8 @@ class TestStorage(unittest.TestCase):
         self.vm.stop(wait=True)
         time.sleep(60)
         for device_type in ['ide','sata', 'pci']:
-            disk_uuid = self.vm.get_disk_uuid(device_type, 2)
             try:
+                disk_uuid = self.vm.get_disk_uuid(device_type, 2)
                 self.vm.detach_disk(device_type, disk_uuid, 2, wait=True)
             except NotImplementedError:
                 self.skipTest('detach disk size func is not implemented in {}'.format(self.vm.provider))
@@ -616,6 +677,96 @@ class TestStorage(unittest.TestCase):
         utils_lib.run_cmd(self, "ls " + ide_dev_name, expect_ret=2, expect_kw='No such file or directory')
         utils_lib.run_cmd(self, "ls " + sata_dev_name, expect_ret=2, expect_kw='No such file or directory')
         utils_lib.run_cmd(self, "ls " + pci_dev_name, expect_ret=2, expect_kw='No such file or directory')
+
+    def _test_clone(self, clone_from_vm_or_snapshot, vm_name, cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus):
+        try:
+            self.log.info('Delete ide.3 for refresh user data')
+            self.vm.stop(wait=True)
+            time.sleep(60)
+            disk_uuid = self.vm.get_disk_uuid('ide', 3)
+            self.vm.detach_disk('ide', disk_uuid, 3, wait=True)
+            self.vm.clone_vm(clone_from_vm_or_snapshot, vm_name, cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus, False, True, "test.py", "userdata.yaml", True)
+        except NotImplementedError:
+            self.skipTest('Related func is not implemented in {}'.format(self.vm.provider))
+        except UnSupportedAction:
+            self.skipTest('Related func is not supported in {}'.format(self.vm.provider))
+        VMBecloned = self.vm.get_vm_by_filter("vm_name", vm_name)
+        self.vm.prism.start_vm(VMBecloned['uuid'])
+        time.sleep(60)
+        for nic in VMBecloned.get('vm_nics'):
+            if nic['network_uuid'] == self.vm.network_uuid:
+                VMBecloned_ip = nic['ip_address']
+        #clone from snapshot not support to refresh install
+        if clone_from_vm_or_snapshot == "clone_from_vm":
+            ssh = rmt_ssh.RemoteSSH()
+            ssh.rmt_node = VMBecloned_ip
+            ssh.rmt_user = self.vm.vm_username
+            ssh.rmt_password = self.vm.vm_password
+            ssh.create_connection()
+            if ssh.ssh_client is None:
+                self.fail('Failed to login to cloned VM by user/password specified in new user data')
+        self.params['remote_node'] = VMBecloned_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
+        cloneVM_actual_Memory = int(utils_lib.run_cmd(self, "cat /proc/meminfo | grep MemTotal | awk '{print $2}'"))/1024
+        cloneVM_gap_Memory = float(cloneVM_actual_Memory/cloneVM_set_Memory)
+        self.assertAlmostEqual(
+            first=1.0,
+            second=float(cloneVM_gap_Memory),
+            delta=0.2,
+            msg="Gap is two much between cloneVM_actual_Memory and cloneVM_set_Memory, Expect: %s, real: %s" %(cloneVM_set_Memory, cloneVM_actual_Memory)
+        )
+        cloneVM_actual_vcpus = int(utils_lib.run_cmd(self, "cat /proc/cpuinfo | grep processor | wc -l"))
+        cloneVM_set_vcpus_num = cloneVM_set_Cores_per_CPU * cloneVM_set_vcpus
+        self.assertEqual(cloneVM_actual_vcpus, cloneVM_set_vcpus_num, msg="Number of vcpus is not right, Expect: %s, real: %s" % (cloneVM_set_vcpus_num, cloneVM_actual_vcpus))
+        #clone from snapshot not support to refresh install
+        if clone_from_vm_or_snapshot == "clone_from_vm":
+            custome_data = utils_lib.run_cmd(self, "sudo chmod 755 /tmp/test.py \n sudo /tmp/test.py \n sudo cat /tmp/test.txt", expect_ret=0)
+            expect_cusome_data = "welcome to Nutanix world"
+            self.assertIn(expect_cusome_data, custome_data, msg="Custome data is not right, Expect: %s, real: %s" % (expect_cusome_data, custome_data))
+        #tear down
+        self.vm.prism.delete_vm(VMBecloned['uuid'])
+        self.vm.start(wait=True)
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
+
+    def test_clone_from_vm(self):
+        """
+        case_tag:
+            Storage
+        case_name:
+            test_clone_from_vm
+        case_file:
+            os_tests.tests.test_storage.TestStorage.test_clone_from_vm
+        component:
+            storage
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            mingli@redhat.com
+        description:
+            Clone VM from specific VM uuid with specific memory value, vcpus number, custom data and user data.
+        key_steps: |
+            1. Clone VM from specific VM uuid with specific memory value, vcpus number, custom data and user data.
+            2. Check the specific memory value.
+            3. Check the specific vcpus number.
+            4. Check the specific custom data.
+            5. Check the specific user data.
+        expect_result:
+            No error threw and all check right.
+        debug_want:
+            output from dmesg or journal
+        """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
+        cloneVM_set_Memory = 131072
+        cloneVM_set_Cores_per_CPU = 2
+        cloneVM_set_vcpus = 2
+        self._test_clone("clone_from_vm", "ClonedByScriptFromVM", cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus)
 
     def tearDown(self):
         if 'blktests' in self.id():
