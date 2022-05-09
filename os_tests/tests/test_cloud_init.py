@@ -69,14 +69,35 @@ class TestCloudInit(unittest.TestCase):
             self.fail('fingerprints count {} does not match expected {}'.format(out.count('SHA256')/3,out.count('BEGIN')))
 
     def test_check_cloudinit_log_imdsv2(self):
-        '''
+        """
         case_tag:
             cloudinit
-        polarion_id:
-        bz: 1810704
+        case_name:
+            test_check_cloudinit_log_imdsv2
+        case_file:
+            test_cloud_init.py
+        component:
+            kernel
+        bugzilla_id:
+            1810704
+        is_customer_case:
+            True
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
         description:
-            check cloud-init use imdsv2 in aws
-        '''
+            Check cloud-init use imdsv2 in aws
+        key_steps:
+            1.#sudo grep -Ri amazon /sys/devices/virtual/dmi/id/bios*
+            2.#sudo rpm -ql cloud-init|grep -w DataSourceEc2.py
+            3.#sudo cat "output of step2"|grep IMDSv2
+            4.#sudo cat /var/log/cloud-init.log
+        expect_result:
+            There is keyword "Fetching Ec2 IMDSv2 API Token,X-aws-ec2-metadata-token' in /var/log/cloud-init.log.
+        debug_want:
+            cloud-init
+        """
         cmd = "sudo grep -Ri amazon /sys/devices/virtual/dmi/id/bios*"
         utils_lib.run_cmd(self, cmd, cancel_ret='0', msg = "Only used in EC2 platform")
         cmd = "sudo rpm -ql cloud-init|grep -w DataSourceEc2.py"
