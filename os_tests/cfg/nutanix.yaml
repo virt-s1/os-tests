@@ -4,6 +4,8 @@ Cloud:
 Credential:
   username: 
   password: 
+  cvm_username: 
+  cvm_password: 
 Subscription:
   username: 
   password: 
