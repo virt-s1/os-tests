@@ -885,16 +885,12 @@ class NutanixVM(VMResource):
                 if self.get_memory_vnuma() == vnuma_num_target:
                     break
 
-    def attach_disk(self, size, wait=False):
-        logging.info("Creating and attaching disk")
-        res = self.prism.attach_disk(self.data.get('uuid'), size)
     def attach_disk(self, device_bus, disk_size, is_cdrom, device_index, *is_empty, wait=False):
         '''
         Attach disk/cdrom, device_info args including disksize, is cdrom or not, and is empty or not
         '''
         res = self.prism.attach_disk(self.data.get('uuid'), device_bus, disk_size, is_cdrom, device_index, *is_empty)
         time.sleep(30)
-
         if wait:
             self.wait_for_status(
                 res['task_uuid'], 30,
