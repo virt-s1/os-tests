@@ -1,8 +1,11 @@
 import unittest
 from os_tests.libs import utils_lib
+from os_tests.libs.resources import UnSupportedAction
 import time
 import os
 import os_tests
+import random
+from tipset.libs import rmt_ssh
 
 class TestStorage(unittest.TestCase):
 
@@ -72,6 +75,7 @@ class TestStorage(unittest.TestCase):
         if 'blktests' in self.id():
             utils_lib.pkg_install(self, pkg_name='blktests', pkg_url=blktests_rpm)
         self.cursor = utils_lib.get_cmd_cursor(self, timeout=120)
+        self.timeout = 180
 
     def test_storage_blktests_block(self):
         '''
@@ -215,6 +219,554 @@ class TestStorage(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='create 20 partitions on {}'.format(test_disk))
         cmd = "sudo parted -s {} print free".format(test_disk)
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='106MB', msg="check partitions created")
+
+    def _get_disk_num(self, disk_or_rom):
+        cmd = 'lsblk -d --output TYPE | grep {} | wc -l'.format(disk_or_rom)
+        disk_num = utils_lib.run_cmd(self, cmd, expect_ret=0)
+        return disk_num
+
+    def test_add_ide_empty_cdrom(self):
+        """
+        case_tag:
+            Storage
+        case_name:
+            test_add_ide_empty_cdrom
+        case_file:
+            os_tests.tests.test_storage.TestStorage.test_add_ide_empty_cdrom
+        component:
+            storage
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Test attach empty ide cdrom.
+        key_steps:
+            Attach empty ide cdrom.
+        expect_result:
+            Number of rom increased and no error threw.
+        debug_want:
+            output from dmesg or journal
+        """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
+        origin_disk_num = self._get_disk_num('rom')
+        self.vm.stop(wait=True)
+        try:
+            self.vm.attach_disk('ide', 0, True, 1, True, wait=True)
+        except NotImplementedError:
+            self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
+        except UnSupportedAction:
+            self.skipTest('attch disk func is not supported in {}'.format(self.vm.provider))
+        self.vm.start(wait=True)
+        utils_lib.init_connection(self, timeout=self.timeout)
+        new_disk_num = self._get_disk_num('rom')
+        new_add_num = int(new_disk_num) - int(origin_disk_num)
+        self.assertEqual(new_add_num, 1, msg="Number of new attached rom is not right, Expect: %s, real: %s" % (1, new_add_num))
+    
+    def test_add_sata_clone_cdrom_from_img_service(self):
+        """
+        case_tag:
+            Storage
+        case_name:
+            test_add_sata_clone_cdrom_from_img_service
+        case_file:
+            os_tests.tests.test_storage.TestStorage.test_add_sata_clone_cdrom_from_img_service
+        component:
+            storage
+         bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            mingli@redhat.com
+        description:
+            Test attach sata cdrom clone from image service and then read the content in VM.
+        key_steps:
+            Attach sata cdrom and then read it's content
+        expect_result:
+            No error threw and cdrom content right.
+        debug_want:
+            output from dmesg or journal
+        """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
+        origin_disk_num = self._get_disk_num('rom')
+        self.vm.stop(wait=True)
+        try:
+            self.vm.attach_disk('sata', 0, True, 0, False, 'clone_from_img_service', wait=True)
+        except NotImplementedError:
+            self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
+        except UnSupportedAction:
+            self.skipTest('attch disk func is not supported in {}'.format(self.vm.provider))
+        self.vm.start(wait=True)
+        utils_lib.init_connection(self, timeout=self.timeout)
+        new_disk_num = self._get_disk_num('rom')
+        new_add_num = int(new_disk_num) - int(origin_disk_num)
+        self.assertEqual(new_add_num, 1, "Number of new attached rom is not right Expect: %s, real: %s" % (1, new_add_num))
+        new_add_device_name=utils_lib.run_cmd(self, 'blkid --label OEMDRV', expect_ret=0).split('\n')[0]
+        cmd = "sudo mkdir /mnt/mnt_new_cdrom \n sudo mount {} /mnt/mnt_new_cdrom".format(new_add_device_name)
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        read_new_device = utils_lib.run_cmd(self, "sudo ls /mnt/mnt_new_cdrom", expect_ret=0)
+        self.assertIn("ks.cfg", read_new_device, msg="Read files from new added cdrom failed")
+        #tear down
+        disk_uuid = self.vm.get_disk_uuid('sata', 0)
+        self.vm.stop(wait=True)
+        try:
+            self.vm.detach_disk('sata', disk_uuid, 0, wait=True)
+        except NotImplementedError:
+            self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
+        except UnSupportedAction:
+            self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
+        self.vm.start(wait=True)
+        utils_lib.init_connection(self, timeout=self.timeout)
+
+    def test_add_remove_multi_scsi(self):
+        """
+        case_tag:
+            Storage
+        case_name:
+            test_add_remove_multi_scsi
+        case_file:
+            os_tests.tests.test_storage.TestStorage.test_add_remove_multi_scsi
+        component:
+            storage
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            mingli@redhat.com
+        description:
+            Test add and remove scsi disk of random size for 10 times in the VM.
+        key_steps:
+            Attach/detach scsi disk with random size and check in 10 cycles.
+        expect_result:
+            No error threw and size check right.
+        debug_want:
+            output from dmesg or journal
+        """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
+        for i in range(10):
+            #get random device size
+            random_dev_size = random.randint(1,10)
+            self.log.info('test add remove scsi for {} time(s), and test size is {}'.format(i+1,random_dev_size))
+            cmd = 'lsblk -d --output NAME|grep -v NAME'
+            origin_lsblk_name_list = utils_lib.run_cmd(self, cmd, expect_ret=0).split('\n')
+            origin_disk_num = self._get_disk_num('disk')
+            try:
+                self.vm.attach_disk('scsi', random_dev_size, False, 3, True, wait=True)
+            except NotImplementedError:
+                self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
+            except UnSupportedAction:
+                self.skipTest('attch disk func is not supported in {}'.format(self.vm.provider))
+            new_disk_num = self._get_disk_num('disk')
+            new_add_num = int(new_disk_num) - int(origin_disk_num)
+            self.assertEqual(new_add_num, 1, msg = "Number of new attached disk is not right. Expect: %s, real: %s" % (1, new_add_num))
+            new_lsblk_name_list = utils_lib.run_cmd(self, cmd, expect_ret=0).split('\n')
+            new_dev = [x for x in new_lsblk_name_list if x not in origin_lsblk_name_list][0]
+            cmd = 'sudo fdisk -s /dev/{}'.format(new_dev)
+            new_dev_size = utils_lib.run_cmd(self, cmd, expect_ret=0).split('\n')[0]
+            self.assertEqual(
+                int(new_dev_size), random_dev_size*1024*1024,
+                msg="Device size for new disk is not right, Expect: %s, real: %s" % (random_dev_size*1024*1024, new_dev_size)
+            )
+            origin_disk_num = self._get_disk_num('disk')
+            disk_uuid = self.vm.get_disk_uuid('scsi', 1)
+            try:
+                self.vm.detach_disk('scsi', disk_uuid, 3, wait=True)
+            except NotImplementedError:
+                self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
+            except UnSupportedAction:
+                self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
+            new_disk_num = self._get_disk_num('disk')
+            detach_num = int(origin_disk_num) - int(new_disk_num)
+            self.assertEqual(detach_num, 1, msg="Number of detached disk is not right. Expect: %s, real: %s" % (1, detach_num))
+    
+    def _test_take_restore_snapshot(self, is_offline):
+        """
+        Take snapshot against a running VM or a stopped VM
+        """
+        cmd = "touch ~/snpst.txt \n ls ~/snpst.txt"
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        time.sleep(30)
+        if is_offline:
+            self.vm.stop(wait=True)
+        try:
+            self.vm.take_snapshot('snpst_api', wait=True)
+        except NotImplementedError:
+            self.skipTest('take snapshot func is not implemented in {}'.format(self.vm.provider))
+        except UnSupportedAction:
+            self.skipTest('take snapshot func is not supported in {}'.format(self.vm.provider))
+        time.sleep(90)
+        vm_snpst_list = self.vm.list_snapshots()
+        self.assertEqual(
+            'snpst_api',
+            vm_snpst_list['entities'][0]['snapshot_name'],
+            msg="snapshot file not found in snapshot list, expect: {}, real:{}".format('snpst_api',vm_snpst_list)
+        )
+        snapshot_uuid=vm_snpst_list['entities'][0]['uuid']
+        if is_offline:
+            self.vm.start(wait=True)
+            utils_lib.init_connection(self, timeout=self.timeout)
+        self.log.info('delete the test file after taking snapshong and before restoring VM')
+        cmd = "rm ~/snpst.txt \n ls ~/snpst.txt"
+        check_file = utils_lib.run_cmd(self, cmd, expect_ret=2, msg='check No such file or directory')
+        try:
+            self.vm.restore_vm(snapshot_uuid, wait=True)
+        except NotImplementedError:
+            self.skipTest("restore vm func is not implemented in {}".format(self.vm.provider))
+        except UnSupportedAction:
+            self.skipTest("restore vm func is not supported in {}".format(self.vm.provider))
+        time.sleep(90)
+        self.vm.start(wait=True)
+        utils_lib.init_connection(self, timeout=self.timeout)
+        check_file = utils_lib.run_cmd(self, "ls ~/snpst*", expect_ret=0)
+        self.assertIn(
+                    "/home/cloud-user/snpst.txt",
+                    check_file,
+                    msg="~/snpst_root.txt not be recovered after VM restore")
+
+    def test_online_take_restore_snapshot(self):
+        """
+        case_tag:
+            Storage
+        case_name:
+            test_take_restore_snapshot
+        case_file:
+            os_tests.tests.test_storage.TestStorage.test_take_restore_snapshot
+        component:
+            storage
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            mingli@redhat.com
+        description:
+            Test take snapshot from VM and then restore it after removing file action.
+        key_steps: |
+            1. Create a file ~/snp.test.
+            2. Take VM snapshot.
+            3. Remove the fail ~/snp.test.
+            4. Restore VM by the new snapshot, start VM, check the removed file exists after restore
+        expect_result:
+            No error threw and size check right.
+        debug_want:
+            output from dmesg or journal
+        """
+        self._test_take_restore_snapshot(False)
+
+    def test_offline_take_restore_snapshot_clone_snapshot(self):
+        """
+        case_tag:
+            Storage
+        case_name:
+            test_take_restore_snapshot
+        case_file:
+            os_tests.tests.test_storage.TestStorage.test_take_restore_snapshot
+        component:
+            storage
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            mingli@redhat.com
+        description:
+            Test take snapshot from VM and then restore it after removing file action.
+        key_steps: |
+            1. Create a file ~/snp.test
+            2. Stop VM and then take VM snapshot
+            3. Start VM an then remove the fail ~/snp.test
+            4. Restore VM by the new snapshot, start VM, check the removed file exists after restore
+            5. Clone VM from snapshot and check specific memory value, vcpus number, custom data and user data.
+        expect_result:
+            No error threw and snapshot/VM cloned from snapshot check right.
+        debug_want:
+            output from dmesg or journal
+        """
+        self._test_take_restore_snapshot(True)
+        cloneVM_set_Memory = 1024
+        cloneVM_set_Cores_per_CPU = 1
+        cloneVM_set_vcpus = 1
+        self._test_clone("clone_from_snapshot", "ClonedByScriptFromSnapshot", cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus)
+
+    def test_expand_scsi_disk_online(self):
+        """
+        case_tag:
+            Storage
+        case_name:
+            test_expand_scsi_disk_online
+        case_file:
+            os_tests.tests.test_storage.TestStorage.test_expand_scsi_disk_online
+        component:
+            storage
+         bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            mingli@redhat.com
+        description:
+            Expand SCSI disk when guest is running.
+        key_steps: |
+            1. Login the guest and get the size of the SCSI disk.
+            2. Expand the SCSI disk to a larger size.
+            3. Check the disk size.
+            4. Check the disk that should be readable and writeable
+        expect_result:
+            No error threw.
+        debug_want:
+            output from dmesg or journal
+        """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
+        if(not self._get_test_disk()):
+            self.skipTest("test disk not found, provision VM should has at least 1 scsi disk")
+        else:
+            test_disk = self._get_test_disk()
+        #Get init size of test disk
+        cmd='sudo fdisk -s {}'.format(test_disk)
+        test_disk_origin_size = int(utils_lib.run_cmd(self, cmd, expect_ret=0))/(1024*1024)
+        self.assertEqual(1, test_disk_origin_size, msg='disk size is not the same with init value, expect: {}, real: {}'.format(1*1024*1024, test_disk_origin_size))
+        #Expand size of test disk when VM running
+        try:
+            self.disk.modify_disk_size(test_disk_origin_size, 'scsi', 1, 1)
+        except NotImplementedError:
+            self.skipTest('modify disk size func is not implemented in {}'.format(self.vm.provider))
+        except UnSupportedAction:
+            self.skipTest('modify disk size func is not supported in {}'.format(self.vm.provider))
+        #Get new size of test disk
+        test_disk_new_size = int(utils_lib.run_cmd(self, cmd, expect_ret=0))/(1024*1024)
+        self.assertEqual(2, int(test_disk_new_size), msg='disk size is not the same with init value, expect: {}, real: {}'.format(2*1024*1024, test_disk_new_size))
+        #Test expanded disk can be read and write
+        cmd='fallocate -l 2G 2G.img \n sudo mkfs -t xfs -f {} \n sudo mkdir /mnt/mnt_disk \n sudo mount {} /mnt/mnt_disk \n'.format(test_disk, test_disk)
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        utils_lib.run_cmd(self, 'sudo cp 2G.img /mnt/mnt_disk', expect_ret=1, msg='No space left on device')
+        init_file_size = int(utils_lib.run_cmd(self, "ls -l 2G.img | awk '{print $5}'", expect_ret=0).strip())/(1024*1024*1024)
+        cp_file_size = int(utils_lib.run_cmd(self, "ls -l /mnt/mnt_disk/2G.img | awk '{print $5}'", expect_ret=0).strip())/(1024*1024*1024)
+        self.assertAlmostEqual(
+            first=float(init_file_size),
+            second=float(cp_file_size),
+            delta=0.1,
+            msg="Gap is two much between copied file and origin file, Expect: %s, real: %s" %('0.1', init_file_size-cp_file_size)
+        )
+        #tear down
+        utils_lib.run_cmd(self, 'sudo umount {}\n'.format(test_disk), expect_ret=0)
+
+    def test_multi_disk(self):
+        """
+        case_tag:
+            Storage
+        case_name:
+            test_multi_disk
+        case_file:
+            os_tests.tests.test_storage.TestStorage.test_multi_disk
+        component:
+            storage
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            mingli@redhat.com
+        description:
+            Add all four kinds of disk and test.
+        key_steps: |
+            1. Login the guest and add scsi/pci/ide/sata disk.
+            2. Check bus type by lshw.
+            3. Check the disks' size.
+            4. Check the disks that should be readable and writeable.
+        expect_result:
+            No error threw and all check right.
+        debug_want:
+            output from dmesg or journal
+        """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
+        scsi_set_size = random.randint(1,10)
+        pci_set_size = random.randint(1,10)
+        ide_set_size = random.randint(1,10)
+        sata_set_size = random.randint(1,10)
+        #attach scsi and pci disk
+        for disk_type, disk_size in zip(['scsi','pci'],[scsi_set_size, pci_set_size]):
+            try:
+                self.vm.attach_disk(disk_type, disk_size, False, 2, True, wait=True)
+            except NotImplementedError:
+                self.skipTest('attach disk size func is not implemented in {}'.format(self.vm.provider))
+            except UnSupportedAction:
+                self.skipTest('attach disk size func is not supported in {}'.format(self.vm.provider))
+        #attach ide and sata disk
+        self.vm.stop(wait=True)
+        time.sleep(60)
+        for disk_type, disk_size in zip(['ide','sata'],[ide_set_size, sata_set_size]):
+            try:
+                self.vm.attach_disk(disk_type, disk_size, False, 2, True, wait=True)
+            except NotImplementedError:
+                self.skipTest('attach disk size func is not implemented in {}'.format(self.vm.provider))
+            except UnSupportedAction:
+                self.skipTest('attach disk size func is not supported in {}'.format(self.vm.provider))
+        self.vm.start(wait=True)
+        time.sleep(30)
+        utils_lib.init_connection(self, timeout=self.timeout)
+        #check disk number
+        num_fdisk=int(utils_lib.run_cmd(self, "sudo fdisk -l | grep 'Disk /dev' | wc -l", expect_ret=0))
+        num_lsblk=int(utils_lib.run_cmd(self, "sudo lsblk -d | grep disk | wc -l", expect_ret=0))
+        self.assertEqual(num_fdisk, 6, msg='Disk number get from fdisk is not right')
+        self.assertEqual(num_lsblk, 6, msg='Disk number get from lsblk is not right')
+        #check disk bustype and size
+        utils_lib.run_cmd(self, "sudo lshw -C disk -C storage", expect_ret=0)
+        scsi_dev_name = utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-scsi:0' -A 63 | grep 'description: SCSI Disk' -A 13 | grep 'logical name:' | awk '{print $3}'", expect_ret=0).strip().split()[-1]
+        pci_dev_name = utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-scsi:1' -A 19 | grep '*-virtio' -A 7 | grep 'logical name:' | awk '{print $3}'", expect_ret=0).strip()
+        ide_dev_name = utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-ide' -A 38 | grep 'description: ATA Disk' -A 8 | grep 'logical name:' | awk '{print $3}'", expect_ret=0).strip()
+        sata_dev_name = utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-sata' -A 37 | grep 'description: ATA Disk' -A 9 | grep 'logical name:' | awk '{print $3}'", expect_ret=0).strip()
+        scsi_dev_size = int(utils_lib.run_cmd(self, "sudo fdisk -s "+scsi_dev_name, expect_ret=0))/(1024*1024)
+        pci_dev_size = int(utils_lib.run_cmd(self, "sudo fdisk -s "+pci_dev_name, expect_ret=0))/(1024*1024)
+        ide_dev_size = int(utils_lib.run_cmd(self, "sudo fdisk -s "+ide_dev_name, expect_ret=0))/(1024*1024)
+        sata_dev_size = int(utils_lib.run_cmd(self, "sudo fdisk -s "+sata_dev_name, expect_ret=0))/(1024*1024)
+        for bus_type, set_size, real_size in zip(['scsi', 'pci', 'ide','sata'], [scsi_set_size, pci_set_size, ide_set_size, sata_set_size],[scsi_dev_size, pci_dev_size, ide_dev_size, sata_dev_size]):
+            self.assertEqual(set_size, real_size, msg="Size of %s disk is not right, Expect: %s, real: %s" % (bus_type, set_size, real_size))
+        #check disk can be read and write
+        for device_type, device_name in zip(['scsi','pci','ide','sata'], [scsi_dev_name, pci_dev_name, ide_dev_name, sata_dev_name]):
+            create_file = '/mnt/mnt_{}/{}_touch_test.txt'.format(device_type, device_type)
+            cmd = 'sudo mkfs.xfs {}\n sudo mkdir /mnt/mnt_{}\nsudo mount {} /mnt/mnt_{}\n sudo touch {}'.format(device_name, device_type, device_name, device_type, create_file)
+            utils_lib.run_cmd(self, cmd, expect_ret=0)
+            check_file = utils_lib.run_cmd(self, 'ls {}'.format(create_file), expect_ret=0)
+            self.assertIn(create_file, check_file, msg="Read files from new added disk failed")
+        #hot detach scsi and pci disk
+        try:
+            disk_uuid = self.vm.get_disk_uuid('scsi', 2)
+            self.vm.detach_disk('scsi', disk_uuid, 2, wait=True)
+        except NotImplementedError:
+            self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
+        except UnSupportedAction:
+            self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
+        utils_lib.run_cmd(self, "ls " + scsi_dev_name, expect_ret=2, expect_kw='No such file or directory')
+        #dettach ide and sata disk
+        self.vm.stop(wait=True)
+        time.sleep(60)
+        for device_type in ['ide','sata', 'pci']:
+            try:
+                disk_uuid = self.vm.get_disk_uuid(device_type, 2)
+                self.vm.detach_disk(device_type, disk_uuid, 2, wait=True)
+            except NotImplementedError:
+                self.skipTest('detach disk size func is not implemented in {}'.format(self.vm.provider))
+            except UnSupportedAction:
+                self.skipTest('detach disk size func is not supported in {}'.format(self.vm.provider))
+        self.vm.start(wait=True)
+        time.sleep(30)
+        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.run_cmd(self, "ls " + ide_dev_name, expect_ret=2, expect_kw='No such file or directory')
+        utils_lib.run_cmd(self, "ls " + sata_dev_name, expect_ret=2, expect_kw='No such file or directory')
+        utils_lib.run_cmd(self, "ls " + pci_dev_name, expect_ret=2, expect_kw='No such file or directory')
+
+    def _test_clone(self, clone_from_vm_or_snapshot, vm_name, cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus):
+        try:
+            self.log.info('Delete ide.3 for refresh user data')
+            self.vm.stop(wait=True)
+            time.sleep(60)
+            disk_uuid = self.vm.get_disk_uuid('ide', 3)
+            self.vm.detach_disk('ide', disk_uuid, 3, wait=True)
+            self.vm.clone_vm(clone_from_vm_or_snapshot, vm_name, cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus, False, True, "test.py", "userdata.yaml", True)
+        except NotImplementedError:
+            self.skipTest('Related func is not implemented in {}'.format(self.vm.provider))
+        except UnSupportedAction:
+            self.skipTest('Related func is not supported in {}'.format(self.vm.provider))
+        VMBecloned = self.vm.get_vm_by_filter("vm_name", vm_name)
+        self.vm.prism.start_vm(VMBecloned['uuid'])
+        time.sleep(60)
+        for nic in VMBecloned.get('vm_nics'):
+            if nic['network_uuid'] == self.vm.network_uuid:
+                VMBecloned_ip = nic['ip_address']
+        #clone from snapshot not support to refresh install
+        if clone_from_vm_or_snapshot == "clone_from_vm":
+            ssh = rmt_ssh.RemoteSSH()
+            ssh.rmt_node = VMBecloned_ip
+            ssh.rmt_user = self.vm.vm_username
+            ssh.rmt_password = self.vm.vm_password
+            ssh.create_connection()
+            if ssh.ssh_client is None:
+                self.fail('Failed to login to cloned VM by user/password specified in new user data')
+        self.params['remote_node'] = VMBecloned_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
+        cloneVM_actual_Memory = int(utils_lib.run_cmd(self, "cat /proc/meminfo | grep MemTotal | awk '{print $2}'"))/1024
+        cloneVM_gap_Memory = float(cloneVM_actual_Memory/cloneVM_set_Memory)
+        self.assertAlmostEqual(
+            first=1.0,
+            second=float(cloneVM_gap_Memory),
+            delta=0.2,
+            msg="Gap is two much between cloneVM_actual_Memory and cloneVM_set_Memory, Expect: %s, real: %s" %(cloneVM_set_Memory, cloneVM_actual_Memory)
+        )
+        cloneVM_actual_vcpus = int(utils_lib.run_cmd(self, "cat /proc/cpuinfo | grep processor | wc -l"))
+        cloneVM_set_vcpus_num = cloneVM_set_Cores_per_CPU * cloneVM_set_vcpus
+        self.assertEqual(cloneVM_actual_vcpus, cloneVM_set_vcpus_num, msg="Number of vcpus is not right, Expect: %s, real: %s" % (cloneVM_set_vcpus_num, cloneVM_actual_vcpus))
+        #clone from snapshot not support to refresh install
+        if clone_from_vm_or_snapshot == "clone_from_vm":
+            custome_data = utils_lib.run_cmd(self, "sudo chmod 755 /tmp/test.py \n sudo /tmp/test.py \n sudo cat /tmp/test.txt", expect_ret=0)
+            expect_cusome_data = "welcome to Nutanix world"
+            self.assertIn(expect_cusome_data, custome_data, msg="Custome data is not right, Expect: %s, real: %s" % (expect_cusome_data, custome_data))
+        #tear down
+        self.vm.prism.delete_vm(VMBecloned['uuid'])
+        self.vm.start(wait=True)
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
+
+    def test_clone_from_vm(self):
+        """
+        case_tag:
+            Storage
+        case_name:
+            test_clone_from_vm
+        case_file:
+            os_tests.tests.test_storage.TestStorage.test_clone_from_vm
+        component:
+            storage
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            mingli@redhat.com
+        description:
+            Clone VM from specific VM uuid with specific memory value, vcpus number, custom data and user data.
+        key_steps: |
+            1. Clone VM from specific VM uuid with specific memory value, vcpus number, custom data and user data.
+            2. Check the specific memory value.
+            3. Check the specific vcpus number.
+            4. Check the specific custom data.
+            5. Check the specific user data.
+        expect_result:
+            No error threw and all check right.
+        debug_want:
+            output from dmesg or journal
+        """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
+        cloneVM_set_Memory = 131072
+        cloneVM_set_Cores_per_CPU = 2
+        cloneVM_set_vcpus = 2
+        self._test_clone("clone_from_vm", "ClonedByScriptFromVM", cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus)
 
     def tearDown(self):
         if 'blktests' in self.id():

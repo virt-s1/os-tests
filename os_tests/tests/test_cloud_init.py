@@ -356,11 +356,11 @@ class TestCloudInit(unittest.TestCase):
         )
         # 3. Enlarge os disk size
         try:
-            self.disk.modify_disk_size(os_disk_size, 2)
+            self.disk.modify_disk_size(os_disk_size, 'scsi', 0, 2)
         except NotImplementedError:
             self.skipTest('modify disk size func is not implemented in {}'.format(self.vm.provider))
         except UnSupportedAction:
-            self.skipTest('modify disk size is not supported in {}'.format(self.vm.provider))
+            self.skipTest('modify disk size func is not supported in {}'.format(self.vm.provider))
         utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(10)
         utils_lib.init_connection(self, timeout=1200)
