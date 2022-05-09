@@ -2,7 +2,6 @@ import unittest
 import time
 from os_tests.libs import utils_lib
 
-
 class TestLifeCycle(unittest.TestCase):
     '''
     Only run in server-client mode.
@@ -11,7 +10,7 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.init_case(self)
         if self.params['remote_node'] is None:
             self.skipTest("Only support to run in server-client mode!")
-        if utils_lib.is_metal(self):
+        if utils_lib.is_metal(self) or utils_lib.is_ahv(self):
             self.ssh_timeout = 1200
             self.SSH.interval = 60
         else:
@@ -45,7 +44,6 @@ class TestLifeCycle(unittest.TestCase):
             self.skipTest('minimal 2G memory required for debug kernel')
         if utils_lib.is_arch(self, 'aarch64') and int(mini_mem) < 4:
             self.skipTest('minimal 4G memory required in aarch64')
-
         need_reboot = False
         kernel_ver = utils_lib.run_cmd(self, 'uname -r', expect_ret=0)
         if 'debug' in kernel_ver:
@@ -57,7 +55,7 @@ class TestLifeCycle(unittest.TestCase):
             else:
                 debug_kernel = "/boot/vmlinuz-" + kernel_ver.strip('\n') + "+debug"
             kernel_pkg = 'kernel-debug-' + kernel_ver
-            utils_lib.is_pkg_installed(self, pkg_name=kernel_pkg, timeout=360)
+            utils_lib.is_pkg_installed(self, pkg_name=kernel_pkg, timeout=600) #Increase this timeout time for once failure against Nutanix VM
             utils_lib.run_cmd(self,
                         "sudo grubby --info=%s" % debug_kernel,
                         expect_ret=0,
