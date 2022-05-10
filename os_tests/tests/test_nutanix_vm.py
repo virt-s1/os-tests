@@ -9,7 +9,7 @@ class TestNutanixVM(unittest.TestCase):
     '''
     def setUp(self):
         if not self.vm:
-            self.skipTest("Skip as no VM inited.count()")
+            self.skipTest("Skip as no VM inited")
         if not self.vm.provider == 'nutanix':
             self.skipTest("Skip as not Nutanix AHV platform")
         if self.vm.is_stopped():
