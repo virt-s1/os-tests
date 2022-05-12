@@ -653,21 +653,20 @@ class TestNutanixVM(unittest.TestCase):
             self.assertTrue(self.vm.get_cpu_passthrough(enabled=True),
                             "Test failed as setup CPU passthrough failed")
         else:
-            self.error(
+            self.fail(
                 "Expecte CPU passthrough set as disabled by default, need more investigation here")
         
         cmd = "grep -i vmx /proc/cpuinfo"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw="vmx",
-                          msg='Verify if cpu vmx has take effected on RHEL guest OS.')
+                          msg="Verify if cpu vmx has take effected on RHEL guest OS")
 
-        if pt_is_disabled:
-            self.log.info("Recover VM cpu passthrough")
-            self.vm.set_cpu_passthrough(enabled=False)
-            self.assertTrue(self.vm.get_cpu_passthrough(enabled=False),
-                            "Test failed as recover CPU passthrough failed")
-            utils_lib.init_connection(self)
-            utils_lib.run_cmd(self, cmd, expect_not_ret=0, expect_not_kw="vmx",
-                                msg='Verify if cpu vmx has disabled on RHEL guest OS.')
+        self.log.info("Recover VM cpu passthrough")
+        self.vm.set_cpu_passthrough(enabled=False)
+        self.assertTrue(self.vm.get_cpu_passthrough(enabled=False),
+                        "Test failed as recover CPU passthrough failed")
+        utils_lib.init_connection(self)
+        utils_lib.run_cmd(self, cmd, expect_not_ret=0, expect_not_kw="vmx",
+                          msg="Verify if cpu vmx has disabled on RHEL guest OS")
 
     def test_memory_vnuma(self):
         '''
