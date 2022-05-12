@@ -860,6 +860,42 @@ if __name__ == "__main__":
         utils_lib.run_cmd(self, "dmesg", expect_not_kw='Call trace,Call Trace')
 
 
+    def test_wipefs_cdrom(self):
+        """
+        case_tag:
+            util
+        case_name:
+            test_wipefs_return
+        component:
+            util-linux
+        bugzilla_id:
+            2074486
+        is_customer_case:
+            False
+        maintainer:
+            xuazhao@redhat.com
+        description:
+            Check wipefs cannot erase read-only cdrom device
+        key_steps:part
+            1.check if machine have CDROM mounted
+            2.# wipefs -a /dev/sr0
+            3.# echo $?
+            4.#dmesg -T | grep error
+            5.check if there's error and return is 0
+        expect_result:
+            command "wipefs -a /dev/sr0" should return 1
+        debug_want:
+            "strace -o log wipefs -a /dev/srN
+        """
+        cmd = "lsblk | grep sr"
+        all = utils_lib.run_cmd(self,cmd,cancel_kw="sr0",msg="check if machine mounted CDROM").split("\n")
+        for i in all:
+            part = i.split(" ")[0]
+            cmd = "wipefs -a /dev/"+part
+            utils_lib.run_cmd(self,cmd,expect_ret=1,msg="erase signature")
+            cmd = "dmesg -T | grep error"
+            utils_lib.run_cmd(self,cmd,expect_not_kw=part,msg="check if there's error")
+
     def test_grub2_mkconfig(self):
         """
         case_tag:
