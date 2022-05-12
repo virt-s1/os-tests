@@ -1098,10 +1098,6 @@ X11Forwarding yes
         product_id = utils_lib.get_product_id(self)
         if float(product_id) < float('8.4'):
             self.skipTest('skip in earlier than el8.4')
-        cmd = "sudo subscription-manager config --rhsmcertd.auto_registration=1"
-        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Enable auto registration')
-        cmd = "sudo subscription-manager config --rhsm.manage_repos=0"
-        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Disable manage repo")
         cmd = "sudo subscription-manager config --rhsmcertd.auto_registration_interval=1"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Check interval to 1 min")
         cmd = "sudo systemctl restart rhsmcertd.service"
