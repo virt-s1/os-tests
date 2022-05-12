@@ -9,15 +9,10 @@ import json
 import base64
 from requests.compat import urljoin
 import requests
-import subprocess
 import time
+import re
 
 from .resources import VMResource,StorageResource,UnSupportedAction,UnSupportedStatus
-from abc import ABCMeta, abstractmethod
-
-import os
-import re
-from tipset.libs import rmt_ssh
 
 # Disable HTTPS verification warnings.
 try:
@@ -130,8 +125,6 @@ class PrismApi(PrismSession):
         #self.vm_user_data = params.get('custom_data', '*/VM/*')
         self.vm_user_data = params['VM']['custom_data']
         self.vm_custom_file = None
-
-        #self.base_cmd = ["ssh", username+"@"+self.cvmIP]
 
         super(PrismApi, self).__init__(self.cvmIP, username, password)
 
@@ -379,19 +372,6 @@ class PrismApi(PrismSession):
         endpoint = urljoin(self.base_url, "snapshots/?vm_uuid=%s" % vm_uuid)
         return self.make_request(endpoint, 'get')
 
-    def cvm_cmd(self, command):
-        #cmd = self.base_cmd
-        #cmd.append(command)
-        #return subprocess.check_output(cmd)
-        ssh = rmt_ssh.RemoteSSH()
-        ssh.rmt_node = self.cvmIP
-        ssh.rmt_user = self.cvm_username
-        ssh.rmt_password = self.cvm_password
-        ssh.create_connection()
-        status, outputs = ssh.remote_excute(command)
-        ssh.close()
-        return outputs
-
     def list_networks_detail(self):
         logging.debug("Query details about netowrks")
         endpoint = urljoin(
@@ -638,7 +618,7 @@ class NutanixVM(VMResource):
                 cpu_model = host['cpu_model']
                 break
         return cpu_model
-            
+
     def host_cpu_num(self):
         self._data = None
         for host in self.prism.list_hosts_detail()["entities"]:
@@ -646,7 +626,15 @@ class NutanixVM(VMResource):
                 cpu_num = host['num_cpu_sockets']
                 break
         return cpu_num       
-    
+
+    def vm_host_uuid(self):
+        self._data = None
+        for host in self.prism.list_hosts_detail()["entities"]:
+            if host['uuid'] == self.data.get('host_uuid'):
+                vm_host_uuid = host['uuid']
+                break
+        return vm_host_uuid
+
     def wait_for_status(self, task_uuid, timeout, error_message):
         for count in utils_lib.iterate_timeout(timeout, error_message):
             res = self.prism.list_tasks(task_uuid)
@@ -755,9 +743,17 @@ class NutanixVM(VMResource):
     def show(self):
         return self.data
 
-    def cvm_cmd(self, command):
-        return self.prism.cvm_cmd(command)
+    def allow_live_migrate(self):
+        logging.info('Check if allow for VM live migration')
+        self._data = None
+        return self.data.get('allow_live_migrate')
 
+    def cvm_cmd(self, command):
+        rmt_node = self.prism.cvmIP
+        rmt_user = self.prism.cvm_username
+        rmt_password = self.prism.cvm_password
+        return utils_lib.send_ssh_cmd(rmt_node, rmt_user, rmt_password, command)[1]
+        
     def get_vcpu_num(self):
         logging.info('Query vCPU number on AHV')
         self._data = None
@@ -780,6 +776,12 @@ class NutanixVM(VMResource):
         return mem_gb
 
     def update_vcpu_num(self, vcpu_num_target):
+        '''
+        If target vCPU number is less than current, the key steps will be:
+        1. Power off VM
+        2. Update vCPU number
+        3. Power on VM 
+        '''
         vcpu_num_current = self.get_vcpu_num()
         logging.info("Update vCPU number from %s to %s" % (vcpu_num_current, vcpu_num_target))
         if vcpu_num_target >= vcpu_num_current:
@@ -799,6 +801,12 @@ class NutanixVM(VMResource):
                 break
 
     def update_core_num(self, core_num_target):
+        '''
+        Key steps:
+        1. Power off VM
+        2. Update vCPU core number
+        3. Power on VM
+        '''
         vcpu_num_current = self.get_core_num()
         logging.info("Update core number per vCPU from %s to %s" % (vcpu_num_current, core_num_target))
         if self.is_started():
@@ -814,6 +822,12 @@ class NutanixVM(VMResource):
                 break
 
     def update_memory_size(self, mem_gb_target):
+        '''
+        If target memory size is less than current, the key steps:
+        1. Power off VM
+        2. Update memory size
+        3. Power on VM
+        '''
         mem_gb_current = self.get_memory_size()
         logging.info("Update memory capacity (GB) from %s to %s" % (mem_gb_current, mem_gb_target))
         if mem_gb_target >= mem_gb_current:       
@@ -843,8 +857,15 @@ class NutanixVM(VMResource):
             if "false" in res.lower():
                 logging.info("VM cpu passthrough has disabled.")
                 return True
-
+        return False
+    
     def set_cpu_passthrough(self, enabled=True):
+        '''
+        Key steps:
+        1. Power off VM
+        2. Set CPU passthrough
+        3. Power on VM
+        '''
         if self.is_started():
             self.stop(wait=True)
         if enabled:
@@ -872,6 +893,12 @@ class NutanixVM(VMResource):
         return vnuma_num
 
     def set_memory_vnuma(self, vnuma_num_target):
+        '''
+        Key steps:
+        1. Power off VM
+        2. Set memory vnuma
+        3. Power on VM
+        '''
         vnuma_num_current = self.get_memory_vnuma()
         if self.is_started():
             self.stop(wait=True)
@@ -891,6 +918,7 @@ class NutanixVM(VMResource):
         '''
         res = self.prism.attach_disk(self.data.get('uuid'), device_bus, disk_size, is_cdrom, device_index, *is_empty)
         time.sleep(30)
+
         if wait:
             self.wait_for_status(
                 res['task_uuid'], 30,
