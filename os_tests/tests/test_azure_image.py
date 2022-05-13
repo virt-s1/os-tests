@@ -399,25 +399,8 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         - service should be on
         - config files shoud have specified checksums
         """
-        out = utils_lib.run_cmd(self, 'sudo cat /etc/redhat-release', expect_ret=0, msg='get release name')
-        if 'release 8' in out:
-            auditd_checksum = '7bfa16d314ddb8b96a61a7f617b8cca0'
-            auditd_rules_checksum = '795528bd4c7b4131455c15d5d49991bb'
-        elif 'release 7' in out:
-            # 7.5 onward
-            auditd_checksum = '29f4c6cd67a4ba11395a134cf7538dbd'
-            auditd_rules_checksum = 'f1c2a2ef86e5db325cd2738e4aa7df2c'
-        elif 'release 6' in out:
-            # 6.9 onward
-            auditd_checksum = '306e13910db5267ffd9887406d43a3f7'
-            auditd_sysconf_checksum = '0825f77b49a82c5d75bcd347f30407ab'
-            utils_lib.run_cmd(self, 'sudo md5sum /etc/sysconfig/auditd', expect_kw=auditd_sysconf_checksum)
-        else:
-            self.skipTest('skip run in el5 and earlier than 6.9, 7.5. el9 will be added')
-
-        utils_lib.run_cmd(self, 'sudo md5sum /etc/audit/auditd.conf', expect_kw=auditd_checksum)
-        if 'release 6' not in out:
-            utils_lib.run_cmd(self, 'sudo md5sum /etc/audit/audit.rules', expect_kw=auditd_rules_checksum)
+        utils_lib.run_cmd(self, 'sudo systemctl is-active auditd', expect_ret=0, msg="Ensure auditd service is active")
+        utils_lib.run_cmd(self, 'sudo rpm -V audit', expect_ret=0, msg='Ensure /etc/auditd.conf is not changed')
 
     def test_check_ttyS0_conf(self):
         """
