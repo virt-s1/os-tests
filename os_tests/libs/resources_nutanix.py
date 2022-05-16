@@ -9,8 +9,8 @@ import json
 import base64
 from requests.compat import urljoin
 import requests
-import subprocess
 import time
+import re
 
 from .resources import VMResource,StorageResource,UnSupportedAction,UnSupportedStatus
 
@@ -96,6 +96,8 @@ class PrismApi(PrismSession):
         logging.info('username is ' + str(username) + ', type is '+ str(type(username)))
         #password = params.get('password', '*/Credential/*')
         password = params['Credential']['password']
+        self.cvm_username = params['Credential']['cvm_username']
+        self.cvm_password = params['Credential']['cvm_password']
 
         # VM creation parameters
         #self.vm_name = params.get('vm_name', '*/VM/*')
@@ -123,8 +125,6 @@ class PrismApi(PrismSession):
         #self.vm_user_data = params.get('custom_data', '*/VM/*')
         self.vm_user_data = params['VM']['custom_data']
         self.vm_custom_file = None
-
-        self.base_cmd = ["ssh", username+"@"+self.cvmIP]
 
         super(PrismApi, self).__init__(self.cvmIP, username, password)
 
@@ -331,6 +331,24 @@ class PrismApi(PrismSession):
         data = {"transition": "ON"}
         return self.make_request(endpoint, 'post', data=data)
         
+    def migrate_vm(self, vm_uuid, host_uuid=None):
+        # Use API v0.8 for migrate operation
+        logging.info("Migrate VM")
+        endpoint = urljoin(self.base_url.replace('v2.0', 'v0.8'), "vms/%s/migrate" % vm_uuid)
+        if host_uuid:
+            data = {
+                "live": "true",
+                "hostUuid": "%s" % host_uuid
+                }
+        else:
+            data = {"live": "true"}
+        return self.make_request(endpoint, 'post', data=data)
+
+    def list_hosts_detail(self):
+        logging.debug("Query details about Hosts")
+        endpoint = urljoin(self.base_url,"hosts")
+        return self.make_request(endpoint, 'get')
+
     def list_vm_detail(self):
         logging.debug("Query details about VM")
         endpoint = urljoin(
@@ -354,17 +372,30 @@ class PrismApi(PrismSession):
         endpoint = urljoin(self.base_url, "snapshots/?vm_uuid=%s" % vm_uuid)
         return self.make_request(endpoint, 'get')
 
-    def cvm_cmd(self, command):
-        cmd = self.base_cmd
-        cmd.append(command)
-        return subprocess.check_output(cmd)
-
     def list_networks_detail(self):
         logging.debug("Query details about netowrks")
         endpoint = urljoin(
             self.base_url,
             "networks/")
         return self.make_request(endpoint, 'get')
+
+    def update_vcpu(self, vm_uuid, vcpu_num):
+        logging.debug("Update vCPU number")
+        endpoint = urljoin(self.base_url, "vms/%s" % vm_uuid)
+        data = {"num_vcpus": vcpu_num}
+        return self.make_request(endpoint, 'put', data=data)
+
+    def update_core(self, vm_uuid, core_num):
+        logging.debug("Update core number per vCPU")
+        endpoint = urljoin(self.base_url, "vms/%s" % vm_uuid)
+        data = {"num_cores_per_vcpu": core_num}
+        return self.make_request(endpoint, 'put', data=data)
+
+    def update_memory(self, vm_uuid, mem_gb):
+        logging.debug("Update memory capacity (GB)")
+        endpoint = urljoin(self.base_url, "vms/%s" % vm_uuid)
+        data = {"memory_mb": mem_gb * 1024}
+        return self.make_request(endpoint, 'put', data=data)
 
     def create_network(self):
         logging.debug("Creating virtual network")
@@ -573,6 +604,37 @@ class NutanixVM(VMResource):
                 f_ip = nic['ip_address']
         return f_ip
 
+    @property
+    def host_uuid(self):
+        host_uuid = []
+        for host in self.prism.list_hosts_detail()["entities"]:
+            host_uuid.append(host['uuid'])
+        return host_uuid
+
+    def host_cpu_model(self):
+        self._data = None
+        for host in self.prism.list_hosts_detail()["entities"]:
+            if host['uuid'] == self.data.get('host_uuid'):
+                cpu_model = host['cpu_model']
+                break
+        return cpu_model
+
+    def host_cpu_num(self):
+        self._data = None
+        for host in self.prism.list_hosts_detail()["entities"]:
+            if host['uuid'] == self.data.get('host_uuid'):
+                cpu_num = host['num_cpu_sockets']
+                break
+        return cpu_num       
+
+    def vm_host_uuid(self):
+        self._data = None
+        for host in self.prism.list_hosts_detail()["entities"]:
+            if host['uuid'] == self.data.get('host_uuid'):
+                vm_host_uuid = host['uuid']
+                break
+        return vm_host_uuid
+
     def wait_for_status(self, task_uuid, timeout, error_message):
         for count in utils_lib.iterate_timeout(timeout, error_message):
             res = self.prism.list_tasks(task_uuid)
@@ -648,6 +710,18 @@ class NutanixVM(VMResource):
                 if self.exists() and self.floating_ip:
                     break
 
+    def migrate(self, wait=False, host_uuid=None):
+        logging.info("Migrate VM")
+        if host_uuid:
+            res = self.prism.migrate_vm(self.data.get('uuid'), host_uuid)
+        else:
+            res = self.prism.migrate_vm(self.data.get('uuid'))
+        if wait:
+            self.wait_for_status(
+                res['taskUuid'], 120,
+                "Timed out waiting for VM to complete migration.")
+        self._data = None
+
     def exists(self):
         self._data = None
         count = sum(1 for i in self.data)
@@ -669,8 +743,174 @@ class NutanixVM(VMResource):
     def show(self):
         return self.data
 
+    def allow_live_migrate(self):
+        logging.info('Check if allow for VM live migration')
+        self._data = None
+        return self.data.get('allow_live_migrate')
+
     def cvm_cmd(self, command):
-        return self.prism.cvm_cmd(command)
+        rmt_node = self.prism.cvmIP
+        rmt_user = self.prism.cvm_username
+        rmt_password = self.prism.cvm_password
+        return utils_lib.send_ssh_cmd(rmt_node, rmt_user, rmt_password, command)[1]
+        
+    def get_vcpu_num(self):
+        logging.info('Query vCPU number on AHV')
+        self._data = None
+        return self.data.get('num_vcpus')
+
+    def get_core_num(self):
+        logging.info('Query core number per vCPU on AHV')
+        self._data = None
+        return self.data.get('num_cores_per_vcpu')
+
+    def get_core_total(self):
+        logging.info('Get total core number in VM')
+        core_total = (self.get_vcpu_num() * self.get_core_num())
+        return core_total
+
+    def get_memory_size(self):
+        logging.info('Query memory capacity (GB) on AHV')
+        self._data = None
+        mem_gb = (self.data.get('memory_mb') / 1024)
+        return mem_gb
+
+    def update_vcpu_num(self, vcpu_num_target):
+        '''
+        If target vCPU number is less than current, the key steps will be:
+        1. Power off VM
+        2. Update vCPU number
+        3. Power on VM 
+        '''
+        vcpu_num_current = self.get_vcpu_num()
+        logging.info("Update vCPU number from %s to %s" % (vcpu_num_current, vcpu_num_target))
+        if vcpu_num_target >= vcpu_num_current:
+            res = self.prism.update_vcpu(self.data.get('uuid'), vcpu_num_target)
+        else:
+            if self.is_started():
+                self.stop(wait=True)
+            res = self.prism.update_vcpu(self.data.get('uuid'), vcpu_num_target)
+        self.wait_for_status(
+            res['task_uuid'], 60,
+            "Timed out waiting for VM to complete vCPU number updating.")
+        if self.is_stopped():
+            self.start(wait=True)
+        for count in utils_lib.iterate_timeout(
+                60, "Timed out waiting for verify vCPU number updating."):
+            if self.exists() and self.get_vcpu_num() == vcpu_num_target:
+                break
+
+    def update_core_num(self, core_num_target):
+        '''
+        Key steps:
+        1. Power off VM
+        2. Update vCPU core number
+        3. Power on VM
+        '''
+        vcpu_num_current = self.get_core_num()
+        logging.info("Update core number per vCPU from %s to %s" % (vcpu_num_current, core_num_target))
+        if self.is_started():
+            self.stop(wait=True)
+        res = self.prism.update_core(self.data.get('uuid'), core_num_target)
+        self.wait_for_status(
+            res['task_uuid'], 60,
+            "Timed out waiting for VM to complete core number per vCPU updating.")
+        self.start(wait=True)
+        for count in utils_lib.iterate_timeout(
+                60, "Timed out waiting for verify core number per vCPU updating."):
+            if self.exists() and self.get_core_num() == core_num_target:
+                break
+
+    def update_memory_size(self, mem_gb_target):
+        '''
+        If target memory size is less than current, the key steps:
+        1. Power off VM
+        2. Update memory size
+        3. Power on VM
+        '''
+        mem_gb_current = self.get_memory_size()
+        logging.info("Update memory capacity (GB) from %s to %s" % (mem_gb_current, mem_gb_target))
+        if mem_gb_target >= mem_gb_current:       
+            res = self.prism.update_memory(self.data.get('uuid'), mem_gb_target)
+        else:
+            if self.is_started():
+                self.stop(wait=True)
+            res = self.prism.update_memory(self.data.get('uuid'), mem_gb_target)
+        self.wait_for_status(
+            res['task_uuid'], 60,
+            "Timed out waiting for VM to complete memory capacity (GB) updating.")
+        if self.is_stopped():
+            self.start(wait=True)
+        for count in utils_lib.iterate_timeout(
+                60, "Timed out waiting for verify memory capacity (GB) updating."):
+            if self.exists() and self.get_memory_size() == mem_gb_target:
+                break
+
+    def get_cpu_passthrough(self, enabled=True):
+        logging.info("Get VM cpu passthrough status.")
+        res = self.cvm_cmd("acli vm.get %s | grep cpu_passthrough" % self.data.get('uuid'))
+        if enabled:
+            if "true" in res.lower():
+                logging.info("VM cpu passthrough has enabled.")
+                return True
+        else:
+            if "false" in res.lower():
+                logging.info("VM cpu passthrough has disabled.")
+                return True
+        return False
+    
+    def set_cpu_passthrough(self, enabled=True):
+        '''
+        Key steps:
+        1. Power off VM
+        2. Set CPU passthrough
+        3. Power on VM
+        '''
+        if self.is_started():
+            self.stop(wait=True)
+        if enabled:
+            logging.info("Enable VM cpu passthrough.")
+            res = self.cvm_cmd("acli vm.update %s cpu_passthrough=true" % self.data.get('uuid'))
+        else:
+            logging.info("Disable VM cpu passthrough.")
+            res = self.cvm_cmd("acli vm.update %s cpu_passthrough=false" % self.data.get('uuid'))
+        if "pending" in res.lower() and "cannot" not in res.lower():
+            logging.info("VM cpu passthrough has changed successfully.")
+            self.start(wait=True)
+            for count in utils_lib.iterate_timeout(
+                    60, "Timed out waiting for verify cpu passthrough changing."):
+                if enabled:
+                    if self.get_cpu_passthrough(enabled=True):
+                        break
+                else:
+                    if self.get_cpu_passthrough(enabled=False):
+                        break                    
+
+    def get_memory_vnuma(self):
+        logging.info("Get VM cpu passthrough status.")
+        res = self.cvm_cmd("acli vm.get %s | grep num_vnuma_nodes" % self.data.get('uuid'))
+        vnuma_num = int(re.findall('\d', res)[0])
+        return vnuma_num
+
+    def set_memory_vnuma(self, vnuma_num_target):
+        '''
+        Key steps:
+        1. Power off VM
+        2. Set memory vnuma
+        3. Power on VM
+        '''
+        vnuma_num_current = self.get_memory_vnuma()
+        if self.is_started():
+            self.stop(wait=True)
+        logging.info("Set VM vnuma nodes number from %s to %s" % (vnuma_num_current, vnuma_num_target))
+        res = self.cvm_cmd("acli vm.update %s num_vnuma_nodes=%s" % (self.data.get('uuid'), vnuma_num_target))
+        if "pending" in res.lower() and "cannot" not in res.lower():
+            logging.info("VM vnuma nodes number has changed successfully.")
+            self.start(wait=True)
+            for count in utils_lib.iterate_timeout(
+                    60, "Timed out waiting for verify vnuma nodes number changing."):
+                if self.get_memory_vnuma() == vnuma_num_target:
+                    break
 
     def attach_disk(self, device_bus, disk_size, is_cdrom, device_index, *is_empty, wait=False):
         '''

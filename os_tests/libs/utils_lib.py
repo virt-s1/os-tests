@@ -13,6 +13,7 @@ import difflib
 import time
 import logging
 import argparse
+from tipset.libs import rmt_ssh
 from functools import wraps
 from yaml import load, dump
 try:
@@ -114,7 +115,6 @@ def init_provider(params=None):
     return vm, disk, nic
 
 def init_ssh(params=None, timeout=600, interval=10, log=None):
-    from tipset.libs import rmt_ssh
     if log is None:
         LOG_FORMAT = '%(levelname)s:%(message)s'
         log = logging.getLogger(__name__)
@@ -157,6 +157,16 @@ def init_connection(test_instance, timeout=600, interval=10):
                 test_instance.log.info("{} not implement this func: get_console_log".format(test_instance.vm.provider))
 
         test_instance.skipTest("Cannot make ssh connection to remote, please check")
+
+def send_ssh_cmd(rmt_node, rmt_user, rmt_password, command):
+    ssh = rmt_ssh.RemoteSSH()
+    ssh.rmt_node = rmt_node
+    ssh.rmt_user = rmt_user
+    ssh.rmt_password = rmt_password
+    ssh.create_connection()
+    status, outputs = ssh.remote_excute(command)
+    ssh.close()
+    return [status,outputs]
 
 def get_cfg(cfg_file = None):
     # Config file
