@@ -202,8 +202,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
             cmd = "rpm -q NetworkManager-cloud-setup"
             utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='Check if NetworkManager-cloud-setup is not installed')
         else:
-            ### TODO
-            self.skipTest("Not install now.")
             cmd = "rpm -q NetworkManager-cloud-setup"
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Check if NetworkManager-cloud-setup is installed')
             cmd = "sudo systemctl is-enabled nm-cloud-setup"
@@ -471,18 +469,18 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         cmd = "sudo systemctl is-enabled rhsmcertd"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to check rhsmcertd enabled')
 
-    def test_check_pkgs(self):
-        '''
-        Some pkgs are required in azure.
-        '''
-        base_file = 'pkglist'
-        test_file = '/tmp/pkglist_test'
-        if self.rhel_x_version < 8:
-            cmd = 'rpm -qa --qf "%{{NAME}}\n"|sort|grep -v python3 > {}'.format(test_file)
-        else:
-            cmd = 'rpm -qa --qf "%{{NAME}}\n"|sort > {}'.format(test_file)
-        utils_lib.run_cmd(self, cmd)
-        self._check_file_content(base_file, test_file, msg="Check packages list", project=self.rhel_x_version)
+    # def test_check_pkgs(self):
+    #     '''
+    #     Some pkgs are required in azure.
+    #     '''
+    #     base_file = 'pkglist'
+    #     test_file = '/tmp/pkglist_test'
+    #     if self.rhel_x_version < 8:
+    #         cmd = 'rpm -qa --qf "%{{NAME}}\n"|sort|grep -v python3 > {}'.format(test_file)
+    #     else:
+    #         cmd = 'rpm -qa --qf "%{{NAME}}\n"|sort > {}'.format(test_file)
+    #     utils_lib.run_cmd(self, cmd)
+    #     self._check_file_content(base_file, test_file, msg="Check packages list", project=self.rhel_x_version)
 
     def test_check_waagent_resourcedisk_format(self):
         '''
@@ -645,15 +643,12 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
 
     def test_check_hostkey_permission(self):
         '''
-        Verify /etc/ssh/ssh_host_xxx_key permission are -rw-------.
+        Verify /etc/ssh/ssh_host_xxx_key permission are 640, group is ssh_keys.
         '''
-        if self.rhel_x_version < 8:
-            expected = "-rw-r-----."
-        else:
-            expected = "-rw-------."
-        cmd = "ls -l /etc/ssh/{ssh_host_ecdsa_key,ssh_host_ed25519_key,ssh_host_rsa_key}|awk '{print $1}'|uniq"
-
-        utils_lib.run_cmd(self, cmd, expect_output=expected, msg="Verify /etc/ssh/ssh_host_xxx_key permission are -rw-------.")
+        # BZ#2013644
+        expected = "-rw-r-----.rootssh_keys"
+        cmd = "ls -l /etc/ssh/{ssh_host_ecdsa_key,ssh_host_ed25519_key,ssh_host_rsa_key}|awk '{print $1$3$4}'|uniq"
+        utils_lib.run_cmd(self, cmd, expect_output=expected, msg="Verify /etc/ssh/ssh_host_xxx_key permission is 640, group is ssh_keys")
 
     def test_check_kdump_configuration(self):
         '''
