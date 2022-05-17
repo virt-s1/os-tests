@@ -106,7 +106,7 @@ def main():
                         case.params = cfg_data
                         case.run_uuid = run_uuid
                         case.utils_dir = utils_dir
-                        case.nic = nic
+                        case.data_dir = data_dir
                         if ssh is not None:
                             case.SSH = ssh
                         case.vm = vm
