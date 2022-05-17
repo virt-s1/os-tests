@@ -32,7 +32,6 @@ class TestNetworkTest(unittest.TestCase):
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to get {} ipv4 address'.format(self.nic))
         self.ipv4 = re.findall('[\d.]{7,16}', output)[0]
 
-
     def test_ethtool_G(self):
         '''
         case_name:
@@ -331,6 +330,9 @@ class TestNetworkTest(unittest.TestCase):
             mtu_range = [0, 67, 68, 1500,1600]
             mtu_min = 68
             mtu_max = 1500
+            if self.vm.provider == 'nutanix':
+                mtu_range = [0, 67, 68, 65535,65536]
+                mtu_max = 65535
         elif 'hv_netvsc' in output and not utils_lib.is_azure(self):
             self.log.info('hv_netvsc found on azure, rhbz#2017612')
             mtu_range = [0, 67, 68, 1600, 4500]
@@ -357,7 +359,7 @@ class TestNetworkTest(unittest.TestCase):
             elif mtu_size < mtu_min or mtu_size > mtu_max:
                 utils_lib.run_cmd(self, mtu_cmd, expect_not_ret=0)
                 utils_lib.run_cmd(self, mtu_check, expect_ret=0, expect_not_kw="mtu {}".format(mtu_size))
-        cmd = "ping {} -c 10 -I {}".format(self.params.get('ping_server'), self.nic)
+        cmd = "sudo ping {} -c 10 -I {}".format(self.params.get('ping_server'), self.nic) #add sudo here or it will fail against 8.7
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', cursor=self.dmesg_cursor, skip_words='ftrace')
 
