@@ -126,7 +126,7 @@ def main():
     else:
         HTMLTestRunner(verbosity=2).run(final_ts)
     if vm:
-        #vm.delete()
+        vm.delete()
         if disk is not None and disk.is_exist():
             disk.delete()
 
