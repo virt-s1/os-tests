@@ -728,6 +728,7 @@ class TestStorage(unittest.TestCase):
             if ssh.ssh_client is None:
                 self.fail('Failed to login to cloned VM by user/password specified in new user data')
         self.params['remote_node'] = VMBecloned_ip
+
         utils_lib.init_connection(self, timeout=self.timeout)
         cloneVM_actual_Memory = int(utils_lib.run_cmd(self, "cat /proc/meminfo | grep MemTotal | awk '{print $2}'"))/1024
         cloneVM_gap_Memory = float(cloneVM_actual_Memory/cloneVM_set_Memory)

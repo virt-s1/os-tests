@@ -128,6 +128,8 @@ class PrismApi(PrismSession):
         self.vm_custom_file = None
         self.minimum_disk_size = 1
 
+        self.minimum_disk_size = 1
+
         super(PrismApi, self).__init__(self.cvmIP, username, password)
 
     def make_request(self, endpoint, action, data=None):
@@ -334,6 +336,7 @@ class PrismApi(PrismSession):
         endpoint = urljoin(self.base_url, "vms/%s/set_power_state" % vm_uuid)
         data = {"transition": "ON"}
         return self.make_request(endpoint, 'post', data=data)
+<<<<<<< HEAD
     
     def migrate_vm(self, vm_uuid, host_uuid=None):
         # Use API v0.8 for migrate operation
@@ -353,6 +356,9 @@ class PrismApi(PrismSession):
         endpoint = urljoin(self.base_url,"hosts")
         return self.make_request(endpoint, 'get')
 
+=======
+        
+>>>>>>> 3470beb74d5151ffa013aa87c695ceff51feefc4
     def list_vm_detail(self):
         logging.debug("Query details about VM")
         endpoint = urljoin(
@@ -382,24 +388,6 @@ class PrismApi(PrismSession):
             self.base_url,
             "networks/")
         return self.make_request(endpoint, 'get')
-
-    def update_vcpu(self, vm_uuid, vcpu_num):
-        logging.debug("Update vCPU number")
-        endpoint = urljoin(self.base_url, "vms/%s" % vm_uuid)
-        data = {"num_vcpus": vcpu_num}
-        return self.make_request(endpoint, 'put', data=data)
-
-    def update_core(self, vm_uuid, core_num):
-        logging.debug("Update core number per vCPU")
-        endpoint = urljoin(self.base_url, "vms/%s" % vm_uuid)
-        data = {"num_cores_per_vcpu": core_num}
-        return self.make_request(endpoint, 'put', data=data)
-
-    def update_memory(self, vm_uuid, mem_gb):
-        logging.debug("Update memory capacity (GB)")
-        endpoint = urljoin(self.base_url, "vms/%s" % vm_uuid)
-        data = {"memory_mb": mem_gb * 1024}
-        return self.make_request(endpoint, 'put', data=data)
 
     def create_network(self):
         logging.debug("Creating virtual network")
@@ -608,37 +596,6 @@ class NutanixVM(VMResource):
                 f_ip = nic['ip_address']
         return f_ip
 
-    @property
-    def host_uuid(self):
-        host_uuid = []
-        for host in self.prism.list_hosts_detail()["entities"]:
-            host_uuid.append(host['uuid'])
-        return host_uuid
-
-    def host_cpu_model(self):
-        self._data = None
-        for host in self.prism.list_hosts_detail()["entities"]:
-            if host['uuid'] == self.data.get('host_uuid'):
-                cpu_model = host['cpu_model']
-                break
-        return cpu_model
-
-    def host_cpu_num(self):
-        self._data = None
-        for host in self.prism.list_hosts_detail()["entities"]:
-            if host['uuid'] == self.data.get('host_uuid'):
-                cpu_num = host['num_cpu_sockets']
-                break
-        return cpu_num       
-
-    def vm_host_uuid(self):
-        self._data = None
-        for host in self.prism.list_hosts_detail()["entities"]:
-            if host['uuid'] == self.data.get('host_uuid'):
-                vm_host_uuid = host['uuid']
-                break
-        return vm_host_uuid
-
     def wait_for_status(self, task_uuid, timeout, error_message):
         for count in utils_lib.iterate_timeout(timeout, error_message):
             res = self.prism.list_tasks(task_uuid)
@@ -713,18 +670,6 @@ class NutanixVM(VMResource):
                     120, "Timed out waiting for getting IP address."):
                 if self.exists() and self.floating_ip:
                     break
-
-    def migrate(self, wait=False, host_uuid=None):
-        logging.info("Migrate VM")
-        if host_uuid:
-            res = self.prism.migrate_vm(self.data.get('uuid'), host_uuid)
-        else:
-            res = self.prism.migrate_vm(self.data.get('uuid'))
-        if wait:
-            self.wait_for_status(
-                res['taskUuid'], 120,
-                "Timed out waiting for VM to complete migration.")
-        self._data = None
 
     def exists(self):
         self._data = None

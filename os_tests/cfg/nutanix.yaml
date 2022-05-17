@@ -10,7 +10,7 @@ Subscription:
   username: 
   password: 
 VM:
-  rhel_ver: '8.6'
+  rhel_ver: '9.0'
   username: cloud-user
   password: redhat
   keypair: xen-jenkins
