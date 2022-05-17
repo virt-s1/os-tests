@@ -254,10 +254,12 @@ class TestStorage(unittest.TestCase):
         """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
+        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+            self.skipTest("Cannot attach an IDE Disk when secure boot is enabled for the VM")
         origin_disk_num = self._get_disk_num('rom')
         self.vm.stop(wait=True)
         try:
-            self.vm.attach_disk('ide', 0, True, 1, True, wait=True)
+            self.vm.attach_disk('ide', disk_size=0, is_cdrom=True, device_index=1, wait=True, is_empty=True)
         except NotImplementedError:
             self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
         except UnSupportedAction:
@@ -300,7 +302,7 @@ class TestStorage(unittest.TestCase):
         origin_disk_num = self._get_disk_num('rom')
         self.vm.stop(wait=True)
         try:
-            self.vm.attach_disk('sata', 0, True, 0, False, 'clone_from_img_service', wait=True)
+            self.vm.attach_disk('sata', disk_size=0, is_cdrom=True, device_index=0, wait=True, is_empty=False, clone='clone_from_img_service')
         except NotImplementedError:
             self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
         except UnSupportedAction:
@@ -316,10 +318,10 @@ class TestStorage(unittest.TestCase):
         read_new_device = utils_lib.run_cmd(self, "sudo ls /mnt/mnt_new_cdrom", expect_ret=0)
         self.assertIn("ks.cfg", read_new_device, msg="Read files from new added cdrom failed")
         #tear down
-        disk_uuid = self.vm.get_disk_uuid('sata', 0)
+        disk_uuid = self.vm.get_disk_uuid('sata', device_index=0)
         self.vm.stop(wait=True)
         try:
-            self.vm.detach_disk('sata', disk_uuid, 0, wait=True)
+            self.vm.detach_disk('sata', disk_uuid, device_index=0, wait=True)
         except NotImplementedError:
             self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
         except UnSupportedAction:
@@ -364,7 +366,7 @@ class TestStorage(unittest.TestCase):
             origin_lsblk_name_list = utils_lib.run_cmd(self, cmd, expect_ret=0).split('\n')
             origin_disk_num = self._get_disk_num('disk')
             try:
-                self.vm.attach_disk('scsi', random_dev_size, False, 3, True, wait=True)
+                self.vm.attach_disk('scsi', disk_size=random_dev_size, is_cdrom=False, device_index=3, wait=True, is_empty=True)
             except NotImplementedError:
                 self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
             except UnSupportedAction:
@@ -381,9 +383,9 @@ class TestStorage(unittest.TestCase):
                 msg="Device size for new disk is not right, Expect: %s, real: %s" % (random_dev_size*1024*1024, new_dev_size)
             )
             origin_disk_num = self._get_disk_num('disk')
-            disk_uuid = self.vm.get_disk_uuid('scsi', 1)
+            disk_uuid = self.vm.get_disk_uuid('scsi', device_index=1)
             try:
-                self.vm.detach_disk('scsi', disk_uuid, 3, wait=True)
+                self.vm.detach_disk('scsi', disk_uuid, device_index=3, wait=True)
             except NotImplementedError:
                 self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
             except UnSupportedAction:
@@ -398,10 +400,10 @@ class TestStorage(unittest.TestCase):
         """
         cmd = "touch ~/snpst.txt \n ls ~/snpst.txt"
         utils_lib.run_cmd(self, cmd, expect_ret=0)
-        time.sleep(30)
         if is_offline:
             self.vm.stop(wait=True)
         try:
+            time.sleep(30)
             self.vm.take_snapshot('snpst_api', wait=True)
         except NotImplementedError:
             self.skipTest('take snapshot func is not implemented in {}'.format(self.vm.provider))
@@ -544,7 +546,7 @@ class TestStorage(unittest.TestCase):
         #Get init size of test disk
         cmd='sudo fdisk -s {}'.format(test_disk)
         test_disk_origin_size = int(utils_lib.run_cmd(self, cmd, expect_ret=0))/(1024*1024)
-        self.assertEqual(1, test_disk_origin_size, msg='disk size is not the same with init value, expect: {}, real: {}'.format(1*1024*1024, test_disk_origin_size))
+        self.assertEqual(self.vm.prism.minimum_disk_size, test_disk_origin_size, msg='disk size is not the same with init value')
         #Expand size of test disk when VM running
         try:
             self.disk.modify_disk_size(test_disk_origin_size, 'scsi', 1, 1)
@@ -609,7 +611,7 @@ class TestStorage(unittest.TestCase):
         #attach scsi and pci disk
         for disk_type, disk_size in zip(['scsi','pci'],[scsi_set_size, pci_set_size]):
             try:
-                self.vm.attach_disk(disk_type, disk_size, False, 2, True, wait=True)
+                self.vm.attach_disk(disk_type, disk_size, is_cdrom=False, device_index=2, wait=True, is_empty=True)
             except NotImplementedError:
                 self.skipTest('attach disk size func is not implemented in {}'.format(self.vm.provider))
             except UnSupportedAction:
@@ -618,8 +620,10 @@ class TestStorage(unittest.TestCase):
         self.vm.stop(wait=True)
         time.sleep(60)
         for disk_type, disk_size in zip(['ide','sata'],[ide_set_size, sata_set_size]):
+            if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot and disk_type == 'ide':
+                continue
             try:
-                self.vm.attach_disk(disk_type, disk_size, False, 2, True, wait=True)
+                self.vm.attach_disk(disk_type, disk_size, is_cdrom=False, device_index=2, wait=True, is_empty=True)
             except NotImplementedError:
                 self.skipTest('attach disk size func is not implemented in {}'.format(self.vm.provider))
             except UnSupportedAction:
@@ -630,22 +634,34 @@ class TestStorage(unittest.TestCase):
         #check disk number
         num_fdisk=int(utils_lib.run_cmd(self, "sudo fdisk -l | grep 'Disk /dev' | wc -l", expect_ret=0))
         num_lsblk=int(utils_lib.run_cmd(self, "sudo lsblk -d | grep disk | wc -l", expect_ret=0))
-        self.assertEqual(num_fdisk, 6, msg='Disk number get from fdisk is not right')
-        self.assertEqual(num_lsblk, 6, msg='Disk number get from lsblk is not right')
+        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+            total_num=5
+        else:
+            total_num=6
+        self.assertEqual(num_fdisk, total_num, msg='Disk number get from fdisk is not right')
+        self.assertEqual(num_lsblk, total_num, msg='Disk number get from lsblk is not right')
         #check disk bustype and size
         utils_lib.run_cmd(self, "sudo lshw -C disk -C storage", expect_ret=0)
-        scsi_dev_name = utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-scsi:0' -A 63 | grep 'description: SCSI Disk' -A 13 | grep 'logical name:' | awk '{print $3}'", expect_ret=0).strip().split()[-1]
-        pci_dev_name = utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-scsi:1' -A 19 | grep '*-virtio' -A 7 | grep 'logical name:' | awk '{print $3}'", expect_ret=0).strip()
-        ide_dev_name = utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-ide' -A 38 | grep 'description: ATA Disk' -A 8 | grep 'logical name:' | awk '{print $3}'", expect_ret=0).strip()
+        scsi_dev_name = utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-scsi' -A 63 | grep '*-disk:2' -A 13 | grep 'logical name:' | awk '{print $3}'", expect_ret=0).strip().split()[-1]
+        pci_dev_name = utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-scsi' -A 63  | grep '*-virtio' -A 7 | grep 'logical name:' | awk '{print $3}'", expect_ret=0).strip()
         sata_dev_name = utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-sata' -A 37 | grep 'description: ATA Disk' -A 9 | grep 'logical name:' | awk '{print $3}'", expect_ret=0).strip()
         scsi_dev_size = int(utils_lib.run_cmd(self, "sudo fdisk -s "+scsi_dev_name, expect_ret=0))/(1024*1024)
         pci_dev_size = int(utils_lib.run_cmd(self, "sudo fdisk -s "+pci_dev_name, expect_ret=0))/(1024*1024)
-        ide_dev_size = int(utils_lib.run_cmd(self, "sudo fdisk -s "+ide_dev_name, expect_ret=0))/(1024*1024)
         sata_dev_size = int(utils_lib.run_cmd(self, "sudo fdisk -s "+sata_dev_name, expect_ret=0))/(1024*1024)
+        if self.vm.provider == 'nutanix' and not self.vm.prism.if_secure_boot:
+            ide_dev_name = utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-ide' -A 38 | grep 'description: ATA Disk' -A 8 | grep 'logical name:' | awk '{print $3}'", expect_ret=0).strip()
+            ide_dev_size = int(utils_lib.run_cmd(self, "sudo fdisk -s "+ide_dev_name, expect_ret=0))/(1024*1024)
+        else:
+            ide_dev_name = None
+            ide_dev_size = 0
         for bus_type, set_size, real_size in zip(['scsi', 'pci', 'ide','sata'], [scsi_set_size, pci_set_size, ide_set_size, sata_set_size],[scsi_dev_size, pci_dev_size, ide_dev_size, sata_dev_size]):
+            if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot and bus_type == 'ide':
+                continue
             self.assertEqual(set_size, real_size, msg="Size of %s disk is not right, Expect: %s, real: %s" % (bus_type, set_size, real_size))
         #check disk can be read and write
         for device_type, device_name in zip(['scsi','pci','ide','sata'], [scsi_dev_name, pci_dev_name, ide_dev_name, sata_dev_name]):
+            if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot and device_type == 'ide':
+                continue
             create_file = '/mnt/mnt_{}/{}_touch_test.txt'.format(device_type, device_type)
             cmd = 'sudo mkfs.xfs {}\n sudo mkdir /mnt/mnt_{}\nsudo mount {} /mnt/mnt_{}\n sudo touch {}'.format(device_name, device_type, device_name, device_type, create_file)
             utils_lib.run_cmd(self, cmd, expect_ret=0)
@@ -653,8 +669,8 @@ class TestStorage(unittest.TestCase):
             self.assertIn(create_file, check_file, msg="Read files from new added disk failed")
         #hot detach scsi and pci disk
         try:
-            disk_uuid = self.vm.get_disk_uuid('scsi', 2)
-            self.vm.detach_disk('scsi', disk_uuid, 2, wait=True)
+            disk_uuid = self.vm.get_disk_uuid('scsi', device_index=2)
+            self.vm.detach_disk('scsi', disk_uuid, device_index=2, wait=True)
         except NotImplementedError:
             self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
         except UnSupportedAction:
@@ -664,9 +680,11 @@ class TestStorage(unittest.TestCase):
         self.vm.stop(wait=True)
         time.sleep(60)
         for device_type in ['ide','sata', 'pci']:
+            if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot and device_type == 'ide':
+                continue
             try:
-                disk_uuid = self.vm.get_disk_uuid(device_type, 2)
-                self.vm.detach_disk(device_type, disk_uuid, 2, wait=True)
+                disk_uuid = self.vm.get_disk_uuid(device_type, device_index=2)
+                self.vm.detach_disk(device_type, disk_uuid, device_index=2, wait=True)
             except NotImplementedError:
                 self.skipTest('detach disk size func is not implemented in {}'.format(self.vm.provider))
             except UnSupportedAction:
@@ -674,7 +692,8 @@ class TestStorage(unittest.TestCase):
         self.vm.start(wait=True)
         time.sleep(30)
         utils_lib.init_connection(self, timeout=self.timeout)
-        utils_lib.run_cmd(self, "ls " + ide_dev_name, expect_ret=2, expect_kw='No such file or directory')
+        if self.vm.provider == 'nutanix' and not self.vm.prism.if_secure_boot:
+            utils_lib.run_cmd(self, "ls " + ide_dev_name, expect_ret=2, expect_kw='No such file or directory')
         utils_lib.run_cmd(self, "ls " + sata_dev_name, expect_ret=2, expect_kw='No such file or directory')
         utils_lib.run_cmd(self, "ls " + pci_dev_name, expect_ret=2, expect_kw='No such file or directory')
 
@@ -683,9 +702,12 @@ class TestStorage(unittest.TestCase):
             self.log.info('Delete ide.3 for refresh user data')
             self.vm.stop(wait=True)
             time.sleep(60)
-            disk_uuid = self.vm.get_disk_uuid('ide', 3)
-            self.vm.detach_disk('ide', disk_uuid, 3, wait=True)
-            self.vm.clone_vm(clone_from_vm_or_snapshot, vm_name, cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus, False, True, "test.py", "userdata.yaml", True)
+            disk_uuid = self.vm.get_disk_uuid('ide', device_index=3)
+            if self.vm.prism.machine_type == 'pc':
+                self.vm.detach_disk('ide', disk_uuid, device_index=3, wait=True)
+            else:
+                self.vm.detach_disk('sata', disk_uuid, device_index=3, wait=True)
+            self.vm.clone_vm(clone_from_vm_or_snapshot, vm_name, cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus, override_network_config=False, fresh_install=True, vm_custom_file="test.py", vm_userdata_file="userdata.yaml")
         except NotImplementedError:
             self.skipTest('Related func is not implemented in {}'.format(self.vm.provider))
         except UnSupportedAction:
@@ -712,7 +734,7 @@ class TestStorage(unittest.TestCase):
         self.assertAlmostEqual(
             first=1.0,
             second=float(cloneVM_gap_Memory),
-            delta=0.2,
+            delta=0.25,
             msg="Gap is two much between cloneVM_actual_Memory and cloneVM_set_Memory, Expect: %s, real: %s" %(cloneVM_set_Memory, cloneVM_actual_Memory)
         )
         cloneVM_actual_vcpus = int(utils_lib.run_cmd(self, "cat /proc/cpuinfo | grep processor | wc -l"))
