@@ -106,10 +106,12 @@ def main():
                         case.params = cfg_data
                         case.run_uuid = run_uuid
                         case.utils_dir = utils_dir
+                        case.nic = nic
                         if ssh is not None:
                             case.SSH = ssh
                         case.vm = vm
                         case.disk = disk
+                        case.nic = nic
                         if filter_case_doc(case=case, patterns=test_patterns, skip_patterns=skip_patterns,
                                            filter_field=args.filter_by, strict=args.is_strict, verify_doc=args.verifydoc):
                             final_ts.addTest(case)
