@@ -3,7 +3,7 @@ Cloud:
   cvm_ip: 
 Credential:
   username: 
-  password: 
+  password:
   cvm_username: 
   cvm_password:
 Subscription:
@@ -20,6 +20,8 @@ VM:
   image_name_kickstart_iso: 
   storage_container_uuid: 
   network_uuid: 
+  private_network_uuid:
+  private_network_subnet:
   custom_data:
   if_uefi_boot: True
   if_secure_boot: True

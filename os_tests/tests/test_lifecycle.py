@@ -415,6 +415,32 @@ no plan to fix it in the near future!")
                 self.assertIn("EFI variables are not supported on this system", secure_boot_check, msg='secure boot check error: %s' % secure_boot_check)
 
     def test_reboot_vm(self):
+        """
+        case_tag:
+            Lifecycle
+        case_name:
+            test_reboot_vm
+        case_file:
+            os_tests.tests.test_lifecycle.TestLifeCycle.test_reboot_vm
+        component:
+            lifecycle
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Check time in last reboot before and after VM reboot.
+        key_steps:
+            1. Check time in last reboot before and after VM reboot.
+        expect_result:
+            1. Check time is different in last reboot before and after VM reboot.
+        debug_want:
+            N/A
+        """
         before = utils_lib.run_cmd(self, 'last reboot --time-format full')
         self.vm.reboot(wait=True)
         time.sleep(30)
@@ -431,6 +457,32 @@ no plan to fix it in the near future!")
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
     def test_reboot_inside_vm(self):
+        """
+        case_tag:
+            Lifecycle
+        case_name:
+            test_reboot_inside_vm
+        case_file:
+            os_tests.tests.test_lifecycle.TestLifeCycle.test_reboot_inside_vm
+        component:
+            lifecycle
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Check time in last reboot before and after VM inside reboot.
+        key_steps:
+            1. Check time in last reboot before and after VM inside reboot.
+        expect_result:
+            1. Check time is different in last reboot before and after VM inside reboot.
+        debug_want:
+            N/A
+        """
         before = utils_lib.run_cmd(self, 'last reboot --time-format full')
         utils_lib.run_cmd(self, 'sudo reboot')
         time.sleep(10)
@@ -447,6 +499,32 @@ no plan to fix it in the near future!")
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
     def test_stop_start_vm(self):
+        """
+        case_tag:
+            Lifecycle
+        case_name:
+            test_stop_start_vm
+        case_file:
+            os_tests.tests.test_lifecycle.TestLifeCycle.test_stop_start_vm
+        component:
+            lifecycle
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Check user name after stop/start VM.
+        key_steps:
+            1. Check user name after stop/start VM.
+        expect_result:
+            1. Check user name is right after stop/start VM.
+        debug_want:
+            N/A
+        """
         self.vm.stop(wait=True)
         self.assertTrue(self.vm.is_stopped(),
                         "Stop VM error: VM status is not SHUTOFF")

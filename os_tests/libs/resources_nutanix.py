@@ -96,9 +96,9 @@ class PrismApi(PrismSession):
         logging.info('username is ' + str(username) + ', type is '+ str(type(username)))
         #password = params.get('password', '*/Credential/*')
         password = params['Credential']['password']
-	self.cvm_username = params['Credential']['cvm_username']
+        self.cvm_username = params['Credential']['cvm_username']
         self.cvm_password = params['Credential']['cvm_password']
-	
+
         # VM creation parameters
         #self.vm_name = params.get('vm_name', '*/VM/*')
         self.vm_name = params['VM']['vm_name']
@@ -164,7 +164,7 @@ class PrismApi(PrismSession):
             exit(1)
         # Attach ssh keys.
         ssh_key = ''
-        ssh_pwauth = '\nchpasswd:\n  list: |\n    %s:%s\n  expire: false\nssh_pwauth: yes\nruncmd:\n- echo "PermitRootLogin yes" >> /etc/ssh/sshd_config\n- systemctl restart sshd' % (
+        ssh_pwauth = '\nchpasswd:\n  list: |\n    %s:%s\n  expire: false\nssh_pwauth: yes\nruncmd:\n- sed -i "/PermitRootLogin prohibit/c\PermitRootLogin yes" /etc/ssh/sshd_config\n- systemctl restart sshd' % (
             self.vm_username, self.vm_password)
         if (ssh_pubkey):
             ssh_key = '\nssh_authorized_keys:\n- %s' % ssh_pubkey
@@ -435,6 +435,33 @@ class PrismApi(PrismSession):
                 endpoint = urljoin(self.base_url, "networks/%s" % network["uuid"])
                 self.make_request(endpoint, 'delete')
 
+    def attach_nic(self, vm_uuid, network_uuid, ip_address=None, driver='virtio'):
+        logging.info("Attach nic to vm")
+        endpoint = urljoin(self.base_url, "vms/%s/nics/" % vm_uuid)
+        if ip_address==None:
+            data = {'spec_list': [{
+                    'is_connected': True,
+                    'model':driver,
+                    'network_uuid': network_uuid}]}
+        else:
+            data = {'spec_list':[{
+                       'network_uuid': network_uuid,
+                       'requested_ip_address': ip_address,
+                       'is_connected': True,
+                       'request_ip': True,
+                       'model': driver}]}
+        return self.make_request(endpoint, 'post', data=data)
+
+    def detach_nic(self, vm_uuid, nic_mac):
+        logging.info("Detach nic from VM")
+        endpoint = urljoin(self.base_url, "vms/%s/nics/%s" % (vm_uuid, nic_mac))
+        return self.make_request(endpoint, 'delete')
+
+    def get_nics(self, vm_uuid):
+        logging.info("Fetch nics")
+        endpoint = urljoin(self.base_url, "vms/%s/nics/" % (vm_uuid))
+        return self.make_request(endpoint, 'get')
+
     def attach_disk(self, vm_uuid, device_bus, disk_size, is_cdrom, device_index, **empty_or_clone):
         '''
         Attach disk/cdrom, need to indicate clone_from_img_service or clone_from_adsf_file when is_empty equals False
@@ -585,6 +612,8 @@ class NutanixVM(VMResource):
         self.vm_user_data = params['VM']['custom_data']
         #self.network_uuid = params.get('network_uuid', '*/VM/*')
         self.network_uuid = params['VM']['network_uuid']
+        self.private_network_uuid = params['VM']['private_network_uuid']
+        self.private_network_subnet = params['VM']['private_network_subnet']
         self.ssh_pubkey = utils_lib.get_public_key()
         self.arch = 'x86_64'
         self.vm_custom_file = None
@@ -609,13 +638,21 @@ class NutanixVM(VMResource):
             if nic['network_uuid'] == self.network_uuid:
                 f_ip = nic['ip_address']
         return f_ip
-    
+
     @property
     def host_uuid(self):
         host_uuid = []
         for host in self.prism.list_hosts_detail()["entities"]:
             host_uuid.append(host['uuid'])
         return host_uuid
+
+    def host_ip(self):
+        self._data = None
+        for host in self.prism.list_hosts_detail()["entities"]:
+            if host['uuid'] == self.data.get('host_uuid'):
+                ip = host['service_vmexternal_ip']
+                break
+        return ip
 
     def host_cpu_model(self):
         self._data = None
@@ -715,7 +752,7 @@ class NutanixVM(VMResource):
                     120, "Timed out waiting for getting IP address."):
                 if self.exists() and self.floating_ip:
                     break
-    
+
     def migrate(self, wait=False, host_uuid=None):
         logging.info("Migrate VM")
         if host_uuid:
@@ -945,12 +982,26 @@ class NutanixVM(VMResource):
 
     def detach_block(self, disk, wait=True, force=False):
         raise NotImplementedError
-    
-    def detach_nic(self, nic, wait=True, force=False):
-        raise NotImplementedError
 
-    def attach_nic(self, nic, wait=True, timeout=120):
-        raise NotImplementedError
+    def attach_nic(self, network_uuid=None, ip_address=None, driver='virtio', wait=True, timeout=120):
+        if network_uuid==None:
+            network_uuid = self.network_uuid
+        res = self.prism.attach_nic(self.data.get('uuid'), network_uuid, ip_address, driver)
+        if wait:
+            self.wait_for_status(
+                res['task_uuid'], timeout,
+                "Timed out waiting for attaching NIC.")
+
+    def detach_nic(self, nic_mac, wait=True, force=False):
+        res = self.prism.detach_nic(self.data.get('uuid'), nic_mac)
+        if wait:
+            self.wait_for_status(
+                res['task_uuid'], 60,
+                "Timed out waiting for detaching NIC.")
+
+    def get_nic(self):
+        res = self.prism.get_nics(self.data.get('uuid'))
+        return res
 
     def get_console_log(self):
         raise UnSupportedAction('No such operation in nutanix')
