@@ -2,6 +2,7 @@ import unittest
 from os_tests.libs import utils_lib
 import json
 import time
+import os
 
 class TestAzureImage(unittest.TestCase):
     def setUp(self):
@@ -15,13 +16,79 @@ class TestAzureImage(unittest.TestCase):
         return int(product_id.split('.')[0])
 
     @property
-    def region(self):
+    def metadata(self):
         cmd = 'curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2021-02-01"'
-        metadata = utils_lib.run_cmd(self, cmd)
-        return json.loads(metadata)['compute']['location']
+        return utils_lib.run_cmd(self, cmd)
 
+
+    @property
+    def region(self):
+        return json.loads(self.metadata)['compute']['location']
+
+    @property
+    def is_gov(self):
+        '''
+        If it is gov cloud, return true
+        '''
+        environment = json.loads(self.metadata)['compute']['azEnvironment']
+        return environment == "AzureUSGovernmentCloud"
+
+    def _check_log(self, filename, ignore_list=[], keyword='err|fail|warn|trace'):
+        cmd = "sudo grep -iE 'err|fail|warn|trace' {}|grep -vE '{}'".format(filename, '|'.join(ignore_list))
+        output = utils_lib.run_cmd(self, cmd, msg="Check {} in {}".format(keyword, filename))
+        if output:
+            self.log.info("Unexpected logs exist in {}.\n{}".format(filename, output))
+            return False
+        else:
+            self.log.info("No unexpected logs in "+filename)
+            return True
+
+    def _check_file_content(self, basefile=None, testfile=None, expected=None, msg=None, project=None):
+        '''
+        Function to check file content.
+        '''
+        # Print testfile content for recording
+        utils_lib.run_cmd(self, "cat "+testfile)
+        # If base is a file
+        if basefile:
+            # Base file content is different in multiple RHEL versions
+            if project:
+                basefile += "_rhel{}".format(project)
+                # If >= RHEL-8 and no specific file, use RHEL-8 file
+                if not os.path.exists(basefile) and project >= 8:
+                    basefile = basefile.replace("_rhel{}".format(project), "_rhel8")
+            # Get the base file path
+            # If remote node, copy the basefile to the remote node /tmp/
+            src_file = self.data_dir + '/azure/{}'.format(basefile)
+            if self.params['remote_node'] is not None:
+                base_file = "/tmp/"+basefile
+                self.log.info('Copy {} to remote'.format(basefile))
+                self.SSH.put_file(local_file=src_file, rmt_file=base_file)
+            else:
+                base_file = src_file
+            test_file = testfile
+        # If base is a block of strings
+        elif expected:
+            base_file = '/tmp/basefile'
+            utils_lib.run_cmd(self, "echo '''{0}''' > {1};sort {1}>{2}".format(expected, '/tmp/tmpfile', base_file))
+            test_file = '/tmp/testfile'
+            cmd = "sudo cat {}|grep -v '^#'|sed '/^$/d'|sort > {}".format(testfile, test_file)
+            utils_lib.run_cmd(self, cmd)
+        else:
+            self.error('Must specify basefile or expected!')
+        if not msg:
+            msg = "Check "+testfile
+        # Compare files ignore space, empty line and order
+        output = utils_lib.run_cmd(self, "sudo diff -wB {} {}".format(base_file, test_file), msg=msg)
+        self.assertEqual(output, '', "{} and {} are not the same.\n{}".format(base_file, test_file, output))
+
+    def _check_file_not_changed(self, package):
+        utils_lib.run_cmd(self, "sudo rpm -V "+package, expect_ret=0, msg="Verify no file changed in package "+package)
+
+    ######## Test cases ########
     def test_check_bash_history(self):
         '''
+        Verify no old .bash_history exists
         '''
         for user in ['azureuser', 'root']:
             cmd = 'sudo cat ~{}/.bash_history'.format(user)
@@ -75,8 +142,8 @@ class TestAzureImage(unittest.TestCase):
 
     def test_check_blacklist(self):
         '''
-        rhbz: 1645772
-        nouveau,lbm-nouveau,floppy should be disabled
+        bz: 1645772
+        des: nouveau,lbm-nouveau,floppy should be disabled
         '''
         utils_lib.run_cmd(self, "sudo lsmod|grep nouveau", expect_not_ret=0, msg='check nouveau is not loaded')
         file_check = '/lib/modprobe.d/blacklist-*.conf'
@@ -513,16 +580,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         cmd = "sudo kdumpctl status"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='Kdump is operational', msg='Check kdump status')
 
-    def _check_log(self, filename, ignore_list=[], keyword='err|fail|warn|trace'):
-        cmd = "sudo grep -iE 'err|fail|warn|trace' {}|grep -vE '{}'".format(filename, '|'.join(ignore_list))
-        output = utils_lib.run_cmd(self, cmd, msg="Check {} in {}".format(keyword, filename))
-        if output:
-            self.log.info("Unexpected logs exist in {}.\n{}".format(filename, output))
-            return False
-        else:
-            self.log.info("No unexpected logs in "+filename)
-            return True
-
     def test_check_messages(self):
         '''
         Verify no error/fail/trace in /var/log/messages
@@ -619,7 +676,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         Verify hyperv drivers are loaded
         '''
         hyperv_driver_list = [
-            'hyperv_fb',
             'hv_utils',
             'hv_balloon',
             'hv_storvsc',
@@ -629,6 +685,10 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
             'hyperv_keyboard',
             'hv_vmbus'
         ]
+        if self.rhel_x_version <= 8:
+            hyperv_driver_list.append('hyperv_fb')
+        else:
+            hyperv_driver_list.append('hyperv_drm')
         cmd = "/sbin/lsmod|grep -iE 'hv|hyperv'"
         utils_lib.run_cmd(self, cmd, expect_kw=','.join(hyperv_driver_list), msg="Verify hyperv drivers are loaded")
 
@@ -652,41 +712,42 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
 
     def test_check_kdump_configuration(self):
         '''
-        Check /etc/sysconfig/kdump and /etc/kdump.conf
+        Verify /etc/sysconfig/kdump and /etc/kdump.conf are not changed
         '''
-        if self.rhel_x_version < 8:
-            sysconfig_kdump = '''\
-KDUMP_COMMANDLINE=""
-KDUMP_COMMANDLINE_APPEND="irqpoll nr_cpus=1 reset_devices cgroup_disable=memory mce=off numa=off udev.children-max=2 panic=10 acpi_no_memhotplug transparent_hugepage=never nokaslr novmcoredd hest_disable"
-KDUMP_COMMANDLINE_REMOVE="hugepages hugepagesz slub_debug kaslr"
-KDUMP_IMG_EXT=""
-KDUMP_IMG="vmlinuz"
-KDUMP_KERNELVER=""
-KEXEC_ARGS=""
-'''
-            kdump_conf = '''\
-path /var/crash
-core_collector makedumpfile -l --message-level 1 -d 31
-'''
-        else:
-            sysconfig_kdump = '''\
-KDUMP_KERNELVER=""
-KDUMP_COMMANDLINE=""
-KDUMP_COMMANDLINE_REMOVE="hugepages hugepagesz slub_debug quiet log_buf_len swiotlb"
-KDUMP_COMMANDLINE_APPEND="irqpoll nr_cpus=1 reset_devices cgroup_disable=memory mce=off numa=off udev.children-max=2 panic=10 rootflags=nofail acpi_no_memhotplug transparent_hugepage=never nokaslr novmcoredd hest_disable"
-KEXEC_ARGS="-s"
-KDUMP_IMG="vmlinuz"
-KDUMP_IMG_EXT=""
-'''
-            kdump_conf = '''\
-path /var/crash
-core_collector makedumpfile -l --message-level 7 -d 31
-'''
-        # Check /etc/sysconfig/kdump
-        self._check_file_content(testfile="/etc/sysconfig/kdump", expected=sysconfig_kdump, msg="Check /etc/sysconfig/kdump")
+        self._check_file_not_changed("kexec-tools")
+#         if self.rhel_x_version < 8:
+#             sysconfig_kdump = '''\
+# KDUMP_COMMANDLINE=""
+# KDUMP_COMMANDLINE_APPEND="irqpoll nr_cpus=1 reset_devices cgroup_disable=memory mce=off numa=off udev.children-max=2 panic=10 acpi_no_memhotplug transparent_hugepage=never nokaslr novmcoredd hest_disable"
+# KDUMP_COMMANDLINE_REMOVE="hugepages hugepagesz slub_debug kaslr"
+# KDUMP_IMG_EXT=""
+# KDUMP_IMG="vmlinuz"
+# KDUMP_KERNELVER=""
+# KEXEC_ARGS=""
+# '''
+#             kdump_conf = '''\
+# path /var/crash
+# core_collector makedumpfile -l --message-level 1 -d 31
+# '''
+#         else:
+#             sysconfig_kdump = '''\
+# KDUMP_KERNELVER=""
+# KDUMP_COMMANDLINE=""
+# KDUMP_COMMANDLINE_REMOVE="hugepages hugepagesz slub_debug quiet log_buf_len swiotlb"
+# KDUMP_COMMANDLINE_APPEND="irqpoll nr_cpus=1 reset_devices cgroup_disable=memory mce=off numa=off udev.children-max=2 panic=10 rootflags=nofail acpi_no_memhotplug transparent_hugepage=never nokaslr novmcoredd hest_disable"
+# KEXEC_ARGS="-s"
+# KDUMP_IMG="vmlinuz"
+# KDUMP_IMG_EXT=""
+# '''
+#             kdump_conf = '''\
+# path /var/crash
+# core_collector makedumpfile -l --message-level 7 -d 31
+# '''
+#         # Check /etc/sysconfig/kdump
+#         self._check_file_content(testfile="/etc/sysconfig/kdump", expected=sysconfig_kdump, msg="Check /etc/sysconfig/kdump")
         
-        # Check /etc/kdump.conf
-        self._check_file_content(testfile="/etc/kdump.conf", expected=kdump_conf, msg="Check /etc/kdump.conf")
+#         # Check /etc/kdump.conf
+#         self._check_file_content(testfile="/etc/kdump.conf", expected=kdump_conf, msg="Check /etc/kdump.conf")
 
     def test_check_dnf_conf(self):
         '''
@@ -739,42 +800,6 @@ skip_if_unavailable=False
         cmd = "sudo grep ^ClientAliveInterval /etc/ssh/sshd_config"
         utils_lib.run_cmd(self, cmd, expect_output="ClientAliveInterval 180", msg="Verify ClientAliveInterval is 180")
 
-    def _check_file_content(self, basefile=None, testfile=None, expected=None, msg=None, project=None):
-        '''
-        Function to check file content.
-        '''
-        # Print testfile content for recording
-        utils_lib.run_cmd(self, "cat "+testfile)
-        # If base is a file
-        if basefile:
-            # Base file content is different in multiple RHEL versions
-            if project:
-                basefile += "_rhel{}".format(project)
-            # Get the base file path
-            # If remote node, copy the basefile to the remote node /tmp/
-            src_file = self.data_dir + '/azure/{}'.format(basefile)
-            if self.params['remote_node'] is not None:
-                base_file = "/tmp/"+basefile
-                self.log.info('Copy {} to remote'.format(basefile))
-                self.SSH.put_file(local_file=src_file, rmt_file=base_file)
-            else:
-                base_file = src_file
-            test_file = testfile
-        # If base is a block of strings
-        elif expected:
-            base_file = '/tmp/basefile'
-            utils_lib.run_cmd(self, "echo '''{0}''' > {1};sort {1}>{2}".format(expected, '/tmp/tmpfile', base_file))
-            test_file = '/tmp/testfile'
-            cmd = "sudo cat {}|grep -v '^#'|sed '/^$/d'|sort > {}".format(testfile, test_file)
-            utils_lib.run_cmd(self, cmd)
-        else:
-            self.error('Must specify basefile or expected!')
-        if not msg:
-            msg = "Check "+testfile
-        # Compare files ignore space, empty line and order
-        output = utils_lib.run_cmd(self, "sudo diff -wB {} {}".format(base_file, test_file), msg=msg)
-        self.assertEqual(output, '', "{} and {} are not the same.\n{}".format(base_file, test_file, output))
-
     def test_check_91_azure_datasource(self):
         '''
         Check file /etc/cloud/cloud.cfg.d/91-azure_datasource.cfg
@@ -809,10 +834,14 @@ skip_if_unavailable=False
 
     def test_check_cloud_cfg(self):
         '''
-        Check file /etc/cloud/cloud.cfg
+        Verify file /etc/cloud/cloud.cfg is not changed
+        (RHEL-9 only) Verify _netdev is in cloud.cfg
         '''
-        filename = '/etc/cloud/cloud.cfg'
-        self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
+        # filename = '/etc/cloud/cloud.cfg'
+        # self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
+        self._check_file_not_changed("cloud-init")
+        if self.rhel_x_version >= 9:
+            utils_lib.run_cmd(self, cmd="cat /etc/cloud/cloud.cfg", expect_kw="_netdev", msg="Verify _netdev is in RHEL-9 cloud.cfg")
 
     def test_check_pwquality_conf(self):
         '''
@@ -897,10 +926,11 @@ plugins = ifcfg-rh,
         
     def test_check_chrony_conf(self):
         '''
-        Check file /etc/chrony.conf
+        Verify file /etc/chrony.conf is not changed
         '''
-        filename = '/etc/chrony.conf'
-        self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
+        # filename = '/etc/chrony.conf'
+        # self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
+        self._check_file_not_changed("chrony")
 
     def test_check_authconfig(self):
         '''
@@ -994,9 +1024,9 @@ langpack_locales = en_US.UTF-8
 
     def test_check_sshd_config(self):
         '''
-        Check file /etc/ssh/sshd_config
+        Check file content /etc/ssh/sshd_config
         '''
-        if self.rhel_x_version < 8:
+        if self.rhel_x_version == 7:
             expected = '''\
 AcceptEnv LANG LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES
 AcceptEnv LC_IDENTIFICATION LC_ALL LANGUAGE
@@ -1016,7 +1046,7 @@ SyslogFacility AUTHPRIV
 UsePAM yes
 X11Forwarding yes
 '''
-        else:
+        elif self.rhel_x_version == 8:
             expected = '''\
 AcceptEnv LANG LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES
 AcceptEnv LC_IDENTIFICATION LC_ALL LANGUAGE
@@ -1038,6 +1068,14 @@ SyslogFacility AUTHPRIV
 UsePAM yes
 X11Forwarding yes
 '''
+        else:
+            expected = '''\
+Include /etc/ssh/sshd_config.d/*.conf
+AuthorizedKeysFile .ssh/authorized_keys
+Subsystem sftp	/usr/libexec/openssh/sftp-server
+ClientAliveInterval 180
+PasswordAuthentication no
+'''
         filename = "/etc/ssh/sshd_config"
         self._check_file_content(testfile=filename, expected=expected)
 
@@ -1045,10 +1083,8 @@ X11Forwarding yes
         '''
         Verify can get metadata
         '''
-        cmd = 'curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2021-02-01"'
-        metadata = utils_lib.run_cmd(self, cmd)
-        metadata_dict = json.loads(metadata)
-        self.assertEqual(metadata_dict.get('compute').get('azEnvironment'), "AzurePublicCloud", 
+        metadata_dict = json.loads(self.metadata)
+        self.assertEqual(metadata_dict.get('compute').get('osType'), "Linux", 
             "Cannot parse metadata to get azEnvironment")
 
     def test_check_cds_hostnames(self):
@@ -1059,14 +1095,18 @@ X11Forwarding yes
             "rhui-1.microsoft.com",
             "rhui-2.microsoft.com",
             "rhui-3.microsoft.com",
-            "{0}-cds.{0}.cloudapp.azure.com".format(self.region),
-            "rh-cds.trafficmanager.net"
+            "rh-cds.trafficmanager.net",
         ]
+        if self.is_gov:
+            # there is no rhui in us-gov regions at all - all the content requests are redirected to closest standard regions
+            cmd = "sudo getent hosts rh-cds.trafficmanager.net | awk '{print $2}'"
+            region_cds = utils_lib.run_cmd(self, cmd, msg="Get region cds")
+            rhui_cds_hostnames.append(region_cds)
+        else:
+            rhui_cds_hostnames.append("{0}-cds.{0}.cloudapp.azure.com".format(self.region))
         for cds in rhui_cds_hostnames:
-            #there is no rhui in us-gov regions at all - all the content requests are redirected to closest standard regions
-            cds_name = cds.replace('-gov','')
-            cmd = "sudo getent hosts {}".format(cds_name)
-            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check {}'.format(cds_name))
+            cmd = "sudo getent hosts {}".format(cds)
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check {}'.format(cds))
 
     def test_z_check_subscription_manager_auto_function(self):
         '''
@@ -1076,8 +1116,12 @@ X11Forwarding yes
         product_id = utils_lib.get_product_id(self)
         if float(product_id) < float('8.4'):
             self.skipTest('skip in earlier than el8.4')
+        cmd = "sudo subscription-manager config --rhsmcertd.auto_registration=1"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Enable auto_registration")
+        cmd = "sudo subscription-manager config --rhsm.manage_repo=0"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Disable manage_repo")
         cmd = "sudo subscription-manager config --rhsmcertd.auto_registration_interval=1"
-        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Check interval to 1 min")
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Change interval to 1 min")
         cmd = "sudo systemctl restart rhsmcertd.service"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Restart rhsmcertd service")
         time.sleep(60)
