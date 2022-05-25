@@ -336,10 +336,16 @@ class TestCloudInit(unittest.TestCase):
                     msg='check /var/log/cloud-init.log')  
 
     def _get_boot_temp_devices(self):
-        boot_dev = utils_lib.run_cmd(self,
-                        "mount|grep 'boot'|head -1|cut -c1-8")
-        temp_dev = '/dev/sda' if boot_dev == '/dev/sdb' else '/dev/sdb'
-        return(boot_dev, temp_dev)
+        out = utils_lib.run_cmd(self,"lsblk -d|awk -F' ' '{print $1}'", msg='get all disks')
+        disks = out.split('\n')
+        boot_dev = '/dev/sda'
+        boot_part = utils_lib.run_cmd(self,'mount|grep boot|head -1', msg='get boot part')
+        for disk in disks:
+            if disk in boot_part:
+                boot_dev = disk
+                break
+        self.log.info("Detected boot device:{}".format(boot_dev))
+        return boot_dev
 
     def test_cloudinit_auto_extend_root_partition_and_filesystem(self):
         """
@@ -366,7 +372,7 @@ class TestCloudInit(unittest.TestCase):
         utils_lib.is_cmd_exist(self, cmd='gdisk')
         
         # 2. Check os disk and fs capacity
-        boot_dev = self._get_boot_temp_devices()[0].split('/')[-1].replace('\n', '')
+        boot_dev = self._get_boot_temp_devices()
         dev_size = utils_lib.run_cmd(self, "lsblk /dev/{0} --output NAME,SIZE -r |grep -o -P '(?<={0} ).*(?=G)'".format(boot_dev))
         os_disk_size = int(self.vm.show()['vm_disk_info'][0]['size'])/(1024*1024*1024)
         self.assertAlmostEqual(
@@ -385,7 +391,7 @@ class TestCloudInit(unittest.TestCase):
         utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(10)
         utils_lib.init_connection(self, timeout=1200)
-        boot_dev = self._get_boot_temp_devices()[0].split('/')[-1].replace('\n', '')
+        boot_dev = self._get_boot_temp_devices()
         partition = utils_lib.run_cmd(self,
             "find /dev/ -name {}[0-9]|sort|tail -n 1".format(boot_dev)).replace('\n', '')
         new_dev_size = utils_lib.run_cmd(self,
