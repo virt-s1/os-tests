@@ -521,8 +521,10 @@ COMMIT
         #record origin nic's mac and name
         origin_nic_name = utils_lib.run_cmd(self, "ls /sys/class/net/ | grep -v lo").strip()
         origin_nic_mac = utils_lib.run_cmd(self, "cat /sys/class/net/%s/address" % origin_nic_name).strip()
-        #stop vm to add nic and record the set ip list
-        self.vm.stop(wait=True)
+        #stop vm to add nic if vm is secure boot and record the set ip list
+        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+            self.vm.stop(wait=True)
+        used_ip_list = self.vm.list_networks_address(self.vm.private_network_uuid)
         set_ip_list = []
         for i in range(nic_num):
             if ip_subnet == None:
@@ -530,16 +532,17 @@ COMMIT
             else:
                 while True:
                     ip_address = ip_subnet + str(random.randint(10,100))
-                    if ip_address not in set_ip_list:
+                    if ip_address not in set_ip_list and ip_address not in used_ip_list:
                         set_ip_list.append(ip_address)
                         break
             self.log.info("Add nic for %s time(s)" % i)
             self.vm.attach_nic(network_uuid, ip_address, driver)
         set_ip_list.sort()
-        #start vm
-        self.vm.start(wait=True)
-        time.sleep(30)
-        utils_lib.init_connection(self, timeout=180)
+        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+            #start vm
+            self.vm.start(wait=True)
+            time.sleep(30)
+            utils_lib.init_connection(self, timeout=180)
         #check nic number
         vm_nic_num = int(utils_lib.run_cmd(self, "ls /sys/class/net | grep e | wc -l").strip())
         self.assertEqual(vm_nic_num, nic_num+1, msg="Number of nics is not right, Expect: %s, real: %s" % (nic_num+1, vm_nic_num))
@@ -562,15 +565,16 @@ COMMIT
             vm_ip_list = utils_lib.run_cmd(self, "ip a | grep 'inet ' | grep %s | awk '{print $2}' | sed 's/\/24//'" % self.vm.private_network_subnet).split()
             vm_ip_list.sort()
             self.assertEqual(vm_ip_list, set_ip_list, msg="IP configure is not right, Expect: %s, real: %s" % (str(set_ip_list), str(vm_ip_list)))
-        #stop vm
-        self.vm.stop(wait=True)
+        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+            self.vm.stop(wait=True)
         #delete nic by mac
         for mac in nic_mac_list:
             if mac != origin_nic_mac:
                 self.vm.detach_nic(mac)
-        self.vm.start(wait=True)
-        time.sleep(30)
-        utils_lib.init_connection(self, timeout=180)
+        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+            self.vm.start(wait=True)
+            time.sleep(30)
+            utils_lib.init_connection(self, timeout=180)
         vm_nic_num = int(utils_lib.run_cmd(self, "ip a | grep 'inet ' | grep global | wc -l").strip())
         self.assertEqual(vm_nic_num, 1, msg="Number of nics is not right, Expect: %s, real: %s" % (1, vm_nic_num))
 
@@ -667,10 +671,12 @@ COMMIT
         origin_nic_name = utils_lib.run_cmd(self, "ls /sys/class/net/ | grep -v lo").strip()
         origin_nic_mac = utils_lib.run_cmd(self, "cat /sys/class/net/%s/address" % origin_nic_name).strip()
         #atach the second nic
-        self.vm.stop(wait=True)
+        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+            self.vm.stop(wait=True)
         self.vm.attach_nic(None, None, driver)
         self.vm.detach_nic(origin_nic_mac)
-        self.vm.start(wait=True)
+        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+            self.vm.start(wait=True)
         for nic in self.vm.get_vm_by_filter("vm_name", self.vm.prism.vm_name).get('vm_nics'):
             if nic['network_uuid'] == self.vm.network_uuid:
                 new_ip = nic['ip_address']
