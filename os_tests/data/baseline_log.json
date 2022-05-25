@@ -1150,5 +1150,14 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1945929",
         "path": "dmesg,journal",
         "trigger": "Started libcontainer"
+    },
+    "msg_130": {
+        "content": ".*nm-cloud-setup.service: Failed with result 'signal'..*;",
+        "analyze": "Info only, will trigger when NetworkManager restart",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "dmesg,journal",
+        "trigger": "Reloading Network Manager"
     }
 }

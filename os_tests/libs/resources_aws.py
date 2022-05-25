@@ -561,6 +561,9 @@ class EC2Volume(StorageResource):
             LOG.info("Volume does not exists %s" % self.id)
             return False
 
+    def modify_disk_size(self, os_disk_size, expand_num):
+        raise NotImplementedError
+
 class EC2NIC(NetworkResource):
     '''
     AWS Network class
