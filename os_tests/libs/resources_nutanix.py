@@ -129,6 +129,7 @@ class PrismApi(PrismSession):
         self.machine_type = params['VM']['machine_type']
         self.vm_custom_file = None
         self.minimum_disk_size = 1
+        self.run_uuid = params.get('run_uuid')
 
         super(PrismApi, self).__init__(self.cvmIP, username, password)
 
@@ -164,14 +165,15 @@ class PrismApi(PrismSession):
             exit(1)
         # Attach ssh keys.
         ssh_key = ''
-        ssh_pwauth = '\nchpasswd:\n  list: |\n    %s:%s\n  expire: false\nssh_pwauth: yes\nruncmd:\n- sed -i "/PermitRootLogin prohibit/c\PermitRootLogin yes" /etc/ssh/sshd_config\n- systemctl restart sshd' % (
+        ssh_pwauth = '\nchpasswd:\n  list: |\n    %s:%s\n  expire: false\nssh_pwauth: yes' % (
             self.vm_username, self.vm_password)
         if (ssh_pubkey):
             ssh_key = '\nssh_authorized_keys:\n- %s' % ssh_pubkey
             ssh_pwauth = ''
         # Attach user_data.
-        user_data = '#cloud-config\ndisable_root: false\nlock_passwd: false%s%s\n' % (
+        user_data = '#cloud-config\ndisable_root: false\nlock_passwd: false%s%s\nruncmd:\n- sed -i "/PermitRootLogin prohibit/c\PermitRootLogin yes" /etc/ssh/sshd_config\n- systemctl restart sshd\n' % (
             ssh_pwauth, ssh_key)
+        user_data += '- mkdir /tmp/userdata_{}'.format(self.run_uuid)
         if self.vm_user_data:
             user_data += self.vm_user_data
         # Attach user script.
