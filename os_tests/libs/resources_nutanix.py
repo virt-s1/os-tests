@@ -232,7 +232,7 @@ class PrismApi(PrismSession):
                 "is_empty": True,
                 "vm_disk_create": {
                 "size": self.minimum_disk_size*1024*1024*1024,
-                "storage_container_uuid": "41797d39-e961-4ab5-adcc-e5c9ab817729"
+                "storage_container_uuid": self.storage_container_uuid
                 }
             }
         ],
@@ -383,6 +383,13 @@ class PrismApi(PrismSession):
         endpoint = urljoin(
             self.base_url,
             "networks/")
+        return self.make_request(endpoint, 'get')
+
+    def list_networks_address(self, network_uuid):
+        logging.debug("Get networks address by networks uuid")
+        endpoint = urljoin(
+            self.base_url,
+            "networks/%s/addresses" % network_uuid)
         return self.make_request(endpoint, 'get')
 
     def update_vcpu(self, vm_uuid, vcpu_num):
@@ -645,6 +652,11 @@ class NutanixVM(VMResource):
         for host in self.prism.list_hosts_detail()["entities"]:
             host_uuid.append(host['uuid'])
         return host_uuid
+
+    @property
+    def disk_count(self):
+        # minus 1 for user data cd-rom disk
+        return len(self.show()['vm_disk_info'])-1
 
     def host_ip(self):
         self._data = None
@@ -1027,9 +1039,6 @@ class NutanixVM(VMResource):
     def unpause(self, wait=False):
         raise NotImplementedError
 
-    def disk_count(self):
-        raise NotImplementedError
-
     def get_disk_uuid(self, device_type, device_index):
         disk_uuid = None
         for disk in self.show()['vm_disk_info']:
@@ -1082,6 +1091,14 @@ class NutanixVM(VMResource):
                     vm_data = vm
                     break
         return vm_data
+
+    def list_networks_address(self, network_uuid):
+        address_data = self.prism.list_networks_address(network_uuid)
+        address_list = []
+        for nic in address_data["entities"]:
+            ip=nic["ip_address"]
+            address_list.append(ip)
+        return address_list
 
 class NutanixVolume(StorageResource):
     '''
