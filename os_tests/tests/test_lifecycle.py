@@ -498,6 +498,15 @@ no plan to fix it in the near future!")
         time.sleep(30)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
+    def _start_vm_and_check(self):
+        self.vm.start(wait=True)
+        time.sleep(30)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        output = utils_lib.run_cmd(self, 'whoami').strip()
+        self.assertEqual(self.vm.vm_username,
+            output,
+            "Start VM error: output of cmd `who` unexpected -> %s" % output)
+
     def test_stop_start_vm(self):
         """
         case_tag:
@@ -528,13 +537,9 @@ no plan to fix it in the near future!")
         self.vm.stop(wait=True)
         self.assertTrue(self.vm.is_stopped(),
                         "Stop VM error: VM status is not SHUTOFF")
-        self.vm.start(wait=True)
-        time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
-        output = utils_lib.run_cmd(self, 'whoami').strip()
-        self.assertEqual(self.vm.vm_username,
-            output,
-            "Start VM error: output of cmd `who` unexpected -> %s" % output)
+        self._start_vm_and_check()
+        utils_lib.run_cmd(self, 'shutdown now')
+        self._start_vm_and_check()
 
     def tearDown(self):
         reboot_require = False

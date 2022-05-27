@@ -574,15 +574,44 @@ class TestCloudInit(unittest.TestCase):
         maintainer:
             minl@redhat.com
         description:
-            Successfully set VM hostname
+            Auto resize partition in gpt
         key_steps:
-            1. Check hostname by different command
+            1. parted and growpart command
         expect_result:
-            1. Host name is correct
+            1. Successfully resize partition in gpt
         debug_want:
             N/A
         """
         self._cloudinit_auto_resize_partition("gpt")
+
+    def test_cloudinit_auto_resize_partition_in_mbr(self):
+        """
+        case_tag:
+            Cloudinit
+        case_name:
+            test_cloudinit_auto_resize_partition_in_mbr
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_auto_resize_partition_in_mbr
+        component:
+            cloudinit
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Auto resize partition in mbr
+        key_steps:
+            1. parted and growpart command
+        expect_result:
+            1. Successfully resize partition in mbr
+        debug_want:
+            N/A
+        """
+        self._cloudinit_auto_resize_partition("msdos")
 
     def test_cloudinit_start_sector_equal_to_partition_size(self):
         """
