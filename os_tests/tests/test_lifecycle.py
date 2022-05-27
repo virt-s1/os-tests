@@ -37,6 +37,8 @@ class TestLifeCycle(unittest.TestCase):
         polarion_id:
         bz: 1703366
         '''
+        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+            self.skipTest('''Red Hat Insights error "sed: can't read /sys/kernel/debug/sched_features: Operation not permitted" When using secure boot''')
         self.old_grub_index = utils_lib.run_cmd(self, 'sudo grubby --default-index', expect_ret=0)
         self.log.info("Check kernel-debug can boot up!")
         mini_mem = utils_lib.get_memsize(self)
@@ -321,7 +323,10 @@ no plan to fix it in the near future!")
             self.log.info('try to swith {}'.format(kernel))
             kernel_vmlinuz = "/boot/" + kernel.replace('kernel','vmlinuz')
             kernel_initramfs = "/boot/" + kernel.replace('kernel','initramfs') + ".img"
-            cmd = "sudo kexec -l %s --initrd=%s --reuse-cmdline" % (kernel_vmlinuz, kernel_initramfs)
+            if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+                cmd = "sudo kexec -l %s --initrd=%s --reuse-cmdline -s" % (kernel_vmlinuz, kernel_initramfs) #kexec systems using UEFI + SecureBoot using the kexec option "-s"
+            else:
+                cmd = "sudo kexec -l %s --initrd=%s --reuse-cmdline" % (kernel_vmlinuz, kernel_initramfs)
             utils_lib.run_cmd(self, cmd, msg='Switch kernel', expect_ret=0)
             cmd = "sudo systemctl kexec"
             utils_lib.run_cmd(self, cmd, msg='fast reboot system')
@@ -362,13 +367,174 @@ no plan to fix it in the near future!")
             self.log.info('try to swith {}'.format(kernel))
             kernel_vmlinuz = "/boot/" + kernel.replace('kernel','vmlinuz')
             kernel_initramfs = "/boot/" + kernel.replace('kernel','initramfs') + ".img"
-            cmd = "sudo kexec -l %s --initrd=%s --reuse-cmdline" % (kernel_vmlinuz, kernel_initramfs)
+            if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+                cmd = "sudo kexec -l %s --initrd=%s --reuse-cmdline -s" % (kernel_vmlinuz, kernel_initramfs) #kexec systems using UEFI + SecureBoot using the kexec option "-s"
+            else:
+                cmd = "sudo kexec -l %s --initrd=%s --reuse-cmdline" % (kernel_vmlinuz, kernel_initramfs)
             utils_lib.run_cmd(self, cmd, msg='Switch kernel', expect_ret=0)
             cmd = "sudo kexec -e"
             utils_lib.run_cmd(self, cmd, msg='fast reboot system')
             time.sleep(10)
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
             utils_lib.run_cmd(self, 'uname -r', msg='check kernel', expect_ret=0, expect_kw=kernel[7:])
+
+    def test_check_secure_boot(self):
+        """
+        case_tag:
+            Lifecycle
+        case_name:
+            test_check_secure_boot
+        case_file:
+            os_tests.tests.test_lifecycle.TestLifeCycle.test_check_secure_boot
+        component:
+            lifecycle
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Check secure boot state according to input paramters in yaml configure file.
+        key_steps:
+            1. Check command mokutil --sb-state.
+        expect_result:
+            1. Secure boot state check right.
+        debug_want:
+            N/A
+        """
+        secure_boot_check = utils_lib.run_cmd(self, "mokutil --sb-state")
+        if self.vm.prism.if_secure_boot:
+            self.assertIn("SecureBoot enabled", secure_boot_check, msg='secure boot check error: %s' % secure_boot_check)
+        else:
+            if self.vm.prism.if_uefi_boot:
+                self.assertIn("This system doesn't support Secure Boot", secure_boot_check, msg='secure boot check error: %s' % secure_boot_check)
+            else:
+                self.assertIn("EFI variables are not supported on this system", secure_boot_check, msg='secure boot check error: %s' % secure_boot_check)
+
+    def test_reboot_vm(self):
+        """
+        case_tag:
+            Lifecycle
+        case_name:
+            test_reboot_vm
+        case_file:
+            os_tests.tests.test_lifecycle.TestLifeCycle.test_reboot_vm
+        component:
+            lifecycle
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Check time in last reboot before and after VM reboot.
+        key_steps:
+            1. Check time in last reboot before and after VM reboot.
+        expect_result:
+            1. Check time is different in last reboot before and after VM reboot.
+        debug_want:
+            N/A
+        """
+        before = utils_lib.run_cmd(self, 'last reboot --time-format full')
+        self.vm.reboot(wait=True)
+        time.sleep(30)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        output = utils_lib.run_cmd(self, 'whoami').strip()
+        self.assertEqual(
+            self.vm.vm_username, output,
+            "Reboot VM error: output of cmd `who` unexpected -> %s" % output)
+        after = utils_lib.run_cmd(self, 'last reboot --time-format full')
+        self.assertNotEqual(
+            before, after,
+            "Reboot VM error: before -> %s; after -> %s" % (before, after))
+        time.sleep(30)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+
+    def test_reboot_inside_vm(self):
+        """
+        case_tag:
+            Lifecycle
+        case_name:
+            test_reboot_inside_vm
+        case_file:
+            os_tests.tests.test_lifecycle.TestLifeCycle.test_reboot_inside_vm
+        component:
+            lifecycle
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Check time in last reboot before and after VM inside reboot.
+        key_steps:
+            1. Check time in last reboot before and after VM inside reboot.
+        expect_result:
+            1. Check time is different in last reboot before and after VM inside reboot.
+        debug_want:
+            N/A
+        """
+        before = utils_lib.run_cmd(self, 'last reboot --time-format full')
+        utils_lib.run_cmd(self, 'sudo reboot')
+        time.sleep(10)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        output = utils_lib.run_cmd(self, 'whoami')
+        self.assertEqual(
+            self.vm.vm_username, output.strip(),
+            "Reboot VM error: output of cmd `who` unexpected -> %s" % output)
+        after = utils_lib.run_cmd(self, 'last reboot --time-format full')
+        self.assertNotEqual(
+            before, after,
+            "Reboot VM error: before -> %s; after -> %s" % (before, after))
+        time.sleep(30)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+
+    def test_stop_start_vm(self):
+        """
+        case_tag:
+            Lifecycle
+        case_name:
+            test_stop_start_vm
+        case_file:
+            os_tests.tests.test_lifecycle.TestLifeCycle.test_stop_start_vm
+        component:
+            lifecycle
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Check user name after stop/start VM.
+        key_steps:
+            1. Check user name after stop/start VM.
+        expect_result:
+            1. Check user name is right after stop/start VM.
+        debug_want:
+            N/A
+        """
+        self.vm.stop(wait=True)
+        self.assertTrue(self.vm.is_stopped(),
+                        "Stop VM error: VM status is not SHUTOFF")
+        self.vm.start(wait=True)
+        time.sleep(30)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        output = utils_lib.run_cmd(self, 'whoami').strip()
+        self.assertEqual(self.vm.vm_username,
+            output,
+            "Start VM error: output of cmd `who` unexpected -> %s" % output)
 
     def tearDown(self):
         reboot_require = False

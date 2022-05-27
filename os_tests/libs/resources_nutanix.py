@@ -124,7 +124,12 @@ class PrismApi(PrismSession):
         self.memory = params['Flavor']['memory']
         #self.vm_user_data = params.get('custom_data', '*/VM/*')
         self.vm_user_data = params['VM']['custom_data']
+        self.if_uefi_boot = params['VM']['if_uefi_boot']
+        self.if_secure_boot = params['VM']['if_secure_boot']
+        self.machine_type = params['VM']['machine_type']
         self.vm_custom_file = None
+        self.minimum_disk_size = 1
+        self.run_uuid = params.get('run_uuid')
 
         super(PrismApi, self).__init__(self.cvmIP, username, password)
 
@@ -166,8 +171,9 @@ class PrismApi(PrismSession):
             ssh_key = '\nssh_authorized_keys:\n- %s' % ssh_pubkey
             ssh_pwauth = ''
         # Attach user_data.
-        user_data = '#cloud-config\ndisable_root: false\nlock_passwd: false%s%s\n' % (
+        user_data = '#cloud-config\ndisable_root: false\nlock_passwd: false%s%s\nruncmd:\n- sed -i "/PermitRootLogin prohibit/c\PermitRootLogin yes" /etc/ssh/sshd_config\n- systemctl restart sshd\n' % (
             ssh_pwauth, ssh_key)
+        user_data += '- mkdir /tmp/userdata_{}'.format(self.run_uuid)
         if self.vm_user_data:
             user_data += self.vm_user_data
         # Attach user script.
@@ -176,17 +182,18 @@ class PrismApi(PrismSession):
             user_script = [{'source_path': 'adsf:///{}/{}'.format(self.get_container()['name'], self.vm_custom_file),
                       'destination_path': '/tmp/{}'.format(self.vm_custom_file)}]
         print(user_script)
-        # Attach NICs (all).
-        network_uuids = []
-        for network in self.list_networks_detail()["entities"]:
-            network_uuids.append({"network_uuid": network["uuid"]})
+        # Attach NICs (all).--> Change to attach specified uuid unless test_persistent_route will fail
+        network_uuids = [{"network_uuid": self.network_uuid}]
+        #for network in self.list_networks_detail()["entities"]:
+            #network_uuids.append({"network_uuid": network["uuid"]})
         data = {'boot': {
                 'disk_address': {
                 'device_bus': 'scsi',
                 'device_index': 0
                 },
                 'boot_device_type': 'disk',
-                'uefi_boot': False
+                'uefi_boot': self.if_uefi_boot,
+                'secure_boot': self.if_secure_boot
 	        },
             'memory_mb':
             self.memory * 1024,
@@ -226,12 +233,13 @@ class PrismApi(PrismSession):
                 "is_cdrom": False,
                 "is_empty": True,
                 "vm_disk_create": {
-                "size": 1*1024*1024*1024,
-                "storage_container_uuid": "41797d39-e961-4ab5-adcc-e5c9ab817729"
+                "size": self.minimum_disk_size*1024*1024*1024,
+                "storage_container_uuid": self.storage_container_uuid
                 }
             }
         ],
-            'vm_nics': network_uuids
+            'vm_nics': network_uuids,
+            'machine_type': self.machine_type
         }
         return self.make_request(endpoint, 'post', data=data)
        
@@ -330,7 +338,7 @@ class PrismApi(PrismSession):
         endpoint = urljoin(self.base_url, "vms/%s/set_power_state" % vm_uuid)
         data = {"transition": "ON"}
         return self.make_request(endpoint, 'post', data=data)
-        
+    
     def migrate_vm(self, vm_uuid, host_uuid=None):
         # Use API v0.8 for migrate operation
         logging.info("Migrate VM")
@@ -377,6 +385,13 @@ class PrismApi(PrismSession):
         endpoint = urljoin(
             self.base_url,
             "networks/")
+        return self.make_request(endpoint, 'get')
+
+    def list_networks_address(self, network_uuid):
+        logging.debug("Get networks address by networks uuid")
+        endpoint = urljoin(
+            self.base_url,
+            "networks/%s/addresses" % network_uuid)
         return self.make_request(endpoint, 'get')
 
     def update_vcpu(self, vm_uuid, vcpu_num):
@@ -429,17 +444,44 @@ class PrismApi(PrismSession):
                 endpoint = urljoin(self.base_url, "networks/%s" % network["uuid"])
                 self.make_request(endpoint, 'delete')
 
-    def attach_disk(self, vm_uuid, device_bus, disk_size, is_cdrom, device_index, *is_empty):
+    def attach_nic(self, vm_uuid, network_uuid, ip_address=None, driver='virtio'):
+        logging.info("Attach nic to vm")
+        endpoint = urljoin(self.base_url, "vms/%s/nics/" % vm_uuid)
+        if ip_address==None:
+            data = {'spec_list': [{
+                    'is_connected': True,
+                    'model':driver,
+                    'network_uuid': network_uuid}]}
+        else:
+            data = {'spec_list':[{
+                       'network_uuid': network_uuid,
+                       'requested_ip_address': ip_address,
+                       'is_connected': True,
+                       'request_ip': True,
+                       'model': driver}]}
+        return self.make_request(endpoint, 'post', data=data)
+
+    def detach_nic(self, vm_uuid, nic_mac):
+        logging.info("Detach nic from VM")
+        endpoint = urljoin(self.base_url, "vms/%s/nics/%s" % (vm_uuid, nic_mac))
+        return self.make_request(endpoint, 'delete')
+
+    def get_nics(self, vm_uuid):
+        logging.info("Fetch nics")
+        endpoint = urljoin(self.base_url, "vms/%s/nics/" % (vm_uuid))
+        return self.make_request(endpoint, 'get')
+
+    def attach_disk(self, vm_uuid, device_bus, disk_size, is_cdrom, device_index, **empty_or_clone):
         '''
         Attach disk/cdrom, need to indicate clone_from_img_service or clone_from_adsf_file when is_empty equals False
         '''
-        logging.info("Prism creating and attaching disk, device_bus:{}, disk_size: {}, is_cdrom: {}, is_empty: {}".format(device_bus, disk_size, is_cdrom, is_empty))
+        logging.info("Prism creating and attaching disk, device_bus:{}, disk_size: {}, is_cdrom: {}, empty_or_clone: {}".format(device_bus, disk_size, is_cdrom, empty_or_clone))
         endpoint = urljoin(self.base_url, "vms/%s/disks/attach" % vm_uuid)
         if is_cdrom:
             is_cdrom = "true"
         else:
             is_cdrom = "false"
-        if is_empty[0]:
+        if empty_or_clone['is_empty']:
             data = {"vm_disks": [{"disk_address":{"device_bus":device_bus, "device_index":device_index},
                     "is_cdrom": is_cdrom,
                     "is_empty": "true",
@@ -448,7 +490,7 @@ class PrismApi(PrismSession):
                          "size": disk_size*1024*1024*1024}
                     }]}
         else:
-            if is_empty[1] == 'clone_from_img_service':
+            if empty_or_clone['clone'] == 'clone_from_img_service':
                 if is_cdrom:
                     images = self.list_images()
                     for image in images['entities']:
@@ -579,6 +621,8 @@ class NutanixVM(VMResource):
         self.vm_user_data = params['VM']['custom_data']
         #self.network_uuid = params.get('network_uuid', '*/VM/*')
         self.network_uuid = params['VM']['network_uuid']
+        self.private_network_uuid = params['VM']['private_network_uuid']
+        self.private_network_subnet = params['VM']['private_network_subnet']
         self.ssh_pubkey = utils_lib.get_public_key()
         self.arch = 'x86_64'
         self.vm_custom_file = None
@@ -610,6 +654,19 @@ class NutanixVM(VMResource):
         for host in self.prism.list_hosts_detail()["entities"]:
             host_uuid.append(host['uuid'])
         return host_uuid
+
+    @property
+    def disk_count(self):
+        # minus 1 for user data cd-rom disk
+        return len(self.show()['vm_disk_info'])-1
+
+    def host_ip(self):
+        self._data = None
+        for host in self.prism.list_hosts_detail()["entities"]:
+            if host['uuid'] == self.data.get('host_uuid'):
+                ip = host['service_vmexternal_ip']
+                break
+        return ip
 
     def host_cpu_model(self):
         self._data = None
@@ -884,7 +941,7 @@ class NutanixVM(VMResource):
                         break
                 else:
                     if self.get_cpu_passthrough(enabled=False):
-                        break                    
+                        break
 
     def get_memory_vnuma(self):
         logging.info("Get VM cpu passthrough status.")
@@ -912,11 +969,11 @@ class NutanixVM(VMResource):
                 if self.get_memory_vnuma() == vnuma_num_target:
                     break
 
-    def attach_disk(self, device_bus, disk_size, is_cdrom, device_index, *is_empty, wait=False):
+    def attach_disk(self, device_bus, disk_size, is_cdrom, device_index, wait=False, **empty_or_clone):
         '''
         Attach disk/cdrom, device_info args including disksize, is cdrom or not, and is empty or not
         '''
-        res = self.prism.attach_disk(self.data.get('uuid'), device_bus, disk_size, is_cdrom, device_index, *is_empty)
+        res = self.prism.attach_disk(self.data.get('uuid'), device_bus, disk_size, is_cdrom, device_index, **empty_or_clone)
         time.sleep(30)
 
         if wait:
@@ -939,12 +996,26 @@ class NutanixVM(VMResource):
 
     def detach_block(self, disk, wait=True, force=False):
         raise NotImplementedError
-    
-    def detach_nic(self, nic, wait=True, force=False):
-        raise NotImplementedError
 
-    def attach_nic(self, nic, wait=True, timeout=120):
-        raise NotImplementedError
+    def attach_nic(self, network_uuid=None, ip_address=None, driver='virtio', wait=True, timeout=120):
+        if network_uuid==None:
+            network_uuid = self.network_uuid
+        res = self.prism.attach_nic(self.data.get('uuid'), network_uuid, ip_address, driver)
+        if wait:
+            self.wait_for_status(
+                res['task_uuid'], timeout,
+                "Timed out waiting for attaching NIC.")
+
+    def detach_nic(self, nic_mac, wait=True, force=False):
+        res = self.prism.detach_nic(self.data.get('uuid'), nic_mac)
+        if wait:
+            self.wait_for_status(
+                res['task_uuid'], 60,
+                "Timed out waiting for detaching NIC.")
+
+    def get_nic(self):
+        res = self.prism.get_nics(self.data.get('uuid'))
+        return res
 
     def get_console_log(self):
         raise UnSupportedAction('No such operation in nutanix')
@@ -968,9 +1039,6 @@ class NutanixVM(VMResource):
         raise UnSupportedAction('No such operation in nutanix')
 
     def unpause(self, wait=False):
-        raise NotImplementedError
-
-    def disk_count(self):
         raise NotImplementedError
 
     def get_disk_uuid(self, device_type, device_index):
@@ -1002,7 +1070,7 @@ class NutanixVM(VMResource):
                 res['task_uuid'], 60,
                 "Timed out waiting for restoring VM.")
 
-    def clone_vm(self, clone_form_vm_or_snapshot, vm_name, memory, cores_per_vcpu, vcpus, override_network_config, fresh_install, vm_custom_file, vm_userdata_file, wait=False):
+    def clone_vm(self, clone_form_vm_or_snapshot, vm_name, memory, cores_per_vcpu, vcpus, override_network_config, fresh_install, vm_custom_file, vm_userdata_file, wait=True):
         if clone_form_vm_or_snapshot == 'clone_from_vm':
              uuid = self.data.get('uuid')
         else:
@@ -1025,6 +1093,14 @@ class NutanixVM(VMResource):
                     vm_data = vm
                     break
         return vm_data
+
+    def list_networks_address(self, network_uuid):
+        address_data = self.prism.list_networks_address(network_uuid)
+        address_list = []
+        for nic in address_data["entities"]:
+            ip=nic["ip_address"]
+            address_list.append(ip)
+        return address_list
 
 class NutanixVolume(StorageResource):
     '''

@@ -9,6 +9,7 @@ class TestCloudInit(unittest.TestCase):
 
         cmd = "sudo systemctl is-enabled cloud-init-local"
         utils_lib.run_cmd(self, cmd, cancel_ret='0', msg = "check cloud-init-local is enabled")
+        self.timeout = 180
 
     def test_check_cloudinit_cfg_no_wheel(self):
         '''
@@ -350,18 +351,32 @@ class TestCloudInit(unittest.TestCase):
     def test_cloudinit_auto_extend_root_partition_and_filesystem(self):
         """
         case_tag:
-            cloudinit
-        case_priority:
-            1
+            Cloudinit
+        case_name:
+            test_cloudinit_auto_extend_root_partition_and_filesystem
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_auto_extend_root_partition_and_filesystem
         component:
             cloud-init,cloud_utils_growpart
+        bugzilla_id:
+            1447177
+        is_customer_case:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            minl@redha.tcom
         description:
             RHEL7-103839 - CLOUDINIT-TC: Auto extend root partition and filesystem
-        key_steps:
+        key_steps: |
             1. Install cloud-utils-growpart gdisk if not installed(bug 1447177)
             2. Check os disk and fs capacity
             3. Enlarge os disk
             4. Check os disk and fs capacity
+        expect_result:
+            1. OS disk and fs capacity check right.
+        debug_want:
+            N/A
         """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
@@ -413,6 +428,212 @@ class TestCloudInit(unittest.TestCase):
                 "FS: %s, real: %s" %
                 (new_fs_size, new_os_disk_size)
         )
+
+    def test_cloudinit_login_with_password(self):
+        """
+        case_tag:
+            Cloudinit
+        case_name:
+            test_cloudinit_login_with_password
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_login_with_password
+        component:
+            cloudinit
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            VM can successfully login after provisioning(with password authentication)
+        key_steps:
+            1. Create a VM with only password authentication
+        expect_result:
+            1. Login with password, should have sudo privilege
+        debug_want:
+            N/A
+        """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
+        if self.vm.exists():
+            self.vm.delete()
+            time.sleep(30)
+        save_ssh_pubkey = self.vm.ssh_pubkey
+        self.vm.ssh_pubkey = None
+        self.vm.create(wait=True)
+        #test passwork login to new vm
+        NewVM = self.vm.get_vm_by_filter("vm_name", self.vm.vm_name)
+        start_task = self.vm.prism.start_vm(NewVM['uuid'])
+        self.log.info("start task status is %s" % format(start_task))
+        time.sleep(60)
+        for nic in NewVM.get('vm_nics'):
+            if nic['network_uuid'] == self.vm.network_uuid:
+                NewVM_ip = nic['ip_address']
+        test_login = utils_lib.send_ssh_cmd(NewVM_ip, self.vm.vm_username, self.vm.vm_password, "whoami")
+        self.assertEqual(self.vm.vm_username,
+                         test_login[1].strip(),
+                         "Fail to login with password: %s" % format(test_login[1].strip()))
+        test_sudo = utils_lib.send_ssh_cmd(NewVM_ip, self.vm.vm_username, self.vm.vm_password, "sudo cat /etc/sudoers.d/90-cloud-init-users")
+        self.assertIn(self.vm.vm_username,
+                         test_sudo[1].strip(),
+                         "Fail to check login user name: %s" % format(test_sudo[1].strip()))
+        #teardown
+        self.vm.ssh_pubkey=save_ssh_pubkey
+        self.vm.delete()
+        self.vm.create(wait=True)
+        self.vm.start(wait=True)
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
+
+    def test_cloudinit_verify_hostname(self):
+        """
+        case_tag:
+            Cloudinit
+        case_name:
+            test_cloudinit_verify_hostname
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_verify_hostname
+        component:
+            cloudinit
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Successfully set VM hostname
+        key_steps:
+            1. Check hostname by different command
+        expect_result:
+            1. Host name is correct
+        debug_want:
+            N/A
+        """
+        for cmd in ['hostname', 'nmcli general hostname', 'hostnamectl|grep Static']:
+            check_hostname = utils_lib.run_cmd(self, 'sudo cat /var/log/cloud-init.log', expect_ret=0)
+            self.assertIn(self.vm.vm_name, check_hostname, "'%s': Hostname is not correct" % cmd)
+
+    def _cloudinit_auto_resize_partition(self, label):
+        """
+        :param label: msdos/gpt
+        """
+        utils_lib.run_cmd(self, "sudo su -")
+        utils_lib.run_cmd(self, "which growpart", expect_ret=0, msg="test growpart command.")
+        device = "/tmp/testdisk"
+        if "/dev" not in device:
+            utils_lib.run_cmd(self, "rm -f {}".format(device))
+        utils_lib.run_cmd(self, "truncate -s 2G {}".format(device))
+        utils_lib.run_cmd(self, "parted -s {} mklabel {}".format(device, label))
+        part_type = "primary" if label == "msdos" else ""
+         # 1 partition
+        utils_lib.run_cmd(self, "parted -s {} mkpart {} xfs 0 1000".format(device, part_type))
+        utils_lib.run_cmd(self, "parted -s {} print".format(device))
+        utils_lib.run_cmd(self, "growpart {} 1".format(device), expect_ret=0, msg="test to run growpart")
+        self.assertEqual(
+            "2147MB",
+            utils_lib.run_cmd(self,
+                "parted -s %s print|grep ' 1 '|awk '{print $3}'" % device, expect_ret=0).strip(),
+            "Fail to resize partition")
+        # 2 partitions
+        utils_lib.run_cmd(self, "parted -s {} rm 1".format(device))
+        utils_lib.run_cmd(self,
+            "parted -s {} mkpart {} xfs 0 1000".format(device, part_type))
+        utils_lib.run_cmd(self,
+            "parted -s {} mkpart {} xfs 1800 1900".format(device, part_type))
+        utils_lib.run_cmd(self, "parted -s {} print".format(device))
+        utils_lib.run_cmd(self, "growpart {} 1".format(device), expect_ret=0)
+        self.assertEqual(
+            "1800MB",
+            utils_lib.run_cmd(self,
+                "parted -s %s print|grep ' 1 '|awk '{print $3}'" % device, expect_ret=0).strip(),
+            "Fail to resize partition")
+
+    def test_cloudinit_auto_resize_partition_in_gpt(self):
+        """
+        case_tag:
+            Cloudinit
+        case_name:
+            test_cloudinit_auto_resize_partition_in_gpt
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_auto_resize_partition_in_gpt
+        component:
+            cloudinit
+        bugzilla_id:
+            1695091
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Successfully set VM hostname
+        key_steps:
+            1. Check hostname by different command
+        expect_result:
+            1. Host name is correct
+        debug_want:
+            N/A
+        """
+        self._cloudinit_auto_resize_partition("gpt")
+
+    def test_cloudinit_start_sector_equal_to_partition_size(self):
+        """
+        case_tag:
+            Cloudinit
+        case_name:
+            test_cloudinit_start_sector_equal_to_partition_size
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_start_sector_equal_to_partition_size
+        component:
+            cloudinit
+        bugzilla_id:
+            1593451
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Start sector equal to partition size
+        key_steps:
+            1. Check start sector
+        expect_result:
+            1. Start sector equal to partition size
+        debug_want:
+            N/A
+        """
+        utils_lib.run_cmd(self, "sudo su -")
+        utils_lib.run_cmd(self, "which growpart", expect_ret=0, msg="test growpart command.")
+        device = "/tmp/testdisk"
+        if "/dev" not in device:
+            utils_lib.run_cmd(self, "rm -f {}".format(device), expect_ret=0)
+        utils_lib.run_cmd(self, "truncate -s 2G {}".format(device), expect_ret=0)
+        size = "1026048"
+        utils_lib.run_cmd(self, """
+cat > partitions.txt <<EOF
+# partition table of {0}
+unit: sectors
+
+{0}1 : start= 2048, size= 1024000, Id=83
+{0}2 : start= {1}, size= {1}, Id=83
+EOF""".format(device, size), expect_ret=0)
+        utils_lib.run_cmd(self, "sfdisk {} < partitions.txt".format(device), expect_ret=0)
+        utils_lib.run_cmd(self, "growpart {} 2".format(device), expect_ret=0)
+        start = utils_lib.run_cmd(self,
+            "parted -s %s unit s print|grep ' 2 '|awk '{print $2}'" % device, expect_ret=0)
+        end = utils_lib.run_cmd(self,
+            "parted -s %s unit s print|grep ' 2 '|awk '{print $3}'" % device, expect_ret=0)
+        self.assertEqual(start.strip(), size + 's', "Start size is not correct")
+        self.assertEqual(end.strip(), '4194270s', "End size is not correct")
 
     def tearDown(self):
         if 'test_cloudinit_sshd_keypair' in self.id():

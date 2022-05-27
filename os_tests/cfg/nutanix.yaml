@@ -3,24 +3,29 @@ Cloud:
   cvm_ip: 
 Credential:
   username: 
-  password: 
+  password:
   cvm_username: 
-  cvm_password: 
+  cvm_password:
 Subscription:
   username: 
   password: 
 VM:
-  rhel_ver: '8.6'
+  rhel_ver: '9.0'
   username: cloud-user
   password: redhat
   keypair: xen-jenkins
   vm_name: vm_script
-  image_name: rhel-guest-image-8.6
-  image_name_iso: RHEL-8.5.0-20211013.2
-  image_name_kickstart_iso: kick_start_iso
-  storage_container_uuid: e4a19a2f-0118-4575-af66-317aea98739a 
-  network_uuid: 49ae0bb2-a417-4e97-aa0f-c768d58514a2
+  image_name: 
+  image_name_iso: 
+  image_name_kickstart_iso: 
+  storage_container_uuid: 
+  network_uuid: 
+  private_network_uuid:
+  private_network_subnet:
   custom_data:
+  if_uefi_boot: True
+  if_secure_boot: True
+  machine_type: q35
 Other:
   packages:
 Flavor:

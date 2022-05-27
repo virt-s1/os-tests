@@ -1,6 +1,7 @@
 import re
 import unittest
 import time
+import random
 from os_tests.libs import utils_lib
 
 class TestNetworkTest(unittest.TestCase):
@@ -31,7 +32,6 @@ class TestNetworkTest(unittest.TestCase):
         cmd = "ip addr show {}".format(self.nic)
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to get {} ipv4 address'.format(self.nic))
         self.ipv4 = re.findall('[\d.]{7,16}', output)[0]
-
 
     def test_ethtool_G(self):
         '''
@@ -331,6 +331,9 @@ class TestNetworkTest(unittest.TestCase):
             mtu_range = [0, 67, 68, 1500,1600]
             mtu_min = 68
             mtu_max = 1500
+            if self.vm.provider == 'nutanix':
+                mtu_range = [0, 67, 68, 65535,65536]
+                mtu_max = 65535
         elif 'hv_netvsc' in output and not utils_lib.is_azure(self):
             self.log.info('hv_netvsc found on azure, rhbz#2017612')
             mtu_range = [0, 67, 68, 1600, 4500]
@@ -357,7 +360,7 @@ class TestNetworkTest(unittest.TestCase):
             elif mtu_size < mtu_min or mtu_size > mtu_max:
                 utils_lib.run_cmd(self, mtu_cmd, expect_not_ret=0)
                 utils_lib.run_cmd(self, mtu_check, expect_ret=0, expect_not_kw="mtu {}".format(mtu_size))
-        cmd = "ping {} -c 10 -I {}".format(self.params.get('ping_server'), self.nic)
+        cmd = "sudo ping {} -c 10 -I {}".format(self.params.get('ping_server'), self.nic) #add sudo here or it will fail against 8.7
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', cursor=self.dmesg_cursor, skip_words='ftrace')
 
@@ -510,6 +513,249 @@ COMMIT
         utils_lib.run_cmd(self,"echo'%s'>/tmp/iptable.txt"%tablestr)
         utils_lib.run_cmd(self,'iptable-restore --test /tmp/iptable.txt',timeout=20,msg="run restore test")
         utils_lib.run_cmd(self,"rm -f /tmp/iptable.txt")
+
+    def _test_add_remove_multi_nics(self, nic_num, network_uuid, ip_subnet, driver='virtio'):
+        '''
+        Add remove multi nics according to specific parameters.
+        '''
+        #record origin nic's mac and name
+        origin_nic_name = utils_lib.run_cmd(self, "ls /sys/class/net/ | grep -v lo").strip()
+        origin_nic_mac = utils_lib.run_cmd(self, "cat /sys/class/net/%s/address" % origin_nic_name).strip()
+        #stop vm to add nic if vm is secure boot and record the set ip list
+        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+            self.vm.stop(wait=True)
+        used_ip_list = self.vm.list_networks_address(self.vm.private_network_uuid)
+        set_ip_list = []
+        for i in range(nic_num):
+            if ip_subnet == None:
+                ip_address = None
+            else:
+                while True:
+                    ip_address = ip_subnet + str(random.randint(10,100))
+                    if ip_address not in set_ip_list and ip_address not in used_ip_list:
+                        set_ip_list.append(ip_address)
+                        break
+            self.log.info("Add nic for %s time(s)" % i)
+            self.vm.attach_nic(network_uuid, ip_address, driver)
+        set_ip_list.sort()
+        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+            #start vm
+            self.vm.start(wait=True)
+            time.sleep(30)
+            utils_lib.init_connection(self, timeout=180)
+        #check nic number
+        vm_nic_num = int(utils_lib.run_cmd(self, "ls /sys/class/net | grep e | wc -l").strip())
+        self.assertEqual(vm_nic_num, nic_num+1, msg="Number of nics is not right, Expect: %s, real: %s" % (nic_num+1, vm_nic_num))
+        #check nic driver
+        nic_name_list = (utils_lib.run_cmd(self, "ls /sys/class/net | grep e")).split()
+        for nic_name in nic_name_list:
+            nic_driver = utils_lib.run_cmd(self, "ethtool -i %s | grep driver | awk '{print $2}'" % nic_name).strip()
+            if nic_name == origin_nic_name:
+                self.assertEqual(nic_driver, 'virtio_net', msg="Default nic dirver is not virtio_net, real: %s" % nic_driver)
+            else:
+                if driver == 'virtio':
+                    driver_check = 'virtio_net'
+                else:
+                    driver_check = driver
+                self.assertEqual(nic_driver, driver_check, msg="Driver of %s is not right, Expect: %s, real: %s" % (nic_name, driver, nic_driver))
+        #record nic mac list
+        nic_mac_list = utils_lib.run_cmd(self, "ip a | grep link/ether | awk '{print $2}'").split()
+        #check nic ip
+        if ip_subnet != None:
+            vm_ip_list = utils_lib.run_cmd(self, "ip a | grep 'inet ' | grep %s | awk '{print $2}' | sed 's/\/24//'" % self.vm.private_network_subnet).split()
+            vm_ip_list.sort()
+            self.assertEqual(vm_ip_list, set_ip_list, msg="IP configure is not right, Expect: %s, real: %s" % (str(set_ip_list), str(vm_ip_list)))
+        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+            self.vm.stop(wait=True)
+        #delete nic by mac
+        for mac in nic_mac_list:
+            if mac != origin_nic_mac:
+                self.vm.detach_nic(mac)
+        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+            self.vm.start(wait=True)
+            time.sleep(30)
+            utils_lib.init_connection(self, timeout=180)
+        vm_nic_num = int(utils_lib.run_cmd(self, "ip a | grep 'inet ' | grep global | wc -l").strip())
+        self.assertEqual(vm_nic_num, 1, msg="Number of nics is not right, Expect: %s, real: %s" % (1, vm_nic_num))
+
+    def test_add_remove_multi_virtio_no_ip_spec(self):
+        """
+        case_tag:
+            Network
+        case_name:
+            test_add_remove_multi_virtio_no_ip_spec
+        case_file:
+            os_tests.tests.test_netwrok_test.TestNetworkTest.test_add_remove_multi_virtio_no_ip_spec
+        component:
+            network
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Add/Remove four NICs without IP, check nic number and driver.
+        key_steps:
+            Add/Remove four NICs without IP.
+        expect_result:
+            Check nic number and driver without error.
+        debug_want:
+            N/A
+        """
+        self._test_add_remove_multi_nics(4, None, None, 'virtio')
+
+    def test_add_remove_multi_virtio_ip_spec(self):
+        """
+        case_tag:
+            Network
+        case_name:
+            test_add_remove_multi_virtio_ip_spec
+        case_file:
+            os_tests.tests.test_netwrok_test.TestNetworkTest.test_add_remove_multi_virtio_ip_spec
+        component:
+            network
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Add/Remove four NICs with IP, check nic number and driver.
+        key_steps:
+            Add/Remove four NICs with IP.
+        expect_result:
+            Check nic number and driver without error.
+        debug_want:
+            N/A
+        """
+        self._test_add_remove_multi_nics(4, self.vm.private_network_uuid, self.vm.private_network_subnet, 'virtio')
+
+    def test_add_remove_multi_e1000_nic(self):
+        """
+        case_tag:
+            Network
+        case_name:
+            test_add_remove_multi_e1000_nic
+        case_file:
+            os_tests.tests.test_netwrok_test.TestNetworkTest.test_add_remove_multi_e1000_nic
+        component:
+            network
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Add/Remove four e1000 NICs, two with IP and the other two without IP, check nic number, nic ip and driver.
+        key_steps:
+            Add/Remove four e1000 NICs, two with IP and the other two without IP.
+        expect_result:
+            Check nic number, nic ip and driver.
+        debug_want:
+            N/A
+        """
+        self._test_add_remove_multi_nics(2, None, None, 'e1000')
+        self._test_add_remove_multi_nics(2, self.vm.private_network_uuid, self.vm.private_network_subnet, 'e1000')
+
+    def _test_unload_load_nic_driver(self, driver):
+        #record the first nic
+        origin_nic_name = utils_lib.run_cmd(self, "ls /sys/class/net/ | grep -v lo").strip()
+        origin_nic_mac = utils_lib.run_cmd(self, "cat /sys/class/net/%s/address" % origin_nic_name).strip()
+        #atach the second nic
+        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+            self.vm.stop(wait=True)
+        self.vm.attach_nic(None, None, driver)
+        self.vm.detach_nic(origin_nic_mac)
+        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+            self.vm.start(wait=True)
+        for nic in self.vm.get_vm_by_filter("vm_name", self.vm.prism.vm_name).get('vm_nics'):
+            if nic['network_uuid'] == self.vm.network_uuid:
+                new_ip = nic['ip_address']
+        self.params['remote_node'] = new_ip
+        utils_lib.init_connection(self, timeout=180)
+        new_nic_mac = utils_lib.run_cmd(self, "cat /sys/class/net/%s/address" % origin_nic_name).strip()
+        self.assertNotEqual(origin_nic_mac, new_nic_mac, msg="Second nic name changed after detaching the first nic, Expect not: %s, real: %s" % (origin_nic_mac, new_nic_mac))
+        if driver == 'virtio':
+            driver_check = 'virtio_net'
+        else:
+            driver_check = driver
+        for i in range (2):
+            self.log.info("Unload and load nic driver for %s time(s)." % i)
+            utils_lib.run_cmd(self, "sudo modprobe -r %s && sudo modprobe %s" % (driver_check, driver_check), expect_ret=0)
+        new_nic_name = utils_lib.run_cmd(self, "ls /sys/class/net/ | grep -v lo").strip()
+        self.assertEqual(origin_nic_name, new_nic_name, msg="Second nic name changed after unload/load nic driver three times, Expect: %s, real: %s" % (origin_nic_name, new_nic_name))
+
+    def test_unload_load_virtio(self):
+        """
+        case_tag:
+            Network
+        case_name:
+            test_unload_load_virtio
+        case_file:
+            os_tests.tests.test_netwrok_test.TestNetworkTest.test_unload_load_virtio
+        component:
+            network
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Check nic name after unload and load nic driver.
+        key_steps: |
+            1. Add a new nic and remove the new .
+            2. unload and load nic driver virtio_net and restart NetworkManager.
+            3. Nic name will not change.
+        expect_result:
+            Nic name will not change after unload and load nic driver.
+        debug_want:
+            N/A
+        """
+        self._test_unload_load_nic_driver('virtio')
+
+    def test_unload_load_e1000(self):
+        """
+        case_tag:
+            Network
+        case_name:
+            test_unload_load_e1000
+        case_file:
+            os_tests.tests.test_netwrok_test.TestNetworkTest.test_unload_load_e1000
+        component:
+            network
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Check nic name after unload and load nic driver.
+        key_steps: |
+            1. Add a new nic and remove the new .
+            2. unload and load nic driver e1000 and restart NetworkManager.
+            3. Nic name will not change.
+        expect_result:
+            Nic name will not change after unload and load nic driver.
+        debug_want:
+            N/A
+        """
+        self._test_unload_load_nic_driver('e1000')
+
     def tearDown(self):
         if 'test_mtu_min_max_set' in self.id():
             mtu_cmd = "sudo ip link set dev %s mtu %s" % (self.nic, self.mtu_old)
