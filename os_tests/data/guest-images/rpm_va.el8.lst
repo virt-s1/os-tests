@@ -1,0 +1,11 @@
+.M.......  c /boot/grub2/grub.cfg
+.M.......  g /var/spool/anacron/cron.daily
+.M.......  g /var/spool/anacron/cron.monthly
+.M.......  g /var/spool/anacron/cron.weekly
+S.5....T.  c /etc/NetworkManager/NetworkManager.conf
+.M.......  c /etc/machine-id
+..5....T.  c /etc/dnf/plugins/product-id.conf
+..5....T.  c /etc/dnf/plugins/subscription-manager.conf
+.M....G..  g /var/log/lastlog
+S.5....T.  c /etc/ssh/sshd_config
+missing     /run/motd.d

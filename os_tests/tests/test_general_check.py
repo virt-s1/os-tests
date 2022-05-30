@@ -1045,6 +1045,20 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         cmd = 'rpm -qa | grep glibc'
         utils_lib.run_cmd(self, cmd, msg='please attach {} output if file bug'.format(cmd))
         utils_lib.run_cmd(self, 'locale', expect_not_kw="Cannot", msg='check no errors about locale')
+        cmd = "grep 'LANG=' /etc/locale.conf"
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Get LANG in locale.conf")
+        product_id = utils_lib.get_product_id(self)
+        if float(product_id) >= 9.0:
+            # workaround for the pending pkg release
+            cmd = "rpm -q cloud-init"
+            output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Get cloud-init rpm name")
+            ver = output.lstrip('cloud-init-').split('-')[0]
+            if (float(ver) >= 22.2):
+                self.assertTrue(re.match(r'LANG="*C.UTF-8"*', output),
+                                "default LANG is wrong -> %s" % output)
+        else:
+            self.assertTrue(re.match(r'LANG="*en_US.UTF-8"*', output),
+                            "default LANG is wrong -> %s" % output)
 
     def test_check_lshw_mem(self):
         '''

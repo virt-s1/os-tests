@@ -1,14 +1,14 @@
 Cloud:
   provider: google
-  service_account_json_file: /home/wshi/etc/virt-qe-fd13804cd81a.json
+  service_account_json_file:
   project_name: virt-qe
   zone: us-central1-a
 VM:
-  rhel_ver: '8.6'
+  rhel_ver: '9.1'
   username: cloud-user
   password: RedHatTest1@
-  vm_name: rhel-guest-image-8-6-1469
-  image_name: rhel-guest-image-8-6-1469
+  vm_name: rhel-guest-image-9-1-20220606-1
+  image_name: rhel-guest-image-9-1-20220606-1
 Flavor:
   name: e2-standard-2
   cpu: 2
