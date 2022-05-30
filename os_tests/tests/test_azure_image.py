@@ -143,11 +143,11 @@ class TestAzureImage(unittest.TestCase):
     def test_check_blacklist(self):
         '''
         bz: 1645772
-        des: nouveau,lbm-nouveau,floppy should be disabled
+        des: nouveau,lbm-nouveau,floppy,skx_edac,intel_cstate should be disabled
         '''
         utils_lib.run_cmd(self, "sudo lsmod|grep nouveau", expect_not_ret=0, msg='check nouveau is not loaded')
         file_check = '/lib/modprobe.d/blacklist-*.conf'
-        for module in ['nouveau, lbm-nouveau, floppy']:
+        for module in ['nouveau, lbm-nouveau, floppy', 'skx_edac', 'intel_cstate']:
             utils_lib.run_cmd(self, "sudo cat {}".format(file_check), expect_ret=0, expect_kw='blacklist '+module, msg='check "{}" in {}'.format(module, file_check))
 
     def test_check_cmdline_rhgb_quiet(self):
@@ -168,7 +168,7 @@ class TestAzureImage(unittest.TestCase):
 
     def test_check_pkg_wanted(self):
         '''
-        Some pkgs are required in azure.
+        Verify requied pkgs are installed.
         '''
         pkgs_wanted = '''yum-utils,redhat-release-eula,cloud-init,\
 tar,rsync,NetworkManager,cloud-utils-growpart,gdisk,\
@@ -197,7 +197,7 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         - boot with efi or legacy bios
         - /boot/grub2/grubenv is a symlink for /boot/efi/EFI/redhat/grubenv if boot with efi
         - /boot/grub2/grubenv is a file rather than a link if boot with legacy bios
-        Check grub2 config for el8:
+        Check grub2 config for el8+:
         - boot with efi or legacy bios
         - /boot/grub2/grub.cfg exists and /boot/grub2/grubenv is a file if boot with efi
         - /boot/grub2/grubenv is a file rather than a link if boot with legacy bios
@@ -492,6 +492,7 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
 
     def test_check_yum_repoinfo(self):
         '''
+        Verify yum repoinfo, repo-pkgs should not be 0
         '''
         cmd = "sudo rpm -qa|grep rhui"
         ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='Check if it is a RHUI image')
@@ -502,6 +503,7 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
 
     def test_yum_package_install(self):
         '''
+        Verify yum function
         '''
         cmd = "sudo rpm -qa|grep rhui"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Check if RHUI is installed')
@@ -538,7 +540,7 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
 
     # def test_check_pkgs(self):
     #     '''
-    #     Some pkgs are required in azure.
+    #     Compare full package list
     #     '''
     #     base_file = 'pkglist'
     #     test_file = '/tmp/pkglist_test'
@@ -558,7 +560,7 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
 
     def test_check_services_active(self):
         '''
-        Verify the services are active
+        Verify the necessary services are active
         '''
         services = '''waagent,cloud-init-local,cloud-init,cloud-config,cloud-final,hypervkvpd,sshd'''
         service_list = services.split(',')
@@ -703,9 +705,9 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
 
     def test_check_hostkey_permission(self):
         '''
+        bz: 2013644
         Verify /etc/ssh/ssh_host_xxx_key permission are 640, group is ssh_keys.
         '''
-        # BZ#2013644
         expected = "-rw-r-----.rootssh_keys"
         cmd = "ls -l /etc/ssh/{ssh_host_ecdsa_key,ssh_host_ed25519_key,ssh_host_rsa_key}|awk '{print $1$3$4}'|uniq"
         utils_lib.run_cmd(self, cmd, expect_output=expected, msg="Verify /etc/ssh/ssh_host_xxx_key permission is 640, group is ssh_keys")
@@ -1095,23 +1097,15 @@ PasswordAuthentication no
             "rhui-1.microsoft.com",
             "rhui-2.microsoft.com",
             "rhui-3.microsoft.com",
-            "rh-cds.trafficmanager.net",
         ]
-        if self.is_gov:
-            # there is no rhui in us-gov regions at all - all the content requests are redirected to closest standard regions
-            cmd = "sudo getent hosts rh-cds.trafficmanager.net | awk '{print $2}'"
-            region_cds = utils_lib.run_cmd(self, cmd, msg="Get region cds")
-            rhui_cds_hostnames.append(region_cds)
-        else:
-            rhui_cds_hostnames.append("{0}-cds.{0}.cloudapp.azure.com".format(self.region))
         for cds in rhui_cds_hostnames:
             cmd = "sudo getent hosts {}".format(cds)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check {}'.format(cds))
 
     def test_z_check_subscription_manager_auto_function(self):
         '''
-        * Add "z" in the case name to make it run at last
         Verify auto_registration function works
+        * Add "z" in the case name to make it run at last
         '''
         product_id = utils_lib.get_product_id(self)
         if float(product_id) < float('8.4'):
