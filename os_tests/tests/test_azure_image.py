@@ -18,20 +18,30 @@ class TestAzureImage(unittest.TestCase):
     @property
     def metadata(self):
         cmd = 'curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2021-02-01"'
-        return utils_lib.run_cmd(self, cmd)
+        return json.loads(utils_lib.run_cmd(self, cmd))
 
 
-    @property
-    def region(self):
-        return json.loads(self.metadata)['compute']['location']
+    # @property
+    # def region(self):
+    #     return self.metadata['compute']['location']
 
-    @property
-    def is_gov(self):
+    # @property
+    # def is_gov(self):
+    #     '''
+    #     If it is gov cloud, return true
+    #     '''
+    #     environment = self.metadata['compute']['azEnvironment']
+    #     return environment == "AzureUSGovernmentCloud"
+
+    def _get_generation(self):
         '''
-        If it is gov cloud, return true
+        Get genenration from dmesg. Return gen1/gen2.
         '''
-        environment = json.loads(self.metadata)['compute']['azEnvironment']
-        return environment == "AzureUSGovernmentCloud"
+        ret = utils_lib.run_cmd(self, 'dmesg|grep -w EFI', ret_status=True)
+        if ret == 0:
+            return 'gen2'
+        else:
+            return 'gen1'
 
     def _check_log(self, filename, ignore_list=[], keyword='err|fail|warn|trace'):
         cmd = "sudo grep -iE 'err|fail|warn|trace' {}|grep -vE '{}'".format(filename, '|'.join(ignore_list))
@@ -51,15 +61,16 @@ class TestAzureImage(unittest.TestCase):
         utils_lib.run_cmd(self, "cat "+testfile)
         # If base is a file
         if basefile:
+            src_file = self.data_dir + '/azure/{}'.format(basefile)
             # Base file content is different in multiple RHEL versions
             if project:
-                basefile += "_rhel{}".format(project)
+                src_file += "_rhel{}".format(project)
                 # If >= RHEL-8 and no specific file, use RHEL-8 file
-                if not os.path.exists(basefile) and project >= 8:
-                    basefile = basefile.replace("_rhel{}".format(project), "_rhel8")
+                if not os.path.exists(src_file) and project >= 8:
+                    self.log.info("No {}. Use _rhel8 file instead.".format(src_file))
+                    src_file = src_file.replace("_rhel{}".format(project), "_rhel8")
             # Get the base file path
             # If remote node, copy the basefile to the remote node /tmp/
-            src_file = self.data_dir + '/azure/{}'.format(basefile)
             if self.params['remote_node'] is not None:
                 base_file = "/tmp/"+basefile
                 self.log.info('Copy {} to remote'.format(basefile))
@@ -147,7 +158,11 @@ class TestAzureImage(unittest.TestCase):
         '''
         utils_lib.run_cmd(self, "sudo lsmod|grep nouveau", expect_not_ret=0, msg='check nouveau is not loaded')
         file_check = '/lib/modprobe.d/blacklist-*.conf'
-        for module in ['nouveau, lbm-nouveau, floppy', 'skx_edac', 'intel_cstate']:
+        if self.rhel_x_version >= 9:
+            blacklist = ['nouveau, lbm-nouveau, floppy', 'amdgpu']
+        else:
+            blacklist = ['nouveau, lbm-nouveau, floppy', 'skx_edac', 'intel_cstate', 'amdgpu']
+        for module in blacklist:
             utils_lib.run_cmd(self, "sudo cat {}".format(file_check), expect_ret=0, expect_kw='blacklist '+module, msg='check "{}" in {}'.format(module, file_check))
 
     def test_check_cmdline_rhgb_quiet(self):
@@ -1010,8 +1025,8 @@ langpack_locales = en_US.UTF-8
         '''
         Verify os disk size is 64 GiB
         '''
-        cmd = "sudo fdisk -l|grep 'Disk /dev/sda'|awk '{print $5}'"
-        utils_lib.run_cmd(self, cmd, expect_kw='68719476736', msg="Verify os disk size is 64 GiB")
+        cmd = "sudo fdisk -l|grep 'Linux LVM'|awk '{print $5}'"
+        utils_lib.run_cmd(self, cmd, expect_kw='63G', msg="Verify os disk size is 64 GiB")
 
     # Inactive this case because the service list is not always the same
     # def test_check_service_list(self):
@@ -1085,8 +1100,7 @@ PasswordAuthentication no
         '''
         Verify can get metadata
         '''
-        metadata_dict = json.loads(self.metadata)
-        self.assertEqual(metadata_dict.get('compute').get('osType'), "Linux", 
+        self.assertEqual(self.metadata.get('compute').get('osType'), "Linux", 
             "Cannot parse metadata to get azEnvironment")
 
     def test_check_cds_hostnames(self):
@@ -1129,6 +1143,18 @@ PasswordAuthentication no
             time.sleep(30)
         else:
             self.fail("Fail to auto register!")
+
+    def test_check_image_generation(self):
+        '''
+        (image test only)Check generation according to image name
+        '''
+        sku = self.metadata['compute']['storageProfile']['imageReference']['sku']
+        if not sku:
+            self.skipTest("Only for image testing")
+        if sku.endswith('gen1'):
+            self.assertEqual(self._get_generation(), 'gen1', "Expected: gen1; Real: gen2")
+        else:
+            self.assertEqual(self._get_generation(), 'gen2', "Expected: gen2; Real: gen1")
 
     def tearDown(self):
         pass
