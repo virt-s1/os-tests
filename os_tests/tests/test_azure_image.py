@@ -536,8 +536,8 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         Verify auto_registration is enabled in the image
         '''
         product_id = utils_lib.get_product_id(self)
-        if float(product_id) < float('8.4'):
-            self.skipTest('skip in earlier than el8.4')
+        # if float(product_id) < float('8.4'):
+        #     self.skipTest('skip in earlier than el8.4')
 
         # cmd = "sudo rpm -qa|grep rhui"
         # ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='Check if it is a RHUI image')
@@ -1025,7 +1025,10 @@ langpack_locales = en_US.UTF-8
         '''
         Verify os disk size is 64 GiB
         '''
-        cmd = "sudo fdisk -l|grep 'Linux LVM'|awk '{print $5}'"
+        if self.rhel_x_version < 8:
+            cmd = "sudo fdisk -l|grep 'Linux LVM'|awk '{print $4}'"
+        else:
+            cmd = "sudo fdisk -l|grep 'Linux LVM'|awk '{print $5}'"
         utils_lib.run_cmd(self, cmd, expect_kw='63G', msg="Verify os disk size is 64 GiB")
 
     # Inactive this case because the service list is not always the same
@@ -1122,8 +1125,8 @@ PasswordAuthentication no
         * Add "z" in the case name to make it run at last
         '''
         product_id = utils_lib.get_product_id(self)
-        if float(product_id) < float('8.4'):
-            self.skipTest('skip in earlier than el8.4')
+        # if float(product_id) < float('8.4'):
+        #     self.skipTest('skip in earlier than el8.4')
         cmd = "sudo subscription-manager config --rhsmcertd.auto_registration=1"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Enable auto_registration")
         cmd = "sudo subscription-manager config --rhsm.manage_repo=0"
