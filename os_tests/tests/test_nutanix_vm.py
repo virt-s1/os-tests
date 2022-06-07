@@ -134,9 +134,16 @@ class TestNutanixVM(unittest.TestCase):
         Verify memory capacity (GB) between Nutanix AHV and RHEL guest.
         '''
         self.log.info("Verify memory capacity (GB) between Nutanix AHV and RHEL guest")
-        if not expect_ratio:
-            expect_ratio = 0.92
         mem_in_ahv = float(self.vm.get_memory_size())
+        if not expect_ratio:
+            if mem_in_ahv <= 1:
+                expect_ratio = 0.75
+            elif mem_in_ahv in range(2, 4):
+                expect_ratio = 0.8
+            elif mem_in_ahv in range(4, 8):
+                expect_ratio = 0.88
+            elif mem_in_ahv >= 8:
+                expect_ratio = 0.92
         mem_in_guest = float(round(utils_lib.get_memsize(self), 2))
         
         self.assertLess(mem_in_guest, mem_in_ahv,
@@ -198,7 +205,15 @@ class TestNutanixVM(unittest.TestCase):
         host_list = self.vm.host_uuid
         self._verify_live_migration(host_list)
         self._live_migration(host_list)
-        
+
+    def _recover_memory(self, mem_gb_current):
+        self.log.info("Recover VM memory")
+        self.vm.update_memory_size(mem_gb_current)
+        self.assertEqual(self.vm.get_memory_size(), mem_gb_current,
+                         "Test failed as recover VM memory failed")
+        utils_lib.init_connection(self)
+        self._verify_memory_size()
+
     def test_live_migration_io(self):
         '''
         case_tag:
@@ -466,13 +481,7 @@ class TestNutanixVM(unittest.TestCase):
                          "Test failed as hot add VM memory failed")
         time.sleep(10)
         self._verify_memory_size()
-        
-        self.log.info("Recover VM memory")
-        self.vm.update_memory_size(mem_gb_current)
-        self.assertEqual(self.vm.get_memory_size(), mem_gb_current,
-                         "Test failed as recover VM memory failed")
-        utils_lib.init_connection(self)
-        self._verify_memory_size()
+        self._recover_memory(self, mem_gb_current)
 
     def test_add_vcpu(self):
         '''
@@ -608,13 +617,7 @@ class TestNutanixVM(unittest.TestCase):
                          "Test failed as add VM memory failed")
         utils_lib.init_connection(self)
         self._verify_memory_size()
-        
-        self.log.info("Recover VM memory")
-        self.vm.update_memory_size(mem_gb_current)
-        self.assertEqual(self.vm.get_memory_size(), mem_gb_current,
-                         "Test failed as recover VM memory failed")
-        utils_lib.init_connection(self)
-        self._verify_memory_size()
+        self._recover_memory(self, mem_gb_current)
 
     def test_cpu_passthrough(self):
         '''
@@ -715,6 +718,136 @@ class TestNutanixVM(unittest.TestCase):
             self._verify_memory_vnuma()
             self.assertEqual(self.vm.get_memory_vnuma(), vnuma_num_current,
                             "Test failed as recover VM vnuma failed")
+
+    def test_check_firstlaunch_time(self):
+        """
+        case_tag:
+            GeneralVerification
+        case_name:
+            test_check_firstlaunch_time
+        case_file:
+            os_tests.tests.test_nutanix_vm.test_check_firstlaunch_time
+        component:
+            GeneralVerification
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        customer_case_id:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            shshang@redhat.com
+        description:
+            Verify VM first launch time
+        key_steps: |
+            1. Get system boot time via "systemd-analyze"
+            2. Compare with first_launch in nutanix.yaml
+        expect_result:
+            Boot time less than first_launch in nutanix.yaml
+        debug_want:
+            systemd-analyze
+        debug_want:
+            N/A
+        """
+        firstlaunch_time = self.vm.params['BootTime']['first_launch']
+        boot_time_sec = utils_lib.getboottime(self)
+        utils_lib.compare_nums(self, num1=boot_time_sec, num2=firstlaunch_time, ratio=0, msg="Compare with cfg specified firstlaunch_time")
+
+    def test_check_reboot_time(self):
+        """
+        case_tag:
+            GeneralVerification
+        case_name:
+            test_check_reboot_time
+        case_file:
+            os_tests.tests.test_nutanix_vm.test_check_reboot_time
+        component:
+            GeneralVerification
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        customer_case_id:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            shshang@redhat.com
+        description:
+            Verify VM reboot time
+        key_steps: |
+            1. Reboot VM gracefully
+            1. Get system boot time via "systemd-analyze"
+            2. Compare with acpi_reboot in nutanix.yaml
+        expect_result:
+            Boot time less than acpi_reboot in nutanix.yaml
+        debug_want:
+            systemd-analyze
+        debug_want:
+            N/A
+        """
+        self.vm.reboot(wait=True)
+        utils_lib.init_connection(self)
+        reboot_time = self.vm.params['BootTime']['acpi_reboot']
+        boot_time_sec = utils_lib.getboottime(self)
+        utils_lib.compare_nums(self, num1=boot_time_sec, num2=reboot_time, ratio=0, msg="Compare with cfg specified reboot_time")
+        
+    def test_reboot_vm_12Gmem(self):
+        """
+        case_tag:
+            GeneralVerification
+        case_name:
+            test_reboot_vm_12Gmem
+        case_file:
+            os_tests.tests.test_nutanix_vm.test_reboot_vm_12Gmem
+        component:
+            GeneralVerification
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        customer_case_id:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            shshang@redhat.com
+        description:
+            Reboot VM with more than 12G memory for 3 times in UEFI mode
+        key_steps: |
+            1. Prepare a VM with more than 12G UEFI in UEFI mode
+            2. Reboot VM for 3 times
+        expect_result:
+            1. VM should be working after reboot
+            2. No unexpected error
+        debug_want:
+            N/A
+        debug_want:
+            N/A
+        """
+        if not self.vm.is_uefi_boot:
+            self.skipTest("Skip as VM is not in UEFI boot mode")
+        
+        mem_gb_current = self.vm.get_memory_size()
+        mem_gb_target = 12
+        self.log.info("Add VM memory to %sGB" % mem_gb_target)
+        self.vm.update_memory_size(mem_gb_target)
+        self.assertEqual(self.vm.get_memory_size(), mem_gb_target,
+                         "Test failed as add VM memory failed")
+        time.sleep(10)
+        self._verify_memory_size()
+               
+        reboot_cycles = 3
+        for cycle in range(1, reboot_cycles+1):
+            self.log.info("Reboot cycle: %d" % cycle)
+            self.vm.reboot(wait=True)
+            utils_lib.init_connection(self)
+            utils_lib.run_cmd(self, "last reboot", expect_ret=0,
+                        msg="Verify RHEL guest is still alive")
+
+        self._recover_memory(self, mem_gb_current)
 
     def tearDown(self):
         utils_lib.check_log(self, "error,warn,fail,unable,unknown,Unknown,Call trace,Call Trace",

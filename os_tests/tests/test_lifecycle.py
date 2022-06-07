@@ -291,6 +291,80 @@ no plan to fix it in the near future!")
         cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='write_sysrq_trigger')
 
+    def test_kdump_each_cpu(self):
+        """
+        case_tag:
+            kdump
+        case_name:
+            test_kdump_each_cpu
+        case_file:
+            os_tests.tests.test_lifecycle.test_kdump_each_cpu
+        component:
+            kdump
+        bugzilla_id:
+            1396554
+        is_customer_case:
+            False
+        customer_case_id:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            shshang@redhat.com
+        description:
+            Test kdump on each cpu core
+        key_steps: |
+            1. Triger crash on each cpu core
+            2. Check if kdump is working and dump file will be generated
+        expect_result:
+            kdump is working and dump file will be generated
+        debug_want:
+            N/A
+        debug_want:
+            N/A
+        """
+        utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
+        if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self):
+            self.skipTest("Cancel as bug 1654962 in arm guest which \
+no plan to fix it in the near future!")
+        
+        cmd = "grep processor /proc/cpuinfo | wc -l"
+        cpu_counts = int(utils_lib.run_cmd(self, cmd, expect_ret=0,
+                                           msg = "Get cpu counts"))
+        for core_num in range(cpu_counts):
+            self.log.info("Trigger kdump on core %d" % core_num)
+            cmd = "systemctl is-active kdump || sudo systemctl start kdump"
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check kdump service status")
+            
+            utils_lib.run_cmd(self,
+                        "sudo rm -rf /var/crash/*",
+                        expect_ret=0,
+                        msg="clean /var/crash")
+            utils_lib.run_cmd(self, "sudo sync", expect_ret=0)
+            self.log.info("Before system crash")
+            res_before = utils_lib.run_cmd(self,
+                                           "find /var/crash",
+                                           expect_ret=0,
+                                           msg="list /var/crash before crash")
+            cmd = "sudo bash -c 'taskset -c %d echo c > /proc/sysrq-trigger'" % core_num
+            utils_lib.run_cmd(self, cmd, msg='trigger crash')
+            time.sleep(30)
+
+            self.params['remote_node'] = self.vm.floating_ip
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
+            self.log.info("After system crash")
+            res_after = utils_lib.run_cmd(self,
+                                          "find /var/crash",
+                                          expect_ret=0,
+                                          msg="list /var/crash after crash")
+            if res_after == res_before:
+                self.fail("Test failed as no crash dump file found")
+
+            cmd = "sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50"
+            utils_lib.run_cmd(self, cmd, expect_ret=0,
+                              expect_kw="write_sysrq_trigger",
+                              msg="Check if crash happened")
+
     def test_kdump_fastboot_systemctl_kexec(self):
         '''
         description:
