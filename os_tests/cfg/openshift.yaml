@@ -12,6 +12,6 @@ VM:
 Flavor:
   name: tiny
   cpu: 2
-  memory: 4
+  memory: 2
   size: 10G
   virt: kvm
