@@ -1,4 +1,4 @@
-from .resources import VMResource,UnSupportedAction,UnSupportedStatus
+from .resources import VMResource, UnSupportedAction, UnSupportedStatus
 from os_tests.libs import utils_lib
 import logging
 import time
@@ -16,7 +16,9 @@ except ImportError as err:
 LOG = logging.getLogger('os_tests.os_tests_run')
 logging.basicConfig(level=logging.DEBUG)
 
+
 class OpenstackVM(VMResource):
+
     def __init__(self, params, **kwargs):
         super(OpenstackVM, self).__init__(params)
         self._data = None
@@ -47,7 +49,8 @@ class OpenstackVM(VMResource):
         self.size = params['Flavor'].get('size')
         self.keypair = params['VM'].get('keypair')
         self.run_uuid = params.get('run_uuid')
-        self.user_data = "#!/bin/bash\nmkdir /tmp/userdata_{}".format(self.run_uuid)
+        self.user_data = "#!/bin/bash\nmkdir /tmp/userdata_{}".format(
+            self.run_uuid)
         self.config_drive = None
         self.second_nic_id = None
 
@@ -72,7 +75,10 @@ class OpenstackVM(VMResource):
             self._data = server
 
     @property
-    @utils_lib.wait_for(not_ret=None, ck_not_ret=True, timeout=120, interval=10)
+    @utils_lib.wait_for(not_ret=None,
+                        ck_not_ret=True,
+                        timeout=120,
+                        interval=10)
     def floating_ip(self):
         f_ip = None
         self.data = self.vm_name
@@ -80,7 +86,7 @@ class OpenstackVM(VMResource):
             for ip in net:
                 if ip['OS-EXT-IPS:type'] == 'floating':
                     f_ip = ip['addr']
-                elif ip['OS-EXT-IPS:type'] == 'fixed' and  ip['version']== 4:
+                elif ip['OS-EXT-IPS:type'] == 'fixed' and ip['version'] == 4:
                     f_ip = ip['addr']
         return f_ip
 
@@ -111,9 +117,9 @@ class OpenstackVM(VMResource):
             x = base64.b64encode(self.user_data.encode())
             args['user_data'] = x.decode("ascii")
         if self.config_drive:
-            args['config_drive']= True
+            args['config_drive'] = True
         if self.second_nic_id:
-            args['networks'].append({"uuid": self.second_nic_id })
+            args['networks'].append({"uuid": self.second_nic_id})
 
         server = self.conn.compute.create_server(**args)
 
@@ -213,10 +219,11 @@ class OpenstackVM(VMResource):
 
     def show(self):
         return self.data
-    
+
     def get_console_log(self):
         try:
-            output = self.conn.compute.get_server_console_output(self.data.id).get('output')
+            output = self.conn.compute.get_server_console_output(
+                self.data.id).get('output')
             return True, output
         except Exception as err:
             LOG.error("Failed to get console log! %s" % err)

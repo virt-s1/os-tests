@@ -2,6 +2,7 @@ from .resources import VMResource, StorageResource, NetworkResource, UnSupported
 from os_tests.libs import utils_lib
 import sys
 import re
+import os
 try:
     import libvirt
     import xml.etree.ElementTree as ET
@@ -11,6 +12,7 @@ except ImportError as err:
 
 
 class LibvirtVM(VMResource):
+
     def __init__(self, params):
         super(LibvirtVM, self).__init__(params)
         self._data = None
@@ -22,6 +24,8 @@ class LibvirtVM(VMResource):
         # VM creation parameters
         self.vm_name = params['VM'].get('vm_name')
         self.image_name = params['VM'].get('image_name')
+        self.nocloud_iso_name = params['VM'].get('nocloud_iso_name')
+        self.image_dir = params['VM'].get('image_dir')
         self.arch = params['VM'].get('arch')
         if not self.arch:
             self.arch = re.search(r'\.([^.]+)\.[^.]+$',
@@ -81,11 +85,11 @@ class LibvirtVM(VMResource):
             )
             root.insert(3, sub_cpu)
             sub_loader = ET.fromstring('<loader readonly="yes" type="pflash">\
-/usr/share/AAVMF/AAVMF_CODE.verbose.fd</loader>')
+/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>')
             root.find("os").insert(0, sub_loader)
             sub_nvram = ET.fromstring(
-                "<nvram template='/usr/share/AAVMF/AAVMF_VARS.fd'>\
-/var/lib/libvirt/qemu/nvram/AAVMF_VARS.fd</nvram>")
+                "<nvram template='/usr/share/OVMF/OVMF_VARS.fd'>\
+%s/OVMF_VARS.fd</nvram>" % self.image_dir)
             root.find("os").insert(0, sub_nvram)
             root.find("devices").find("rng").find(
                 "backend").text = "/dev/urandom"
@@ -96,8 +100,10 @@ class LibvirtVM(VMResource):
         root.find("vcpu").text = str(self.vcpus)
         root.find("memory").text = str(self.memory * 1024 * 1024)
         root.find("currentMemory").text = str(self.memory * 1024 * 1024)
-        root.find("devices").find("disk").find("source").set(
-            "file", "/var/lib/libvirt/images/" + self.image_name)
+        root.find("devices").find("disk[@device='disk']").find("source").set(
+            "file", os.path.join(self.image_dir, self.image_name))
+        root.find("devices").find("disk[@device='cdrom']").find("source").set(
+            "file", os.path.join(self.image_dir, self.nocloud_iso_name))
         xmlconfig = ET.tostring(root).decode()
         dom = self.conn.defineXML(xmlconfig)
         dom.create()
@@ -222,6 +228,7 @@ class LibvirtVM(VMResource):
     def is_exist(self):
         raise NotImplementedError
 
+
 dom_xml = """
 <domain type='kvm'>
   <name>rhel</name>
@@ -236,13 +243,19 @@ dom_xml = """
     <acpi/>
     <apic/>
   </features>
-  <cpu mode='host-model' check='partial'/>
+  <cpu mode='host-passthrough'/>
   <devices>
     <emulator>/usr/libexec/qemu-kvm</emulator>
     <disk type='file' device='disk'>
       <driver name='qemu' type='qcow2'/>
       <source file='/tmp/rhel-guest-image.qcow2'/>
-      <target dev='vda' bus='virtio'/>
+      <target dev='sda' bus='scsi'/>
+    </disk>
+    <disk type='file' device='cdrom'>
+      <driver name='qemu' type='raw'/>
+      <source file='/tmp/nocloud.iso'/>
+      <target dev='sdb'/>
+      <readonly/>
     </disk>
     <interface type='network'>
       <source network='default' bridge='virbr0'/>

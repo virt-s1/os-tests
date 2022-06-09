@@ -1,0 +1,56 @@
+apiVersion: kubevirt.io/v1alpha3
+kind: VirtualMachine
+metadata:
+  name: VM_NAME
+  creationTimestamp: null
+  namespace: rhel-guest-image
+spec:
+  running: true
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        kubevirt.io/domain: rhel8
+    spec:
+      domain:
+        cpu:
+          cores: 2
+          sockets: 1
+          threads: 1
+        devices:
+          disks:
+            - disk:
+                bus: virtio
+              name: cloudinitdisk
+            - bootOrder: 1
+              disk:
+                bus: virtio
+              name: rootdisk
+          interfaces:
+            - masquerade: {}
+              model: virtio
+              name: nic-0
+          networkInterfaceMultiqueue: true
+          rng: {}
+        machine:
+          type: pc-q35-rhel8.2.0
+        resources:
+          requests:
+            memory: 4Gi
+      evictionStrategy: LiveMigrate
+      hostname: rhel
+      networks:
+        - name: nic-0
+          pod: {}
+      terminationGracePeriodSeconds: 0
+      volumes:
+        - cloudInitNoCloud:
+            userData: |
+              #cloud-config
+              user: cloud-user
+              ssh_authorized_keys:
+              - ssh-rsa
+          name: cloudinitdisk
+        - containerDisk:
+            image: 'quay.io/wshi/rhel-guest-image:8.4-603'
+          name: rootdisk

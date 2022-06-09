@@ -80,7 +80,8 @@ class GCPVM(VMResource):
 
         # Define the auth scopes to request.
         scope = 'https://www.googleapis.com/auth/compute'
-        service_account_json_file = params['Cloud'].get('service_account_json_file')
+        service_account_json_file = params['Cloud'].get(
+            'service_account_json_file')
 
         # Authenticate and construct service.
         self.service_v1 = get_service(
@@ -169,6 +170,11 @@ class GCPVM(VMResource):
                     'https://www.googleapis.com/auth/logging.write'
                 ]
             }],
+            'scheduling':
+            {
+               'provisioningModel': 'SPOT',
+               'instanceTerminationAction': 'DELETE'
+            },
         }
 
         operation = self.service_v1.instances().insert(project=self.project,

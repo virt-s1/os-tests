@@ -1,0 +1,2 @@
+restorecon reset /etc/sysconfig/anaconda context system_u:object_r:etc_runtime_t:s0->system_u:object_r:etc_t:s0
+restorecon reset /etc/yum.repos.d/eng.repo context system_u:object_r:unlabeled_t:s0->system_u:object_r:system_conf_t:s0

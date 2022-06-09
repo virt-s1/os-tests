@@ -1240,3 +1240,39 @@ def get_public_key(client_user=None):
     public_key.close()
     
     return public_key_str
+
+def normalize_data_size(value_str, order_magnitude="M", factor="1024"):
+    """
+    Normalize a data size in one order of magnitude to another (MB to GB,
+    for example).
+
+    :param value_str: a string include the data default unit is 'B'
+    :param order_magnitude: the magnitude order of result
+    :param factor: the factor between two relative order of magnitude.
+                   Normally could be 1024 or 1000
+    """
+    def __get_unit_index(M):
+        try:
+            return ['B', 'K', 'M', 'G', 'T'].index(M.upper())
+        except ValueError:
+            pass
+        return 0
+
+    regex = r"(\d+\.?\d*)\s*(\w?)"
+    match = re.search(regex, value_str)
+    try:
+        value = match.group(1)
+        unit = match.group(2)
+        if not unit:
+            unit = 'B'
+    except TypeError:
+        raise ValueError("Invalid data size format 'value_str=%s'" % value_str)
+    from_index = __get_unit_index(unit)
+    to_index = __get_unit_index(order_magnitude)
+    scale = int(factor)**(to_index - from_index)
+    data_size = float(value) / scale
+    # Control precision to avoid scientific notaion
+    if data_size.is_integer():
+        return "%.1f" % data_size
+    else:
+        return ("%.20f" % data_size).rstrip('0')
