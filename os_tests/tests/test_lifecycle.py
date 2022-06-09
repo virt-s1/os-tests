@@ -539,6 +539,9 @@ no plan to fix it in the near future!")
                         "Stop VM error: VM status is not SHUTOFF")
         self._start_vm_and_check()
         utils_lib.run_cmd(self, 'shutdown now')
+        for count in utils_lib.iterate_timeout(
+                60, "Timed out waiting for getting server stopped."):
+            if self.vm.is_stopped(): break
         self._start_vm_and_check()
 
     def tearDown(self):

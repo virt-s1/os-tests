@@ -18,12 +18,12 @@ Subscription:
   baseurl:
   serverurl:
 VM:
-  rhel_ver: '8.0'
+  rhel_ver: '9.1'
   username: cloud-user
   password: 
   keypair: xen-jenkins
   vm_name: avocado_cloud
-  image_name: rhel-guest-image-8.0-1795.x86_64.qcow2
+  image_name: rhel-guest-image-9.1-20220606.1.x86_64.qcow2
   network_name: provider_net_cci_4
   network_id: 68a8220a-20f4-4940-99b4-45b6f98bce6b
 SecurityGroups:

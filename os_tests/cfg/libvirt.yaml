@@ -5,14 +5,16 @@ Subscription:
   username:
   password:
 VM:
-  rhel_ver: '8.6'
+  rhel_ver: '9.1'
   username: root
   password: redhat
-  vm_name: rhel8.6
-  image_name: rhel-guest-image-8.6-1469.x86_64.qcow2
+  vm_name: rhel9.1
+  image_name: rhel-guest-image-9.1-20220606.1.x86_64.qcow2
+  image_dir: /var/lib/libvirt/images
+  nocloud_iso_name: nocloud.iso
 Flavor:
   name: small
   cpu: 1
-  memory: 1
+  memory: 2
   size: 10G
   virt: kvm

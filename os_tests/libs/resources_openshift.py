@@ -18,6 +18,7 @@ def login(auth, project):
 
 
 class OpenShiftVM(VMResource):
+
     def __init__(self, params):
         super(OpenShiftVM, self).__init__(params)
         self._data = None
@@ -30,10 +31,10 @@ class OpenShiftVM(VMResource):
         self.vm_name = params['VM'].get('vm_name')
         self.image_name = params['VM'].get('image_name')
         self.arch = params['VM'].get('arch')
-        self.flavor = params.get('name', '*/Flavor/*')
-        self.size = params.get('size', '*/Flavor/*')
-        self.vcpus = params.get('cpu', '*/Flavor/*')
-        self.memory = params.get('memory', '*/Flavor/*')
+        self.flavor = params['Flavor'].get('name')
+        self.size = params['Flavor'].get('size')
+        self.vcpus = params['Flavor'].get('cpu')
+        self.memory = params['Flavor'].get('memory')
         self.user_data = None
         self._port = None
 
@@ -97,31 +98,36 @@ class OpenShiftVM(VMResource):
 
     def create(self, wait=False):
         self.pwd = os.path.abspath(os.path.dirname(__file__))
-        root_path = os.path.dirname(os.path.dirname(os.path.dirname(self.pwd)))
-        data_path = os.path.join(root_path, 'data')
-        with open(os.path.join(data_path, 'openshift/vm.templ'), 'r') as f:
+        data_dir = os.path.join(os.path.dirname(self.pwd), 'data')
+        with open(os.path.join(data_dir, 'guest-images/openshift.templ'),
+                  'r') as f:
             try:
-                dict = yaml.load(f, Loader=yaml.FullLoader)
+                vm_spec = yaml.load(f, Loader=yaml.FullLoader)
             except yaml.YAMLError as e:
                 print(e)
 
         ssh_pubkey = utils_lib.get_public_key()
         userData = re.sub(
-            'ssh-rsa.*\n', ssh_pubkey, dict['spec']['template']['spec']
+            'ssh-rsa.*\n', ssh_pubkey, vm_spec['spec']['template']['spec']
             ['volumes'][0]['cloudInitNoCloud']['userData'])
-        dict['spec']['template']['spec']['volumes'][0]['cloudInitNoCloud'][
+        vm_spec['spec']['template']['spec']['volumes'][0]['cloudInitNoCloud'][
             'userData'] = userData
-        dict['spec']['template']['spec']['volumes'][1]['containerDisk'][
+        vm_spec['spec']['template']['spec']['volumes'][1]['containerDisk'][
             'image'] = self.image_name
-        dict['metadata']['name'] = self.vm_name
-        dict['spec']['template']['metadata']['labels'][
+        vm_spec['metadata']['name'] = self.vm_name
+        vm_spec['spec']['template']['metadata']['labels'][
             'kubevirt.io/domain'] = self.vm_name
+        vm_spec['spec']['template']['spec']['domain']['cpu'][
+            'cores'] = self.vcpus
+        vm_spec['spec']['template']['spec']['domain']['resources']['requests'][
+            'memory'] = str(self.memory) + 'Gi'
 
-        with open(os.path.join(data_path, 'openshift/vm.yaml'), 'w') as file:
-            yaml.dump(dict, file)
+        with open(os.path.join(data_dir, 'guest-images/openshift.yaml'),
+                  'w') as file:
+            yaml.dump(vm_spec, file)
 
         subprocess.Popen('oc apply -f %s' %
-                         os.path.join(data_path, 'openshift/vm.yaml'),
+                         os.path.join(data_dir, 'guest-images/openshift.yaml'),
                          shell=True,
                          stdout=FNULL).communicate()
 
