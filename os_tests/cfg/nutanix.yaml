@@ -26,6 +26,9 @@ VM:
   if_uefi_boot: True
   if_secure_boot: True
   machine_type: q35
+BootTime:
+  first_launch: 30
+  acpi_reboot: 25
 Other:
   packages:
 Flavor:

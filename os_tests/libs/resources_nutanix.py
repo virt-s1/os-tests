@@ -649,6 +649,11 @@ class NutanixVM(VMResource):
         return f_ip
 
     @property
+    def is_uefi_boot(self):
+        logging.info('Query VM boot mode')
+        return self.data.get('boot')['uefi_boot']
+
+    @property
     def host_uuid(self):
         host_uuid = []
         for host in self.prism.list_hosts_detail()["entities"]:
