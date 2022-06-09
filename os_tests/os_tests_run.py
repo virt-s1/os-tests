@@ -60,16 +60,22 @@ def main():
                 test_patterns = args.pattern
             else:
                 test_patterns = 'test_azure_image'
+        elif 'gcp' in args.image:
+            print("only run gcp image checks")
+            if args.pattern:
+                test_patterns = args.pattern
+            else:
+                test_patterns = 'test_gcp_image'
         else:
-            print("only azure image check supported for now")
+            print("only azure and gcp image check supported for now")
             sys.exit(0)
     else:
-        print("skip azure image check by default")
+        print("skip azure and gcp image check by default")
         if skip_patterns and not args.verifydoc:
-            skip_patterns = skip_patterns + ',test_azure_image'
+            skip_patterns = skip_patterns + ',test_azure_image,test_gcp_image'
         else:
             if not args.verifydoc:
-                skip_patterns = 'test_azure_image'
+                skip_patterns = 'test_azure_image,test_gcp_image'
 
     ssh = None
     if cfg_data['remote_node'] is None and not args.platform_profile:
