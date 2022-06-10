@@ -29,7 +29,7 @@ jobs:
     - name: Run simple cases to test
       run: |
         os-tests -p test_check_locale
-        cat /tmp/os_tests_result/debug/os_tests.tests.test_general_check.TestGeneralCheck.test_check_locale.debug
+        cat /tmp/os_tests_result/attachments/TestGeneralCheck.os_tests.tests.test_general_check.TestGeneralCheck.test_check_locale/os_tests.tests.test_general_check.TestGeneralCheck.test_check_locale.debug
     - name: Publish to PyPI
       if: startsWith(github.ref, 'refs/tags')
       uses: pypa/gh-action-pypi-publish@master

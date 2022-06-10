@@ -201,10 +201,15 @@ def init_case(test_instance):
         cfg_file, keys_data = get_cfg()
         test_instance.params = keys_data
     results_dir = test_instance.params['results_dir']
-    debug_dir = results_dir + "/debug"
+    attachment_dir = results_dir + "/attachments"
     test_instance.log_dir = results_dir
     if not os.path.exists(results_dir):
         os.mkdir(results_dir)
+    if not os.path.exists(attachment_dir):
+        os.mkdir(attachment_dir)
+    test_class_name = test_instance.__class__.__name__
+    case_dir = '.'.join([test_class_name, test_instance.id()])
+    debug_dir = os.path.join(attachment_dir, case_dir)
     if not os.path.exists(debug_dir):
         os.mkdir(debug_dir)
     case_log = test_instance.id() + ".debug"
@@ -234,7 +239,7 @@ def init_case(test_instance):
         test_instance.SSH.log = test_instance.log
         if  test_instance.SSH.ssh_client is None:
             test_instance.skipTest("Cannot make ssh connection to remote, please check")
-    node_info = "{}/node_info".format(debug_dir)
+    node_info = "{}/node_info".format(attachment_dir)
     node_info_data = {}
     if not os.path.exists(node_info):
         test_instance.log.info("retrive node info.")
