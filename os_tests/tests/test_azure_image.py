@@ -159,11 +159,13 @@ class TestAzureImage(unittest.TestCase):
         utils_lib.run_cmd(self, "sudo lsmod|grep nouveau", expect_not_ret=0, msg='check nouveau is not loaded')
         file_check = '/lib/modprobe.d/blacklist-*.conf'
         if self.rhel_x_version >= 9:
-            blacklist = ['nouveau, lbm-nouveau, floppy', 'amdgpu']
+            blacklist = ['nouveau', 'lbm-nouveau', 'floppy', 'amdgpu']
         else:
-            blacklist = ['nouveau, lbm-nouveau, floppy', 'skx_edac', 'intel_cstate', 'amdgpu']
+            blacklist = ['nouveau', 'lbm-nouveau', 'floppy', 'skx_edac', 'intel_cstate', 'amdgpu']
+        # Print the full blacklist
+        utils_lib.run_cmd(self, "sudo cat {}".format(file_check))
         for module in blacklist:
-            utils_lib.run_cmd(self, "sudo cat {}".format(file_check), expect_ret=0, expect_kw='blacklist '+module, msg='check "{}" in {}'.format(module, file_check))
+            utils_lib.run_cmd(self, "sudo cat {}|grep -w {}".format(file_check, module), expect_ret=0, msg='check "{}" in {}'.format(module, file_check))
 
     def test_check_cmdline_rhgb_quiet(self):
         '''
