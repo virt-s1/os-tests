@@ -5,6 +5,7 @@ import sys
 import time
 import warnings
 import string
+import contextlib
 import os
 from jinja2 import Template, FileSystemLoader, Environment, PackageLoader, select_autoescape
 
@@ -39,6 +40,14 @@ def generated_report(logfile, template_name, result):
         fh.write(output)
     print("{} generated".format(os.path.realpath(logfile)))
 
+@contextlib.contextmanager
+def pushd(new_dir):
+    previous_dir = os.getcwd()
+    os.chdir(new_dir)
+    try:
+        yield
+    finally:
+        os.chdir(previous_dir)
 
 class _WritelnDecorator(object):
     """Used to decorate file-like objects with a handy 'writeln' method"""
@@ -112,7 +121,12 @@ class HTMLTestRunner(object):
             all_case_name = [ ts.id() for ts in test ]
             for ts in test:
                 logdir = ts.params['results_dir']
-                sum_txt = logdir + '/sum.log'
+                if not os.path.exists(logdir):
+                    os.mkdir(logdir)
+                results_dir = logdir + '/results'
+                if not os.path.exists(results_dir):
+                    os.mkdir(results_dir)
+                sum_txt = results_dir + '/sum.log'
                 case_status = None
                 case_reason = None
                 id += 1
@@ -127,31 +141,36 @@ class HTMLTestRunner(object):
                     if stopTestRun is not None:
                         stopTestRun()
                     ts.duration = timeTaken = time.perf_counter() - case_startTime
-                debug_log = "debug/" + ts.id() + '.debug'
-                os.chdir(logdir)
-                mapped_result = {'FAIL':result.failures, 'ERROR':result.errors, 'SKIP':result.skipped}
-                for status in mapped_result.keys():
-                    for ts_finished, reason in mapped_result[status]:
-                        if ts_finished == ts:
-                            if status == 'FAIL':
-                                test_result.case_fail += 1
-                            if status == 'ERROR':
-                                test_result.case_error += 1
-                            if status == 'SKIP':
-                                test_result.case_skip += 1
-                            case_status = status
-                            case_reason = reason
-                            with open(debug_log, 'a+') as fh:
-                                fh.write(reason)
-                                fh.write('{} - {}'.format(ts.id(), status))
-                            break
-                if not case_status:
-                    test_result.case_pass += 1
-                    with open(debug_log, 'a+') as fh:
-                        fh.write('{} - PASS'.format(ts.id()))
-                    case_status = 'PASS'
-                    case_reason = ''
-                test_result.table_rows.append((id, ts.id(), case_status, case_reason, ts.duration, debug_log))
+                test_class_name = ts.__class__.__name__
+                case_dir = '.'.join([test_class_name, ts.id()])
+                debug_dir = logdir + "/attachments/" + case_dir
+                if not os.path.exists(debug_dir):
+                    os.mkdir(debug_dir)
+                debug_log = "attachments/" + case_dir + '/' + ts.id() + '.debug'
+                with pushd(logdir):
+                    mapped_result = {'FAIL':result.failures, 'ERROR':result.errors, 'SKIP':result.skipped}
+                    for status in mapped_result.keys():
+                        for ts_finished, reason in mapped_result[status]:
+                            if ts_finished == ts:
+                                if status == 'FAIL':
+                                    test_result.case_fail += 1
+                                if status == 'ERROR':
+                                    test_result.case_error += 1
+                                if status == 'SKIP':
+                                    test_result.case_skip += 1
+                                case_status = status
+                                case_reason = reason
+                                with open(debug_log, 'a+') as fh:
+                                    fh.write(reason)
+                                    fh.write('{} - {}'.format(ts.id(), status))
+                                break
+                    if not case_status:
+                        test_result.case_pass += 1
+                        with open(debug_log, 'a+') as fh:
+                            fh.write('{} - PASS'.format(ts.id()))
+                        case_status = 'PASS'
+                        case_reason = ''
+                test_result.table_rows.append((id, ts.id(), case_status, case_reason, ts.duration, debug_log, test_class_name))
                 with open(sum_txt, 'a+') as fh:
                     fh.write('case: {} - {}\n'.format(ts.id(),case_status))
                     if case_reason:
@@ -164,16 +183,19 @@ class HTMLTestRunner(object):
         for case in all_case_name:
             id += 1
             is_pass = True
-            os.chdir(logdir)
-            debug_log = "debug/" + case + '.debug'
+            #  os.chdir(logdir)
+            debug_log = "attachments/" + case + '.debug'
         if hasattr(result, 'separator2'):
             self.stream.writeln(result.separator2)
         test_result.compute_totals()
-        with open("{}/debug/node_info".format(logdir)) as fh:
+        with open("{}/attachments/node_info".format(logdir)) as fh:
             test_result.node_info = fh.read()
-        sum_html = os.path.join(logdir, "sum.html")
+        results_dir = logdir + '/results'
+        if not os.path.exists(results_dir):
+            os.mkdir(results_dir)
+        sum_html = os.path.join(results_dir, "sum.html")
         generated_report(sum_html, "sum.html", test_result)
-        sum_junit = os.path.join(logdir, "sum.xml")
+        sum_junit = os.path.join(results_dir, "sum.xml")
         generated_report(sum_junit, "sum.xml", test_result)
         self.stream.writeln("{} generated".format(os.path.realpath(sum_txt)))
         #result.printErrors()

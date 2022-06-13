@@ -2,7 +2,7 @@
 <testsuites>
   <testsuite name="os-tests" time="{{ result.run_time }}" tests="{{ result.total }}" errors="{{ result.case_error }}" skipped="{{ result.case_skip }}" failures="{{ result.case_fail }}" nodeinfo="{{ result.node_info }}">
   {% for row in result.table_rows %}
-  <testcase name="{{ row[1] }}">
+  <testcase classname="{{ row[6] }}" name="{{ row[1] }}">
     {% if row[2] == 'FAIL' %}
     <failure>{{ row[3] }}</failure>
     {% endif %}
