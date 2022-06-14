@@ -146,8 +146,8 @@ class HTMLTestRunner(object):
                 debug_dir = logdir + "/attachments/" + case_dir
                 if not os.path.exists(debug_dir):
                     os.mkdir(debug_dir)
-                debug_log = "attachments/" + case_dir + '/' + ts.id() + '.debug'
-                with pushd(logdir):
+                debug_log = "../attachments/" + case_dir + '/' + ts.id() + '.debug'
+                with pushd(results_dir):
                     mapped_result = {'FAIL':result.failures, 'ERROR':result.errors, 'SKIP':result.skipped}
                     for status in mapped_result.keys():
                         for ts_finished, reason in mapped_result[status]:
@@ -184,7 +184,7 @@ class HTMLTestRunner(object):
             id += 1
             is_pass = True
             #  os.chdir(logdir)
-            debug_log = "attachments/" + case + '.debug'
+            debug_log = "../attachments/" + case + '.debug'
         if hasattr(result, 'separator2'):
             self.stream.writeln(result.separator2)
         test_result.compute_totals()
