@@ -456,24 +456,17 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         '''
         cmd = 'sudo cat /etc/yum/pluginconf.d/product-id.conf'
         utils_lib.run_cmd(self,cmd, expect_ret=0, expect_kw='enabled=1', msg='check yum product-id plugin is enabled')
-        cmd = "sudo rpm -qa|grep rhui"
-        ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='Check if it is a RHUI image')
-        if ret == 0:
-            # RHUI image
-            expect_kw = "enabled=0"
-            status = "disabled"
-        else:
-            # SCA image
-            expect_kw = "enabled=1"
-            status = "enabled"
-        if self.rhel_x_version >= 8:
-            expect_kw += ",disable_system_repos=0"
         # Yum plugin
+        yum_expect_kw = "enabled=0"
         cmd = "sudo cat /etc/yum/pluginconf.d/subscription-manager.conf|sed -s 's/ = /=/g'"
-        utils_lib.run_cmd(self,cmd, expect_ret=0, expect_kw=expect_kw, msg='check yum subscription-manager plugin is {}'.format(status))
+        utils_lib.run_cmd(self,cmd, expect_ret=0, expect_kw=yum_expect_kw, msg='check yum subscription-manager plugin is {}'.format(yum_expect_kw))
         # Dnf plugin
+        if self.rhel_x_version >= 8:
+            dnf_expect_kw = "enabled=0,disable_system_repos=0"
+        else:
+            dnf_expect_kw = "enabled=1"
         cmd = "sudo cat /etc/dnf/plugins/subscription-manager.conf|sed -s 's/ = /=/g'"
-        utils_lib.run_cmd(self,cmd, expect_ret=0, expect_kw=expect_kw, msg='check dnf subscription-manager plugin is {}'.format(status))
+        utils_lib.run_cmd(self,cmd, expect_ret=0, expect_kw=dnf_expect_kw, msg='check dnf subscription-manager plugin is {}'.format(dnf_expect_kw))
 
     def test_check_auditd(self):
         """
