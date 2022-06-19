@@ -484,7 +484,7 @@ def run_cmd(test_instance,
     if expect_kw is not None:
         for key_word in expect_kw.split(','):
             if output.count('\n') > 5:
-                find_list = re.findall('\n.*{}.*\n'.format(key_word), output)
+                find_list = re.findall('.*{}.*'.format(key_word), output)
             else:
                 find_list = re.findall('.*{}.*'.format(key_word), output)
             if len(find_list) > 0:
