@@ -12,15 +12,28 @@ class TestCloudInit(unittest.TestCase):
         self.timeout = 180
 
     def test_check_cloudinit_cfg_no_wheel(self):
-        '''
+        """
         case_tag:
             cloudinit
-        bz: 1549638
-        cm: 01965459
-        polarion_id:
+        case_name:
+            test_check_cloudinit_cfg_no_wheel
+        component:
+            cloud-init
+        bugzilla_id:
+            1549638
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
         description:
             make sure there is no wheel in default_user's group in "/etc/cloud/cloud.cfg"
-        '''
+        key_steps:
+            1. check cloud config file
+        expect_result:
+            there's no 'wheel' saved in log file
+        debug_want:
+            cloud.cfg
+        """
         cmd = 'sudo cat /etc/cloud/cloud.cfg'
         utils_lib.run_cmd(self,
                     cmd,
@@ -29,14 +42,29 @@ class TestCloudInit(unittest.TestCase):
                     msg='check /etc/cloud/cloud.cfg to make sure no wheel in default_user group(bz1549638)')
 
     def test_check_cloudinit_ds_identify_found(self):
-        '''
+        """
         case_tag:
             cloudinit,cloudinit_tier1
-        bz:
+        case_name:
+            test_check_cloudinit_ds_identify_found
+        component:
+            cloud-init
+        bugzilla_id:
             1746627
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
         description:
-            check ds-identify run and ret found
-        '''
+            check if ds-identify can run and ret is found
+        key_steps:
+            1.rpm -q cloud-init
+            2.check cloud-init-generator log 
+        expect_result:
+            no error and return 0
+        debug_want:
+            cloud init log file
+        """
         cmd = 'rpm -q cloud-init'
         utils_lib.run_cmd(self, cmd, cancel_not_kw='el8_0')
         cmd = 'sudo cat /run/cloud-init/cloud-init-generator.log'
@@ -47,22 +75,34 @@ class TestCloudInit(unittest.TestCase):
                     msg='check /run/cloud-init/cloud-init-generator.log')
 
     def test_check_cloudinit_fingerprints(self):
-        '''
+        """
         case_tag:
             cloudinit
-        bz: 1957532
-        cm: 02905983
-        polarion_id:
+        case_name:
+            test_check_cloudinit_fingerprints
+        component:
+            cloud-init
+        bugzilla_id:
+            1957532
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
         description:
-            check fingerprints is saved in /var/log/messages.
-        expect_result: |
+            check if fingerprints is saved in /var/log/messages.
+        key_steps:
+            1.sudo awk '/BEGIN/,/END/' /var/log/messages
+            2.check result
+        expect_result:
             # grep -A 4 'BEGIN SSH HOST KEY FINGERPRINTS' /var/log/messages
             May  6 02:57:58 ip-10-116-2-239 ec2[1441]: -----BEGIN SSH HOST KEY FINGERPRINTS-----
             May  6 02:57:58 ip-10-116-2-239 ec2[1441]: 256 SHA256:n+iS6HUI/ApfkE/ZveBzBrIFSsmcL1YR/c3RsbPShd8 no comment (ECDSA)
             May  6 02:57:58 ip-10-116-2-239 ec2[1441]: 256 SHA256:lZSyEuxf421H9y2DnoadjIvidZWXvGL3wfRlwAFBnms no comment (ED25519)
             May  6 02:57:58 ip-10-116-2-239 ec2[1441]: 3072 SHA256:gysD1LLAkwZIovBEZdzX7s/dCJBegc+jnCtH7cJkIOo no comment (RSA)
             May  6 02:57:58 ip-10-116-2-239 ec2[1441]: -----END SSH HOST KEY FINGERPRINTS-----
-        '''
+        debug_want:
+            /var/log/messages
+        """
         # cmd = "sudo grep -A 4 'BEGIN SSH HOST KEY FINGERPRINTS' /var/log/messages"
         cmd = "sudo awk '/BEGIN/,/END/' /var/log/messages"
         out = utils_lib.run_cmd(self, cmd, msg='get fingerprints in /var/log/messages')
@@ -114,14 +154,28 @@ class TestCloudInit(unittest.TestCase):
                     msg='check /var/log/cloud-init.log')
 
     def test_check_cloudinit_log_unexpected(self):
-        '''
+        """
         case_tag:
             cloudinit
-        polarion_id:
-        bz: 1827207
+        case_name:
+            test_check_cloudinit_log_unexpected
+        component:
+            cloud-init
+        bugzilla_id:
+            1827207
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
         description:
             check no unexpected error log in cloudinit logs
-        '''
+        key_steps:
+            1.check there is no unexpected saved in cloud init log
+        expect_result:
+            no token saved in log
+        debug_want:
+            cloud init log
+        """
         utils_lib.run_cmd(self,
                     'sudo cat /var/log/cloud-init.log',
                     expect_ret=0,
@@ -136,14 +190,28 @@ class TestCloudInit(unittest.TestCase):
                         msg='check /var/log/cloud-init-output.log')
 
     def test_check_cloudinit_log_critical(self):
-        '''
+        """
         case_tag:
             cloudinit
-        polarion_id:
-        bz: 1827207
+        case_name:
+            test_check_cloudinit_log_critical
+        component:
+            cloud-init
+        bugzilla_id:
+            1827207
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
         description:
-            check no critical log in cloudinit logs
-        '''
+            check if there is CRITICAL saved in log file
+        key_steps:
+            1. check cloud init log file
+        expect_result:
+            no CRITICAL saved in log file
+        debug_want:
+            cloud init log file
+        """
         utils_lib.run_cmd(self,
                     'sudo cat /var/log/cloud-init.log',
                     expect_ret=0,
@@ -158,14 +226,28 @@ class TestCloudInit(unittest.TestCase):
                         msg='check /var/log/cloud-init-output.log')
 
     def test_check_cloudinit_log_warn(self):
-        '''
+        """
         case_tag:
             cloudinit
-        polarion_id:
-        bz: 1821999
+        case_name:
+            test_check_cloudinit_log_warn
+        component:
+            cloud-init
+        bugzilla_id:
+            1821999
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
         description:
             check no warning log in cloudinit logs
-        '''
+        key_steps:
+            1.check if there are WARNING in cloud-init.log
+        expect_result:
+            no WARNING saved in log file
+        debug_want:
+            cloud init log file
+        """
         utils_lib.run_cmd(self,
                     'sudo cat /var/log/cloud-init.log',
                     expect_ret=0,
@@ -180,14 +262,28 @@ class TestCloudInit(unittest.TestCase):
                         msg='check /var/log/cloud-init-output.log')
 
     def test_check_cloudinit_log_error(self):
-        '''
+        """
         case_tag:
             cloudinit
-        polarion_id:
-        bz: 1821999
+        case_name:
+            test_check_cloudinit_log_error
+        component:
+            cloud-init
+        bugzilla_id:
+            1821999
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
         description:
-            check no error log in cloudinit logs
-        '''
+            check if there is error log in cloud init log file
+        key_steps:
+            1.check cloud init log file
+        expect_result:
+            there is no ERROR saved in log file
+        debug_want:
+            cloud init log file
+        """
         utils_lib.run_cmd(self,
                     'sudo cat /var/log/cloud-init.log',
                     expect_ret=0,
@@ -202,13 +298,28 @@ class TestCloudInit(unittest.TestCase):
                         msg='check /var/log/cloud-init-output.log')
 
     def test_check_cloudinit_log_traceback(self):
-        '''
+        """
         case_tag:
             cloudinit
-        polarion_id:
+        case_name:
+            test_check_cloudinit_log_traceback
+        component:
+            cloud-init
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
         description:
-            check no traceback log in cloudinit logs
-        '''
+            check if there's no traceback log in cloudinit logs
+        key_steps:
+            1.check cloud-init log file
+        expect_result:
+            no Traceback saved in log file
+        debug_want:
+            cloud-init log file
+        """
         utils_lib.run_cmd(self,
                     'sudo cat /var/log/cloud-init.log',
                     expect_ret=0,
@@ -267,15 +378,28 @@ class TestCloudInit(unittest.TestCase):
                         msg='check /var/log/cloud-init-output.log exists status')
 
     def test_check_cloudinit_service_status(self):
-        '''
+        """
         case_tag:
             cloudinit
-        polarion_id:
+        case_name:
+            test_check_cloudinit_service_status
+        component:
+            cloud-init
         bugzilla_id:
             1829713
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
         description:
             The 4 cloud-init services status should be "active"
-        '''
+        key_steps:
+            1.start a RHEL-7.9 AMI on aws and check service status
+        expect_result:
+            cloud-final.service not failed
+        debug_want:
+            N/A
+        """
         service_list = ['cloud-init-local',
                         'cloud-init',
                         'cloud-config',

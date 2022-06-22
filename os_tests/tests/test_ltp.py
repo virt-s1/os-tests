@@ -75,6 +75,29 @@ class TestLTP(unittest.TestCase):
         self._ltp_run(case_name="add_key02")
 
     def test_ltp_cpuhotplug(self):
+        """
+        case_tag:
+            kernel
+        case_name:
+            test_ltp_cpuhotplug
+        component:
+            xen
+        bugzilla_id:
+            1464095,1908550
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
+        description:
+            check if cpu can restore online after offline it
+        key_steps:
+            1.check machine is not xen or aws bare metal machine
+            2.run cpuhotplug ltp test
+        expect_result:
+            test should be PASS and no crash seen
+        debug_want:
+            dmesg
+        """
         '''
         bz: 1464095,1908550
         polarion_id: RHEL7-98752
