@@ -681,7 +681,7 @@ EOF""".format(device, size), expect_ret=0)
         maintainer:
             minl@redhat.com
         description:
-            Test if custom data as script can be executed.
+            Test if custom data as script can be executed. File test.sh has be pre-uploaded and configured when provision VM.
         key_steps: |
             1. Create VM with custom data.
             2. Check if custom data as script can be executed.
@@ -692,7 +692,7 @@ EOF""".format(device, size), expect_ret=0)
         """
         utils_lib.run_cmd(self,"sudo chmod 777 /tmp/%s" % self.vm.prism.vm_custom_file)
         utils_lib.run_cmd(self,"sudo /tmp/%s" % self.vm.prism.vm_custom_file)
-        self.assertEqual("welcome to Nutanix world",
+        self.assertEqual("Test files to copy",
                          utils_lib.run_cmd(self, "sudo cat /tmp/test.txt").strip(),
                          "The custom data script is not executed correctly.")
 
