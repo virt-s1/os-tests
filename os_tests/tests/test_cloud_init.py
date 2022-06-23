@@ -458,6 +458,9 @@ class TestCloudInit(unittest.TestCase):
         """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
+        for attrname in ['ssh_pubkey', 'get_vm_by_filter', 'prism']:
+            if not hasattr(self.vm, attrname):
+                self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
         if self.vm.exists():
             self.vm.delete()
             time.sleep(30)
@@ -492,7 +495,7 @@ class TestCloudInit(unittest.TestCase):
     def test_cloudinit_verify_hostname(self):
         """
         case_tag:
-            Cloudinit
+            cloudinit
         case_name:
             test_cloudinit_verify_hostname
         case_file:
