@@ -524,7 +524,10 @@ COMMIT
         #stop vm to add nic if vm is secure boot and record the set ip list
         if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
             self.vm.stop(wait=True)
-        used_ip_list = self.vm.list_networks_address(self.vm.private_network_uuid)
+        try:
+            used_ip_list = self.vm.list_networks_address(self.vm.private_network_uuid)
+        except AttributeError:
+            self.skipTest('list_networks_address not found in {} vm'.format(self.vm.provider))
         set_ip_list = []
         for i in range(nic_num):
             if ip_subnet == None:
