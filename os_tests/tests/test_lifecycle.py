@@ -117,8 +117,8 @@ class TestLifeCycle(unittest.TestCase):
         polarion_id:
         bz: 1787270
         '''
-        #self.skipTest("skip it for now because paramiko know issue when enabled fips https://github.com/paramiko/paramiko/pull/1643")
 
+        utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_ret=0)
         self.log.info("Check system can boot with fips=1")
         output = utils_lib.run_cmd(self, 'uname -r', expect_ret=0)
         if 'el7' in output:
@@ -263,13 +263,12 @@ class TestLifeCycle(unittest.TestCase):
         bz: 1654962
         polarion_id: RHEL7-58669
         '''
-        cmd = 'systemctl is-active kdump'
-        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check kdump service')
+        for cmd in ['sudo kdumpctl showmem','cat /proc/cmdline','systemctl is-active kdump']:
+            utils_lib.run_cmd(self, cmd, expect_ret=0)
         output = utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
-        if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self):
-            self.skipTest("Cancel as bug 1654962 in arm guest which \
-no plan to fix it in the near future!")
-
+        product_id = utils_lib.get_product_id(self)
+        if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self) and float(product_id) < 8.6:
+            self.skipTest("Cancel as bug 1654962 in arm guest earlier than 8.6 2082405" )
         utils_lib.run_cmd(self,
                     r'sudo rm -rf /var/crash/*',
                     expect_ret=0,
@@ -324,9 +323,9 @@ no plan to fix it in the near future!")
             N/A
         """
         utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
-        if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self):
-            self.skipTest("Cancel as bug 1654962 in arm guest which \
-no plan to fix it in the near future!")
+        product_id = utils_lib.get_product_id(self)
+        if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self) and float(product_id) < 8.6:
+            self.skipTest("Cancel as bug 1654962 in arm guest earlier than 8.6 2082405" )
         
         cmd = "grep processor /proc/cpuinfo | wc -l"
         cpu_counts = int(utils_lib.run_cmd(self, cmd, expect_ret=0,

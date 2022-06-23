@@ -356,6 +356,9 @@ class EC2VM(VMResource):
         except Exception as exc:
             return False
 
+    def exists(self):
+        return self.is_exist()
+
     def is_stopped(self):
         if self.get_state() == 'stopped':
             return True

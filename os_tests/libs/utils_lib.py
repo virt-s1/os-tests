@@ -136,8 +136,10 @@ def init_ssh(params=None, timeout=600, interval=10, log=None):
 def init_connection(test_instance, timeout=600, interval=10):
     if test_instance.params['remote_node'] is None:
         return
-    test_instance.log.info("remote_node specified, all tests will be run in {}".format(test_instance.params['remote_node']))
+    test_instance.log.info("remote_node specified, all tests will run in {}".format(test_instance.params['remote_node']))
     try:
+        if hasattr(test_instance.vm, 'floating_ip'):
+            test_instance.params['remote_node'] = test_instance.vm.floating_ip
         if hasattr(test_instance.SSH, 'ssh_client'):
             test_instance.SSH.log = test_instance.log
             ret, _, _ = test_instance.SSH.cli_run(cmd='uname -r')
@@ -484,7 +486,7 @@ def run_cmd(test_instance,
     if expect_kw is not None:
         for key_word in expect_kw.split(','):
             if output.count('\n') > 5:
-                find_list = re.findall('\n.*{}.*\n'.format(key_word), output)
+                find_list = re.findall('.*{}.*'.format(key_word), output)
             else:
                 find_list = re.findall('.*{}.*'.format(key_word), output)
             if len(find_list) > 0:
