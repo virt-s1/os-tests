@@ -183,7 +183,6 @@ class PrismApi(PrismSession):
             user_script = [{'source_path': 'adsf:///{}/{}'.format(self.get_container()['name'], self.vm_custom_file),
                       'destination_path': '/tmp/{}'.format(self.vm_custom_file)}]
         # Attach NICs (all).--> Change to attach specified uuid unless test_persistent_route will fail
-        network_uuids = []
         network_uuids = [{"network_uuid": self.network_uuid}]
         if not single_nic:
             for network in self.list_networks_detail()["entities"]:
