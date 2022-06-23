@@ -1,7 +1,8 @@
 Cloud:
   provider: openshift
-  auth: 'curl -s http://10.73.72.140/cnv'
-  project: rhel-guest-image
+  token: ''
+  apiserver: 'https://api.ocp-virt.prod.psi.redhat.com:6443'
+  project: rhel-guest-image-container
 VM:
   rhel_ver: '9.1'
   username: cloud-user
@@ -10,8 +11,8 @@ VM:
   arch: x86_64
   image_name: registry.stage.redhat.io/rhel9/rhel-guest-image:9.1.0-286
 Flavor:
-  name: tiny
-  cpu: 2
+  name: small
+  cpu: 1
   memory: 2
   size: 10G
   virt: kvm

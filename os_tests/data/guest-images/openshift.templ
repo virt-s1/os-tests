@@ -3,7 +3,7 @@ kind: VirtualMachine
 metadata:
   name: VM_NAME
   creationTimestamp: null
-  namespace: rhel-guest-image
+  namespace: rhel-guest-image-container
 spec:
   running: true
   template:
@@ -14,7 +14,7 @@ spec:
     spec:
       domain:
         cpu:
-          cores: 2
+          cores: 1
           sockets: 1
           threads: 1
         devices:
@@ -36,7 +36,7 @@ spec:
           type: pc-q35-rhel8.2.0
         resources:
           requests:
-            memory: 4Gi
+            memory: 2Gi
       evictionStrategy: LiveMigrate
       hostname: rhel
       networks:
