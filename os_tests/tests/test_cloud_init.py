@@ -6,7 +6,6 @@ import time
 class TestCloudInit(unittest.TestCase):
     def setUp(self):
         utils_lib.init_case(self)
-
         cmd = "sudo systemctl is-enabled cloud-init-local"
         utils_lib.run_cmd(self, cmd, cancel_ret='0', msg = "check cloud-init-local is enabled")
         self.timeout = 180
@@ -381,7 +380,6 @@ class TestCloudInit(unittest.TestCase):
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
 
-        self.log.info("RHEL7-103839 - CLOUDINIT-TC: Auto extend root partition and filesystem")
         # 1. Install cloud-utils-growpart gdisk
         utils_lib.is_cmd_exist(self, cmd='growpart')
         utils_lib.is_cmd_exist(self, cmd='gdisk')
@@ -666,6 +664,129 @@ EOF""".format(device, size), expect_ret=0)
             "parted -s %s unit s print|grep ' 2 '|awk '{print $3}'" % device, expect_ret=0)
         self.assertEqual(start.strip(), size + 's', "Start size is not correct")
         self.assertEqual(end.strip(), '4194270s', "End size is not correct")
+
+    def test_cloudinit_save_and_handle_customdata_script(self):
+        """
+        case_tag:
+            Cloudinit
+        case_name:
+            test_cloudinit_save_and_handle_customdata_script
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_save_and_handle_customdata_script
+        component:
+            cloudinit
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Test if custom data as script can be executed. File test.sh has be pre-uploaded and configured when provision VM.
+        key_steps: |
+            1. Create VM with custom data.
+            2. Check if custom data as script can be executed.
+        expect_result:
+            Custom data as script can be executed.
+        debug_want:
+            N/A
+        """
+        utils_lib.run_cmd(self,"sudo chmod 777 /tmp/%s" % self.vm.prism.vm_custom_file)
+        utils_lib.run_cmd(self,"sudo /tmp/%s" % self.vm.prism.vm_custom_file)
+        self.assertEqual("Test files to copy",
+                         utils_lib.run_cmd(self, "sudo cat /tmp/test.txt").strip(),
+                         "The custom data script is not executed correctly.")
+
+    def test_cloudinit_save_and_handle_customdata_cloudinit_config(self):
+        """
+        case_tag:
+            Cloudinit
+        case_name:
+            test_cloudinit_save_and_handle_customdata_cloudinit_config
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_save_and_handle_customdata_cloudinit_config
+        component:
+            cloudinit
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Test if the new cloud-init configuration is handled correctly
+        key_steps: |
+            1. Create VM with custom data.
+            2. Check if the new cloud-init configuration is handled correctly.
+        expect_result:
+            The new cloud-init configuration is handled correctly.
+        debug_want:
+            N/A
+        """
+        output = utils_lib.run_cmd(self,
+            "sudo grep 'running modules for config' "
+            "/var/log/cloud-init.log -B 10")
+        self.assertIn("Ran 6 modules", output,
+                      "The custom data is not handled correctly")
+
+    def test_cloudinit_provision_vm_with_multiple_nics(self):
+        """
+        case_tag:
+            Cloudinit
+        case_name:
+            test_cloudinit_provision_vm_with_multiple_nics
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_provision_vm_with_multiple_nics
+        component:
+            cloudinit
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Provision VM with multiple NICs
+        key_steps: |
+            1. Create a VM with 2 NICs.
+            2. Check if can provision and connect to the VM successfully.
+        expect_result:
+            VM can provision and connect successfully
+        debug_want:
+            N/A
+        """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
+        self.vm.delete(wait=True)
+        self.vm.create(single_nic=False, wait=True)
+        self.vm.start(wait=True)
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
+        ip_list_vm = utils_lib.run_cmd(self,
+            "ip addr|grep -Po 'inet \\K.*(?=/)'|grep -v '127.0.0.1'").strip().split('\n')
+        ip_list_vm.sort()
+        ip_list_host = []
+        for nic in self.vm.show()["vm_nics"]:
+            ip_list_host.append(nic["ip_address"])
+        ip_list_host.sort()
+        self.assertGreater(len(ip_list_vm), 1, "VM not create by multi nics")
+        self.assertEqual(
+            ip_list_vm, ip_list_host, "The private IP addresses are wrong.\n"
+            "Expect: {}\nReal: {}".format(ip_list_host, ip_list_vm))
+        #tear down
+        self.vm.delete(wait=True)
+        self.vm.create(wait=True)
+        self.vm.start(wait=True)
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
 
     def tearDown(self):
         if 'test_cloudinit_sshd_keypair' in self.id():

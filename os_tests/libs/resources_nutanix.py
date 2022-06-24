@@ -151,8 +151,8 @@ class PrismApi(PrismSession):
             exit(self.r.status_code)
         return json_obj
 
-    def create_vm(self, ssh_pubkey=None):
-        logging.debug("Create VM")
+    def create_vm(self, ssh_pubkey=None, single_nic=True):
+        logging.info("Create VM, single nis is "+ str(single_nic))
         endpoint = urljoin(self.base_url, "vms")
 	# Attach image.
         images = self.list_images()
@@ -174,6 +174,7 @@ class PrismApi(PrismSession):
         user_data = '#cloud-config\ndisable_root: false\nlock_passwd: false%s%s\nruncmd:\n- sed -i "/PermitRootLogin prohibit/c\PermitRootLogin yes" /etc/ssh/sshd_config\n- systemctl restart sshd\n' % (
             ssh_pwauth, ssh_key)
         user_data += '- mkdir /tmp/userdata_{}'.format(self.run_uuid)
+        user_data += '\ncloud_config_modules:\n - mounts\n - locale\n - set-passwords\n - yum-add-repo\n - disable-ec2-metadata\n - runcmd'
         if self.vm_user_data:
             user_data += self.vm_user_data
         # Attach user script.
@@ -181,11 +182,12 @@ class PrismApi(PrismSession):
         if self.vm_custom_file:
             user_script = [{'source_path': 'adsf:///{}/{}'.format(self.get_container()['name'], self.vm_custom_file),
                       'destination_path': '/tmp/{}'.format(self.vm_custom_file)}]
-        print(user_script)
         # Attach NICs (all).--> Change to attach specified uuid unless test_persistent_route will fail
         network_uuids = [{"network_uuid": self.network_uuid}]
-        #for network in self.list_networks_detail()["entities"]:
-            #network_uuids.append({"network_uuid": network["uuid"]})
+        if not single_nic:
+            for network in self.list_networks_detail()["entities"]:
+                if network["uuid"] != self.network_uuid:
+                    network_uuids.append({"network_uuid": network["uuid"]})
         data = {'boot': {
                 'disk_address': {
                 'device_bus': 'scsi',
@@ -625,7 +627,7 @@ class NutanixVM(VMResource):
         self.private_network_subnet = params['VM']['private_network_subnet']
         self.ssh_pubkey = utils_lib.get_public_key()
         self.arch = 'x86_64'
-        self.vm_custom_file = None
+        self.vm_custom_file = 'test.sh'
         self.provider = params['Cloud']['provider']
 
         self.prism = PrismApi(params)
@@ -647,11 +649,6 @@ class NutanixVM(VMResource):
             if nic['network_uuid'] == self.network_uuid:
                 f_ip = nic['ip_address']
         return f_ip
-
-    @property
-    def is_uefi_boot(self):
-        logging.info('Query VM boot mode')
-        return self.data.get('boot')['uefi_boot']
 
     @property
     def host_uuid(self):
@@ -706,11 +703,11 @@ class NutanixVM(VMResource):
                 logging.error("progress status of task is Failed")
                 break
 
-    def create(self, wait=False):
-        logging.info("Create VM")
+    def create(self, single_nic=True, wait=False):
+        logging.info("Create VM, single_nic is " + str(single_nic))
         self.prism.vm_user_data = self.vm_user_data
         self.prism.vm_custom_file = self.vm_custom_file
-        res = self.prism.create_vm(self.ssh_pubkey)
+        res = self.prism.create_vm(self.ssh_pubkey, single_nic)
         if wait:
             self.wait_for_status(
                 res['task_uuid'], 60,
@@ -1050,7 +1047,10 @@ class NutanixVM(VMResource):
         disk_uuid = None
         for disk in self.show()['vm_disk_info']:
             if disk['disk_address']['device_bus'] == device_type and disk['disk_address']['device_index'] == device_index:
-                disk_uuid = disk['disk_address']['vmdisk_uuid']
+                if 'vmdisk_uuid' in disk['disk_address']:
+                    disk_uuid = disk['disk_address']['vmdisk_uuid']
+                else:
+                    disk_uuid = disk['disk_address']['device_uuid']
         return disk_uuid
 
     def take_snapshot(self, snpst_name, wait=False):

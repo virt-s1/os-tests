@@ -269,6 +269,17 @@ class TestStorage(unittest.TestCase):
         new_disk_num = self._get_disk_num('rom')
         new_add_num = int(new_disk_num) - int(origin_disk_num)
         self.assertEqual(new_add_num, 1, msg="Number of new attached rom is not right, Expect: %s, real: %s" % (1, new_add_num))
+        #teardown
+        self.vm.stop(wait=True)
+        disk_uuid = self.vm.get_disk_uuid('ide', device_index=1)
+        try:
+            self.vm.detach_disk('ide', disk_uuid, device_index=1, wait=True)
+        except NotImplementedError:
+            self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
+        except UnSupportedAction:
+            self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
+        self.vm.start(wait=True)
+        utils_lib.init_connection(self, timeout=self.timeout)
     
     def test_add_sata_clone_cdrom_from_img_service(self):
         """
@@ -707,7 +718,7 @@ class TestStorage(unittest.TestCase):
                 self.vm.detach_disk('ide', disk_uuid, device_index=3, wait=True)
             else:
                 self.vm.detach_disk('sata', disk_uuid, device_index=3, wait=True)
-            self.vm.clone_vm(clone_from_vm_or_snapshot, vm_name, cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus, override_network_config=False, fresh_install=True, vm_custom_file="test.py", vm_userdata_file="userdata.yaml")
+            self.vm.clone_vm(clone_from_vm_or_snapshot, vm_name, cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus, override_network_config=False, fresh_install=True, vm_custom_file="test.sh", vm_userdata_file="userdata.yaml")
         except NotImplementedError:
             self.skipTest('Related func is not implemented in {}'.format(self.vm.provider))
         except UnSupportedAction:
@@ -730,20 +741,14 @@ class TestStorage(unittest.TestCase):
         self.params['remote_node'] = VMBecloned_ip
 
         utils_lib.init_connection(self, timeout=self.timeout)
-        cloneVM_actual_Memory = int(utils_lib.run_cmd(self, "cat /proc/meminfo | grep MemTotal | awk '{print $2}'"))/1024
-        cloneVM_gap_Memory = float(cloneVM_actual_Memory/cloneVM_set_Memory)
-        self.assertAlmostEqual(
-            first=1.0,
-            second=float(cloneVM_gap_Memory),
-            delta=0.25,
-            msg="Gap is two much between cloneVM_actual_Memory and cloneVM_set_Memory, Expect: %s, real: %s" %(cloneVM_set_Memory, cloneVM_actual_Memory)
-        )
+        cloneVM_actual_Memory = int(utils_lib.run_cmd(self, '''sudo dmidecode -t memory | grep "Memory Device" -A5 | grep Size | awk '$3 ~ /GB/ {sum += $2} $3 ~ /MB/ {sum += $2/1024} END {printf sum}' '''))
+        self.assertEqual(cloneVM_set_Memory/1024, cloneVM_actual_Memory, msg="Value of memory is not right, Expect: %s, real: %s" % (cloneVM_set_Memory/1024, cloneVM_actual_Memory))
         cloneVM_actual_vcpus = int(utils_lib.run_cmd(self, "cat /proc/cpuinfo | grep processor | wc -l"))
         cloneVM_set_vcpus_num = cloneVM_set_Cores_per_CPU * cloneVM_set_vcpus
         self.assertEqual(cloneVM_actual_vcpus, cloneVM_set_vcpus_num, msg="Number of vcpus is not right, Expect: %s, real: %s" % (cloneVM_set_vcpus_num, cloneVM_actual_vcpus))
         #clone from snapshot not support to refresh install
         if clone_from_vm_or_snapshot == "clone_from_vm":
-            custome_data = utils_lib.run_cmd(self, "sudo chmod 755 /tmp/test.py \n sudo /tmp/test.py \n sudo cat /tmp/test.txt", expect_ret=0)
+            custome_data = utils_lib.run_cmd(self, "sudo chmod 755 /tmp/test.sh \n sudo /tmp/test.sh \n sudo cat /tmp/test.txt", expect_ret=0)
             expect_cusome_data = "welcome to Nutanix world"
             self.assertIn(expect_cusome_data, custome_data, msg="Custome data is not right, Expect: %s, real: %s" % (expect_cusome_data, custome_data))
         #tear down
@@ -790,6 +795,81 @@ class TestStorage(unittest.TestCase):
         cloneVM_set_Cores_per_CPU = 2
         cloneVM_set_vcpus = 2
         self._test_clone("clone_from_vm", "ClonedByScriptFromVM", cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus)
+
+    def test_add_remove_multi_cdrom(self):
+        """
+        case_tag:
+            Storage
+        case_name:
+            test_add_remove_multi_cdrom
+        case_file:
+            os_tests.tests.test_storage.TestStorage.test_add_remove_multi_cdrom
+        component:
+            storage
+         bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            mingli@redhat.com
+        description:
+            Test attach and distach multi ide and sata cdrom in VM.
+        key_steps:
+            Attach and distach ide and sata cdrom.
+        expect_result:
+            No error threw and cdrom number is right.
+        debug_want:
+            output from dmesg or journal
+        """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
+        origin_disk_num = self._get_disk_num('rom')
+        self.vm.stop(wait=True)
+        for i in range(0,6):
+            try:
+                self.vm.attach_disk('sata', disk_size=0, is_cdrom=True, device_index=i, wait=True, is_empty=True)
+            except NotImplementedError:
+                self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
+            except UnSupportedAction:
+                self.skipTest('attch disk func is not supported in {}'.format(self.vm.provider))
+        for i in range(0,3):
+            try:
+                self.vm.attach_disk('ide', disk_size=0, is_cdrom=True, device_index=i, wait=True, is_empty=True)
+            except NotImplementedError:
+                self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
+            except UnSupportedAction:
+                self.skipTest('attch disk func is not supported in {}'.format(self.vm.provider))
+        self.vm.start(wait=True)
+        utils_lib.init_connection(self, timeout=self.timeout)
+        new_disk_num = self._get_disk_num('rom')
+        new_add_num = int(new_disk_num) - int(origin_disk_num)
+        self.assertEqual(new_add_num, 9, "Number of new attached total rom is not right Expect: %s, real: %s" % (9, new_add_num))
+        sata_dev_num = int(utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-sata' -A 80 | grep '*-cdrom' | wc -l", expect_ret=0).strip())
+        self.assertEqual(sata_dev_num, 6, "Number of new attached sata rom is not right Expect: %s, real: %s" % (6, sata_dev_num))
+        ide_dev_num = int(utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-ide' -A 56 | grep '*-cdrom' | wc -l", expect_ret=0).strip())
+        self.assertEqual(ide_dev_num, 4, "Number of new attached sata rom is not right Expect: %s, real: %s" % (3, ide_dev_num))
+        #tear down
+        self.vm.stop(wait=True)
+        for i in range(0,6):
+            disk_uuid = self.vm.get_disk_uuid('sata', device_index=i)
+            try:
+                self.vm.detach_disk('sata', disk_uuid, device_index=i, wait=True)
+            except NotImplementedError:
+                self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
+            except UnSupportedAction:
+                self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
+        for i in range(0,3):
+            disk_uuid = self.vm.get_disk_uuid('ide', device_index=i)
+            try:
+                self.vm.detach_disk('ide', disk_uuid, device_index=i, wait=True)
+            except NotImplementedError:
+                self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
+            except UnSupportedAction:
+                self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
+        self.vm.start(wait=True)
+        utils_lib.init_connection(self, timeout=self.timeout)
 
     def tearDown(self):
         if 'blktests' in self.id():
