@@ -624,7 +624,7 @@ class TestLifeCycle(unittest.TestCase):
         time.sleep(10)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         cat_proc_cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline')
-        self.assertIn(boot_param_required, cat_proc_cmdline, msg='Expect intel_iommu=on in /proc/cmdline')
+        return cat_proc_cmdline
 
     def test_start_vm_iommu(self):
         """
@@ -657,7 +657,8 @@ class TestLifeCycle(unittest.TestCase):
             boot_param_required = 'intel_iommu=on'
             out = utils_lib.run_cmd(self, 'cat /proc/cmdline', msg='Check boot line')
             if boot_param_required not in out:
-                self._update_kernel_args(boot_param_required)
+                cat_proc_cmdline = self._update_kernel_args(boot_param_required)
+                self.assertIn(boot_param_required, cat_proc_cmdline, msg='Expect intel_iommu=on in /proc/cmdline')
 
     def test_boot_nr_cpus(self):
         """
@@ -688,7 +689,8 @@ class TestLifeCycle(unittest.TestCase):
         """
         for cpus in [1,2]:
             boot_param_required = 'nr_cpus='+str(cpus)
-            self._update_kernel_args(boot_param_required)
+            cat_proc_cmdline = self._update_kernel_args(boot_param_required)
+            self.assertIn(boot_param_required, cat_proc_cmdline, msg='Expect intel_iommu=on in /proc/cmdline')
             online_cpu_num = int(utils_lib.run_cmd(self, 'cat /proc/cpuinfo | grep processor | wc -l'))
             self.assertEqual(online_cpu_num, cpus, msg='Check online cpus numbers equal to nr_cpus in kernel command line. Expect: %s, Actual: %s' % (cpus, online_cpu_num))
 
