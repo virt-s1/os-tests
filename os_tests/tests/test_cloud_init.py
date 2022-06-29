@@ -788,6 +788,189 @@ EOF""".format(device, size), expect_ret=0)
         self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
 
+    def test_cloudinit_login_with_publickey(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier1
+        case_priority:
+            1
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            VIRT-103831 - CLOUDINIT-TC: VM can successfully login after provisioning(with public key authentication)
+        key_steps:        
+        1. Create a VM with only public key authentication
+        2. Login with publickey, should have sudo privilege
+        """
+        output=utils_lib.run_cmd(self, "whoami", expect_ret=0)
+        self.assertEqual(
+            self.vm.vm_username, output.rstrip('\n'),
+            "Login VM with publickey error: output of cmd `whoami` unexpected -> %s"
+            % output.rstrip('\n'))
+        sudooutput=utils_lib.run_cmd(self, "sudo cat /etc/sudoers.d/90-cloud-init-users", expect_ret=0)
+        self.assertIn(
+            "%s ALL=(ALL) NOPASSWD:ALL" % self.vm.vm_username,
+            sudooutput,
+            "No sudo privilege")
+
+    def test_cloudinit_datasource(self):        
+        """
+        case_tag:
+            cloudinit,cloudinit_tier1
+        case_priority:
+            1
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-286739 - CLOUDINIT-TC: Check the datasource on openstack, aws, nutanix, Ali
+        key_steps:        
+        1. Launch instance with cloud-init installed
+        2. Check the datasource is correct
+        # cat /run/cloud-init/cloud.cfg
+        """
+        datasource={'openstack':'OpenStack',
+                    'aws':'Ec2',
+                    'nutanix':'ConfigDrive',
+                    'Ali':'AliYun'}
+        if self.vm.provider not in datasource.keys():
+            self.skipTest('skip run as no such provider in datasource list')
+        for provider,name in datasource.items():
+            if self.vm.provider == provider:
+                utils_lib.run_cmd(self,
+                                  'cat /run/cloud-init/cloud.cfg',
+                                  expect_ret=0,
+                                  expect_kw='{}, None'.format(name),
+                                  msg='check if the datasource is correct')
+                utils_lib.run_cmd(self,
+                                  'cat /run/cloud-init/ds-identify.log | grep datasource',
+                                  expect_ret=0,
+                                  expect_kw='Found single datasource: {}'.format(name),
+                                  msg='check if found the datasource')
+
+    def test_cloudinit_check_instance_data_json(self):         
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            bz#: 1744526
+            RHEL-182312 - CLOUDINIT-TC:cloud-init can successfully write data to instance-data.json
+        key_steps:        
+        1. Launch instance with cloud-init installed
+        2. Check instance-data.json
+        """
+        cmd = 'ls -l /run/cloud-init/instance-data.json'
+        utils_lib.run_cmd(self,
+                          cmd,
+                          expect_ret=0,
+                          expect_not_kw='No such file or directory',
+                          msg='check /run/cloud-init/instance-data.json')
+
+    def test_cloudinit_check_config_ipv6(self):        
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-189023 - CLOUDINIT-TC: check ipv6 configuration
+        key_steps:        
+        1. Launch instance with cloud-init installed
+        2. Check there is dynamic IPv6 address
+        Note: will add nm keyfiles configuration check after BZ2098624 is fixed
+        """        
+        cmd = "ip addr show | grep inet6 | grep 'scope global'"
+        utils_lib.run_cmd(self,
+                          cmd,
+                          expect_ret=0,
+                          expect_kw='scope global',
+                          msg='check ipv6 scope global address')
+
+    def test_cloudinit_check_random_password_len(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-189226 - CLOUDINIT-TC: checking random password and its length
+        key_steps:
+        """
+        if self.vm.provider != 'openstack':
+            self.skipTest('skip run as this needs to configure user-date, configured on openstack')
+        #security check: random password only output to openstack console log, 
+        #no password output in cloud-init-output.log and /var/log/messages
+        cmd = 'sudo cat /var/log/messages'
+        utils_lib.run_cmd(self, 
+                          cmd, 
+                          expect_ret=0,
+                          expect_not_kw="the following 'random' passwords", 
+                          msg='check /var/log/messages')
+        cmd = 'cat /var/log/cloud-init-output.log'
+        utils_lib.run_cmd(self, 
+                          cmd, 
+                          expect_ret=0,
+                          expect_not_kw="the following 'random' passwords", 
+                          msg='check /var/log/cloud-init-output.log')
+        #check /var/log/cloud-init-output.log mode is 640 and group is adm
+        cmd = 'ls -l /var/log/cloud-init-output.log '
+        utils_lib.run_cmd(self, 
+                          cmd, 
+                          expect_ret=0,
+                          expect_kw='-rw-r-----. 1 root adm', 
+                          msg='cloud-init-output.log mode should be 640 and group adm')
+
+        #get openstack console log
+        status, output= self.vm.get_console_log()
+        if status and output is not None:
+            self.assertIn("the following 'random' passwords", output, "Failed to get random password from console log")
+            output = output.split("cloud-user:",1)[1]
+            randompass = output.split("\n",1)[0]
+            self.log.info("Get the random password is:"+randompass)
+            self.assertEqual(len(randompass), 20, "Random password length is not 20")
+        else:
+            self.fail("Failed to get console log")
+           
+    def test_cloudinit_check_runcmd(self):        
+        """
+        case_tag:
+            cloudinit,cloudinit_tier1
+        case_priority:
+            1
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-186183 - CLOUDINIT-TC:runcmd module:execute commands
+        key_steps:
+        """
+        if self.vm.provider != 'openstack':
+            self.skipTest('skip run as this needs to configure user-date, configured on openstack')
+        cmd = 'sudo cat /var/log/messages'
+        utils_lib.run_cmd(self, 
+                          cmd, 
+                          expect_ret=0,
+                          expect_kw=': hello today!', 
+                          msg='runcmd executed successfully')
+
     def tearDown(self):
         if 'test_cloudinit_sshd_keypair' in self.id():
             cmd = 'cp -f ~/.ssh/authorized_keys.bak ~/.ssh/authorized_keys'
