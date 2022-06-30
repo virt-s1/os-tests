@@ -2,6 +2,7 @@ import unittest
 from os_tests.libs import utils_lib
 from os_tests.libs.resources import UnSupportedAction
 import time
+import re
 
 class TestCloudInit(unittest.TestCase):
     def setUp(self):
@@ -970,6 +971,436 @@ EOF""".format(device, size), expect_ret=0)
                           expect_ret=0,
                           expect_kw=': hello today!', 
                           msg='runcmd executed successfully')
+
+    def test_cloudinit_show_full_version(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-196547	- CLOUDINIT-TC: cloud-init version should show full specific version
+        key_steps:
+            cloud-init --version should show version and release
+        """
+        utils_lib.run_cmd(self, "cloud-init --version>/tmp/1 2>&1")
+        output = utils_lib.run_cmd(self, "cat /tmp/1").rstrip('\n')
+        package = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
+        cloudinit_path = utils_lib.run_cmd(self, "which cloud-init").rstrip('\n')
+        expect = package.rsplit(".", 1)[0].replace("cloud-init-", cloudinit_path+' ')
+        self.assertEqual(output, expect, 
+            "cloud-init --version doesn't show full version. Real: {}, Expect: {}".format(output, expect))
+
+    def test_check_hostkey_permissions(self):        
+        """
+        case_tag:
+            cloudinit,cloudinit_tier1
+        case_priority:
+            1
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL7-103836 - CLOUDINIT-TC: Default configuration can regenerate sshd keypairs
+            bz: 2013644
+        key_steps:
+            This auto case only check host key permissions
+            expected:  
+            $ ls -l /etc/ssh/ssh_host*.pub | awk '{print $1,$3,$4,$9}'
+            -rw-r--r--. root root /etc/ssh/ssh_host_ecdsa_key.pub
+            -rw-r--r--. root root /etc/ssh/ssh_host_ed25519_key.pub
+            -rw-r--r--. root root /etc/ssh/ssh_host_rsa_key.pub
+            $ ls -l /etc/ssh/ssh_host*key| awk '{print $1,$3,$4,$9}'
+            -rw-r-----. root ssh_keys /etc/ssh/ssh_host_ecdsa_key
+            -rw-r-----. root ssh_keys /etc/ssh/ssh_host_ed25519_key
+            -rw-r-----. root ssh_keys /etc/ssh/ssh_host_rsa_key
+        """
+        self.log.info("check host key permissions")
+        self.log.info("Public host key permissions should be 644 and owner/group should be root.")
+        cmd = "ls -l /etc/ssh/ssh_host*.pub | awk '{print $1,$3,$4,$9}'"
+        public_keys = utils_lib.run_cmd(self, cmd, msg='Get all public host keys').split('\n')
+        for key in public_keys:
+            if len(key) == 0:
+                continue
+            self.assertIn('-rw-r--r--. root root', key,
+                    msg=" Unexpected permissions -> %s" % key)
+        self.log.info("Private host key permissions should be 640 and owner/group should be root/ssh_keys.")
+        cmd = "ls -l /etc/ssh/ssh_host*key | awk '{print $1,$3,$4,$9}'"
+        private_keys = utils_lib.run_cmd(self, cmd, msg='Get all private host keys').split('\n')  
+        for key in private_keys:
+            if len(key) == 0:
+                continue
+            self.assertIn('-rw-r-----. root ssh_keys', key,
+                    msg=" Unexpected permissions -> %s" % key)
+
+    def test_check_cloudinit_fingerprints(self):        
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL7-103836 - CLOUDINIT-TC: Default configuration can regenerate sshd keypairs
+            bz: 1957532
+        key_steps:
+            This auto case only check fingerprints is saved in /var/log/messages.
+            expected:  
+                # awk '/BEGIN/,/END/' /var/log/messages
+                Sep 17 10:39:26 xiachen-testvm-rhel8 ec2[5447]: -----BEGIN SSH HOST KEY FINGERPRINTS-----
+                Sep 17 10:39:26 xiachen-testvm-rhel8 ec2[5447]: 256 SHA256:USGMs+eQW403mILvsE5deVxZ2TC7IdQnUySEZFszlK4 root@xiachen-testvm-rhel8 (ECDSA)
+                Sep 17 10:39:26 xiachen-testvm-rhel8 ec2[5447]: 256 SHA256:B/drC+5wa6xDhPaKwBNWj2Jw+lUsjpr8pEm67PG8HtM root@xiachen-testvm-rhel8 (ED25519)
+                Sep 17 10:39:26 xiachen-testvm-rhel8 ec2[5447]: 3072 SHA256:6sCV1CusDhQzuoTO2FQFyyf9PmsclAd38zhkGs3HaUk root@xiachen-testvm-rhel8 (RSA)
+                Sep 17 10:39:26 xiachen-testvm-rhel8 ec2[5447]: -----END SSH HOST KEY FINGERPRINTS-----
+        """
+        self.log.info("check fingerprints is saved in /var/log/messages")
+        cmd = "sudo awk '/BEGIN/,/END/' /var/log/messages"
+        out = utils_lib.run_cmd(self, cmd, msg='get fingerprints in /var/log/messages')
+        # change 'SHA256' to ' SHA256' for exact match
+        # change != to > for fault tolerance
+        if out.count('BEGIN') > out.count(' SHA256')/3:
+            self.fail('fingerprints count {} does not match expected {}'.format(out.count(' SHA256')/3,out.count('BEGIN')))
+
+    def test_cloudinit_no_duplicate_swap(self):        
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-205128 - CLOUDINIT-TC: Can deal with the conflict of having swap configured 
+            on /etc/fstab *and* having cloud-init duplicating this configuration automatically
+        key_steps:
+            1. Deploy a VM, attach an additional volume(or dd a file) to mkswap. 
+            Add it to /etc/fstab, swapon, then check the free -m
+            2. Configure cloud-init, /etc/cloud/cloud.cfg.d/cc_mount.cfg
+            3. Use this VM as a template and create a new VM_new based on this VM
+            4. Login VM_new and check /etc/fstab, no duplicate swap entry
+        """
+        utils_lib.run_cmd(self, "dd if=/dev/zero of=/tmp/swapfile01 bs=1M count=1024")
+        utils_lib.run_cmd(self, "chmod 600 /tmp/swapfile01")
+        utils_lib.run_cmd(self, "mkswap -L swap01 /tmp/swapfile01")
+        cmd = 'echo "/tmp/swapfile01    swap    swap    defaults    0 0" >> /etc/fstab'
+        utils_lib.run_cmd(self, "sudo bash -c '{}'".format(cmd))
+        old_fstab = utils_lib.run_cmd(self, "cat /etc/fstab")
+        utils_lib.run_cmd(self, "sudo swapon -a")
+        old_swap = utils_lib.run_cmd(self, "free -m|grep Swap|awk '{print $2}'").rstrip('\n')
+
+        cmd = 'echo -e "mounts:\n  - ["/tmp/swapfile01"]" > /etc/cloud/cloud.cfg.d/cc_mount.cfg'
+        utils_lib.run_cmd(self, "sudo bash -c '{}'".format(cmd))
+        utils_lib.run_cmd(self, "sudo rm -rf /var/lib/cloud/instance/sem")
+        utils_lib.run_cmd(self, "sudo cloud-init single --name cc_mounts")
+        utils_lib.run_cmd(self, "sudo swapoff -a")
+        utils_lib.run_cmd(self, "sudo swapon -a")
+        new_swap = utils_lib.run_cmd(self, "free -m|grep Swap|awk '{print $2}'").rstrip('\n')
+        new_fstab = utils_lib.run_cmd(self, "cat /etc/fstab")
+        # clean the swap config
+        utils_lib.run_cmd(self, "sudo swapoff -a")
+        utils_lib.run_cmd(self, "sudo rm -rf /etc/cloud/cloud.cfg.d/cc_mount.cfg")
+        utils_lib.run_cmd(self, "sudo sed -i '/swapfile01/d' /etc/fstab")
+        utils_lib.run_cmd(self, "sudo rm -rf /tmp/swapfile01")
+        #utils_lib.run_cmd(self, "exit")
+        self.assertNotEqual(old_swap, '0',
+            "Swap size is 0 before cloud-init config")
+        self.assertEqual(old_swap, new_swap,
+            "Swap size is not same before and after cloud-init config")
+        self.assertEqual(old_fstab, new_fstab,
+            "The /etc/fstab is not same before and after cloud-init config")
+
+    def _verify_authorizedkeysfile(self, keyfiles):
+        # 1. Modify /etc/ssh/sshd_config
+        utils_lib.run_cmd(self, 
+            "sudo sed -i 's/^AuthorizedKeysFile.*$/AuthorizedKeysFile {}/g' /etc/ssh/sshd_config".format(keyfiles.replace('/', '\/')))
+        utils_lib.run_cmd(self, 
+                          "sudo grep '{}' /etc/ssh/sshd_config".format(keyfiles),
+                          expect_ret=0,
+                          expect_kw=keyfiles, 
+                          msg='Check if change sshd_config successful')
+        utils_lib.run_cmd(self, "sudo systemctl restart sshd")
+        # 2. Remove cc_ssh flag and authorized_keys
+        utils_lib.run_cmd(self, 
+            "sudo rm -f /var/lib/cloud/instance/sem/config_ssh /home/{}/.ssh/authorized_keys".format(self.vm.vm_username))
+        utils_lib.run_cmd(self, "sudo rm -rf {}".format(keyfiles))
+        # 3. Run module ssh
+        utils_lib.run_cmd(self, "sudo cloud-init single -n ssh")
+        # 4. Verify can login
+        utils_lib.init_connection(self, timeout=20)
+        output=utils_lib.run_cmd(self, "whoami", expect_ret=0)
+        self.assertEqual(
+            self.vm.vm_username, output.rstrip('\n'),
+            "Verify can login")
+
+    def test_cloudinit_verify_multiple_files_in_authorizedkeysfile(self):        
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-189026	CLOUDINIT-TC: Verify multiple files in AuthorizedKeysFile
+        key_steps:
+            1. Launch VM/instance with cloud-init. Modify /etc/ssh/sshd_config:
+            AuthorizedKeysFile .ssh/authorized_keys /etc/ssh/userkeys/%u
+            2. Remove cc_ssh module flag and authorized_keys
+            3. Run module ssh
+            # cloud-init single -n ssh
+            4. Verify can login successful and AuthorizedKeysFile has correct authority
+            5. Set customized keyfile at the front:
+            AuthorizedKeysFile /etc/ssh/userkeys/%u.ssh/authorized_keys
+            Restart sshd service and rerun step2-4
+        """
+        # AuthorizedKeysFile .ssh/authorized_keys /etc/ssh/userkeys/%u
+        self._verify_authorizedkeysfile(
+            ".ssh/authorized_keys /etc/ssh/userkeys/%u")
+        # Check the AuthorizedKeysFile authority is correct
+        self.assertEqual(
+            "-rw-------.",
+            utils_lib.run_cmd(self, 
+                "ls -al /home/%s/.ssh/authorized_keys | awk '{print $1}'" %(self.vm.vm_username)).rstrip('\n'),
+            "The authority of the AuthorizedKeysFile is wrong!")
+        self.assertEqual(
+            self.vm.vm_username,
+            utils_lib.run_cmd(self, 
+                "ls -al /home/%s/.ssh/authorized_keys | awk '{print $3}'" %(self.vm.vm_username)).rstrip('\n'),
+            "The owner of the AuthorizedKeysFile is wrong!")
+        # AuthorizedKeysFile /etc/ssh/userkeys/%u .ssh/authorized_keys
+        self._verify_authorizedkeysfile(
+            "/etc/ssh/userkeys/%u .ssh/authorized_keys")
+        # Check the AuthorizedKeysFile authority is correct
+        self.assertEqual(
+            "-rw-------.",
+            utils_lib.run_cmd(self, 
+                "ls -al /etc/ssh/userkeys/%s | awk '{print $1}'" %(self.vm.vm_username)).rstrip('\n'),
+            "The authority of the AuthorizedKeysFile is wrong!")
+        self.assertEqual(
+            self.vm.vm_username,
+            utils_lib.run_cmd(self, 
+                "ls -al /etc/ssh/userkeys/%s | awk '{print $3}'" %(self.vm.vm_username)).rstrip('\n'),
+            "The owner of the AuthorizedKeysFile is wrong!")
+        # Recover the config to default: AuthorizedKeysFile .ssh/authorized_keys               
+        self._verify_authorizedkeysfile(".ssh/authorized_keys")
+
+    def test_cloudinit_verify_customized_file_in_authorizedkeysfile(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-189027	CLOUDINIT-TC: Verify customized file in AuthorizedKeysFile
+            bz1862967
+        key_steps:
+            1. Launch VM/instance with cloud-init. Modify /etc/ssh/sshd_config:
+            AuthorizedKeysFile .ssh/authorized_keys2
+            2. Remove cc_ssh module flag and authorized_keys
+            3. Run module ssh
+            # cloud-init single -n ssh
+            4. Verify can login successfully and AuthorizedKeysFile has correct authority
+        """
+        cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')        
+        cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)-', cloudinit_ver).group(1))
+        if cloudinit_ver < 21.1:
+            self.skipTest('skip run as this case is suitable for rhel higher than rhel-8.5 and rhel-9.0, bz1862967')
+        self.log.info(
+            "RHEL-189027 CLOUDINIT-TC: Verify customized file in AuthorizedKeysFile")
+        self._verify_authorizedkeysfile(".ssh/authorized_keys2")
+        # Check the AuthorizedKeysFile authority is correct
+        self.assertEqual(
+            "-rw-------.",
+            utils_lib.run_cmd(self,
+                "ls -al /home/%s/.ssh/authorized_keys2 | awk '{print $1}'" %(self.vm.vm_username)).rstrip('\n'),
+            "The authority of the AuthorizedKeysFile is wrong!")
+        self.assertEqual(
+            self.vm.vm_username,
+            utils_lib.run_cmd(self,
+                "ls -al /home/%s/.ssh/authorized_keys2 | awk '{print $3}'" %(self.vm.vm_username)).rstrip('\n'),
+            "The owner of the AuthorizedKeysFile is wrong!")        
+        # Recover the config to default: AuthorizedKeysFile .ssh/authorized_keys
+        # Remove ~/.ssh and check the permissions of the directory
+        utils_lib.run_cmd(self,
+            "sudo rm -rf /home/{}/.ssh".format(self.vm.vm_username))
+        self._verify_authorizedkeysfile(".ssh/authorized_keys")
+        # Check ~/.ssh authority is correct, bug 1995840
+        self.assertEqual(
+            "drwx------. cloud-user cloud-user",
+            utils_lib.run_cmd(self,
+                "ls -ld /home/%s/.ssh | awk '{print $1,$3,$4}'" %(self.vm.vm_username)).rstrip('\n'),
+            "The authority .ssh is wrong!")
+
+    def test_cloudinit_check_NOZEROCONF(self):       
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-152730 - CLOUDINIT-TC: Check 'NOZEROCONF=yes' in /etc/sysconfig/network
+            cannot be removed by cloud-init
+        key_steps:
+            1. Create a VM with rhel-guest-image
+            2. Login and check /etc/sysconfig/network
+            3. There is "NOZEROCONF=yes" in /etc/sysconfig/network
+        """
+        self.log.info(
+            "RHEL-152730 - CLOUDINIT-TC: Check 'NOZEROCONF=yes' in /etc/sysconfig/network")
+        cmd = 'sudo cat /etc/sysconfig/network'
+        utils_lib.run_cmd(self,
+                          cmd,
+                          expect_ret=0,
+                          expect_kw='NOZEROCONF=yes',
+                          msg='check if NOZEROCONF=yes in /etc/sysconfig/network')
+
+    def test_cloudinit_root_exit_code(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-287348 - CLOUDINIT-TC: Using root user error should 
+            cause a non-zero exit code
+        key_steps:
+            1. Launch instance with cloud-init installed
+            2. Check the /root/.ssh/authorized_keys, the exit code is 142
+            # cat /root/.ssh/authorized_keys" 
+        """
+        self.log.info(
+            "RHEL-287348 - CLOUDINIT-TC: Using root user error should cause a non-zero exit code")
+        cmd = 'sudo cat /root/.ssh/authorized_keys'
+        utils_lib.run_cmd(self,
+                          cmd,
+                          expect_ret=0,
+                          expect_kw='echo;sleep 10;exit 142',
+                          msg='check if the exit code correct')
+
+    def test_cloudinit_ip_route_append(self):        
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-288020 - CLOUDINIT-TC: Using "ip route append" 
+            when config static ip route via cloud-init
+        key_steps:
+            1. Launch instance with cloud-init installed on OpenStack PSI
+            2. Check /var/log/cloud-init.log
+            cloud-init should config static ip route via "ip route append" 
+        """
+        self.log.info(
+            "RHEL-288020 - CLOUDINIT-TC: Check ip route append when config static ip route")
+        cmd = 'cat /var/log/cloud-init.log | grep append'
+        utils_lib.run_cmd(self,
+                          cmd,
+                          expect_ret=0,
+                          expect_kw="Running command \['ip', '-4', 'route', 'append',",
+                          msg="check if using ip route append")
+
+    def test_cloudinit_dependency(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-288482 - CLOUDINIT-TC: Check cloud-init dependency, openssl and gdisk
+        key_steps:
+            1. Launch instance with cloud-init installed
+            2. Check the cloud-init denpendency
+            # rpm -qR cloud-init 
+        """
+        self.log.info(
+            "RHEL-288482 - CLOUDINIT-TC: Check cloud-init dependency, openssl and gdisk")       
+        cmd = 'sudo rpm -qR cloud-init | grep openssl'
+        utils_lib.run_cmd(self,
+                          cmd,
+                          expect_ret=0,
+                          expect_kw='openssl',
+                          msg='check if openssl is cloud-init dependency')
+        cmd = 'sudo rpm -qR cloud-init | grep gdisk'
+        utils_lib.run_cmd(self,
+                          cmd,
+                          expect_ret=0,
+                          expect_kw='gdisk',
+                          msg='check if gdisk is cloud-init dependency')
+
+    def test_cloudinit_removed_dependency(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-198795 - CLOUDINIT-TC: Check cloud-init removed dependency,
+            net-tools, python3-mock, python3-nose, python3-tox
+        key_steps:
+            1. Launch instance with cloud-init installed
+            2. Check the cloud-init denpendency
+            # rpm -qR cloud-init
+        """
+        self.log.info(
+            "RHEL-198795 - CLOUDINIT-TC: Check cloud-init removed dependency")       
+        cmd = 'sudo rpm -qR cloud-init'
+        utils_lib.run_cmd(self,
+                          cmd,
+                          expect_ret=0,
+                          expect_not_kw='net-tools',
+                          msg='check if net-tools is removed from cloud-init dependency')
+        utils_lib.run_cmd(self,
+                          cmd,
+                          expect_ret=0,
+                          expect_not_kw='python3-mock',
+                          msg='check if python3-mock is removed from cloud-init dependency')
+        utils_lib.run_cmd(self,
+                          cmd,
+                          expect_ret=0,
+                          expect_not_kw='python3-nose',
+                          msg='check if python3-nose is removed from cloud-init dependency')
+        utils_lib.run_cmd(self,
+                          cmd,
+                          expect_ret=0,
+                          expect_not_kw='python3-tox',
+                          msg='check if python3-tox is removed from cloud-init dependency')
 
     def tearDown(self):
         if 'test_cloudinit_sshd_keypair' in self.id():
