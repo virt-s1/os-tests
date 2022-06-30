@@ -78,3 +78,4 @@
 /etc/sysconfig/network-scripts/ifcfg-eth0
 /etc/udev/rules.d/70-persistent-net.rules
 /etc/NetworkManager/conf.d/99-cloud-init.conf
+/etc/NetworkManager/system-connections/cloud-init-eth0.nmconnection
