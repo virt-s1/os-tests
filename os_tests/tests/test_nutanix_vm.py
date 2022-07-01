@@ -51,15 +51,21 @@ class TestNutanixVM(unittest.TestCase):
         utils_lib.is_cmd_exist(self, cmd='fio')
         cmd = "setsid fio --group_reporting=1 --name=nutanix-fio-test \
 --numjobs=4 --iodepth=4 --size=500m --bs=4k --rw=randrw -rwmixread=70 \
---ioengine=psync --time_based=1 --runtime=180 \
+--ioengine=psync --time_based=1 --runtime=300 \
 --directory=/tmp/fio_test --filename=test01:test02:test03:test04:test05 > %s" % test_log
         utils_lib.run_cmd(self, cmd, msg="Start fio test", timeout=2)
+
+        cmd = "ps -ef | grep -v grep | grep fio-test"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw="nutanix",
+                                     msg="Check if all fio test jobs have started")
 
     def _verify_fio_test(self, test_log):
         '''
         Check if fio test is still alive.
         '''
         self.log.info("Verify fio test")
+        utils_lib.run_cmd(self, "cat %s" % test_log, expect_ret=0, expect_kw="nutanix",
+                                     msg="Check fio test log")        
         cmd = "ps -ef | grep -v grep | grep fio-test"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw="nutanix",
                                      msg="Check if all fio test jobs are still alive")
@@ -95,7 +101,7 @@ class TestNutanixVM(unittest.TestCase):
         cmd = "ps -ef | grep -v grep | grep 'ping %s' | awk '{print $2}' | xargs kill -s SIGINT" % test_ip
         utils_lib.run_cmd(self, cmd, expect_ret=0,
                           msg="Send sigint to ping test")
-        time.sleep(2)
+        time.sleep(10)
         cmd = "cat %s" % test_log
         utils_lib.run_cmd(self, cmd, expect_ret=0,
                           msg="Check ping test log")
@@ -111,7 +117,7 @@ class TestNutanixVM(unittest.TestCase):
                                     msg="Check average round-trip time of ping test").strip()
         rrt_avg = re.findall(r'(\d*\W?\d+)/', res)[1]
 
-        self.assertLessEqual(pkgs_trans - pkgs_rec, 1,
+        self.assertLessEqual(pkgs_trans - pkgs_rec, 2,
                              "ping test failed. Packges received/transmitted: %s/%s, average round-trip time: %sms" %
                              (pkgs_rec, pkgs_trans, rrt_avg))
 
@@ -172,6 +178,29 @@ class TestNutanixVM(unittest.TestCase):
                          "Test failed, memory vnuma nodes number on RHEL guest: %s does not match with Nutanix AHV: %s" %
                          (numa_in_guest, vnuma_in_ahv))
 
+    def _recover_memory(self, mem_gb_current):
+        self.log.info("Recover VM memory")
+        self.vm.update_memory_size(mem_gb_current)
+        self.assertEqual(self.vm.get_memory_size(), mem_gb_current,
+                         "Test failed as recover VM memory failed")
+        utils_lib.init_connection(self)
+        self._verify_memory_size()
+
+    def _reboot_os_cycles(self, reboot_cycles, time_wait=10):
+        for cycle in range(1, reboot_cycles+1):
+            self.log.info("Reboot cycle: %d" % cycle)
+            res_before = utils_lib.run_cmd(self, "last reboot", expect_ret=0,
+                                           msg="Check reboot log before reboot")
+            utils_lib.run_cmd(self, "sudo reboot", 
+                        msg="Reboot OS")
+            time.sleep(time_wait)
+            utils_lib.init_connection(self)
+            res_after = utils_lib.run_cmd(self, "last reboot", expect_ret=0,
+                                          msg="Check reboot log after reboot")
+            
+            self.assertNotEqual(res_after, res_before,
+                                "Test failed as VM is still alive after reboot")
+
     def test_live_migration(self):
         '''
         case_tag:
@@ -205,14 +234,6 @@ class TestNutanixVM(unittest.TestCase):
         host_list = self.vm.host_uuid
         self._verify_live_migration(host_list)
         self._live_migration(host_list)
-
-    def _recover_memory(self, mem_gb_current):
-        self.log.info("Recover VM memory")
-        self.vm.update_memory_size(mem_gb_current)
-        self.assertEqual(self.vm.get_memory_size(), mem_gb_current,
-                         "Test failed as recover VM memory failed")
-        utils_lib.init_connection(self)
-        self._verify_memory_size()
 
     def test_live_migration_io(self):
         '''
@@ -481,7 +502,7 @@ class TestNutanixVM(unittest.TestCase):
                          "Test failed as hot add VM memory failed")
         time.sleep(10)
         self._verify_memory_size()
-        self._recover_memory(self, mem_gb_current)
+        self._recover_memory(mem_gb_current)
 
     def test_add_vcpu(self):
         '''
@@ -617,7 +638,7 @@ class TestNutanixVM(unittest.TestCase):
                          "Test failed as add VM memory failed")
         utils_lib.init_connection(self)
         self._verify_memory_size()
-        self._recover_memory(self, mem_gb_current)
+        self._recover_memory(mem_gb_current)
 
     def test_cpu_passthrough(self):
         '''
@@ -753,7 +774,8 @@ class TestNutanixVM(unittest.TestCase):
         """
         firstlaunch_time = self.vm.params['BootTime']['first_launch']
         boot_time_sec = utils_lib.getboottime(self)
-        utils_lib.compare_nums(self, num1=boot_time_sec, num2=firstlaunch_time, ratio=0, msg="Compare with cfg specified firstlaunch_time")
+        utils_lib.compare_nums(self, num1=boot_time_sec, num2=firstlaunch_time, ratio=0,
+                               msg="Compare with cfg specified firstlaunch_time")
 
     def test_check_reboot_time(self):
         """
@@ -792,7 +814,8 @@ class TestNutanixVM(unittest.TestCase):
         utils_lib.init_connection(self)
         reboot_time = self.vm.params['BootTime']['acpi_reboot']
         boot_time_sec = utils_lib.getboottime(self)
-        utils_lib.compare_nums(self, num1=boot_time_sec, num2=reboot_time, ratio=0, msg="Compare with cfg specified reboot_time")
+        utils_lib.compare_nums(self, num1=boot_time_sec, num2=reboot_time, ratio=0,
+                               msg="Compare with cfg specified reboot_time")
         
     def test_reboot_vm_12Gmem(self):
         """
@@ -840,14 +863,147 @@ class TestNutanixVM(unittest.TestCase):
         self._verify_memory_size()
                
         reboot_cycles = 3
-        for cycle in range(1, reboot_cycles+1):
-            self.log.info("Reboot cycle: %d" % cycle)
-            self.vm.reboot(wait=True)
-            utils_lib.init_connection(self)
-            utils_lib.run_cmd(self, "last reboot", expect_ret=0,
-                        msg="Verify RHEL guest is still alive")
+        self._reboot_os_cycles(reboot_cycles)
+        self._recover_memory(mem_gb_current)
 
-        self._recover_memory(self, mem_gb_current)
+    def test_reboot_vm_cycles(self):
+        """
+        case_tag:
+            GeneralVerification
+        case_name:
+            test_reboot_vm_cycles
+        case_file:
+            os_tests.tests.test_nutanix_vm.test_reboot_vm_cycles
+        component:
+            GeneralVerification
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        customer_case_id:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            shshang@redhat.com
+        description:
+            Reboot VM for hundreds of times and check VM status
+        key_steps: |
+            1. Reboot VM for more than 100 times
+            2. Check VM status
+            3. Check OS status
+        expect_result:
+            1. VM working normally after reboot
+            2. No unexpected error
+        debug_want:
+            N/A
+        debug_want:
+            N/A
+        """
+        reboot_cycles = self.vm.params['Stress']['reboot_cycles']
+        if not reboot_cycles or reboot_cycles < 1:
+            self.skipTest("Skip as reboot_cycles is not defined in .yaml file")
+
+        self._reboot_os_cycles(reboot_cycles)
+
+    def test_reboot_vm_debugkernel(self):
+        """
+        case_tag:
+            GeneralVerification
+        case_name:
+            test_reboot_vm_cycles
+        case_file:
+            os_tests.tests.test_nutanix_vm.test_reboot_vm_cycles
+        component:
+            GeneralVerification
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        customer_case_id:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            shshang@redhat.com
+        description:
+            Reboot VM for 10 times with debug kernel and check VM status
+        key_steps: |
+            1. Boot VM with debug kernel
+            2. Reboot VM for more than 100 times
+            2. Check VM status
+            3. Check OS status
+        expect_result:
+            1. VM working normally after reboot
+            2. No unexpected error
+        debug_want:
+            N/A
+        debug_want:
+            N/A
+        """
+        if_secure_boot = self.vm.params['VM']['if_secure_boot']
+        if if_secure_boot:
+            self.skipTest('''Red Hat Insights error \
+"sed: can't read /sys/kernel/debug/sched_features: Operation not permitted" When using secure boot''')
+        
+        mem_gb_current = self.vm.get_memory_size()
+        if mem_gb_current < 2:
+            self.skipTest("Skip test as minimal 2G memory is required for debug kernel")        
+
+        default_kernel = utils_lib.run_cmd(self, "sudo grubby --default-kernel",
+                                              expect_ret=0)
+        kernel_version = utils_lib.run_cmd(self, "uname -r", expect_ret=0)
+        if "debug" in kernel_version:
+            self.log.info("Already in debug kernel")
+        else:
+            debug_kernel = "/boot/vmlinuz-" + kernel_version.strip('\n') + "+debug"
+            debug_kernel_pkg = "kernel-debug-" + kernel_version
+            utils_lib.is_pkg_installed(self, pkg_name=debug_kernel_pkg, timeout=300)
+            utils_lib.run_cmd(self,
+                              "sudo grubby --info=%s" % debug_kernel,
+                              expect_ret=0,
+                              msg="check kernel-debug installed")
+            cmd = "sudo grubby --info=%s|grep index|cut -d'=' -f2" % debug_kernel
+            debug_kernel_index = utils_lib.run_cmd(self, cmd,
+                                                   expect_ret=0, cancel_ret='0',
+                                                   msg="check kernel-debug index")
+            cmd = "sudo grubby --set-default-index=%s" % debug_kernel_index
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="change default boot index")
+
+        utils_lib.run_cmd(self, "sudo reboot", msg='Reboot OS to boot to debug kernel')
+        time.sleep(60)
+        utils_lib.init_connection(self)
+        utils_lib.run_cmd(self, "uname -r",
+                          expect_ret=0, expect_kw="debug",
+                          msg="checking debug kernel booted")
+
+        cmd = "sudo systemd-analyze"
+        time_start = int(time.time())
+        while True:
+            output = utils_lib.run_cmd(self, cmd)
+            if 'Bootup is not yet finished' not in output:
+                break
+            time_end = int(time.time())
+            utils_lib.run_cmd(self, 'sudo systemctl list-jobs')
+            if time_end - time_start > 120:
+                self.fail("Bootup is not yet finished after 120s")
+            self.log.info("Wait for bootup finish......")
+            time.sleep(1)
+        
+        reboot_cycles = 10
+        self._reboot_os_cycles(reboot_cycles, time_wait=30)
+        
+        cmd = "sudo grubby --set-default %s" % default_kernel
+        utils_lib.run_cmd(self, cmd,
+                          expect_ret=0,
+                          msg="Recover kernel to origin: %s" % default_kernel)
+        utils_lib.run_cmd(self, "sudo reboot",
+                          msg='Reboot OS to boot to default kernel')
+        time.sleep(30)
+        utils_lib.init_connection(self)
+        utils_lib.run_cmd(self, "uname -r",
+                          expect_ret=0, expect_not_kw="debug",
+                          msg="Verifying default kernel has recovered")
 
     def tearDown(self):
         utils_lib.check_log(self, "error,warn,fail,unable,unknown,Unknown,Call trace,Call Trace",

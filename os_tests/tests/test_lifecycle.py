@@ -356,8 +356,8 @@ class TestLifeCycle(unittest.TestCase):
                                           "find /var/crash",
                                           expect_ret=0,
                                           msg="list /var/crash after crash")
-            if res_after == res_before:
-                self.fail("Test failed as no crash dump file found")
+            self.assertNotEqual(res_after, res_before,
+                                "Test failed as no crash dump file found")
 
             cmd = "sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50"
             utils_lib.run_cmd(self, cmd, expect_ret=0,
