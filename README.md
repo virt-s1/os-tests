@@ -6,7 +6,7 @@ os-tests is a lightweight, portable and customer centric tests collection for Li
 
 ## Installation
 
-### Install from pip
+### Install from pypi
 
 `# pip install os-tests`
 
@@ -15,17 +15,17 @@ Note: please install [paramiko-fork](https://pypi.org/project/paramiko-fork/) if
 
 There is an pynacl issue when installing paramiko-fork on RHEL-8.6. Please install previous pynacl version (1.4.0) instead.
 
-### Install from source code
+### Install from source code repo directly
+
+```bash
+# pip install git+https://github.com/virt-s1/os-tests.git@master
+```
+
+### Build wheel locally and install it
 
 ```bash
 # git clone https://github.com/virt-s1/os-tests.git
 # cd os-tests
-# python3 setup.py install
-```
-
-### Build wheel from source code and install it
-
-```bash
 # python3 setup.py sdist bdist_wheel
 # pip install -U dist/os_tests-0.0.3-py3-none-any.whl
 ```

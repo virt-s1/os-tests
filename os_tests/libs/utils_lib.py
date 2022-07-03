@@ -1025,7 +1025,7 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
     Returns:
         [Bool] -- [True|False]
     """
-    tmp_list = re.findall('.*%s.*\n' % log_keyword, check_str, flags=re.I)
+    tmp_list = re.findall('.*%s.*' % log_keyword, check_str, flags=re.I)
     if len(tmp_list) == 0:
         test_instance.log.info("No %s found!", log_keyword)
         return True
@@ -1047,7 +1047,7 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
             for basekey in baseline_dict:
                 for sub_basekey_content in baseline_dict[basekey]["content"].split(';'):
                     check_done = False
-                    if re.search(sub_basekey_content, line1):
+                    if sub_basekey_content and re.search(sub_basekey_content, line1):
                         if baseline_dict[basekey]["status"] == 'active':
                             test_instance.log.info("Found a similar issue matched in baseline.")
                             find_it = True

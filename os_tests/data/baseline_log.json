@@ -1143,7 +1143,7 @@
         "trigger": ""
     },
     "msg_129": {
-        "content": ".*Couldn't stat device /dev/char/10:200: No such file or directory.*;",
+        "content": ".*Couldn't stat device /dev/char/10:200: No such file or directory.*",
         "analyze": "generated when container run",
         "branch": "rhel",
         "status": "active",
