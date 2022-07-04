@@ -911,9 +911,9 @@ class TestNutanixVM(unittest.TestCase):
         case_tag:
             GeneralVerification
         case_name:
-            test_reboot_vm_cycles
+            test_reboot_vm_debugkernel
         case_file:
-            os_tests.tests.test_nutanix_vm.test_reboot_vm_cycles
+            os_tests.tests.test_nutanix_vm.test_reboot_vm_debugkernel
         component:
             GeneralVerification
         bugzilla_id:
