@@ -1098,7 +1098,10 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         mem_in_gib = mem_in_byte/1024/1024/1024
         self.log.info("lshw showed mem: {}".format(mem_in_gib))
 
-        utils_lib.compare_nums(self, mem_in_gib, base_memory, ratio=15)
+        if mem_in_gib >= 4:
+            utils_lib.compare_nums(self, mem_in_gib, base_memory, ratio=15)
+        else:
+            utils_lib.compare_nums(self, mem_in_gib, base_memory, ratio=17)
 
     def test_check_lsmem_segfault(self):
         '''
