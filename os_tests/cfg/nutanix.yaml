@@ -29,12 +29,14 @@ VM:
 BootTime:
   first_launch: 30
   acpi_reboot: 25
+Stress:
+  reboot_cycles: 100
 Other:
   packages:
 Flavor:
-      name: m1.medium
-      cpu: 2
-      memory: 4
-      size: 10
-      virt: kvm
+  name: m1.medium
+  cpu: 2
+  memory: 4
+  size: 10
+  virt: kvm
 
