@@ -1161,7 +1161,7 @@
         "trigger": "Reloading Network Manager"
     },
     "msg_131": {
-        "content": "DataSourceGCE.py[WARNING]: address \"http://metadata.google.internal/computeMetadata/v1/\" is not resolvable",
+        "content": ".*DataSourceGCE.py[WARNING]: address \"http://metadata.google.internal/computeMetadata/v1/\" is not resolvable.*",
         "analyze": "NetworkManager haven't update dns record when cloud-init use it.",
         "branch": "rhel8,rhel9",
         "status": "active",
@@ -1170,7 +1170,7 @@
         "trigger": ""
     },
     "msg_132": {
-        "content": "Failed to find module 'ipmi-devintf'",
+        "content": ".*Failed to find module 'ipmi-devintf'.*",
         "analyze": "fwupd contains modules-load.d which include this module but not exists in initramfs",
         "branch": "rhel9",
         "status": "active",
@@ -1179,7 +1179,7 @@
         "trigger": ""
     },
     "msg_133": {
-        "content": "pam_motd(sshd:session): pam_motd: error scanning directory /run/motd.d",
+        "content": ".*pam_motd(sshd:session): pam_motd: error scanning directory /run/motd.d.*",
         "analyze": "Existing bug",
         "branch": "rhel8",
         "status": "active",

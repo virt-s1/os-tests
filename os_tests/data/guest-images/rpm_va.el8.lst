@@ -9,3 +9,4 @@ S.5....T.  c /etc/NetworkManager/NetworkManager.conf
 .M....G..  g /var/log/lastlog
 S.5....T.  c /etc/ssh/sshd_config
 missing     /run/motd.d
+.......T.    /boot/efi/EFI/redhat/grubx64.efi
