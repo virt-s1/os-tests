@@ -14,7 +14,7 @@ class TestCloudInit(unittest.TestCase):
     def test_check_cloudinit_cfg_no_wheel(self):
         '''
         case_tag:
-            cloudinit
+            cloudinit,cloudinit_tier2
         bz: 1549638
         cm: 01965459
         polarion_id:
@@ -49,7 +49,7 @@ class TestCloudInit(unittest.TestCase):
     def test_check_cloudinit_fingerprints(self):
         '''
         case_tag:
-            cloudinit
+            cloudinit,cloudinit_tier2
         bz: 1957532
         cm: 02905983
         polarion_id:
@@ -72,7 +72,7 @@ class TestCloudInit(unittest.TestCase):
     def test_check_cloudinit_log_imdsv2(self):
         """
         case_tag:
-            cloudinit
+            cloudinit,cloudinit_tier2
         case_name:
             test_check_cloudinit_log_imdsv2
         case_file:
@@ -116,7 +116,7 @@ class TestCloudInit(unittest.TestCase):
     def test_check_cloudinit_log_unexpected(self):
         '''
         case_tag:
-            cloudinit
+            cloudinit,cloudinit_tier2
         polarion_id:
         bz: 1827207
         description:
@@ -138,7 +138,7 @@ class TestCloudInit(unittest.TestCase):
     def test_check_cloudinit_log_critical(self):
         '''
         case_tag:
-            cloudinit
+            cloudinit,cloudinit_tier1
         polarion_id:
         bz: 1827207
         description:
@@ -160,7 +160,7 @@ class TestCloudInit(unittest.TestCase):
     def test_check_cloudinit_log_warn(self):
         '''
         case_tag:
-            cloudinit
+            cloudinit,cloudinit_tier2
         polarion_id:
         bz: 1821999
         description:
@@ -182,7 +182,7 @@ class TestCloudInit(unittest.TestCase):
     def test_check_cloudinit_log_error(self):
         '''
         case_tag:
-            cloudinit
+            cloudinit,cloudinit_tier2
         polarion_id:
         bz: 1821999
         description:
@@ -204,7 +204,7 @@ class TestCloudInit(unittest.TestCase):
     def test_check_cloudinit_log_traceback(self):
         '''
         case_tag:
-            cloudinit
+            cloudinit,cloudinit_tier2
         polarion_id:
         description:
             check no traceback log in cloudinit logs
@@ -225,7 +225,7 @@ class TestCloudInit(unittest.TestCase):
     def test_check_metadata(self):
         '''
         case_tag:
-            cloudinit
+            cloudinit,cloudinit_tier2
         polarion_id:
         description:
             https://cloudinit.readthedocs.io/en/latest/topics/datasources/ec2.html
@@ -239,7 +239,7 @@ class TestCloudInit(unittest.TestCase):
     def test_check_output_isexist(self):
         '''
         case_tag:
-            cloudinit
+            cloudinit,cloudinit_tier1
         polarion_id:
         bz: 1626117
         description:
@@ -269,7 +269,7 @@ class TestCloudInit(unittest.TestCase):
     def test_check_cloudinit_service_status(self):
         '''
         case_tag:
-            cloudinit
+            cloudinit,cloudinit_tier1
         polarion_id:
         bugzilla_id:
             1829713
@@ -289,7 +289,7 @@ class TestCloudInit(unittest.TestCase):
     def test_cloudinit_sshd_keypair(self):
         '''
         case_tag:
-            cloudinit
+            cloudinit,cloudinit_tier2
         case_file:
             https://github.com/liangxiao1/os-tests/blob/master/os_tests/tests/test_cloud_init.py
         description:
@@ -351,7 +351,7 @@ class TestCloudInit(unittest.TestCase):
     def test_cloudinit_auto_extend_root_partition_and_filesystem(self):
         """
         case_tag:
-            Cloudinit
+            cloudinit,cloudinit_tier2
         case_name:
             test_cloudinit_auto_extend_root_partition_and_filesystem
         case_file:
@@ -431,7 +431,7 @@ class TestCloudInit(unittest.TestCase):
     def test_cloudinit_login_with_password(self):
         """
         case_tag:
-            Cloudinit
+            cloudinit,cloudinit_tier1
         case_name:
             test_cloudinit_login_with_password
         case_file:
@@ -457,6 +457,8 @@ class TestCloudInit(unittest.TestCase):
         """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
+        if self.vm.provider == 'openstack':
+            self.skipTest('skip run as openstack uses userdata to config the password')
         for attrname in ['ssh_pubkey', 'get_vm_by_filter', 'prism']:
             if not hasattr(self.vm, attrname):
                 self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
@@ -494,7 +496,7 @@ class TestCloudInit(unittest.TestCase):
     def test_cloudinit_verify_hostname(self):
         """
         case_tag:
-            cloudinit
+            cloudinit,cloudinit_tier1
         case_name:
             test_cloudinit_verify_hostname
         case_file:
@@ -560,7 +562,7 @@ class TestCloudInit(unittest.TestCase):
     def test_cloudinit_auto_resize_partition_in_gpt(self):
         """
         case_tag:
-            Cloudinit
+            cloud_utils_growpart,cloud_utils_growpart_tier1
         case_name:
             test_cloudinit_auto_resize_partition_in_gpt
         case_file:
@@ -589,7 +591,7 @@ class TestCloudInit(unittest.TestCase):
     def test_cloudinit_auto_resize_partition_in_mbr(self):
         """
         case_tag:
-            Cloudinit
+            cloud_utils_growpart,cloud_utils_growpart_tier1
         case_name:
             test_cloudinit_auto_resize_partition_in_mbr
         case_file:
@@ -618,7 +620,7 @@ class TestCloudInit(unittest.TestCase):
     def test_cloudinit_start_sector_equal_to_partition_size(self):
         """
         case_tag:
-            Cloudinit
+            cloud_utils_growpart,cloud_utils_growpart_tier1
         case_name:
             test_cloudinit_start_sector_equal_to_partition_size
         case_file:
@@ -669,7 +671,7 @@ EOF""".format(device, size), expect_ret=0)
     def test_cloudinit_save_and_handle_customdata_script(self):
         """
         case_tag:
-            Cloudinit
+            cloudinit,cloudinit_tier2
         case_name:
             test_cloudinit_save_and_handle_customdata_script
         case_file:
@@ -694,6 +696,8 @@ EOF""".format(device, size), expect_ret=0)
         debug_want:
             N/A
         """
+        if self.vm.provider != 'nutanix':
+            self.skipTest('skip run as this needs to configure vm_custom_file, configured on nutanix')
         utils_lib.run_cmd(self,"sudo chmod 777 /tmp/%s" % self.vm.prism.vm_custom_file)
         utils_lib.run_cmd(self,"sudo /tmp/%s" % self.vm.prism.vm_custom_file)
         self.assertEqual("Test files to copy",
@@ -703,7 +707,7 @@ EOF""".format(device, size), expect_ret=0)
     def test_cloudinit_save_and_handle_customdata_cloudinit_config(self):
         """
         case_tag:
-            Cloudinit
+            cloudinit,cloudinit_tier2
         case_name:
             test_cloudinit_save_and_handle_customdata_cloudinit_config
         case_file:
@@ -728,6 +732,8 @@ EOF""".format(device, size), expect_ret=0)
         debug_want:
             N/A
         """
+        if self.vm.provider != 'nutanix':
+            self.skipTest('skip run as this needs to configure userdata, configured on nutanix')
         output = utils_lib.run_cmd(self,
             "sudo grep 'running modules for config' "
             "/var/log/cloud-init.log -B 10")
@@ -737,7 +743,7 @@ EOF""".format(device, size), expect_ret=0)
     def test_cloudinit_provision_vm_with_multiple_nics(self):
         """
         case_tag:
-            Cloudinit
+            cloudinit,cloudinit_tier2
         case_name:
             test_cloudinit_provision_vm_with_multiple_nics
         case_file:
@@ -764,6 +770,8 @@ EOF""".format(device, size), expect_ret=0)
         """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
+        if self.vm.provider != 'nutanix':
+            self.skipTest('skip run as this needs to configure single_nic, configured on nutanix')
         self.vm.delete(wait=True)
         self.vm.create(single_nic=False, wait=True)
         self.vm.start(wait=True)
@@ -1347,18 +1355,13 @@ EOF""".format(device, size), expect_ret=0)
         """
         self.log.info(
             "RHEL-288482 - CLOUDINIT-TC: Check cloud-init dependency, openssl and gdisk")       
-        cmd = 'sudo rpm -qR cloud-init | grep openssl'
+        dep_list = 'openssl,gdisk'
+        cmd = 'sudo rpm -qR cloud-init'
         utils_lib.run_cmd(self,
                           cmd,
                           expect_ret=0,
-                          expect_kw='openssl',
-                          msg='check if openssl is cloud-init dependency')
-        cmd = 'sudo rpm -qR cloud-init | grep gdisk'
-        utils_lib.run_cmd(self,
-                          cmd,
-                          expect_ret=0,
-                          expect_kw='gdisk',
-                          msg='check if gdisk is cloud-init dependency')
+                          expect_kw='%s' % dep_list,
+                          msg='check if %s are cloud-init dependency' % dep_list)
 
     def test_cloudinit_removed_dependency(self):
         """
@@ -1379,28 +1382,88 @@ EOF""".format(device, size), expect_ret=0)
             # rpm -qR cloud-init
         """
         self.log.info(
-            "RHEL-198795 - CLOUDINIT-TC: Check cloud-init removed dependency")       
+            "RHEL-198795 - CLOUDINIT-TC: Check cloud-init removed dependency")
+        rm_dep_list = 'net-tools,python3-mock,python3-nose,python3-tox'
         cmd = 'sudo rpm -qR cloud-init'
         utils_lib.run_cmd(self,
                           cmd,
                           expect_ret=0,
-                          expect_not_kw='net-tools',
-                          msg='check if net-tools is removed from cloud-init dependency')
+                          expect_not_kw='%s' % rm_dep_list,
+                          msg='check if %s are removed from cloud-init dependency' % rm_dep_list)
+
+    def _check_cloudinit_done_and_service_isactive(self):
+        # if cloud-init status is running, waiting
+        cmd = 'sudo cloud-init status'
+        output=utils_lib.run_cmd(self, cmd).rstrip('\n')
+        while output=='status: running':
+            time.sleep(20) # waiting for cloud-init done
+            output = utils_lib.run_cmd(self, cmd).rstrip('\n')        
+        # check cloud-init status is done        
+        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='status: done', msg='Get cloud-init status')
+        # check cloud-init services status are active
+        service_list = ['cloud-init-local',
+                        'cloud-init',
+                        'cloud-config',
+                        'cloud-final']
+        for service in service_list:
+            cmd = "sudo systemctl is-active %s" % service
+            utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='active', msg = "check %s status" % service)
+
+    def test_cloudinit_create_vm_config_drive(self):        
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-189225 - CLOUDINIT-TC: launch vm with config drive
+        key_steps:
+            basic case of config drive
+            1. Create a VM with datasource 'Config Drive'
+            2. Login and check user sudo privilege
+            3. check data source in /run/cloud-init/cloud.cfg
+        """
+        if self.vm.provider != 'openstack':
+            self.skipTest('skip run as this is openstack specific case')
+        self.log.info(
+            "RHEL-189225 - CLOUDINIT-TC: launch vm with config drive")        
+        if self.vm.exists():
+            self.vm.delete()
+            time.sleep(30)
+        self.vm.config_drive = True
+        self.vm.create()
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
+        output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
+        self.assertEqual(
+            self.vm.vm_username, output,
+            "Login VM with publickey error: output of cmd `whoami` unexpected -> %s"
+            % output)
+        sudooutput=utils_lib.run_cmd(self, "sudo cat /etc/sudoers.d/90-cloud-init-users", expect_ret=0) 
+        self.assertIn(
+            "%s ALL=(ALL) NOPASSWD:ALL" % self.vm.vm_username,
+            sudooutput,
+            "No sudo privilege")
+        cmd = 'sudo cat /run/cloud-init/cloud.cfg'
         utils_lib.run_cmd(self,
                           cmd,
                           expect_ret=0,
-                          expect_not_kw='python3-mock',
-                          msg='check if python3-mock is removed from cloud-init dependency')
-        utils_lib.run_cmd(self,
-                          cmd,
-                          expect_ret=0,
-                          expect_not_kw='python3-nose',
-                          msg='check if python3-nose is removed from cloud-init dependency')
-        utils_lib.run_cmd(self,
-                          cmd,
-                          expect_ret=0,
-                          expect_not_kw='python3-tox',
-                          msg='check if python3-tox is removed from cloud-init dependency')
+                          expect_kw='ConfigDrive',
+                          msg='check if ConfigDrive in /run/cloud-init/cloud.cfg')
+        # check cloud-init status is done and services are active
+        self._check_cloudinit_done_and_service_isactive()
+        #teardown        
+        self.vm.delete()
+        self.vm.config_drive = None
+        self.vm.create()
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
 
     def tearDown(self):
         if 'test_cloudinit_sshd_keypair' in self.id():
