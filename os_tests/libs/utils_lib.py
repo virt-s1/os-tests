@@ -601,6 +601,28 @@ def getboottime(test_instance):
         "Boot time is {}(s)".format(boot_time_sec))
     return boot_time_sec
 
+def is_sev_enabled(test_instance):
+    '''
+    Check whether SEV is enabled on the system.
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+    Return:
+        enabled: return True
+        N/A: return False
+    '''
+    if test_instance.vm.provider == 'google':
+        audience = 'aud'
+        cmd = "curl -s -H 'Metadata-Flavor: Google' \
+            'http://metadata/computeMetadata/v1/instance/service-accounts/default/identity?audience={}&format=full'".format(audience)
+        token = run_cmd(test_instance, cmd, expect_ret=0)
+        if test_instance.vm.is_sev_enabled(token, audience):
+            return True
+        else:
+            return False
+    else:
+        raise NotImplementedError
+    return False
+
 def is_arch(test_instance, arch="", action=None):
     '''
     Check whether system is specific system.
