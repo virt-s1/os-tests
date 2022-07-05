@@ -8,39 +8,35 @@ import os_tests
 from os_tests.libs.html_runner import HTMLTestRunner
 import uuid
 import logging
+from itertools import chain
 LOG_FORMAT = '%(asctime)s:%(levelname)s:%(message)s'
 
 def main():
     log = logging.getLogger(__name__)
     logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
     args = init_args()
-    vm, disk, nic = None, None, None
+    vms, disks, nics = [], [], []
     run_uuid = str(uuid.uuid4())
     if args.platform_profile and not args.is_listcase and not args.verifydoc:
-        log.info("{}Stage: Provision System{}".format('='*20,'='*20))
         cfg_file, cfg_data = get_cfg(cfg_file=args.platform_profile)
         cfg_data['remote_user'] = args.remote_user
         cfg_data['run_uuid'] = run_uuid
-        vm, disk, nic = init_provider(params=cfg_data)
-        if not vm:
-            log.info('cannot provision vm, please check.')
-            sys.exit(1)
+        vms, disks, nics = init_provider(params=cfg_data)
     cfg_file, cfg_data = get_cfg()
-    if args.results_dir is not None:
+    is_rmt = False
+    if args.results_dir:
         cfg_data['results_dir'] = args.results_dir
-    if args.remote_node is not None:
-        cfg_data['remote_node'] = args.remote_node
+    if args.remote_nodes:
+        is_rmt = True
+        cfg_data['remote_nodes'] = args.remote_nodes.split(',')
         cfg_data['remote_port'] = args.remote_port
         cfg_data['remote_user'] = args.remote_user
         cfg_data['remote_password'] = args.remote_password
         cfg_data['remote_keyfile'] = args.remote_keyfile
 
-    if vm:
-        if vm.floating_ip is None:
-            vm.delete()
-            sys.exit(1)
-        cfg_data['remote_node'] = vm.floating_ip
-        cfg_data['remote_port'] = vm.port
+    if vms:
+        is_rmt = True
+        cfg_data['remote_nodes'] = []
         cfg_data['remote_user'] = args.remote_user
         cfg_data['remote_password'] = args.remote_password
         cfg_data['remote_keyfile'] = args.remote_keyfile
@@ -83,19 +79,12 @@ def main():
             if not args.verifydoc:
                 skip_patterns = 'test_azure_image,test_gcp_image,test_rhel_guest_image'
 
-    ssh = None
-    if cfg_data['remote_node'] is None and not args.platform_profile:
+    if not is_rmt and not args.platform_profile:
         print("skip lifecycle tests as no remote node found")
         if skip_patterns and not args.verifydoc:
             skip_patterns = skip_patterns + ',test_lifecycle'
         else:
             skip_patterns = 'test_lifecycle' 
-    elif not args.is_listcase and not args.verifydoc:
-        log.info("{}Stage: Init Connection to System{}".format('='*20,'='*20))
-        ssh = init_ssh(params=cfg_data)
-        if ssh is None and vm:
-            vm.delete()
-            sys.exit(1)
 
     if not args.platform_profile and not args.verifydoc:
         skip_patterns = skip_patterns + ',test_vm_operation' if skip_patterns else 'test_vm_operation'
@@ -115,15 +104,19 @@ def main():
             for ts2 in ts1._tests:
                 try:
                     for case in ts2._tests:
+                        case.is_rmt = is_rmt
                         case.params = cfg_data
                         case.run_uuid = run_uuid
                         case.utils_dir = utils_dir
                         case.data_dir = data_dir
-                        if ssh is not None:
-                            case.SSH = ssh
-                        case.vm = vm
-                        case.disk = disk
-                        case.nic = nic
+                        case.SSHs = []
+                        case.SSH = None
+                        case.vms = vms
+                        case.vm = case.vms and vms[0] or None
+                        case.disks = disks
+                        case.disk = case.disks and disks[0] or None
+                        case.nics = nics
+                        case.nics = case.nics and nics[0] or None
                         if filter_case_doc(case=case, patterns=test_patterns, skip_patterns=skip_patterns,
                                            filter_field=args.filter_by, strict=args.is_strict, verify_doc=args.verifydoc):
                             final_ts.addTest(case)
@@ -139,10 +132,11 @@ def main():
         print("Total case num: %s"%final_ts.countTestCases())
     else:
         HTMLTestRunner(verbosity=2).run(final_ts)
-    if vm:
-        vm.delete()
-        if disk is not None and disk.is_exist():
-            disk.delete()
 
+    for res in chain(vms, disks, nics):
+        if hasattr(res, 'exists') and res.exists():
+            res.delete()
+        elif hasattr(res, 'is_exist') and res.is_exist():
+            res.delete()
 if __name__ == "__main__":
     main()

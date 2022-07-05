@@ -11,8 +11,8 @@ ping_server: 8.8.8.8
 disk_utils: 30
 # if you want to run os-tests in master-slave mode, please specify below options.
 # All tests are running in slave node including some reboot operations.
-# remote_node specify remote ip
-remote_node: 
+# remote_nodes specify remote ip
+remote_nodes: 
 # open port for ssh connection
 remote_port: 22
 # remote_user: user to login remote
