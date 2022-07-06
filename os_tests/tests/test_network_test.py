@@ -3,6 +3,7 @@ import unittest
 import time
 import random
 from os_tests.libs import utils_lib
+from os_tests.libs.utils_lib import run_cmd, init_connection
 
 class TestNetworkTest(unittest.TestCase):
     def setUp(self):
@@ -32,6 +33,11 @@ class TestNetworkTest(unittest.TestCase):
         cmd = "ip addr show {}".format(self.nic)
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to get {} ipv4 address'.format(self.nic))
         self.ipv4 = re.findall('[\d.]{7,16}', output)[0]
+        if utils_lib.is_metal(self):
+            self.ssh_timeout = 1200
+            self.SSH.interval = 60
+        else:
+            self.ssh_timeout = 180
 
     def test_ethtool_G(self):
         '''
@@ -696,6 +702,30 @@ COMMIT
             utils_lib.run_cmd(self, "sudo modprobe -r %s && sudo modprobe %s" % (driver_check, driver_check), expect_ret=0)
         new_nic_name = utils_lib.run_cmd(self, "ls /sys/class/net/ | grep -v lo").strip()
         self.assertEqual(origin_nic_name, new_nic_name, msg="Second nic name changed after unload/load nic driver three times, Expect: %s, real: %s" % (origin_nic_name, new_nic_name))
+
+    def test_iperf(self):
+        """
+        a simple case to run iperf between 2 nodes
+        """
+        iperf_srv_cmd = 'sudo bash -c "iperf3 -s >/dev/null 2>&1 &"'
+        if self.vms:
+            if not self.vms[1].exists():
+                self.vms[1].create()
+                if self.vms[1].is_stopped():
+                    self.vms[1].start(wait=True)
+            init_connection(self, timeout=self.ssh_timeout, vm=self.vms[1])
+            self.params['remote_nodes'].append(self.vms[1].floating_ip)
+            run_cmd(self, iperf_srv_cmd, vm=self.vms[1])
+        elif not self.vms and self.params['remote_nodes']:
+            init_connection(self, timeout=self.ssh_timeout, rmt_node=self.params['remote_nodes'][1])
+            run_cmd(self, iperf_srv_cmd, rmt_node=self.params['remote_nodes'][1])
+        else:
+            self.skipTest('2 nodes required')
+        cmd = "ip addr show {}".format(self.nic)
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to get {} ipv4 address'.format(self.nic),rmt_node=self.params['remote_nodes'][-1])
+        srv_ipv4 = re.findall('[\d.]{7,16}', output)[0]
+        iperf_cli_cmd = 'iperf3 -c {} -t 60'.format(srv_ipv4)
+        run_cmd(self, iperf_cli_cmd, expect_ret=0, timeout=120)
 
     def test_unload_load_virtio(self):
         """
