@@ -22,10 +22,10 @@ VM:
   username: cloud-user
   password: 
   keypair: xen-jenkins
-  vm_name: avocado_cloud
+  vm_name: os-tests
   image_name: rhel-guest-image-9.1-20220606.1.x86_64.qcow2
-  network_name: provider_net_cci_4
-  network_id: 68a8220a-20f4-4940-99b4-45b6f98bce6b
+  network_name: provider_net_cci_12
+  network_id: 36e46f70-99ff-48f5-aa9d-7bbd22b6218a
 SecurityGroups:
   name:
     - default
