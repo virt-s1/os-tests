@@ -195,8 +195,10 @@ class HTMLTestRunner(object):
         if hasattr(result, 'separator2'):
             self.stream.writeln(result.separator2)
         test_result.compute_totals()
-        with open("{}/attachments/node_info".format(logdir)) as fh:
-            test_result.node_info = fh.read()
+        node_info_file = "{}/attachments/node_info".format(logdir)
+        if os.path.exists(node_info_file):
+            with open(node_info_file) as fh:
+                test_result.node_info = fh.read()
         results_dir = logdir + '/results'
         if not os.path.exists(results_dir):
             os.mkdir(results_dir)

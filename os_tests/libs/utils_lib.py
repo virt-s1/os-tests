@@ -177,8 +177,8 @@ def get_cfg(cfg_file = None):
         return cfg_file, None
     keys_data = load_yaml(yaml_file=cfg_file)
     if keys_data.get('remote_nodes'):
-        keys_data['remote_nodes'] = keys_data['remote_ndoes'].split(',')
-        keys_data['remote_node'] =  keys_data['remote_ndoes'][0]
+        keys_data['remote_nodes'] = keys_data['remote_nodes'].split(',')
+        keys_data['remote_node'] =  keys_data['remote_nodes'][0]
     return cfg_file, keys_data
 
 def load_yaml(yaml_file = None, yaml_content = None):
