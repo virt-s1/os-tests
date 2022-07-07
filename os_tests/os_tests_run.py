@@ -29,6 +29,7 @@ def main():
     if args.remote_nodes:
         is_rmt = True
         cfg_data['remote_nodes'] = args.remote_nodes.split(',')
+        cfg_data['remote_node'] =  cfg_data['remote_nodes'][0]
         cfg_data['remote_port'] = args.remote_port
         cfg_data['remote_user'] = args.remote_user
         cfg_data['remote_password'] = args.remote_password
@@ -116,7 +117,7 @@ def main():
                         case.disks = disks
                         case.disk = case.disks and disks[0] or None
                         case.nics = nics
-                        case.nics = case.nics and nics[0] or None
+                        case.nic = case.nics and nics[0] or None
                         if filter_case_doc(case=case, patterns=test_patterns, skip_patterns=skip_patterns,
                                            filter_field=args.filter_by, strict=args.is_strict, verify_doc=args.verifydoc):
                             final_ts.addTest(case)
