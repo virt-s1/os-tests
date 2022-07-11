@@ -15,7 +15,7 @@ def main():
     log = logging.getLogger(__name__)
     logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
     args = init_args()
-    vms, disks, nics = [], [], []
+    vms, disks, nics, sshs = [], [], [], []
     run_uuid = str(uuid.uuid4())
     if args.platform_profile and not args.is_listcase and not args.verifydoc:
         cfg_file, cfg_data = get_cfg(cfg_file=args.platform_profile)
@@ -110,8 +110,8 @@ def main():
                         case.run_uuid = run_uuid
                         case.utils_dir = utils_dir
                         case.data_dir = data_dir
-                        case.SSHs = []
-                        case.SSH = None
+                        case.SSHs = sshs
+                        case.SSH = case.SSHs and case.SSHs[0] or None
                         case.vms = vms
                         case.vm = case.vms and vms[0] or None
                         case.disks = disks
