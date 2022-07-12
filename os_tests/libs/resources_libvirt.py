@@ -61,12 +61,12 @@ class LibvirtVM(VMResource):
             libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE, 0)
 
         for k, v in net.items():
-            if "vnet" in k:
-                for addr in net.get(k).get("addrs"):
-                    f_ip = addr.get("addr")
+            if v["addrs"]:
+                for ipaddr in v["addrs"]:
+                    f_ip = ipaddr["addr"]
         return f_ip
 
-    def create(self, wait=False):
+    def create(self, wait=True):
         root = ET.fromstring(dom_xml)
         if self.arch == "x86_64":
             root.find("os").find("type").set("arch", self.arch)
