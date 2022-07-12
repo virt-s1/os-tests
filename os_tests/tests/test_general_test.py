@@ -888,13 +888,14 @@ if __name__ == "__main__":
             "strace -o log wipefs -a /dev/srN
         """
         cmd = "lsblk | grep sr"
-        all = utils_lib.run_cmd(self,cmd,cancel_kw="sr0",msg="check if machine mounted CDROM").split("\n")
+        all = utils_lib.run_cmd(self,cmd,cancel_kw="sr0",
+                                msg="check if machine mounted CDROM").rstrip().split("\n")
         for i in all:
             part = i.split(" ")[0]
-            cmd = "wipefs -a /dev/"+part
+            cmd = "sudo wipefs -a /dev/"+part
             utils_lib.run_cmd(self,cmd,expect_ret=1,msg="erase signature")
-            cmd = "dmesg -T | grep error"
-            utils_lib.run_cmd(self,cmd,expect_not_kw=part,msg="check if there's error")
+            cmd = "dmesg -T | grep %s" % part
+            utils_lib.run_cmd(self,cmd,expect_not_kw="error",msg="check if there's error")
 
     def test_grub2_mkconfig(self):
         """

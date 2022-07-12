@@ -850,7 +850,8 @@ class TestNutanixVM(unittest.TestCase):
         debug_want:
             N/A
         """
-        if not self.vm.is_uefi_boot:
+        is_uefi_boot = self.vm.params['VM']['if_uefi_boot']
+        if not is_uefi_boot:
             self.skipTest("Skip as VM is not in UEFI boot mode")
         
         mem_gb_current = self.vm.get_memory_size()
