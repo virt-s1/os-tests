@@ -22,7 +22,6 @@ except ImportError:
     from yaml import Loader, Dumper
 
 LOG = logging.getLogger('os_tests.os_tests_run')
-logging.basicConfig(level=logging.INFO)
 
 def init_args():
     parser = argparse.ArgumentParser(
@@ -64,29 +63,38 @@ def init_provider(params=None):
     vms = []
     disks = []
     nics = []
-    if 'aws' in params['Cloud']['provider']:
+    supported_platforms = ['aws', 'openstack', 'ali', 'nutanix', 'google', 'libvirt', 'openshift']
+    provider = params['Cloud']['provider']
+    if not provider:
+        LOG.info("no provider found in profile".format(provider, supported_platforms))
+        sys.exit(1)
+    elif provider not in supported_platforms:
+        LOG.info("{} not in supported platforms:{}".format(provider, supported_platforms))
+        sys.exit(1)
+
+    if 'aws' in provider:
         from .resources_aws import EC2VM,EC2Volume,EC2NIC
         # init resources only without create them at very beginning
         vms.extend([EC2VM(params),EC2VM(params)])
         disks.append(EC2Volume(params))
         nics.append(EC2NIC(params))
-    if 'openstack' in params['Cloud']['provider']:
+    if 'openstack' in provider:
         from .resources_openstack import OpenstackVM
         vms.append(OpenstackVM(params))
-    if 'ali' in params['Cloud']['provider']:
+    if 'ali' in provider:
         from .resources_alicloud import AlibabaVM
         vms.append(AlibabaVM(params))
-    if 'nutanix' in params['Cloud']['provider']:
+    if 'nutanix' in provider:
         from .resources_nutanix import NutanixVM,NutanixVolume
         vms.append(NutanixVM(params))
         disks.append(NutanixVolume(params))
-    if 'google' in params['Cloud']['provider']:
+    if 'google' in provider:
         from .resources_gcp import GCPVM
         vms.append(GCPVM(params))
-    if 'libvirt' in params['Cloud']['provider']:
+    if 'libvirt' in provider:
         from .resources_libvirt import LibvirtVM
         vms.append(LibvirtVM(params))
-    if 'openshift' in params['Cloud']['provider']:
+    if 'openshift' in provider:
         from .resources_openshift import OpenShiftVM
         vms.append(OpenShiftVM(params))
 
@@ -235,7 +243,7 @@ def init_case(test_instance):
     for handler in logging.root.handlers[:]:
         handler.close()
         logging.root.removeHandler(handler)
-    FORMAT = "%(levelname)s:%(message)s"
+    FORMAT = '%(asctime)s:%(levelname)s:%(message)s'
     logging.basicConfig(level=logging.INFO, format=FORMAT, filename=log_file)
     test_instance.log.info("-"*80)
     test_instance.log.info("Code Repo: {}".format(test_instance.params['code_repo']))
@@ -262,6 +270,8 @@ def init_case(test_instance):
 
     if test_instance.is_rmt:
         init_connection(test_instance)
+        if not test_instance.params['remote_node']:
+            test_instance.skipTest("remote_node not found")
         test_instance.SSH.log = test_instance.log
         if  test_instance.SSH.ssh_client is None:
             test_instance.skipTest("Cannot make ssh connection to remote, please check")

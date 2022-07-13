@@ -10,10 +10,10 @@ import uuid
 import logging
 from itertools import chain
 LOG_FORMAT = '%(asctime)s:%(levelname)s:%(message)s'
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 
 def main():
-    log = logging.getLogger(__name__)
-    logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
     args = init_args()
     vms, disks, nics, sshs = [], [], [], []
     run_uuid = str(uuid.uuid4())
@@ -46,34 +46,34 @@ def main():
     results_dir_suffix = None
     if os.path.exists(results_dir) and not args.is_listcase:
         rmtree(results_dir)
-        print("saving results to {}".format(results_dir))
+        log.info("saving results to {}".format(results_dir))
     os_tests_dir = os.path.dirname(__file__)
     skip_patterns = args.skip_pattern
     test_patterns = args.pattern
     if args.image is not None:
         if 'azure' in args.image:
-            print("only run azure image checks")
+            log.info("only run azure image checks")
             if args.pattern:
                 test_patterns = args.pattern
             else:
                 test_patterns = 'test_azure_image'
         elif 'gcp' in args.image:
-            print("only run gcp image checks")
+            log.info("only run gcp image checks")
             if args.pattern:
                 test_patterns = args.pattern
             else:
                 test_patterns = 'test_gcp_image'
         elif 'kvm' in args.image:
-            print("only run rhel guest image checks")
+            log.info("only run rhel guest image checks")
             if args.pattern:
                 test_patterns = args.pattern
             else:
                 test_patterns = 'test_rhel_guest_image'
         else:
-            print("only azure,gcp and rhel-kvm image check supported for now")
+            log.info("only azure,gcp and rhel-kvm image check supported for now")
             sys.exit(0)
     else:
-        print("skip azure,gcp and rhel-kvm image check by default")
+        log.info("skip azure,gcp and rhel-kvm image check by default")
         if skip_patterns and not args.verifydoc:
             skip_patterns = skip_patterns + ',test_azure_image,test_gcp_image,test_rhel_guest_image'
         else:
@@ -81,7 +81,7 @@ def main():
                 skip_patterns = 'test_azure_image,test_gcp_image,test_rhel_guest_image'
 
     if not is_rmt and not args.platform_profile:
-        print("skip lifecycle tests as no remote node found")
+        log.info("skip lifecycle tests as no remote node found")
         if skip_patterns and not args.verifydoc:
             skip_patterns = skip_patterns + ',test_lifecycle'
         else:
@@ -91,7 +91,7 @@ def main():
         skip_patterns = skip_patterns + ',test_vm_operation' if skip_patterns else 'test_vm_operation'
 
     log.info("{}Stage: Run Test{}".format('='*20,'='*20))
-    print("Run in mode: is_listcase:{} test_patterns:{} skip_patterns:{}".format(args.is_listcase, test_patterns, skip_patterns))
+    log.info("Run in mode: is_listcase:{} test_patterns:{} skip_patterns:{}".format(args.is_listcase, test_patterns, skip_patterns))
 
     base_dir = os.path.realpath(os_tests.__file__)
     utils_dir = os.path.dirname(base_dir) + '/utils'
@@ -122,15 +122,14 @@ def main():
                                            filter_field=args.filter_by, strict=args.is_strict, verify_doc=args.verifydoc):
                             final_ts.addTest(case)
                 except Exception as err:
-                    print("Cannot handle ts discovered:{}".format(ts2))
-                    print(err)
+                    log.info("Cannot handle ts discovered:{}".format(ts2))
+                    log.info(err)
     if final_ts.countTestCases() == 0:
-        print("No case found!")
+        log.info("No case found!")
         sys.exit(1)
     if args.is_listcase or args.verifydoc:
-        for case in final_ts:
-            print(case.id())
-        print("Total case num: %s"%final_ts.countTestCases())
+        log.info('\n'.join([case.id() for case in final_ts]))
+        log.info("Total case num: %s"%final_ts.countTestCases())
     else:
         HTMLTestRunner(verbosity=2).run(final_ts)
 
