@@ -1,5 +1,6 @@
 import unittest
 import time
+import re
 from os_tests.libs import utils_lib
 from os_tests.libs.resources import UnSupportedAction,UnSupportedStatus
 
@@ -54,8 +55,12 @@ class TestVMOperation(unittest.TestCase):
             self.skipTest("current instance setup might not support ipv6, skip checking.")
         cmd = 'ip addr show eth0'
         utils_lib.run_cmd(self, cmd, expect_kw=ipv6)
-        cmd = 'cat /etc/sysconfig/network-scripts/ifcfg-eth0'
-        utils_lib.run_cmd(self, cmd, expect_kw='IPV6INIT=yes')
+        out = utils_lib.run_cmd(self, 'rpm -q cloud-init', expect_ret=0)
+        cloudinit_ver = re.findall('\d+.\d',out)[0]
+        if float(cloudinit_ver) < 22.1:
+            self.log.info('no ifcfg-eth0 from cloudinit 22.1, render profile was changed to networkmanager')
+            cmd = 'cat /etc/sysconfig/network-scripts/ifcfg-eth0'
+            utils_lib.run_cmd(self, cmd, expect_kw='IPV6INIT=yes')
 
     def test_cloud_init_lineoverwrite(self):
         '''
@@ -88,6 +93,10 @@ class TestVMOperation(unittest.TestCase):
         utils_lib.run_cmd(self,
                     'uname -r',
                      msg='Get instance kernel version')
+        out = utils_lib.run_cmd(self, 'rpm -q cloud-init', expect_ret=0)
+        cloudinit_ver = re.findall('\d+.\d',out)[0]
+        if float(cloudinit_ver) >= 22.1:
+            self.skipTest('not supported from cloudinit 22.1, render profile changed to networkmanager')
         cmd = 'ifconfig eth0'
         utils_lib.run_cmd(self, cmd, msg="Previous ifconfig status")
         cmd = 'cat /etc/sysconfig/network'

@@ -1098,7 +1098,10 @@ itlb_multihit|sed 's/:/^/' | column -t -s^"
         mem_in_gib = mem_in_byte/1024/1024/1024
         self.log.info("lshw showed mem: {}".format(mem_in_gib))
 
-        utils_lib.compare_nums(self, mem_in_gib, base_memory, ratio=15)
+        if mem_in_gib >= 4:
+            utils_lib.compare_nums(self, mem_in_gib, base_memory, ratio=15)
+        else:
+            utils_lib.compare_nums(self, mem_in_gib, base_memory, ratio=17)
 
     def test_check_lsmem_segfault(self):
         '''
@@ -2036,6 +2039,7 @@ current_device"
                 self.fail("{} insights rule hit".format(len(tmp_dict)))
         except json.decoder.JSONDecodeError as exc:
             self.log.error("insights rule hit or other unexpected error")
+
     def test_check_sos_works(self):
         """
         case_name:
@@ -2073,6 +2077,43 @@ current_device"
         else:
             cmd = "cp {} {}/debug/{}".format(sosfile, self.log_dir,os.path.basename(sosfile) )
             utils_lib.run_cmd(self, cmd, msg='save {} to {}'.format(sosfile, self.log_dir))
+
+    def test_check_dmesg_sev(self):
+        """
+        case_name:
+            test_check_dmesg_sev
+        case_file:
+            os_tests.tests.test_general_check.TestGeneralCheck.test_check_dmesg_sev
+        component:
+            kernel
+        bugzilla_id:
+            2103821
+        customer_case_id:
+            False
+        testplan:
+            N/A
+        maintainer:
+            wshi@redhat.com
+        description:
+            Make sure there is SEV keyword from dmesg output.
+        key_steps:
+            # dmesg|grep -i sev
+        expect_result:
+            AMD Memory Encryption Features active: SEV
+        debug_want:
+            # dmesg
+        """
+        try:
+            if utils_lib.is_sev_enabled(self):
+                utils_lib.run_cmd(self, 'dmesg', expect_ret=0,
+                                  expect_kw='AMD Memory Encryption Features active: SEV',
+                                  msg="Check there is 'AMD Memory Encryption Features active: SEV' in dmesg before run 'perf top'")
+            else:
+                self.skipTest('SEV is not enabled')
+        except NotImplementedError:
+                self.skipTest('SEV check is not implemented on %s' % self.vm.provider)
+
+
     def tearDown(self):
         pass
 

@@ -49,8 +49,7 @@ class OpenstackVM(VMResource):
         self.size = params['Flavor'].get('size')
         self.keypair = params['VM'].get('keypair')
         self.run_uuid = params.get('run_uuid')
-        self.user_data = "#!/bin/bash\nmkdir /tmp/userdata_{}".format(
-            self.run_uuid)
+        #self.user_data = "#!/bin/bash\nmkdir /tmp/userdata_{}".format(self.run_uuid)        
         self.config_drive = None
         self.second_nic_id = None
 
@@ -62,6 +61,20 @@ class OpenstackVM(VMResource):
         self.vm_password = params['VM'].get('password')
 
         self.arch = 'x86_64'
+        
+        # VM creation parameter user_data
+        self.user_data = """\
+#cloud-config
+
+runcmd:
+  - [ sh, -xc, "echo $(date) ': hello today!'" ]
+  - [ sh, -xc, "mkdir /tmp/userdata_{0}" ]
+
+user: {1}
+password: {2}
+chpasswd: {{ expire: False }}
+ssh_pwauth: 0
+""".format(self.run_uuid, self.vm_username, 'R')
 
     @property
     def data(self):
@@ -199,6 +212,9 @@ class OpenstackVM(VMResource):
             return True
         else:
             return False
+
+    def exists(self):
+        return self.is_exist()
 
     def _get_status(self):
         self.data = self.vm_name

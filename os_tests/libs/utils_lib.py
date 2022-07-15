@@ -22,7 +22,6 @@ except ImportError:
     from yaml import Loader, Dumper
 
 LOG = logging.getLogger('os_tests.os_tests_run')
-logging.basicConfig(level=logging.INFO)
 
 def init_args():
     parser = argparse.ArgumentParser(
@@ -41,8 +40,8 @@ def init_args():
                     help="filter by 'case_name'(default),'case_tag','case_file','component','bugzilla_id',\
                         'is_customer_case','testplan','maintainer','description','key_steps',\
                         'expect_result','debug_want'", required=False)
-    parser.add_argument('--host', dest='remote_node', default=None, action='store',
-                    help='run tests on remote node', required=False)
+    parser.add_argument('--hosts', dest='remote_nodes', default=None, action='store',
+                    help='run tests on remote nodes', required=False)
     parser.add_argument('--port', dest='remote_port', default=22, action='store',
                     help='port for ssh connection, default is 22', required=False)
     parser.add_argument('--user', dest='remote_user', default=None, action='store',
@@ -61,66 +60,53 @@ def init_args():
     return args
 
 def init_provider(params=None):
-    vm = None
-    disk = None
-    nic = None
-    if 'aws' in params['Cloud']['provider']:
+    vms = []
+    disks = []
+    nics = []
+    supported_platforms = ['aws', 'openstack', 'ali', 'nutanix', 'google', 'libvirt', 'openshift']
+    provider = params['Cloud']['provider']
+    if not provider:
+        LOG.info("no provider found in profile".format(provider, supported_platforms))
+        sys.exit(1)
+    elif provider not in supported_platforms:
+        LOG.info("{} not in supported platforms:{}".format(provider, supported_platforms))
+        sys.exit(1)
+
+    if 'aws' in provider:
         from .resources_aws import EC2VM,EC2Volume,EC2NIC
-        vm = EC2VM(params)
-        vm.create()
-        # init disk and do not create disk at very beginning
-        disk = EC2Volume(params)
-        nic = EC2NIC(params)
-    if 'openstack' in params['Cloud']['provider']:
+        # init resources only without create them at very beginning
+        vms.extend([EC2VM(params),EC2VM(params)])
+        disks.append(EC2Volume(params))
+        nics.append(EC2NIC(params))
+    if 'openstack' in provider:
         from .resources_openstack import OpenstackVM
-        vm = OpenstackVM(params)
-        vm.create()
-        disk = None
-    if 'ali' in params['Cloud']['provider']:
+        vms.append(OpenstackVM(params))
+    if 'ali' in provider:
         from .resources_alicloud import AlibabaVM
-        vm = AlibabaVM(params)
-        vm.create(wait=True)
-        if vm.is_stopped():
-            vm.start(wait=True)
-        disk = None
-    if 'nutanix' in params['Cloud']['provider']:
+        vms.append(AlibabaVM(params))
+    if 'nutanix' in provider:
         from .resources_nutanix import NutanixVM,NutanixVolume
-        vm = NutanixVM(params)
-        vm.create(wait=True)
-        if vm.is_stopped():
-            vm.start(wait=True)
-        disk = NutanixVolume(params)
-    if 'google' in params['Cloud']['provider']:
+        vms.append(NutanixVM(params))
+        disks.append(NutanixVolume(params))
+    if 'google' in provider:
         from .resources_gcp import GCPVM
-        vm = GCPVM(params)
-        vm.create(wait=True)
-        if vm.is_stopped():
-            vm.start(wait=True)
-        disk = None
-    if 'libvirt' in params['Cloud']['provider']:
+        vms.append(GCPVM(params))
+    if 'libvirt' in provider:
         from .resources_libvirt import LibvirtVM
-        vm = LibvirtVM(params)
-        vm.create(wait=True)
-        if vm.is_stopped():
-            vm.start(wait=True)
-        disk = None
-    if 'openshift' in params['Cloud']['provider']:
+        vms.append(LibvirtVM(params))
+    if 'openshift' in provider:
         from .resources_openshift import OpenShiftVM
-        vm = OpenShiftVM(params)
-        vm.create(wait=True)
-        if vm.is_stopped():
-            vm.start(wait=True)
-        disk = None
+        vms.append(OpenShiftVM(params))
 
-    return vm, disk, nic
+    return vms, disks, nics
 
-def init_ssh(params=None, timeout=600, interval=10, log=None):
+def init_ssh(params=None, timeout=600, interval=10, log=None, rmt_node=None):
     if log is None:
         LOG_FORMAT = '%(levelname)s:%(message)s'
         log = logging.getLogger(__name__)
         logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
     ssh = rmt_ssh.RemoteSSH()
-    ssh.rmt_node = params['remote_node']
+    ssh.rmt_node = rmt_node or params['remote_node']
     ssh.port = params['remote_port']
     ssh.rmt_user = params['remote_user']
     ssh.rmt_password = params['remote_password']
@@ -133,32 +119,64 @@ def init_ssh(params=None, timeout=600, interval=10, log=None):
         return ssh
     return None
 
-def init_connection(test_instance, timeout=600, interval=10):
-    if test_instance.params['remote_node'] is None:
+def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=None):
+    if not test_instance.params['remote_node'] and not rmt_node and not vm:
         return
-    test_instance.log.info("remote_node specified, all tests will run in {}".format(test_instance.params['remote_node']))
+    if test_instance.vm:
+        new_vm_ip =  test_instance.vm.floating_ip
+        if new_vm_ip != test_instance.params['remote_node']:
+            test_instance.params['remote_node'] = new_vm_ip
+            test_instance.params['remote_nodes'][0] = new_vm_ip
+            test_instance.log.info("set default remote_node to new address {}".format(test_instance.params['remote_node']))
+    rmt_node = rmt_node or test_instance.params['remote_node'] or None
+    if vm:
+        if hasattr(vm, 'floating_ip'):
+            rmt_node = vm.floating_ip
+    test_instance.log.info("remote_node found, all tests will run in {}".format(rmt_node))
+    ssh_exists = False
     try:
-        if hasattr(test_instance.vm, 'floating_ip'):
-            test_instance.params['remote_node'] = test_instance.vm.floating_ip
-        if hasattr(test_instance.SSH, 'ssh_client'):
-            test_instance.SSH.log = test_instance.log
-            ret, _, _ = test_instance.SSH.cli_run(cmd='uname -r')
-            if ret == 0:
-                test_instance.log.info("connection is live")
-                return
+        ssh_num = 0
+        for i, ssh in enumerate(test_instance.SSHs):
+            ssh.log = test_instance.log
+            if ssh.rmt_node == rmt_node:
+                ssh_exists = True
+                ssh_num = i
+                ret, _, _ = ssh.cli_run(cmd='uname -r')
+                if ret == 0:
+                    test_instance.log.info("connection is live")
+                    test_instance.SSH = test_instance.SSHs[0]
+                    return
+                break
     except AttributeError:
         pass
     except Exception:
         test_instance.log.info("connection is not live")
-    test_instance.SSH = init_ssh(params=test_instance.params, timeout=timeout, interval=interval, log=test_instance.log)
-    if test_instance.SSH is None:
-        if test_instance.vm:
+    if ssh_exists:
+        test_instance.log.info("found exists dead connection, re-connect")
+        test_instance.SSHs[i].create_connection()
+        return
+    ssh = init_ssh(params=test_instance.params, timeout=timeout, interval=interval, log=test_instance.log, rmt_node=rmt_node)
+    if not ssh:
+        if vm:
+            try:
+                vm.get_console_log()
+            except NotImplementedError:
+                test_instance.log.info("{} not implement this func: get_console_log".format(vm.provider))
+        if not vm and test_instance.vm:
             try:
                 test_instance.vm.get_console_log()
             except NotImplementedError:
                 test_instance.log.info("{} not implement this func: get_console_log".format(test_instance.vm.provider))
-
         test_instance.skipTest("Cannot make ssh connection to remote, please check")
+    test_instance.SSHs.append(ssh)
+    if len(test_instance.SSHs) == 1:
+        test_instance.SSH = test_instance.SSHs[0]
+        return
+    if test_instance.vm and test_instance.SSH.rmt_node != new_vm_ip:
+        if rmt_node == new_vm_ip:
+            test_instance.SSH = ssh
+            test_instance.SSHs[0] = ssh
+    test_instance.SSH = test_instance.SSHs[0]
 
 def send_ssh_cmd(rmt_node, rmt_user, rmt_password, command):
     ssh = rmt_ssh.RemoteSSH()
@@ -179,6 +197,9 @@ def get_cfg(cfg_file = None):
         sys.exit(1)
         return cfg_file, None
     keys_data = load_yaml(yaml_file=cfg_file)
+    if keys_data.get('remote_nodes'):
+        keys_data['remote_nodes'] = keys_data['remote_nodes'].split(',')
+        keys_data['remote_node'] =  keys_data['remote_nodes'][0]
     return cfg_file, keys_data
 
 def load_yaml(yaml_file = None, yaml_content = None):
@@ -222,7 +243,7 @@ def init_case(test_instance):
     for handler in logging.root.handlers[:]:
         handler.close()
         logging.root.removeHandler(handler)
-    FORMAT = "%(levelname)s:%(message)s"
+    FORMAT = '%(asctime)s:%(levelname)s:%(message)s'
     logging.basicConfig(level=logging.INFO, format=FORMAT, filename=log_file)
     test_instance.log.info("-"*80)
     test_instance.log.info("Code Repo: {}".format(test_instance.params['code_repo']))
@@ -236,8 +257,21 @@ def init_case(test_instance):
         else:
             test_instance.log.info("key:{}, val:{}".format(key, test_instance.params[key]))
     test_instance.log.info("-"*80)
-    if test_instance.params['remote_node'] is not None:
+    if test_instance.vm:
+        if not test_instance.vm.exists():
+            test_instance.vm.create()
+            if test_instance.vm.is_stopped():
+                test_instance.vm.start(wait=True)
+        floating_ip = test_instance.vm.floating_ip
+        test_instance.params['remote_node'] = floating_ip
+        test_instance.params['remote_port'] = test_instance.vm.port or 22
+        if floating_ip not in test_instance.params['remote_nodes']:
+            test_instance.params['remote_nodes'].append(floating_ip)
+
+    if test_instance.is_rmt:
         init_connection(test_instance)
+        if not test_instance.params['remote_node']:
+            test_instance.skipTest("remote_node not found")
         test_instance.SSH.log = test_instance.log
         if  test_instance.SSH.ssh_client is None:
             test_instance.skipTest("Cannot make ssh connection to remote, please check")
@@ -380,7 +414,9 @@ def run_cmd(test_instance,
             cursor=None,
             rmt_redirect_stdout=False,
             rmt_redirect_stderr=False,
-            rmt_get_pty=False
+            rmt_get_pty=False,
+            rmt_node = None,
+            vm = None
             ):
     """run cmd with/without check return status/keywords and save log
 
@@ -408,21 +444,36 @@ def run_cmd(test_instance,
         cursor {string} -- skip content before cursor(line)
         rmt_redirect_stdout {bool} -- ssh command not exit some times, redirect stdout to tmpfile if needed
         rmt_redirect_stderr {bool} -- ssh command not exit some times, redirect stderr to tmpfile if needed
+        rmt_node {string} -- run command on specific rmt node
+        vm {vm} -- run command on specific vm
 
     Keyword Arguments:
         check_ret {bool} -- [whether check return] (default: {False})
     """
     if msg is not None:
         test_instance.log.info(msg)
-    test_instance.log.info("CMD: {}".format(cmd))
     status = None
     output = None
     exception_hit = False
 
     try:
-        if test_instance.params['remote_node'] is not None:
-            status, output = test_instance.SSH.remote_excute(cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty)
+        if test_instance.is_rmt:
+            if not test_instance.params['remote_node'] and not rmt_node and not vm:
+                return
+            rmt_node = rmt_node or test_instance.params['remote_node'] or None
+            if vm:
+                if hasattr(vm, 'floating_ip'):
+                    rmt_node = vm.floating_ip
+            SSH = None
+            for i, ssh in enumerate(test_instance.SSHs):
+                ssh.log = test_instance.log
+                if ssh.rmt_node == rmt_node:
+                    SSH = ssh
+                    break
+            test_instance.log.info("CMD: {} on {}".format(cmd, rmt_node))
+            status, output = SSH.remote_excute(cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty)
         else:
+            test_instance.log.info("CMD: {}".format(cmd))
             ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
             #ret = subprocess.run(cmd, shell=True, capture_output=True, timeout=timeout, encoding='utf-8')
             status = ret.returncode
@@ -440,9 +491,9 @@ def run_cmd(test_instance,
         test_cmd = 'uname -a'
         test_instance.log.info("Test system is alive via cmd:{}. If still fail, check no hang or panic happens.".format(test_cmd))
         try:
-            if test_instance.params['remote_node'] is not None:
-                status, output = test_instance.SSH.remote_excute(test_cmd, timeout)
-                status, output = test_instance.SSH.remote_excute(cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty)
+            if test_instance.is_rmt:
+                status, output = SSH.remote_excute(test_cmd, timeout)
+                status, output = SSH.remote_excute(cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty)
             else:
                 ret = subprocess.run(test_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
                 status = ret.returncode
@@ -458,14 +509,19 @@ def run_cmd(test_instance,
                    output = ret.stdout
         except Exception as err:
             test_instance.log.error("Run cmd failed again {}".format(err))
-    if status is None and test_instance.vm:
-        try:
-            test_instance.vm.get_console_log()
-        except NotImplementedError:
-            test_instance.log.info("{} not implement this func: get_console_log".format(test_instance.vm.provider))
-        test_instance.vm.stop()
-        test_instance.vm.start()
-        test_instance.params['remote_node'] = test_instance.vm.floating_ip
+    if status is None and test_instance.vms:
+        for vm in test_instance.vms:
+            if rmt_node == vm.floating_ip:
+                try:
+                    test_instance.vm.get_console_log()
+                except NotImplementedError:
+                    test_instance.log.info("{} not implement this func: get_console_log".format(test_instance.vm.provider))
+                vm.stop()
+                vm.start()
+                test_instance.params['remote_nodes'].remove(rmt_node)
+                if vm == test_instance.vm:
+                    test_instance.params['remote_node'] = test_instance.vm.floating_ip
+                    test_instance.params['remote_nodes'].append(test_instance.vm.floating_ip)
     if cursor is not None and output is not None and cursor in output:
         output = output[output.index(cursor):]
     if is_log_output:
@@ -600,6 +656,28 @@ def getboottime(test_instance):
     test_instance.log.info(
         "Boot time is {}(s)".format(boot_time_sec))
     return boot_time_sec
+
+def is_sev_enabled(test_instance):
+    '''
+    Check whether SEV is enabled on the system.
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+    Return:
+        enabled: return True
+        N/A: return False
+    '''
+    if test_instance.vm.provider == 'google':
+        audience = 'aud'
+        cmd = "curl -s -H 'Metadata-Flavor: Google' \
+            'http://metadata/computeMetadata/v1/instance/service-accounts/default/identity?audience={}&format=full'".format(audience)
+        token = run_cmd(test_instance, cmd, expect_ret=0)
+        if test_instance.vm.is_sev_enabled(token, audience):
+            return True
+        else:
+            return False
+    else:
+        raise NotImplementedError
+    return False
 
 def is_arch(test_instance, arch="", action=None):
     '''
@@ -1025,7 +1103,7 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
     Returns:
         [Bool] -- [True|False]
     """
-    tmp_list = re.findall('.*%s.*\n' % log_keyword, check_str, flags=re.I)
+    tmp_list = re.findall('.*%s.*' % log_keyword, check_str, flags=re.I)
     if len(tmp_list) == 0:
         test_instance.log.info("No %s found!", log_keyword)
         return True
@@ -1047,7 +1125,7 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
             for basekey in baseline_dict:
                 for sub_basekey_content in baseline_dict[basekey]["content"].split(';'):
                     check_done = False
-                    if re.search(sub_basekey_content, line1):
+                    if sub_basekey_content and re.search(sub_basekey_content, line1):
                         if baseline_dict[basekey]["status"] == 'active':
                             test_instance.log.info("Found a similar issue matched in baseline.")
                             find_it = True
