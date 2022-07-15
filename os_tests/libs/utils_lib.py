@@ -1361,3 +1361,29 @@ def normalize_data_size(value_str, order_magnitude="M", factor="1024"):
         return "%.1f" % data_size
     else:
         return ("%.20f" % data_size).rstrip('0')
+    
+    def get_instance_type(test_instance):
+    '''
+       get current instance type.
+       Arguments:
+           test_instance {avocado Test instance} -- avocado test instance
+           cmd {string} -- checked command
+    '''
+    cmd = 'curl http://169.254.169.254/latest/meta-data/instance-type'
+    instance_type = run_cmd(test_instance,cmd, expect_ret=0, msg='get instance type')
+    test_instance.log.info("Get instance type: {}".format(instance_type))
+    return instance_type
+
+    def is_efa_enabled(test_instance):
+    '''
+       check if EFA is enabled on aws instance. If enabled, there is EFA device in lspci output.
+       Arguments:
+           test_instance {avocado Test instance} -- avocado test instance
+           cmd {string} -- checked command
+    '''
+    cmd = 'lspci|grep EFA'
+    ret = run_cmd(test_instance, cmd, ret_status=True, msg='check if EFA enabled')
+    if ret == 0:
+        return True
+    else:
+        return False
