@@ -5,6 +5,7 @@ import time
 import os
 import os_tests
 import random
+import json
 from tipset.libs import rmt_ssh
 
 class TestStorage(unittest.TestCase):
@@ -254,8 +255,9 @@ class TestStorage(unittest.TestCase):
         """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
-        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
-            self.skipTest("Cannot attach an IDE Disk when secure boot is enabled for the VM")
+        if self.vm.provider == 'nutanix':
+            if self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
+                self.skipTest("Cannot attach an IDE Disk when secure boot is enabled or when vm machine type is q35")
         origin_disk_num = self._get_disk_num('rom')
         self.vm.stop(wait=True)
         try:
@@ -298,7 +300,7 @@ class TestStorage(unittest.TestCase):
         testplan:
             N/A
         maintainer:
-            mingli@redhat.com
+            minl@redhat.com
         description:
             Test attach sata cdrom clone from image service and then read the content in VM.
         key_steps:
@@ -357,7 +359,7 @@ class TestStorage(unittest.TestCase):
         testplan:
             N/A
         maintainer:
-            mingli@redhat.com
+            minl@redhat.com
         description:
             Test add and remove scsi disk of random size for 10 times in the VM.
         key_steps:
@@ -454,9 +456,9 @@ class TestStorage(unittest.TestCase):
         case_tag:
             Storage
         case_name:
-            test_take_restore_snapshot
+            test_online_take_restore_snapshot
         case_file:
-            os_tests.tests.test_storage.TestStorage.test_take_restore_snapshot
+            os_tests.tests.test_storage.TestStorage.test_online_take_restore_snapshot
         component:
             storage
         bugzilla_id:
@@ -466,7 +468,7 @@ class TestStorage(unittest.TestCase):
         testplan:
             N/A
         maintainer:
-            mingli@redhat.com
+            minl@redhat.com
         description:
             Test take snapshot from VM and then restore it after removing file action.
         key_steps: |
@@ -486,9 +488,9 @@ class TestStorage(unittest.TestCase):
         case_tag:
             Storage
         case_name:
-            test_take_restore_snapshot
+            test_offline_take_restore_snapshot_clone_snapshot
         case_file:
-            os_tests.tests.test_storage.TestStorage.test_take_restore_snapshot
+            os_tests.tests.test_storage.TestStorage.test_offline_take_restore_snapshot_clone_snapshot
         component:
             storage
         bugzilla_id:
@@ -498,7 +500,7 @@ class TestStorage(unittest.TestCase):
         testplan:
             N/A
         maintainer:
-            mingli@redhat.com
+            minl@redhat.com
         description:
             Test take snapshot from VM and then restore it after removing file action.
         key_steps: |
@@ -535,14 +537,15 @@ class TestStorage(unittest.TestCase):
         testplan:
             N/A
         maintainer:
-            mingli@redhat.com
+            minl@redhat.com
         description:
-            Expand SCSI disk when guest is running.
+            Expand SCSI disk when guest is running.Test add large file after expanding disk. Linked case: test_add_large_file.
         key_steps: |
             1. Login the guest and get the size of the SCSI disk.
             2. Expand the SCSI disk to a larger size.
             3. Check the disk size.
-            4. Check the disk that should be readable and writeable
+            4. Check the disk that should be readable and writeable.
+            5. Check big file can be created without error.
         expect_result:
             No error threw.
         debug_want:
@@ -560,28 +563,29 @@ class TestStorage(unittest.TestCase):
         self.assertEqual(self.vm.prism.minimum_disk_size, test_disk_origin_size, msg='disk size is not the same with init value')
         #Expand size of test disk when VM running
         try:
-            self.disk.modify_disk_size(test_disk_origin_size, 'scsi', 1, 1)
+            self.disk.modify_disk_size(test_disk_origin_size, 'scsi', disk_index=1, expand_size=9)
         except NotImplementedError:
             self.skipTest('modify disk size func is not implemented in {}'.format(self.vm.provider))
         except UnSupportedAction:
             self.skipTest('modify disk size func is not supported in {}'.format(self.vm.provider))
         #Get new size of test disk
         test_disk_new_size = int(utils_lib.run_cmd(self, cmd, expect_ret=0))/(1024*1024)
-        self.assertEqual(2, int(test_disk_new_size), msg='disk size is not the same with init value, expect: {}, real: {}'.format(2*1024*1024, test_disk_new_size))
+        self.assertEqual(10, int(test_disk_new_size), msg='disk size is not the same with expanded value, expect: {}, real: {}'.format(2*1024*1024, test_disk_new_size))
         #Test expanded disk can be read and write
-        cmd='fallocate -l 2G 2G.img \n sudo mkfs -t xfs -f {} \n sudo mkdir /mnt/mnt_disk \n sudo mount {} /mnt/mnt_disk \n'.format(test_disk, test_disk)
-        utils_lib.run_cmd(self, cmd, expect_ret=0)
-        utils_lib.run_cmd(self, 'sudo cp 2G.img /mnt/mnt_disk', expect_ret=1, msg='No space left on device')
-        init_file_size = int(utils_lib.run_cmd(self, "ls -l 2G.img | awk '{print $5}'", expect_ret=0).strip())/(1024*1024*1024)
-        cp_file_size = int(utils_lib.run_cmd(self, "ls -l /mnt/mnt_disk/2G.img | awk '{print $5}'", expect_ret=0).strip())/(1024*1024*1024)
+        test_part = test_disk + "1"
+        cmd = " sudo parted -s {} mklabel gpt mkpart primary xfs 1MB 10240MB".format(test_disk)
+        utils_lib.run_cmd(self,cmd,msg = "make disk part")
+        cmd = "sudo mkfs.xfs -f {}&&sudo mkdir /mnt/mnt_disk&&sudo mount {} /mnt/mnt_disk&&cd /mnt/mnt_disk&&sudo dd if=/dev/zero of=10G.img count=1024 bs=10M".format(test_part, test_part, test_part)
+        utils_lib.run_cmd(self, cmd, expect_ret=1, msg='No space left on device')
+        file_size = int(utils_lib.run_cmd(self, "sudo ls -l /mnt/mnt_disk/10G.img | awk '{print $5}'", expect_ret=0).strip())/(1024*1024*1024)
         self.assertAlmostEqual(
-            first=float(init_file_size),
-            second=float(cp_file_size),
-            delta=0.1,
-            msg="Gap is two much between copied file and origin file, Expect: %s, real: %s" %('0.1', init_file_size-cp_file_size)
+            first=10,
+            second=float(file_size),
+            delta=0.6,
+            msg="Gap is two much between file size and create size Expect: %s, real: %s" %('10', file_size)
         )
         #tear down
-        utils_lib.run_cmd(self, 'sudo umount {}\n'.format(test_disk), expect_ret=0)
+        utils_lib.run_cmd(self, 'sudo umount {}\n'.format(test_part), expect_ret=0)
 
     def test_multi_disk(self):
         """
@@ -600,9 +604,9 @@ class TestStorage(unittest.TestCase):
         testplan:
             N/A
         maintainer:
-            mingli@redhat.com
+            minl@redhat.com
         description:
-            Add all four kinds of disk and test.
+            Add all four kinds of disk and test. linked case cp_big_file_between_disks,scp_big_file_between_disks,test_disk_info,test_multi_disk_hotplug
         key_steps: |
             1. Login the guest and add scsi/pci/ide/sata disk.
             2. Check bus type by lshw.
@@ -615,10 +619,10 @@ class TestStorage(unittest.TestCase):
         """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
-        scsi_set_size = random.randint(1,10)
-        pci_set_size = random.randint(1,10)
-        ide_set_size = random.randint(1,10)
-        sata_set_size = random.randint(1,10)
+        scsi_set_size = random.randint(6,10)
+        pci_set_size = random.randint(6,10)
+        ide_set_size = random.randint(6,10)
+        sata_set_size = random.randint(6,10)
         #attach scsi and pci disk
         for disk_type, disk_size in zip(['scsi','pci'],[scsi_set_size, pci_set_size]):
             try:
@@ -631,8 +635,10 @@ class TestStorage(unittest.TestCase):
         self.vm.stop(wait=True)
         time.sleep(60)
         for disk_type, disk_size in zip(['ide','sata'],[ide_set_size, sata_set_size]):
-            if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot and disk_type == 'ide':
-                continue
+            if disk_type == 'ide':
+                if self.vm.provider == 'nutanix':
+                    if self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
+                        continue
             try:
                 self.vm.attach_disk(disk_type, disk_size, is_cdrom=False, device_index=2, wait=True, is_empty=True)
             except NotImplementedError:
@@ -645,10 +651,10 @@ class TestStorage(unittest.TestCase):
         #check disk number
         num_fdisk=int(utils_lib.run_cmd(self, "sudo fdisk -l | grep 'Disk /dev' | wc -l", expect_ret=0))
         num_lsblk=int(utils_lib.run_cmd(self, "sudo lsblk -d | grep disk | wc -l", expect_ret=0))
-        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
-            total_num=5
-        else:
-            total_num=6
+        total_num=6
+        if self.vm.provider == 'nutanix':
+            if self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
+                total_num=5
         self.assertEqual(num_fdisk, total_num, msg='Disk number get from fdisk is not right')
         self.assertEqual(num_lsblk, total_num, msg='Disk number get from lsblk is not right')
         #check disk bustype and size
@@ -659,25 +665,68 @@ class TestStorage(unittest.TestCase):
         scsi_dev_size = int(utils_lib.run_cmd(self, "sudo fdisk -s "+scsi_dev_name, expect_ret=0))/(1024*1024)
         pci_dev_size = int(utils_lib.run_cmd(self, "sudo fdisk -s "+pci_dev_name, expect_ret=0))/(1024*1024)
         sata_dev_size = int(utils_lib.run_cmd(self, "sudo fdisk -s "+sata_dev_name, expect_ret=0))/(1024*1024)
-        if self.vm.provider == 'nutanix' and not self.vm.prism.if_secure_boot:
+        if self.vm.provider == 'nutanix':
+            if self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
+                ide_dev_name = None
+                ide_dev_size = 0
+            else:
+                ide_dev_name = utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-ide' -A 38 | grep 'description: ATA Disk' -A 8 | grep 'logical name:' | awk '{print $3}'", expect_ret=0).strip()
+                ide_dev_size = int(utils_lib.run_cmd(self, "sudo fdisk -s "+ide_dev_name, expect_ret=0))/(1024*1024)
+        else:
             ide_dev_name = utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-ide' -A 38 | grep 'description: ATA Disk' -A 8 | grep 'logical name:' | awk '{print $3}'", expect_ret=0).strip()
             ide_dev_size = int(utils_lib.run_cmd(self, "sudo fdisk -s "+ide_dev_name, expect_ret=0))/(1024*1024)
-        else:
-            ide_dev_name = None
-            ide_dev_size = 0
         for bus_type, set_size, real_size in zip(['scsi', 'pci', 'ide','sata'], [scsi_set_size, pci_set_size, ide_set_size, sata_set_size],[scsi_dev_size, pci_dev_size, ide_dev_size, sata_dev_size]):
-            if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot and bus_type == 'ide':
-                continue
+            if bus_type == 'ide':
+                if self.vm.provider == 'nutanix':
+                    if self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
+                        continue
             self.assertEqual(set_size, real_size, msg="Size of %s disk is not right, Expect: %s, real: %s" % (bus_type, set_size, real_size))
-        #check disk can be read and write
+        #check disk can be read and write, and test cp big file between different disk in on VM
+        utils_lib.run_cmd(self, 'sudo dd if=/dev/zero of=5G.img count=1024 bs=5M')
         for device_type, device_name in zip(['scsi','pci','ide','sata'], [scsi_dev_name, pci_dev_name, ide_dev_name, sata_dev_name]):
-            if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot and device_type == 'ide':
-                continue
+            if device_type == 'ide':
+                if self.vm.provider == 'nutanix':
+                    if self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
+                        continue
             create_file = '/mnt/mnt_{}/{}_touch_test.txt'.format(device_type, device_type)
             cmd = 'sudo mkfs.xfs {}\n sudo mkdir /mnt/mnt_{}\nsudo mount {} /mnt/mnt_{}\n sudo touch {}'.format(device_name, device_type, device_name, device_type, create_file)
             utils_lib.run_cmd(self, cmd, expect_ret=0)
             check_file = utils_lib.run_cmd(self, 'ls {}'.format(create_file), expect_ret=0)
             self.assertIn(create_file, check_file, msg="Read files from new added disk failed")
+            #test cp big files between different disk types
+        for device_type in ('scsi','pci','ide','sata'):
+            if device_type == 'ide':
+                if self.vm.provider == 'nutanix':
+                    if self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
+                        continue
+            utils_lib.run_cmd(self, 'sudo cp 5G.img /mnt/mnt_{}'.format(device_type))
+            file_size = int(utils_lib.run_cmd(self, "sudo ls -l /mnt/mnt_%s/5G.img | awk '{print $5}'" % (device_type), expect_ret=0).strip())/(1024*1024*1024)
+            self.assertEqual(5, file_size, msg="Value of created file is not right, Expect: 5, real: %s" % (file_size))
+            #remove file and install sshpass before clone vm
+            utils_lib.run_cmd(self, "sudo rm -f /mnt/mnt_%s/5G.img" % (device_type), expect_ret=0)
+        utils_lib.is_cmd_exist(self,"sshpass")
+        #clone VM, and test scp big file between different disk between different VM
+        VMBecloned = self._clone_vm('clone_from_vm', 'ScriptCloneFromVM', 2048, 2, 2)
+        for nic in VMBecloned.get('vm_nics'):
+            if nic['network_uuid'] == self.vm.network_uuid:
+                VMBecloned_ip = nic['ip_address']
+        self.params['remote_nodes'].append(VMBecloned_ip)
+        utils_lib.init_connection(self, timeout=self.timeout,rmt_node=self.params['remote_nodes'][1])
+        self.vm.start(wait=True)
+        time.sleep(30)
+        utils_lib.init_connection(self, timeout=self.timeout)
+        for device_type, device_name in zip(['scsi','pci','ide','sata'], [scsi_dev_name, pci_dev_name, ide_dev_name, sata_dev_name]):
+            if device_type == 'ide':
+                if self.vm.provider == 'nutanix':
+                    if self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
+                        continue
+            #mount disk on cloned VM
+            cmd = 'sudo mount {} /mnt/mnt_{}'.format(device_name, device_type)
+            utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][1])
+            scp_cmd = 'sudo sshpass -p {} scp -o StrictHostKeyChecking=no 5G.img root@{}:/mnt/mnt_{}'.format(self.vm.vm_password, VMBecloned_ip,device_type)
+            utils_lib.run_cmd(self, scp_cmd, timeout=600)
+            file_size = int(utils_lib.run_cmd(self, "sudo ls -l /mnt/mnt_%s/5G.img | awk '{print $5}'" % (device_type), expect_ret=0, rmt_node=self.params['remote_nodes'][1]).strip())/(1024*1024*1024)
+            self.assertEqual(5, file_size, msg="Value of created file is not right, Expect: 5, real: %s" % (file_size))
         #hot detach scsi and pci disk
         try:
             disk_uuid = self.vm.get_disk_uuid('scsi', device_index=2)
@@ -687,12 +736,13 @@ class TestStorage(unittest.TestCase):
         except UnSupportedAction:
             self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
         utils_lib.run_cmd(self, "ls " + scsi_dev_name, expect_ret=2, expect_kw='No such file or directory')
-        #dettach ide and sata disk
+        #tear down - dettach ide and sata disk
         self.vm.stop(wait=True)
         time.sleep(60)
         for device_type in ['ide','sata', 'pci']:
-            if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot and device_type == 'ide':
-                continue
+            if device_type == 'ide' and self.vm.provider == 'nutanix':
+                if self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
+                   continue
             try:
                 disk_uuid = self.vm.get_disk_uuid(device_type, device_index=2)
                 self.vm.detach_disk(device_type, disk_uuid, device_index=2, wait=True)
@@ -703,12 +753,16 @@ class TestStorage(unittest.TestCase):
         self.vm.start(wait=True)
         time.sleep(30)
         utils_lib.init_connection(self, timeout=self.timeout)
-        if self.vm.provider == 'nutanix' and not self.vm.prism.if_secure_boot:
-            utils_lib.run_cmd(self, "ls " + ide_dev_name, expect_ret=2, expect_kw='No such file or directory')
+        if self.vm.provider == 'nutanix':
+            if not self.vm.prism.if_secure_boot and not self.vm.prism.machine_type == 'q35':
+                utils_lib.run_cmd(self, "ls " + ide_dev_name, expect_ret=2, expect_kw='No such file or directory')
         utils_lib.run_cmd(self, "ls " + sata_dev_name, expect_ret=2, expect_kw='No such file or directory')
         utils_lib.run_cmd(self, "ls " + pci_dev_name, expect_ret=2, expect_kw='No such file or directory')
+        #tear down - delete cloned VM
+        self.vm.prism.delete_vm(VMBecloned['uuid'])
+        self.params['remote_nodes'].pop()
 
-    def _test_clone(self, clone_from_vm_or_snapshot, vm_name, cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus):
+    def _clone_vm(self,clone_from_vm_or_snapshot, vm_name, cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus):
         try:
             self.log.info('Delete ide.3 for refresh user data')
             self.vm.stop(wait=True)
@@ -726,6 +780,10 @@ class TestStorage(unittest.TestCase):
         VMBecloned = self.vm.get_vm_by_filter("vm_name", vm_name)
         self.vm.prism.start_vm(VMBecloned['uuid'])
         time.sleep(60)
+        return VMBecloned
+
+    def _test_clone(self, clone_from_vm_or_snapshot, vm_name, cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus):
+        VMBecloned = self._clone_vm(clone_from_vm_or_snapshot, vm_name, cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus)
         for nic in VMBecloned.get('vm_nics'):
             if nic['network_uuid'] == self.vm.network_uuid:
                 VMBecloned_ip = nic['ip_address']
@@ -738,25 +796,28 @@ class TestStorage(unittest.TestCase):
             ssh.create_connection()
             if ssh.ssh_client is None:
                 self.fail('Failed to login to cloned VM by user/password specified in new user data')
-        self.params['remote_node'] = VMBecloned_ip
-
-        utils_lib.init_connection(self, timeout=self.timeout)
-        cloneVM_actual_Memory = int(utils_lib.run_cmd(self, '''sudo dmidecode -t memory | grep "Memory Device" -A5 | grep Size | awk '$3 ~ /GB/ {sum += $2} $3 ~ /MB/ {sum += $2/1024} END {printf sum}' '''))
+        #connect cloned vm
+        self.log.info('init connetcion to VM be cloned, VM IP is %s' % VMBecloned_ip)
+        self.params['remote_nodes'].append(VMBecloned_ip)
+        utils_lib.init_connection(self, timeout=self.timeout,rmt_node=self.params['remote_nodes'][1])
+        dmidecode_cmd = '''sudo dmidecode -t memory | grep "Memory Device" -A5 | grep Size | awk '$3 ~ /GB/ {sum += $2} $3 ~ /MB/ {sum += $2/1024} END {printf sum}' '''
+        cloneVM_actual_Memory = int(utils_lib.run_cmd(self, dmidecode_cmd, rmt_node=self.params['remote_nodes'][1]))
         self.assertEqual(cloneVM_set_Memory/1024, cloneVM_actual_Memory, msg="Value of memory is not right, Expect: %s, real: %s" % (cloneVM_set_Memory/1024, cloneVM_actual_Memory))
-        cloneVM_actual_vcpus = int(utils_lib.run_cmd(self, "cat /proc/cpuinfo | grep processor | wc -l"))
+        cloneVM_actual_vcpus = int(utils_lib.run_cmd(self, "cat /proc/cpuinfo | grep processor | wc -l", rmt_node=self.params['remote_nodes'][1]))
         cloneVM_set_vcpus_num = cloneVM_set_Cores_per_CPU * cloneVM_set_vcpus
         self.assertEqual(cloneVM_actual_vcpus, cloneVM_set_vcpus_num, msg="Number of vcpus is not right, Expect: %s, real: %s" % (cloneVM_set_vcpus_num, cloneVM_actual_vcpus))
         #clone from snapshot not support to refresh install
         if clone_from_vm_or_snapshot == "clone_from_vm":
-            custome_data = utils_lib.run_cmd(self, "sudo chmod 755 /tmp/test.sh \n sudo /tmp/test.sh \n sudo cat /tmp/test.txt", expect_ret=0)
-            expect_cusome_data = "welcome to Nutanix world"
+            custome_data = utils_lib.run_cmd(self, "sudo chmod 755 /tmp/test.sh \n sudo /tmp/test.sh \n sudo cat /tmp/test.txt", expect_ret=0, rmt_node=self.params['remote_nodes'][1])
+            expect_cusome_data = "Test files to copy"
+            self.assertIn(expect_cusome_data, custome_data, msg="Custome data is not right, Expect: %s, real: %s" % (expect_cusome_data, custome_data))
             self.assertIn(expect_cusome_data, custome_data, msg="Custome data is not right, Expect: %s, real: %s" % (expect_cusome_data, custome_data))
         #tear down
         self.vm.prism.delete_vm(VMBecloned['uuid'])
+        self.params['remote_nodes'].pop()
         self.vm.start(wait=True)
         time.sleep(30)
-        self.params['remote_node'] = self.vm.floating_ip
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.timeout,rmt_node=self.params['remote_nodes'][0])
 
     def test_clone_from_vm(self):
         """
@@ -775,7 +836,7 @@ class TestStorage(unittest.TestCase):
         testplan:
             N/A
         maintainer:
-            mingli@redhat.com
+            minl@redhat.com
         description:
             Clone VM from specific VM uuid with specific memory value, vcpus number, custom data and user data.
         key_steps: |
@@ -791,7 +852,7 @@ class TestStorage(unittest.TestCase):
         """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
-        cloneVM_set_Memory = 131072
+        cloneVM_set_Memory = 16384
         cloneVM_set_Cores_per_CPU = 2
         cloneVM_set_vcpus = 2
         self._test_clone("clone_from_vm", "ClonedByScriptFromVM", cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus)
@@ -813,7 +874,7 @@ class TestStorage(unittest.TestCase):
         testplan:
             N/A
         maintainer:
-            mingli@redhat.com
+            minl@redhat.com
         description:
             Test attach and distach multi ide and sata cdrom in VM.
         key_steps:
@@ -870,6 +931,100 @@ class TestStorage(unittest.TestCase):
                 self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
         self.vm.start(wait=True)
         utils_lib.init_connection(self, timeout=self.timeout)
+    def test_fio_crctest(self):
+        """
+        case_tag:
+            Storage
+        case_name:
+            test_fio_crctest
+        case_file:
+            os_tests.tests.test_storage.TestStorage.test_fio_crctest
+        component:
+            storage
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            testplan
+        maintainer:
+            minl@redhat.com
+        description:
+            Use fio to test the speed of the built-in checksumming functions in RHEL
+        key_steps:
+            Connect the instance, Use "$ sudo fio --crctest" to test the speed of the built-in checksumming functions.
+        expect_result:
+            crc test pass.
+        debug_want:
+            N/A
+        """
+        utils_lib.is_cmd_exist(self,"fio")
+        cmd = 'sudo fio --crctest'
+        utils_lib.run_cmd(
+            self,
+            cmd,
+            expect_ret=0,
+            msg='Test  the  speed  of  the built-in checksumming functions.', timeout=1200)
+
+    def test_ssd_trim(self):
+        """
+        case_tag:
+            Storage
+        case_name:
+            test_ssd_trim
+        case_file:
+            os_tests.tests.test_storage.TestStorage.test_ssd_trim
+        component:
+            storage
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            testplan
+        maintainer:
+            minl@redhat.com
+        description:
+            Test ssd trim in RHEL.
+        key_steps: |
+            1. Launch an instance which supports SSD volumes with TRIM.
+            2. Check block devices information via command "$ sudo lsblk -d -O -J".
+        expect_result:
+            Block devices can be mount and trimmed infomation displays, no error message or any exception.
+        debug_want:
+            N/A
+        """
+        cmd = 'sudo lsblk -d -O -J'
+        disk_discard = None
+        try:
+            output = utils_lib.run_cmd(self, cmd)
+            disks_dict = json.loads(output)
+            disk_discard = None
+            for disk in disks_dict["blockdevices"]:
+                if disk["disc-max"] is not None and '0B' not in disk[
+                        "disc-max"]:
+                    disk_discard = disk["name"]
+                    self.log.info("%s supports discard %s" %
+                                  (disk_discard, disk["disc-max"]))
+        except ValueError as err:
+            self.log.info("lsblk no json support")
+            cmd = 'sudo lsblk -o NAME,DISC-MAX -d|grep -v NAME'
+            output = utils_lib.run_cmd(self, cmd)
+            for disk in output.split('\n'):
+                if '0B' not in disk:
+                    disk_discard = disk.split(' ')[0]
+                    self.log.info("%s supports discard" % disk)
+        if disk_discard is None:
+            self.cancel("No disk supports discard found.")
+        cmd = 'sudo lsblk |grep -i part'
+        output = utils_lib.run_cmd(self, cmd)
+        if disk_discard not in output:
+            cmd = "sudo mkfs.xfs /dev/%s" % disk_discard
+            utils_lib.run_cmd(self, cmd, expect_ret=0)
+            cmd = "sudo mount /dev/%s /mnt" % disk_discard
+            utils_lib.run_cmd(self, cmd, expect_ret=0)
+        cmd = "sudo fstrim -v /mnt"
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
 
     def tearDown(self):
         if 'blktests' in self.id():
