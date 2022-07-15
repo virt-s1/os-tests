@@ -788,6 +788,171 @@ COMMIT
             N/A
         """
         self._test_unload_load_nic_driver('e1000')
+        
+    def test_efa01_list_efa_device(self):
+        """
+        case_tag:
+            network,efa
+        case_name:
+            test_efa01_list_efa_device
+        case_file:
+            test_network_test.py
+        component:
+            kernel
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            libhe@redhat.com
+        description:
+            Check if EFA device can be listed for the EFA enabled instance
+        key_steps:
+            1.# lspci | grep EFA
+        expect_result:
+            There is EFA device listed for the EFA enabled instance.
+        debug_want:
+            N/A
+        """
+        instance_type = utils_lib.get_instance_type(self)
+        if utils_lib.is_efa_enabled(self):
+            self.log.info('EFA device is found on the instance ' + instance_type)
+        else:
+            self.skipTest('EFA is not supported on the instance ' + instance_type)
+
+    def test_efa02_install_efa_software(self):
+        """
+        case_tag:
+            network,efa
+        case_name:
+            test_efa02_install_efa_software
+        case_file:
+            test_network_test.py
+        component:
+            kernel
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            libhe@redhat.com
+        description:
+            Install the EFA software and ensure the EFA software is installed successfully
+        key_steps:
+            1.# sudo yum update -y
+            2.# curl -O https://efa-installer.amazonaws.com/aws-efa-installer-latest.tar.gz
+            3.# tar -xf aws-efa-installer-1.17.1.tar.gz && cd aws-efa-installer
+            4.# sudo ./efa_installer.sh -y
+            5.# reboot the instance,  and then reconnect to the instance
+            6.# fi_info -p efa -t FI_EP_RDM
+
+        expect_result:
+            The EFA software is installed successfully and fi_info command should return information about the Libfabric EFA interfaces.
+        debug_want:
+            efa,libfabric
+        """
+        instance_type = utils_lib.get_instance_type(self)
+        if utils_lib.is_efa_enabled(self):
+            cmd = 'sudo yum update -y && curl -O https://efa-installer.amazonaws.com/aws-efa-installer-latest.tar.gz && tar -xf aws-efa-installer-latest.tar.gz && cd aws-efa-installer && sudo ./efa_installer.sh -y'
+            ret = utils_lib.run_cmd(self, cmd, timeout=600, ret_status=True, msg='Install EFA software')
+            if ret == 0:
+                self.log.info('Logout or reboot the instance and then reconnect to the instance to complete the EFA installation')
+                cmd = 'exit'
+                #resources_aws.EC2VM.reboot(self)
+                run_cmd(self, cmd, ret_status=True, msg='logout the instance')
+                utils_lib.init_connection(self,timeout=60)
+                cmd = 'fi_info -p efa -t FI_EP_RDM'
+                output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Check the Libfabric EFA interfaces')
+                if 'provider: efa' in output:
+                    self.log.info('The EFA software is installed successfully')
+        else:
+            self.skipTest('EFA is not supported for the instance ' + instance_type)
+
+    def test_efa03_check_efa_driver(self):
+        """
+        case_tag:
+            network,efa
+        case_name:
+            test_efa03_check_efa_driver
+        case_file:
+            test_network_test.py
+        component:
+            kernel
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            libhe@redhat.com
+        description:
+            Check if EFA driver is loaded after EFA software is installed successfully
+        key_steps:
+            1.# lsmod|grep efa
+        expect_result:
+            There is EFA driver listed.
+        debug_want:
+            N/A
+        """
+        instance_type = utils_lib.get_instance_type(self)
+        if utils_lib.is_efa_enabled(self):
+            cmd = 'lsmod|grep efa'
+            output = run_cmd(self, cmd, expect_ret=0, msg='check if EFA driver is loaded')
+            if 'efa' in output:
+                self.log.info('EFA driver is loaded on the instance ' + instance_type)
+        else:
+            self.skipTest('EFA is not supported on the instance ' + instance_type)
+
+    def test_efa04_load_unload_efa_driver(self):
+        """
+        case_tag:
+            network,efa
+        case_name:
+            test_efa04_load_unload_efa_driver
+        case_file:
+            test_network_test.py
+        component:
+            kernel
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            libhe@redhat.com
+        description:
+            Check if EFA driver can be unloaded and reloaded successfully
+        key_steps:
+            1.# sudo modprobe -r rdma_ucm
+            2.# sudo modprobe -r efa && sudo modprobe efa
+            3.# sudo modprobe rdma_ucm
+        expect_result:
+            EFA driver can be unloaded and reloaded successfully
+        debug_want:
+            N/A
+        """
+        instance_type = utils_lib.get_instance_type(self)
+        if utils_lib.is_efa_enabled(self):
+            cmd = 'sudo modprobe -r rdma_ucm && sudo modprobe -r efa'
+            run_cmd(self, cmd, ret_status=True, msg='unload efa driver')
+            cmd = 'lsmod|grep efa'
+            ret = run_cmd(self, cmd, ret_status=True, msg='check if efa driver is unloaded')
+            if ret == 1:
+                self.log.info('efa driver is unloaded successfully')
+            cmd = 'sudo modprobe efa && sudo modprobe rdma_ucm'
+            run_cmd(self, cmd, ret_status=True, msg='reload efa driver')
+            cmd = 'lsmod|grep efa'
+            ret = run_cmd(self, cmd, ret_status=True, msg='check if EFA driver is loaded')
+            if ret == 0:
+                self.log.info('efa driver is loaded successfully')
+        else:
+            self.skipTest('EFA is not supported on the instance ' + instance_type)
 
     def tearDown(self):
         if 'test_mtu_min_max_set' in self.id():
