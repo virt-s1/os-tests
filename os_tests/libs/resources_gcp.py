@@ -1,5 +1,6 @@
 from .resources import VMResource, StorageResource, NetworkResource, UnSupportedAction, UnSupportedStatus
 from os_tests.libs import utils_lib
+import logging
 import time
 import sys
 try:
@@ -9,6 +10,9 @@ try:
 except ImportError as err:
     print("Please install google-api-python-client module if run gcp test")
     sys.exit(1)
+
+LOG = logging.getLogger('os_tests.os_tests_run')
+logging.basicConfig(level=logging.INFO)
 
 
 def get_service(api_name, api_version, scopes, key_file_location):
@@ -311,7 +315,11 @@ class GCPVM(VMResource):
         return sev
 
     def get_console_log(self):
-        raise NotImplementedError
+        response = self.service_v1.instances().getSerialPortOutput(
+            project=self.project, zone=self.zone,
+            instance=self.vm_name).execute()
+        LOG.info(response['contents'])
+        return response['contents']
 
     def disk_count(self):
         raise NotImplementedError
@@ -338,4 +346,4 @@ class GCPVM(VMResource):
         raise NotImplementedError
 
     def is_exist(self):
-        raise NotImplementedError
+        return self.exists()
