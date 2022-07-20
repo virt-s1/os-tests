@@ -945,7 +945,7 @@ COMMIT
         if 'test_mtu_min_max_set' in self.id():
             mtu_cmd = "sudo ip link set dev %s mtu %s" % (self.nic, self.mtu_old)
             utils_lib.run_cmd(self, mtu_cmd, expect_ret=0, msg='restore mtu')
-        utils_lib.check_log(self, "error,warn,fail,Call Trace", log_cmd='dmesg -T')
+        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', skip_words='ftrace', cursor=self.dmesg_cursor)
 
 if __name__ == '__main__':
     unittest.main()

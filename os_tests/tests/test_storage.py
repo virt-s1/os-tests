@@ -570,7 +570,7 @@ class TestStorage(unittest.TestCase):
             self.skipTest('modify disk size func is not supported in {}'.format(self.vm.provider))
         #Get new size of test disk
         test_disk_new_size = int(utils_lib.run_cmd(self, cmd, expect_ret=0))/(1024*1024)
-        self.assertEqual(10, int(test_disk_new_size), msg='disk size is not the same with expanded value, expect: {}, real: {}'.format(2*1024*1024, test_disk_new_size))
+        self.assertEqual(10, int(test_disk_new_size), msg='disk size is not the same with expanded value, expect: {}, real: {}'.format(10*1024*1024, test_disk_new_size))
         #Test expanded disk can be read and write
         test_part = test_disk + "1"
         cmd = " sudo parted -s {} mklabel gpt mkpart primary xfs 1MB 10240MB".format(test_disk)
@@ -895,22 +895,31 @@ class TestStorage(unittest.TestCase):
                 self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
             except UnSupportedAction:
                 self.skipTest('attch disk func is not supported in {}'.format(self.vm.provider))
-        for i in range(0,3):
-            try:
-                self.vm.attach_disk('ide', disk_size=0, is_cdrom=True, device_index=i, wait=True, is_empty=True)
-            except NotImplementedError:
-                self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
-            except UnSupportedAction:
-                self.skipTest('attch disk func is not supported in {}'.format(self.vm.provider))
+        if self.vm.provider == 'nutanix':
+            if  self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
+                for i in range(0,3):
+                    try:
+                        self.vm.attach_disk('ide', disk_size=0, is_cdrom=True, device_index=i, wait=True, is_empty=True)
+                    except NotImplementedError:
+                        self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
+                    except UnSupportedAction:
+                        self.skipTest('attch disk func is not supported in {}'.format(self.vm.provider))
+                    total_num = 5
+            else:
+                    total_num = 9
+        else:
+                    total_num = 9
         self.vm.start(wait=True)
         utils_lib.init_connection(self, timeout=self.timeout)
         new_disk_num = self._get_disk_num('rom')
         new_add_num = int(new_disk_num) - int(origin_disk_num)
-        self.assertEqual(new_add_num, 9, "Number of new attached total rom is not right Expect: %s, real: %s" % (9, new_add_num))
+        self.assertEqual(new_add_num, total_num, "Number of new attached total rom is not right Expect: %s, real: %s" % (total_num, new_add_num))
         sata_dev_num = int(utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-sata' -A 80 | grep '*-cdrom' | wc -l", expect_ret=0).strip())
         self.assertEqual(sata_dev_num, 6, "Number of new attached sata rom is not right Expect: %s, real: %s" % (6, sata_dev_num))
-        ide_dev_num = int(utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-ide' -A 56 | grep '*-cdrom' | wc -l", expect_ret=0).strip())
-        self.assertEqual(ide_dev_num, 4, "Number of new attached sata rom is not right Expect: %s, real: %s" % (3, ide_dev_num))
+        if self.vm.provider == 'nutanix':
+            if not self.vm.prism.if_secure_boot and not self.vm.prism.machine_type == 'q35':
+                ide_dev_num = int(utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-ide' -A 56 | grep '*-cdrom' | wc -l", expect_ret=0).strip())
+                self.assertEqual(ide_dev_num, 4, "Number of new attached sata rom is not right Expect: %s, real: %s" % (3, ide_dev_num))
         #tear down
         self.vm.stop(wait=True)
         for i in range(0,6):
@@ -921,16 +930,19 @@ class TestStorage(unittest.TestCase):
                 self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
             except UnSupportedAction:
                 self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
-        for i in range(0,3):
-            disk_uuid = self.vm.get_disk_uuid('ide', device_index=i)
-            try:
-                self.vm.detach_disk('ide', disk_uuid, device_index=i, wait=True)
-            except NotImplementedError:
-                self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
-            except UnSupportedAction:
-                self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
+        if self.vm.provider == 'nutanix':
+            if not self.vm.prism.if_secure_boot and not self.vm.prism.machine_type == 'q35':
+                for i in range(0,3):
+                    disk_uuid = self.vm.get_disk_uuid('ide', device_index=i)
+                    try:
+                        self.vm.detach_disk('ide', disk_uuid, device_index=i, wait=True)
+                    except NotImplementedError:
+                        self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
+                    except UnSupportedAction:
+                        self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
         self.vm.start(wait=True)
         utils_lib.init_connection(self, timeout=self.timeout)
+
     def test_fio_crctest(self):
         """
         case_tag:
