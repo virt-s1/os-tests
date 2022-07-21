@@ -1300,6 +1300,8 @@ EOF""".format(device, size), expect_ret=0)
             2. Check the /root/.ssh/authorized_keys, the exit code is 142
             # cat /root/.ssh/authorized_keys" 
         """
+        if self.vm.provider == 'nutanix':
+            self.skipTest('skip run for nutanix platform on which authorized_keys be modified.')
         self.log.info(
             "RHEL-287348 - CLOUDINIT-TC: Using root user error should cause a non-zero exit code")
         cmd = 'sudo cat /root/.ssh/authorized_keys'
@@ -1327,9 +1329,12 @@ EOF""".format(device, size), expect_ret=0)
             2. Check /var/log/cloud-init.log
             cloud-init should config static ip route via "ip route append" 
         """
+        if self.vm.provider == 'nutanix':
+            self.skipTest('skip run for nutanix platform on which there is no ip route append command')
         self.log.info(
             "RHEL-288020 - CLOUDINIT-TC: Check ip route append when config static ip route")
         cmd = 'cat /var/log/cloud-init.log | grep append'
+
         utils_lib.run_cmd(self,
                           cmd,
                           expect_ret=0,
