@@ -3,6 +3,7 @@ from os_tests.libs import utils_lib
 from os_tests.libs.resources import UnSupportedAction
 import time
 import re
+import json
 
 class TestCloudInit(unittest.TestCase):
     def setUp(self):
@@ -1300,6 +1301,8 @@ EOF""".format(device, size), expect_ret=0)
             2. Check the /root/.ssh/authorized_keys, the exit code is 142
             # cat /root/.ssh/authorized_keys" 
         """
+        if self.vm.provider == 'nutanix':
+            self.skipTest('skip run for nutanix platform on which authorized_keys be modified.')
         self.log.info(
             "RHEL-287348 - CLOUDINIT-TC: Using root user error should cause a non-zero exit code")
         cmd = 'sudo cat /root/.ssh/authorized_keys'
@@ -1327,9 +1330,12 @@ EOF""".format(device, size), expect_ret=0)
             2. Check /var/log/cloud-init.log
             cloud-init should config static ip route via "ip route append" 
         """
+        if self.vm.provider == 'nutanix':
+            self.skipTest('skip run for nutanix platform on which there is no ip route append command')
         self.log.info(
             "RHEL-288020 - CLOUDINIT-TC: Check ip route append when config static ip route")
         cmd = 'cat /var/log/cloud-init.log | grep append'
+
         utils_lib.run_cmd(self,
                           cmd,
                           expect_ret=0,
@@ -1460,6 +1466,639 @@ EOF""".format(device, size), expect_ret=0)
         #teardown        
         self.vm.delete()
         self.vm.config_drive = None
+        self.vm.create()
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
+
+    def test_cloudinit_login_with_password_userdata(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier1
+        case_priority:
+            1
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL7-103830 - CLOUDINIT-TC: VM can successfully login
+            after provisioning(with password authentication)
+        key_steps:
+            1. Create a VM with only password authentication
+            2. Login with password, should have sudo privilege
+        """     
+        self.log.info(
+            "RHEL7-103830 - CLOUDINIT-TC: VM can login with password authentication")
+        if self.vm.exists():
+            self.vm.delete()
+            time.sleep(30)
+        save_userdata = self.vm.user_data
+        save_keypair = self.vm.keypair
+        self.vm.user_data = """\
+#cloud-config
+
+user: {0}
+password: {1}
+chpasswd: {{ expire: False }}
+ssh_pwauth: 1
+""".format(self.vm.vm_username, self.vm.vm_password)       
+        self.vm.keypair = None
+        self.vm.create()
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        test_login = utils_lib.send_ssh_cmd(self.vm.floating_ip, self.vm.vm_username, self.vm.vm_password, "whoami")
+        self.assertEqual(self.vm.vm_username,
+                         test_login[1].strip(),
+                         "Fail to login with password: %s" % format(test_login[1].strip()))        
+        test_sudo = utils_lib.send_ssh_cmd(self.vm.floating_ip, self.vm.vm_username, self.vm.vm_password, "sudo cat /etc/sudoers.d/90-cloud-init-users")
+        self.assertIn("%s ALL=(ALL) NOPASSWD:ALL" % self.vm.vm_username,
+                         test_sudo[1].strip(),
+                         "No sudo privilege")
+        #teardown        
+        self.vm.delete()
+        self.vm.keypair = save_keypair
+        self.vm.user_data = save_userdata
+        self.vm.create()
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
+
+    def _reboot_inside_vm(self):       
+        before = utils_lib.run_cmd(self, 'last reboot --time-format full')
+        utils_lib.run_cmd(self, 'sudo reboot')
+        time.sleep(10)
+        utils_lib.init_connection(self, timeout=self.timeout)
+        output = utils_lib.run_cmd(self, 'whoami')
+        self.assertEqual(
+            self.vm.vm_username, output.strip(),
+            "Reboot VM error: output of cmd `who` unexpected -> %s" % output)
+        after = utils_lib.run_cmd(self, 'last reboot --time-format full')
+        self.assertNotEqual(
+            before, after,
+            "Reboot VM error: before -> %s; after -> %s" % (before, after))
+
+    def test_cloudinit_check_resolv_conf_reboot(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-196518 - CLOUDINIT-TC: check dns configuration on openstack instance
+            RHEL-182309 - CLOUDINIT-TC: /etc/resolv.conf will not lose config after reboot
+        key_steps:
+            1. check dns configuration in /etc/resolv.conf
+            2. check /etc/NetworkManager/conf.d/99-cloud-init.conf
+            3. run hostnamectl command and then check resolv.conf again
+            4. reboot
+            5. Check /etc/resolv.conf
+        """ 
+        cmd = 'cat /etc/resolv.conf'
+        utils_lib.run_cmd(self,
+                          cmd,
+                          expect_ret=0,
+                          expect_kw='nameserver',
+                          msg='check if there is dns information in /etc/resolv.conf')
+        #get network dns information
+        output = utils_lib.run_cmd(self, 'cloud-init query ds.network_json.services').rstrip('\n')
+        services = json.loads(output)
+        for service in services:
+            expect_dns_addr=service.get("address")
+            utils_lib.run_cmd(self,
+                           cmd,
+                           expect_ret=0,
+                           expect_kw=expect_dns_addr,
+                           msg='check dns configuration %s in /etc/resolv.conf' % expect_dns_addr)
+        cmd2 = 'cat /etc/NetworkManager/conf.d/99-cloud-init.conf'
+        utils_lib.run_cmd(self,
+                          cmd2,
+                          expect_ret=0,
+                          expect_kw='dns = none',
+                          msg='check dns configuration of NM')
+        utils_lib.run_cmd(self, 'cp /etc/resolv.conf  ~/resolv_bak.conf')
+        cmd1 = 'sudo hostnamectl set-hostname host1.test.domain'                  
+        utils_lib.run_cmd(self, cmd1, expect_ret=0, msg='set hostname')
+        diff = utils_lib.run_cmd(self, "diff ~/resolv_bak.conf /etc/resolv.conf").rstrip('\n')
+        self.assertEqual(diff, '', 
+            "After setting hostname, resolv.conf is changed:\n"+diff)
+        self._reboot_inside_vm()
+        diff = utils_lib.run_cmd(self, "diff ~/resolv_bak.conf /etc/resolv.conf").rstrip('\n')
+        self.assertEqual(diff, '', 
+            "After reboot, resolv.conf is changed:\n"+diff)
+
+    def _get_service_startup_time(self, servicename):
+        output = utils_lib.run_cmd(self, "sudo systemd-analyze blame | grep %s | awk '{print $1}'" % servicename).rstrip('\n')
+        if 'ms' in output:
+            return 1
+        if 'min' in output:
+            boot_time_min = re.findall('[0-9]+min', output)[0]
+            boot_time_min = boot_time_min.strip('min')
+            boot_time_sec = int(boot_time_min) * 60
+            return boot_time_sec
+        service_time_sec = output.strip('s')
+        return service_time_sec
+
+    def test_cloudinit_boot_time(self):        
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-189580 - CLOUDINIT-TC: Check VM first launch boot time and cloud-init startup time
+        key_steps:
+            1. Launch a VM with cloud-init installed
+            2. Login VM on the VM first boot
+            3. Check boot time and cloud-init services startup time
+            # systemd-analyze
+            # systemd-analyze blame
+            4. The boot time should be less than 50s, cloud-init services startup time should less than 18s
+        """
+        self.log.info(
+            "RHEL-189580 - CLOUDINIT-TC: Check VM first launch boot time and cloud-init startup time")
+        max_boot_time = 60
+        cloud_init_startup_time = 20
+        if self.vm.exists():
+            self.vm.delete()
+            time.sleep(30)
+        self.vm.create()
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
+        # check cloud-init status is done and services are active
+        self._check_cloudinit_done_and_service_isactive()
+        # Check boot time
+        boot_time_sec = utils_lib.getboottime(self)
+        self.assertLess(
+            float(boot_time_sec), float(max_boot_time), 
+            "First boot time is greater than {}".format(max_boot_time))        
+        # Check cloud-init services time
+        service_list = ['cloud-init-local.service',
+                        'cloud-init.service',
+                        'cloud-config.service',
+                        'cloud-final.service']
+        for service in service_list:
+            service_time_sec = self._get_service_startup_time("%s" % service)
+            self.assertLess(
+                float(service_time_sec), float(cloud_init_startup_time), 
+                "{0} startup time is greater than {1}".format(service, cloud_init_startup_time))
+
+    def test_cloudinit_reboot_time(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-282359 - CLOUDINIT-TC: Check VM subsequent boot time and cloud-init startup time
+        key_steps:
+            1. Launch a VM with cloud-init installed
+            2. Login VM and reboot VM
+            3. Check reboot time and cloud-init services startup time
+            # systemd-analyze
+            # systemd-analyze blame
+            4. The reboot time should be less than 30s, cloud-init services startup time should less than 5s
+        """
+        self.log.info(
+            "RHEL-282359 - CLOUDINIT-TC: Check VM subsequent boot time and cloud-init startup time")
+        max_boot_time = 30
+        cloud_init_startup_time = 5
+        # Reboot VM
+        self._reboot_inside_vm()
+        # Check boot time
+        boot_time_sec = utils_lib.getboottime(self)
+        self.assertLess(
+            float(boot_time_sec), float(max_boot_time), 
+            "First boot time is greater than {}".format(max_boot_time))
+        # Check cloud-init services time
+        service_list = ['cloud-init-local.service',
+                        'cloud-init.service',
+                        'cloud-config.service',
+                        'cloud-final.service']
+        for service in service_list:
+            service_time_sec = self._get_service_startup_time("%s" % service)
+            self.assertLess(
+                float(service_time_sec), float(cloud_init_startup_time), 
+                "{0} startup time is greater than {1}".format(service, cloud_init_startup_time))
+
+    def test_cloudinit_disable_cloudinit(self):        
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-287483: CLOUDINIT-TC: cloud-init dhclient-hook script shoud exit
+            while cloud-init services are disabled
+        key_steps:
+            1. Install cloud-init package in VM, disable cloud-init and related services:
+               # systemctl disable cloud-{init-local,init,config,final}
+            2. Clean the VM and reboot VM
+            3. Check the VM status after reboot
+            The cloud-init should not run , and the related services are disabled
+            4. Recover the VM config(enable cloud-init), reboot VM, check the cloud-init is enabled
+        """
+        self.log.info("RHEL-287483: CLOUDINIT-TC: check cloud-init disable")
+        # Disable cloud-init
+        utils_lib.run_cmd(self, "sudo systemctl disable cloud-{init-local,init,config,final}")
+        time.sleep(1)
+        self.assertNotIn("enabled",
+                    utils_lib.run_cmd(self, "sudo systemctl is-enabled cloud-{init-local,init,config,final}"),
+                    "Fail to disable cloud-init related services")
+        # Clean the VM
+        utils_lib.run_cmd(self, "sudo rm -rf /var/lib/cloud /var/log/cloud-init* \
+            /var/log/messages /run/cloud-init")    
+        # Reboot VM
+        self._reboot_inside_vm()        
+        # Check the new VM status
+        self.assertNotIn("enabled",
+                    utils_lib.run_cmd(self, "sudo systemctl is-enabled cloud-{init-local,init,config,final}"),
+                    "Fail to disable cloud-init related services!")
+        self.assertIn("status: not run",
+                    utils_lib.run_cmd(self, "sudo cloud-init status"),
+                    "cloud-init status is wrong!")
+        self.assertIn("inactive",
+                    utils_lib.run_cmd(self, "sudo systemctl is-active cloud-init-local"),
+                    "cloud-init-local service status is wrong!")
+        # Recover the VM config
+        utils_lib.run_cmd(self, "sudo systemctl enable cloud-{init-local,init,config,final}")
+        time.sleep(1)
+        # Reboot VM
+        self._reboot_inside_vm()
+        # Check the VM status
+        self.assertNotIn("disabled",
+                    utils_lib.run_cmd(self, "sudo systemctl is-enabled cloud-{init-local,init,config,final}"),
+                    "Fail to disable cloud-init related services!")
+        #teardown        
+        self.vm.delete()
+        self.vm.create()
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
+
+    def test_cloudinit_create_vm_two_nics(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-186186 - CLOUDINIT-TC: launch an instance with 2 interfaces
+            basic case of two nics, the second nic is default ipv6 mode slaac
+        key_steps:
+            1. Create a VM with two nics
+            2. Login and check user
+            3. check network config file
+        """
+        if self.vm.provider != 'openstack':
+            self.skipTest('skip run as this case is openstack specific which using openstack PSI NIC uuid')
+        self.log.info(
+            "RHEL-186186 - CLOUDINIT-TC: launch an instance with 2 interfaces")
+        # the second nic using hard code? (the second network only contains ipv6, network name provider_net_ipv6_only, ipv6 slaac)
+        # if the second nic has ipv4, the ssh login may select it but it could not be connected
+        # this solution ensure ssh using eth0 ipv4
+        self.vm.second_nic_id = "10e45d6d-5924-48ee-9f5a-9713f5facc36"
+        if self.vm.exists():
+            self.vm.delete()
+            time.sleep(30)
+        self.vm.create()
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
+        output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
+        self.assertEqual(
+            self.vm.vm_username, output,
+            "Login VM with publickey error: output of cmd `whoami` unexpected -> %s"
+            % output)
+        cmd = 'ip addr show eth1'
+        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=',UP,')
+        cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')        
+        cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)-', cloudinit_ver).group(1))
+        if cloudinit_ver < 22.1:
+            cmd = 'sudo cat /etc/sysconfig/network-scripts/ifcfg-eth1'
+            utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='DEVICE=eth1')
+        else:
+            cmd = 'sudo cat /etc/NetworkManager/system-connections/cloud-init-eth1.nmconnection'
+            utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='id=cloud-init eth1')
+        # check cloud-init status is done and services are active
+        self._check_cloudinit_done_and_service_isactive()
+        #teardown        
+        self.vm.delete()
+        self.vm.second_nic_id = None
+        self.vm.create()
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
+
+    def test_cloudinit_create_vm_stateless_ipv6(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-186180 - CLOUDINIT-TC: correct config for dhcp-stateless openstack subnets
+        key_steps:
+            1. Create a VM with two nics, the second nic is stateless ipv6 mode
+            2. Login and check user
+            3. check network config file
+        """
+        if self.vm.provider != 'openstack':
+            self.skipTest('skip run as this case is openstack specific')
+        self.log.info(
+            "RHEL-186180 - CLOUDINIT-TC: correct config for dhcp-stateless openstack subnets")
+        # the second nic using hard code?  (net-ipv6-stateless, only subnet ipv6, dhcp-stateless)
+        self.vm.second_nic_id = "e66c7343-98d6-4f07-9d64-2b8bb31d7df8"
+        if self.vm.exists():
+            self.vm.delete()
+            time.sleep(30)
+        self.vm.create()
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
+        output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
+        self.assertEqual(
+            self.vm.vm_username, output,
+            "Login VM with publickey error: output of cmd `whoami` unexpected -> %s"
+            % output)
+        # change command to ip addr because of no net-tool by default in rhel8.4
+        cmd = 'ip addr show eth1'
+        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=',UP,')
+        cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')        
+        cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)-', cloudinit_ver).group(1))
+        if cloudinit_ver < 22.1:
+            cmd = 'sudo cat /etc/sysconfig/network-scripts/ifcfg-eth1'
+            utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='DHCPV6C_OPTIONS=-S,IPV6_AUTOCONF=yes')
+        # Will add NM keyfile check after BZ 2098501 fix
+        # check cloud-init status is done and services are active
+        self._check_cloudinit_done_and_service_isactive()
+        #teardown        
+        self.vm.delete()
+        self.vm.second_nic_id = None
+        self.vm.create()
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
+
+    def test_cloudinit_create_vm_stateful_ipv6(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-186181 - CLOUDINIT-TC: correct config for dhcp-stateful openstack subnets
+        key_steps:
+            1. Create a VM with two nics, the second nic is dhcp-stateful ipv6 mode
+            2. Login and check user
+            3. check network config file
+        """
+        if self.vm.provider != 'openstack':
+            self.skipTest('skip run as this case is openstack specific')
+        self.log.info(
+            "RHEL-186181 - CLOUDINIT-TC: correct config for dhcp-stateful openstack subnets")
+        # the second nic using hard code? (net-ipv6-stateful, only subnet ipv6, dhcp-stateful)
+        self.vm.second_nic_id = "9b57a458-5c76-4e4e-b6bf-f1e01388a3b4"
+        if self.vm.exists():
+            self.vm.delete()
+            time.sleep(30)
+        self.vm.create()
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
+        output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
+        self.assertEqual(
+            self.vm.vm_username, output,
+            "Login VM with publickey error: output of cmd `whoami` unexpected -> %s"
+            % output)
+        cmd = 'ip addr show eth1'
+        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=',UP,')
+        cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')        
+        cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)-', cloudinit_ver).group(1))
+        if cloudinit_ver < 22.1:
+            cmd = 'sudo cat /etc/sysconfig/network-scripts/ifcfg-eth1'
+            utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='IPV6_FORCE_ACCEPT_RA=yes')
+        # Will add NM keyfile check after BZ 2098501 fix
+        # check cloud-init status is done and services are active
+        self._check_cloudinit_done_and_service_isactive()
+        #teardown        
+        self.vm.delete()
+        self.vm.second_nic_id = None
+        self.vm.create()
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
+
+    def test_cloudinit_auto_install_package_with_subscription_manager(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-186182	CLOUDINIT-TC:auto install package with subscription manager
+        key_steps:
+            1. Add content to user data config file
+            rh_subscription:
+            username: ******
+            password: ******
+            auto-attach: True
+            packages:
+            - dos2unix
+            2. create VM
+            3. Verify register with subscription-manager and install package by cloud-init successfully
+        """
+        if self.vm.provider != 'openstack' and self.vm.provider != 'nutanix':
+            self.skipTest('skip run as this case need connect rhsm stage server, not suitable for public cloud')
+        self.log.info("RHEL-186182 CLOUDINIT-TC:auto install package with subscription manager")
+        if self.vm.exists():
+            self.vm.delete()
+            time.sleep(30)
+        package = "dos2unix"        
+        save_userdata = self.vm.user_data
+        self.vm.user_data = """\
+#cloud-config
+
+rh_subscription:
+  username: {0}
+  password: {1}
+  rhsm-baseurl: {2}
+  server-hostname: {3}
+  auto-attach: true
+  disable-repo: []
+packages:
+  - {4}
+""".format(self.vm.subscription_username, self.vm.subscription_password, 
+    self.vm.subscription_baseurl, self.vm.subscription_serverurl, package)
+        self.vm.create()
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
+        # check login
+        output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
+        self.assertEqual(
+            self.vm.vm_username, output,
+            "Create VM error: output of cmd `who` unexpected -> %s" % output)
+        self.log.info("Waiting 30s for subscription-manager done...")
+        time.sleep(30) # waiting for subscription-manager register done.
+        # no error because of disable-repo null
+        # check cloud-init status is done and services are active
+        self._check_cloudinit_done_and_service_isactive()
+        # check register
+        cmd = "sudo grep 'Registered successfully' /var/log/cloud-init.log"
+        utils_lib.run_cmd(self,
+                    cmd,
+                    expect_ret=0,
+                    expect_kw='Registered successfully',
+                    msg='No Registered successfully log in cloud-init.log')
+        cmd = "sudo subscription-manager identity"
+        utils_lib.run_cmd(self,
+                    cmd,
+                    expect_ret=0,
+                    msg='Fail to register with subscription-manager')
+        # check auto-attach
+        output = utils_lib.run_cmd(self, "sudo subscription-manager list --consumed --pool-only").rstrip('\n')
+        self.assertNotEqual("", output, "Cannot auto-attach pools")
+        # check package installed
+        time.sleep(30) # waiting for package install done.
+        cmd = "rpm -q {}".format(package)
+        utils_lib.run_cmd(self,
+                    cmd,
+                    expect_ret=0,
+                    expect_kw='{}'.format(package),
+                    msg="Fail to install package {} by cloud-init".format(package))
+        #teardown        
+        self.vm.delete()
+        self.vm.user_data = save_userdata
+        self.vm.create()
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
+
+    def test_cloudinit_verify_rh_subscription_enablerepo_disablerepo(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-189134 - CLOUDINIT-TC: Verify rh_subscription enable-repo and disable-repo
+        key_steps:
+            1. Add content to user data config file
+            rh_subscription:
+            username: ******
+            password: ******
+            auto-attach: True
+            enable-repo: ['rhel-*-baseos-*rpms','rhel-*-supplementary-*rpms']
+            disable-repo: ['rhel-*-appstream-*rpms']
+            2. create VM
+            3. Verify register with subscription-manager and enabled repos and disabled repos successfully
+        """
+        if self.vm.provider != 'openstack' and self.vm.provider != 'nutanix':
+            self.skipTest('skip run as this case need connect rhsm stage server, not suitable for public cloud')
+        rhel_ver = utils_lib.run_cmd(self, "sudo cat /etc/redhat-release").rstrip('\n')
+        rhel_ver = float(re.search('release\s+(\d+.\d+)\s+', rhel_ver).group(1))
+        if rhel_ver >= 9.0 or rhel_ver < 8.0:
+            self.skipTest('skip run as this case is only test rhel-8')        
+        self.log.info("RHEL-189134 - CLOUDINIT-TC: Verify rh_subscription enable-repo and disable-repo")
+        if self.vm.exists():
+            self.vm.delete()
+            time.sleep(30)
+        save_userdata = self.vm.user_data
+        self.vm.user_data = """\
+#cloud-config
+
+rh_subscription:
+  username: {0}
+  password: {1}
+  rhsm-baseurl: {2}
+  server-hostname: {3}
+  auto-attach: true
+  enable-repo: ['rhel-8-for-x86_64-baseos-beta-rpms','rhel-8-for-x86_64-supplementary-beta-rpms']
+  disable-repo: ['rhel-8-for-x86_64-appstream-beta-rpms']
+""".format(self.vm.subscription_username, self.vm.subscription_password, 
+    self.vm.subscription_baseurl, self.vm.subscription_serverurl)
+        self.vm.create()
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.timeout)
+        # check login
+        output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
+        self.assertEqual(
+            self.vm.vm_username, output,
+            "Reboot VM error: output of cmd `who` unexpected -> %s" % output)
+        # waiting for subscription-manager register done.
+        # 51.55900s (modules-config/config-rh_subscription)
+        self.log.info("Waiting 60s for subscription-manager done...")
+        time.sleep(60) 
+        # check cloud-init status is done and services are active
+        self._check_cloudinit_done_and_service_isactive()
+        # check register
+        cmd = "sudo grep 'Registered successfully' /var/log/cloud-init.log"
+        utils_lib.run_cmd(self,
+                    cmd,
+                    expect_ret=0,
+                    expect_kw='Registered successfully',
+                    msg='No Registered successfully log in cloud-init.log')
+        cmd = "sudo subscription-manager identity"
+        utils_lib.run_cmd(self,
+                    cmd,
+                    expect_ret=0,
+                    msg='Fail to register with subscription-manager')
+        # check auto-attach
+        output = utils_lib.run_cmd(self, "sudo subscription-manager list --consumed --pool-only").rstrip('\n')
+        self.assertNotEqual("", output, "Cannot auto-attach pools")
+        # check enabled/disabled repos
+        enable_repo_1 = 'rhel-8-for-x86_64-baseos-beta-rpms'
+        enable_repo_2 = 'rhel-8-for-x86_64-supplementary-beta-rpms'
+        disable_repo = 'rhel-8-for-x86_64-appstream-beta-rpms'
+        repolist = utils_lib.run_cmd(self, "yum repolist|awk '{print $1}'").split('\n')
+        self.assertIn(enable_repo_1, repolist,
+            "Repo of {} is not enabled".format(enable_repo_1))
+        self.assertIn(enable_repo_2, repolist,
+            "Repo of {} is not enabled".format(enable_repo_2))
+        self.assertNotIn(disable_repo, repolist,
+            "Repo of {} is not disabled".format(disable_repo))
+        #teardown        
+        self.vm.delete()
+        self.vm.user_data = save_userdata
         self.vm.create()
         time.sleep(30)
         self.params['remote_node'] = self.vm.floating_ip

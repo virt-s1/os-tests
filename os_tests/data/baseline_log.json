@@ -1186,5 +1186,14 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2093495",
         "path": "journal",
         "trigger": ""
+    },
+    "msg_134": {
+        "content": "Warning: Unmaintained hardware is detected:  e1000",
+        "analyze": "e1000 is legacy",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "dmesg",
+        "trigger": ""
     }
 }

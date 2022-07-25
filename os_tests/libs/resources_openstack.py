@@ -75,6 +75,12 @@ password: {2}
 chpasswd: {{ expire: False }}
 ssh_pwauth: 0
 """.format(self.run_uuid, self.vm_username, 'R')
+    
+        # VM creation parameter for rhsm subscription related cases
+        self.subscription_username = params['Subscription'].get('username')
+        self.subscription_password = params['Subscription'].get('password')
+        self.subscription_baseurl = params['Subscription'].get('baseurl')
+        self.subscription_serverurl = params['Subscription'].get('serverurl')
 
     @property
     def data(self):
