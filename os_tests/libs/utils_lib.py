@@ -167,7 +167,7 @@ def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=N
                 test_instance.vm.get_console_log()
             except NotImplementedError:
                 test_instance.log.info("{} not implement this func: get_console_log".format(test_instance.vm.provider))
-        test_instance.skipTest("Cannot make ssh connection to remote, please check")
+        test_instance.fail("Cannot make ssh connection to remote, please check")
     test_instance.SSHs.append(ssh)
     if len(test_instance.SSHs) == 1:
         test_instance.SSH = test_instance.SSHs[0]
@@ -274,7 +274,7 @@ def init_case(test_instance):
             test_instance.skipTest("remote_node not found")
         test_instance.SSH.log = test_instance.log
         if  test_instance.SSH.ssh_client is None:
-            test_instance.skipTest("Cannot make ssh connection to remote, please check")
+            test_instance.fail("Cannot make ssh connection to remote, please check")
     node_info = "{}/node_info".format(attachment_dir)
     node_info_data = {}
     if not os.path.exists(node_info):
