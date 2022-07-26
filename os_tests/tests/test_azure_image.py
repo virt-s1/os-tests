@@ -106,10 +106,28 @@ class TestAzureImage(unittest.TestCase):
             utils_lib.run_cmd(self, cmd, expect_not_ret='0', msg='check bash history does not exist in fresh image')
 
     def test_check_cloudinit_cfg_mounts_growpart(self):
-        '''
-        bz: 966888
-        des: make sure there is mounts/growpart in cloud_init_modules group in "/etc/cloud/cloud.cfg"
-        '''
+        """
+        case_tag:
+            cloudinit
+        case_name:
+            test_check_cloudinit_cfg_mounts_growpart
+        component:
+            cloud-init
+        bugzilla_id:
+            966888
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
+        description:
+            make sure there is mounts/growpart in cloud_init_modules group in "/etc/cloud/cloud.cfg"
+        key_steps:
+            1.check cloud config file
+        expect_result:
+            there's 'growpart' or 'mounts' in cloud config file
+        debug_want:
+            cloud.cfg
+        """
         cmd = 'sudo cat /etc/cloud/cloud.cfg'
         utils_lib.run_cmd(self,
                 cmd,
@@ -118,11 +136,28 @@ class TestAzureImage(unittest.TestCase):
                 msg='check /etc/cloud/cloud.cfg to make sure there is mounts/growpart in cloud_init_modules(bz966888)')
 
     def test_check_cloudinit_cfg_no_wheel(self):
-        '''
-        bz: 1549638
-        cm: 01965459
-        des: make sure there is no wheel in default_user's group in "/etc/cloud/cloud.cfg"
-        '''
+        """
+        case_tag:
+            cloudinit
+        case_name:
+            test_check_cloudinit_cfg_no_wheel
+        component:
+            cloud-init
+        bugzilla_id:
+            1549638
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
+        description:
+            make sure there is no wheel in default_user's group in "/etc/cloud/cloud.cfg"
+        key_steps:
+            1. check cloud config file
+        expect_result:
+            there's no 'wheel' saved in log file
+        debug_want:
+            cloud.cfg
+        """
         cmd = 'sudo cat /etc/cloud/cloud.cfg'
         utils_lib.run_cmd(self,
                 cmd,
@@ -626,6 +661,28 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         self._check_log('/tmp/dmesg.log', ignore_list)
 
     def test_check_cloudinit_log(self):
+        """
+        case_tag:
+            cloudinit
+        case_name:
+            test_check_cloudinit_log
+        component:
+            cloud-init
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat
+        description:
+            verify no err/fail/warn/trace in /var/log/cloud-init.log
+        key_steps:
+            check if there's err/fail/warn/trace in cloud init log
+        expect_result:
+            no fail letter found
+        debug_want:
+            cloud init log file 
+        """
         '''
         Verify no err/fail/warn/trace in /var/log/cloud-init.log
         '''
