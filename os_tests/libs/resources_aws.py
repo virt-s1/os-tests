@@ -76,9 +76,11 @@ class EC2VM(VMResource):
         if self.is_exist():
             LOG.info("Instance ID: {}".format(self.ec2_instance.id))
 
-    def create(self, wait=True):
+    def create(self, wait=True, enable_efa=True):
+        # enable_efa is option to enable or disable efa when create vms
+        # if vm does not support efa, it will be disabled
         self.is_created = False
-        # start with efa enabled if it is supported
+        # efa_support default set to False, will query instance property next
         self.efa_support = False
         self.hibernation_support = False
         try:
@@ -147,7 +149,10 @@ class EC2VM(VMResource):
             "UserData":'#!/bin/bash\nmkdir /tmp/userdata_{}'.format(self.run_uuid)
         }
         if self.efa_support:
-            vm_kwargs["NetworkInterfaces"][0]["InterfaceType"] = 'efa'
+            if enable_efa:
+                vm_kwargs["NetworkInterfaces"][0]["InterfaceType"] = 'efa'
+            else:
+                LOG.info("efa is supported, but disable it as request")
         #vm_kwargs["EnclaveOptions"]["Enabled"] = True
         if self.additionalinfo == None or self.additionalinfo == '':
             try:
@@ -355,6 +360,9 @@ class EC2VM(VMResource):
             return True
         except Exception as exc:
             return False
+
+    def exists(self):
+        return self.is_exist()
 
     def is_stopped(self):
         if self.get_state() == 'stopped':

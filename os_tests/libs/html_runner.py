@@ -35,6 +35,13 @@ def generated_report(logfile, template_name, result):
     file_loader = PackageLoader("os_tests", "templates")
     env = Environment(loader=file_loader)
     template = env.get_template(template_name)
+    if template_name.endswith('xml'):
+        from xml.sax.saxutils import escape
+        for row in result.table_rows:
+            # escap special character(<&>) in output
+            for i,v in enumerate(row):
+                if isinstance(row[i], str):
+                    row[i] = escape(v)
     output = template.render(result=result)
     with open(logfile, "w+") as fh:
         fh.write(output)
@@ -140,7 +147,7 @@ class HTMLTestRunner(object):
                     stopTestRun = getattr(result, 'stopTestRun', None)
                     if stopTestRun is not None:
                         stopTestRun()
-                    ts.duration = timeTaken = time.perf_counter() - case_startTime
+                    ts.duration = timeTaken = round(time.perf_counter() - case_startTime, 3)
                 test_class_name = ts.__class__.__name__
                 case_dir = '.'.join([test_class_name, ts.id()])
                 debug_dir = logdir + "/attachments/" + case_dir
@@ -170,13 +177,13 @@ class HTMLTestRunner(object):
                             fh.write('{} - PASS'.format(ts.id()))
                         case_status = 'PASS'
                         case_reason = ''
-                test_result.table_rows.append((id, ts.id(), case_status, case_reason, ts.duration, debug_log, test_class_name))
+                test_result.table_rows.append([id, ts.id(), case_status, case_reason, ts.duration, debug_log, test_class_name])
                 with open(sum_txt, 'a+') as fh:
                     fh.write('case: {} - {}\n'.format(ts.id(),case_status))
                     if case_reason:
                         fh.write('info: {}\n'.format(case_reason))
             stopTime = time.perf_counter()
-        timeTaken = stopTime - startTime
+        timeTaken = round(stopTime - startTime, 3)
         test_result.run_time = timeTaken
         all_case_name.sort()
         id = 0
@@ -188,8 +195,10 @@ class HTMLTestRunner(object):
         if hasattr(result, 'separator2'):
             self.stream.writeln(result.separator2)
         test_result.compute_totals()
-        with open("{}/attachments/node_info".format(logdir)) as fh:
-            test_result.node_info = fh.read()
+        node_info_file = "{}/attachments/node_info".format(logdir)
+        if os.path.exists(node_info_file):
+            with open(node_info_file) as fh:
+                test_result.node_info = fh.read()
         results_dir = logdir + '/results'
         if not os.path.exists(results_dir):
             os.mkdir(results_dir)

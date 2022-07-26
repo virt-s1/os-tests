@@ -2,7 +2,9 @@ import re
 import unittest
 import time
 import random
+
 from os_tests.libs import utils_lib
+from os_tests.libs.utils_lib import run_cmd, init_connection
 
 class TestNetworkTest(unittest.TestCase):
     def setUp(self):
@@ -32,6 +34,11 @@ class TestNetworkTest(unittest.TestCase):
         cmd = "ip addr show {}".format(self.nic)
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to get {} ipv4 address'.format(self.nic))
         self.ipv4 = re.findall('[\d.]{7,16}', output)[0]
+        if utils_lib.is_metal(self):
+            self.ssh_timeout = 1200
+            self.SSH.interval = 60
+        else:
+            self.ssh_timeout = 180
 
     def test_ethtool_G(self):
         '''
@@ -524,7 +531,10 @@ COMMIT
         #stop vm to add nic if vm is secure boot and record the set ip list
         if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
             self.vm.stop(wait=True)
-        used_ip_list = self.vm.list_networks_address(self.vm.private_network_uuid)
+        try:
+            used_ip_list = self.vm.list_networks_address(self.vm.private_network_uuid)
+        except AttributeError:
+            self.skipTest('list_networks_address not found in {} vm'.format(self.vm.provider))
         set_ip_list = []
         for i in range(nic_num):
             if ip_subnet == None:
@@ -560,6 +570,7 @@ COMMIT
                 self.assertEqual(nic_driver, driver_check, msg="Driver of %s is not right, Expect: %s, real: %s" % (nic_name, driver, nic_driver))
         #record nic mac list
         nic_mac_list = utils_lib.run_cmd(self, "ip a | grep link/ether | awk '{print $2}'").split()
+        time.sleep(5)
         #check nic ip
         if ip_subnet != None:
             vm_ip_list = utils_lib.run_cmd(self, "ip a | grep 'inet ' | grep %s | awk '{print $2}' | sed 's/\/24//'" % self.vm.private_network_subnet).split()
@@ -605,7 +616,11 @@ COMMIT
         debug_want:
             N/A
         """
-        self._test_add_remove_multi_nics(4, None, None, 'virtio')
+        if self.vm.provider == 'nutanix' and self.vm.prism.machine_type == 'q35':
+            multi_num = 1
+        else:
+            multi_num = 2
+        self._test_add_remove_multi_nics(multi_num, None, None, 'virtio')
 
     def test_add_remove_multi_virtio_ip_spec(self):
         """
@@ -634,7 +649,11 @@ COMMIT
         debug_want:
             N/A
         """
-        self._test_add_remove_multi_nics(4, self.vm.private_network_uuid, self.vm.private_network_subnet, 'virtio')
+        if self.vm.provider == 'nutanix' and self.vm.prism.machine_type == 'q35':
+            multi_num = 1
+        else:
+            multi_num = 2
+        self._test_add_remove_multi_nics(multi_num, self.vm.private_network_uuid, self.vm.private_network_subnet, 'virtio')
 
     def test_add_remove_multi_e1000_nic(self):
         """
@@ -663,6 +682,8 @@ COMMIT
         debug_want:
             N/A
         """
+        if self.vm.provider == 'nutanix' and self.vm.prism.machine_type == 'q35':
+            self.skipTest('e1000 should not be supported by pcie-root-port')
         self._test_add_remove_multi_nics(2, None, None, 'e1000')
         self._test_add_remove_multi_nics(2, self.vm.private_network_uuid, self.vm.private_network_subnet, 'e1000')
 
@@ -677,10 +698,7 @@ COMMIT
         self.vm.detach_nic(origin_nic_mac)
         if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
             self.vm.start(wait=True)
-        for nic in self.vm.get_vm_by_filter("vm_name", self.vm.prism.vm_name).get('vm_nics'):
-            if nic['network_uuid'] == self.vm.network_uuid:
-                new_ip = nic['ip_address']
-        self.params['remote_node'] = new_ip
+        self.vm.refresh_data()
         utils_lib.init_connection(self, timeout=180)
         new_nic_mac = utils_lib.run_cmd(self, "cat /sys/class/net/%s/address" % origin_nic_name).strip()
         self.assertNotEqual(origin_nic_mac, new_nic_mac, msg="Second nic name changed after detaching the first nic, Expect not: %s, real: %s" % (origin_nic_mac, new_nic_mac))
@@ -693,6 +711,75 @@ COMMIT
             utils_lib.run_cmd(self, "sudo modprobe -r %s && sudo modprobe %s" % (driver_check, driver_check), expect_ret=0)
         new_nic_name = utils_lib.run_cmd(self, "ls /sys/class/net/ | grep -v lo").strip()
         self.assertEqual(origin_nic_name, new_nic_name, msg="Second nic name changed after unload/load nic driver three times, Expect: %s, real: %s" % (origin_nic_name, new_nic_name))
+
+    def test_ping_arp_ping(self):
+        """
+        case_tag:
+            Network
+        case_name:
+            test_ping_arp_ping
+        case_file:
+            os_tests.tests.test_netwrok_test.TestNetworkTest.test_ping_arp_ping
+        component:
+            network
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Test arping and ping -f between guests.
+        key_steps: |
+            1. Create 1 more guest.
+            2. Test arping and ping -f between guests.
+        expect_result:
+            No package lost
+        debug_want:
+            N/A
+        """
+        dest_ip = self.vms[0].floating_ip
+        if len(self.vms) == 1:
+            self.vm.create(vm_name='ScriptCreateVM1')
+            vm1 = self.vm.get_vm_by_filter('vm_name', 'ScriptCreateVM1')
+            self.vms.append(vm1)
+            self.vm.prism.start_vm(vm1['uuid'])
+        for nic in vm1.get('vm_nics'):
+            if nic['network_uuid'] == self.vm.network_uuid:
+                VM1_ip = nic['ip_address']
+        init_connection(self, timeout=self.ssh_timeout, rmt_node=VM1_ip)
+        vm1_nic_name = utils_lib.run_cmd(self, "ls /sys/class/net/ | grep -v lo", rmt_node=VM1_ip).strip()
+        utils_lib.run_cmd(self, 'arping -I %s %s -c 2' % (vm1_nic_name, dest_ip), rmt_node=VM1_ip) #To avoid broadcast packet in the first time.
+        utils_lib.run_cmd(self, 'arping -I %s %s -c 10' % (vm1_nic_name, dest_ip), rmt_node=VM1_ip, expect_kw='Received 10 response')
+        utils_lib.run_cmd(self, 'sudo ping -f %s -c 600' % (dest_ip), rmt_node=VM1_ip, expect_kw='0% packet loss')
+        #tear down - delete cloned VM
+        self.vm.prism.delete_vm(vm1['uuid'])
+
+    def test_iperf(self):
+        """
+        a simple case to run iperf between 2 nodes
+        """
+        iperf_srv_cmd = 'sudo bash -c "iperf3 -s >/dev/null 2>&1 &"'
+        if self.vms:
+            if not self.vms[1].exists():
+                self.vms[1].create()
+                if self.vms[1].is_stopped():
+                    self.vms[1].start(wait=True)
+            init_connection(self, timeout=self.ssh_timeout, vm=self.vms[1])
+            self.params['remote_nodes'].append(self.vms[1].floating_ip)
+            run_cmd(self, iperf_srv_cmd, vm=self.vms[1])
+        elif not self.vms and self.params['remote_nodes']:
+            init_connection(self, timeout=self.ssh_timeout, rmt_node=self.params['remote_nodes'][1])
+            run_cmd(self, iperf_srv_cmd, rmt_node=self.params['remote_nodes'][1])
+        else:
+            self.skipTest('2 nodes required')
+        cmd = "ip addr show {}".format(self.nic)
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to get {} ipv4 address'.format(self.nic),rmt_node=self.params['remote_nodes'][-1])
+        srv_ipv4 = re.findall('[\d.]{7,16}', output)[0]
+        iperf_cli_cmd = 'iperf3 -c {} -t 60'.format(srv_ipv4)
+        run_cmd(self, iperf_cli_cmd, expect_ret=0, timeout=120)
 
     def test_unload_load_virtio(self):
         """
@@ -754,12 +841,238 @@ COMMIT
         debug_want:
             N/A
         """
+        if self.vm.provider == 'nutanix' and self.vm.prism.machine_type == 'q35':
+            self.skipTest('e1000 should not be supported by pcie-root-port')
         self._test_unload_load_nic_driver('e1000')
+
+    def test_ethtool_K_offload(self):
+        """
+        case_tag:
+            Network
+        case_name:
+            test_ethtool_K_offload
+        case_file:
+            os_tests.tests.test_netwrok_test.TestNetworkTest.test_ethtool_K_offload
+        component:
+            network
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Test use ethtool to change the offload parameters and other features of the specified network device in RHEL
+        key_steps: |
+            1. Launch a guest VM.
+            2. Use command "$ sudo  ethtool -k eth0" to query currently state of protocol offload and other features.
+            3. Use ethtool to turn off offload parameters and other features via command "$ sudo ethtool -K eth0 $feature off".
+            4. Check currently state of offload and other features again.
+            5. Use ethtool to turn on offload parameters and other features via command "$ sudo ethtool -K eth0 $feature on".
+            6. Check currently state of offload and other features.
+        expect_result:
+            Each offload and features could be turned off and turned on again, and no exception, warn, fail or call trace in dmesg.
+        debug_want:
+            N/A
+        """
+        cmd = ' sudo  ethtool -k eth0'
+        setting_out = utils_lib.run_cmd(self, cmd, msg='Show current settings.')
+        cmd = 'sudo ethtool -i eth0'
+        output = utils_lib.run_cmd(self, cmd, msg='Check network driver!')
+        if 'driver: ena' in output:
+            option_dict = {
+                'tx': 'tx-checksumming',
+                'sg': 'scatter-gather',
+                'gso': 'generic-segmentation-offload',
+                'gro': 'generic-receive-offload',
+                'tx-nocache-copy': 'tx-nocache-copy',
+                'rxhash': 'receive-hashing',
+                'highdma': 'highdma'
+            }
+        elif 'driver: vif' in output:
+            option_dict = {
+                'sg': 'scatter-gather',
+                'tso': 'tcp-segmentation-offload',
+                'gso': 'generic-segmentation-offload',
+                'gro': 'generic-receive-offload',
+                'tx-nocache-copy': 'tx-nocache-copy'
+            }
+        elif 'driver: virtio_net' in output:
+            option_dict = {
+                'tx': 'tx-checksumming',
+                'sg': 'scatter-gather',
+                'tso': 'tcp-segmentation-offload',
+                'gso': 'generic-segmentation-offload',
+                'gro': 'generic-receive-offload',
+                'tx-nocache-copy': 'tx-nocache-copy',
+                'rx-gro-list': 'rx-gro-list',
+                'rx-udp-gro-forwarding': 'rx-udp-gro-forwarding'
+            }
+        else:
+            option_dict = {
+                'rx': 'rx-checksumming',
+                'tx': 'tx-checksumming',
+                'sg': 'scatter-gather',
+                'tso': 'tcp-segmentation-offload',
+                'gso': 'generic-segmentation-offload',
+                'gro': 'generic-receive-offload',
+                'tx-gre-segmentation': 'tx-gre-segmentation',
+                'tx-nocache-copy': 'tx-nocache-copy',
+                'tx-ipip-segmentation': 'tx-ipip-segmentation',
+                'tx-sit-segmentation': 'tx-sit-segmentation',
+                'tx-udp_tnl-segmentation': 'tx-udp_tnl-segmentation',
+                'tx-gre-csum-segmentation': 'tx-gre-csum-segmentation',
+                'tx-udp_tnl-csum-segmentation': 'tx-udp_tnl-csum-segmentation',
+                'tx-gso-partial': 'tx-gso-partial'
+            }
+
+        for option in option_dict.keys():
+            if option_dict[option] not in setting_out:
+                continue
+            cmd = 'sudo ethtool -K eth0 %s off' % option
+            utils_lib.run_cmd(self, cmd)
+            cmd = 'sudo ethtool -k eth0'
+            utils_lib.run_cmd(self, cmd, expect_kw="%s: off" % option_dict[option])
+            cmd = 'sudo ethtool -K eth0 %s on' % option
+            utils_lib.run_cmd(self, cmd, expect_ret=0)
+            cmd = 'sudo ethtool -k eth0'
+            utils_lib.run_cmd(self, cmd, expect_kw="%s: on" % option_dict[option])
+
+    def test_check_efa_device_driver(self):
+        """
+        case_tag:
+            network,efa
+        case_name:
+            test_check_efa_device_driver
+        case_file:
+            test_network_test.py
+        component:
+            kernel
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            libhe@redhat.com
+        description:
+            Check EFA device can be listed and efa driver is loaded for the EFA enabled instance
+        key_steps:
+            1.# lspci|grep EFA
+            2.# lsmod|grep efa
+        expect_result:
+            EFA device is listed and efa driver is loaded for the EFA enabled instance.
+        debug_want:
+            N/A
+        """
+        if not self.vm or self.vm.provider != "aws":
+            self.skipTest("Skip test case since instance is not aws vm")
+        else:
+            instance_type = self.vm.instance_type
+            if not self.vm.efa_support:
+                self.skipTest('EFA is not supported on the instance ' + instance_type)
+            cmd = 'lspci|grep EFA && lsmod|grep efa'
+            run_cmd(self, cmd, expect_ret=0, msg='check if EFA device exist and efa module is loaded')
+            self.log.info('EFA device is found and efa driver is loaded on the instance ' + instance_type)
+            
+    def test_install_libfabric_check_efa_provider(self):
+        """
+        case_tag:
+            network,efa
+        case_name:
+            test_install_libfabric_check_efa_driver_provider
+        case_file:
+            test_network_test.py
+        component:
+            kernel
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            libhe@redhat.com
+        description:
+            Install libfabric package and check if EFA provider exist in EFA-enabled instance
+        key_steps:
+            1.# sudo yum install libfabric
+            2.# fi_info -p efa
+        expect_result:
+            libfabric package is installed successfully and fi_info command should return information about the Libfabric EFA interfaces.
+        debug_want:
+            efa,libfabric
+        """
+        if not self.vm or self.vm.provider != "aws":
+            self.skipTest("Skip test case since instance is not vm or aws")
+        else:
+            instance_type = self.vm.instance_type
+            if not self.vm.efa_support:
+                self.skipTest('EFA is not supported on the instance ' + instance_type)
+            if utils_lib.is_pkg_installed(self,'libfabric'):
+                cmd = 'fi_info -p efa'
+                utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw="provider: efa", msg='Check the Libfabric EFA interfaces')
+            
+   
+    def test_load_unload_efa_driver(self):
+        """
+        case_tag:
+            network,efa
+        case_name:
+            test_efa04_load_unload_efa_driver
+        case_file:
+            test_network_test.py
+        component:
+            kernel
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            libhe@redhat.com
+        description:
+            Check EFA driver can be unloaded and loaded again successfully
+        key_steps:
+            1.# sudo modprobe rdma_ucm
+            2.# sudo modprobe -r efa && modprobe efa
+            3.# sudo modprobe rdma_ucm
+        expect_result:
+            EFA driver can be unloaded and loaded again successfully
+        debug_want:
+            N/A
+        """
+        if not self.vm or self.vm.provider != "aws":
+            self.skipTest("Skip test case since instance is not vm or aws")
+        else:
+            instance_type = self.vm.instance_type
+            if not self.vm.efa_support:
+                self.skipTest('EFA is not supported on the instance ' + instance_type)
+            self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='dmesg -T')
+            cmd = 'sudo modprobe -r efa'
+            run_cmd(self, cmd, ret_status=True, msg='unload efa driver')
+            cmd = 'lsmod|grep efa'
+            ret = run_cmd(self, cmd, ret_status=True, msg='check if efa driver is unloaded')
+            if ret == 1:
+                self.log.info('efa driver is unloaded successfully')
+            cmd = 'sudo modprobe efa'
+            run_cmd(self, cmd, ret_status=True, msg='reload efa driver')
+            cmd = 'lsmod|grep efa'
+            ret = run_cmd(self, cmd, ret_status=True, msg='check if EFA driver is loaded')
+            utils_lib.check_log(self, "error,warn,fail,trace,Trace", log_cmd='dmesg -T', cursor=self.dmesg_cursor)
+            if ret == 0:
+                self.log.info('efa driver is loaded successfully')
+
 
     def tearDown(self):
         if 'test_mtu_min_max_set' in self.id():
             mtu_cmd = "sudo ip link set dev %s mtu %s" % (self.nic, self.mtu_old)
             utils_lib.run_cmd(self, mtu_cmd, expect_ret=0, msg='restore mtu')
+        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', skip_words='ftrace', cursor=self.dmesg_cursor)
 
 if __name__ == '__main__':
     unittest.main()

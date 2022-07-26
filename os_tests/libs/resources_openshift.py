@@ -8,9 +8,10 @@ import os
 FNULL = open(os.devnull, 'w')
 
 
-def login(auth, project):
-    p = subprocess.Popen(auth.split(), stdout=subprocess.PIPE)
-    cmd = ''.join([b.decode("utf-8") for b in p.communicate() if b])
+def login(token, server, project):
+    #  p = subprocess.Popen(auth.split(), stdout=subprocess.PIPE)
+    #  cmd = ''.join([b.decode("utf-8") for b in p.communicate() if b])
+    cmd = 'oc login --insecure-skip-tls-verify --token=%s --server=%s' % (token, server)
     subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).communicate()
     subprocess.Popen('oc project %s' % project,
                      shell=True,
@@ -23,9 +24,10 @@ class OpenShiftVM(VMResource):
         super(OpenShiftVM, self).__init__(params)
         self._data = None
 
-        auth = params['Cloud'].get('auth')
+        token = params['Cloud'].get('token')
+        self.apiserver = params['Cloud'].get('apiserver')
         project = params['Cloud'].get('project')
-        login(auth, project)
+        login(token, self.apiserver, project)
 
         # VM creation parameters
         self.vm_name = params['VM'].get('vm_name')
@@ -81,19 +83,20 @@ class OpenShiftVM(VMResource):
 
     @property
     def floating_ip(self):
-        nodeName = subprocess.Popen(
-            'oc get vmi %s -o custom-columns=:.status.nodeName --no-headers' %
-            self.vm_name,
-            shell=True,
-            stdout=subprocess.PIPE).communicate()[0] \
-                .decode("utf-8").rstrip('\n')
-        output = subprocess.Popen(
-            'oc get node %s -o custom-columns=:.status.addresses[*].address' %
-            nodeName,
-            shell=True,
-            stdout=subprocess.PIPE).communicate()[0] \
-                                   .decode("utf-8").rstrip('\n')
-        f_ip = re.search('(?:\\d{1,3}\\.){3}\\d{1,3}', output).group(0)
+        #  nodeName = subprocess.Popen(
+            #  'oc get vmi %s -o custom-columns=:.status.nodeName --no-headers' %
+            #  self.vm_name,
+            #  shell=True,
+            #  stdout=subprocess.PIPE).communicate()[0] \
+                #  .decode("utf-8").rstrip('\n')
+        #  output = subprocess.Popen(
+            #  'oc get node %s -o custom-columns=:.status.addresses[*].address' %
+            #  nodeName,
+            #  shell=True,
+            #  stdout=subprocess.PIPE).communicate()[0] \
+                                   #  .decode("utf-8").rstrip('\n')
+        #  f_ip = re.search('(?:\\d{1,3}\\.){3}\\d{1,3}', output).group(0)
+        f_ip = re.search('api.*com', self.apiserver).group(0)
         return f_ip
 
     def create(self, wait=False):

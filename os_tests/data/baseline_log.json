@@ -47,7 +47,7 @@
     "msg_6": {
         "content": "i8042: Warning: Keylock active",
         "analyze": "It is mostly like a warning without any function impact, same in Amazon Linux 2",
-        "branch": "rhel7,rhel8",
+        "branch": "rhel7,rhel8,rhel9",
         "status": "active",
         "link": "",
         "path": "dmesg or journal",
@@ -1143,7 +1143,7 @@
         "trigger": ""
     },
     "msg_129": {
-        "content": ".*Couldn't stat device /dev/char/10:200: No such file or directory.*;",
+        "content": ".*Couldn't stat device /dev/char/10:200: No such file or directory.*",
         "analyze": "generated when container run",
         "branch": "rhel",
         "status": "active",
@@ -1159,5 +1159,41 @@
         "link": "",
         "path": "dmesg,journal",
         "trigger": "Reloading Network Manager"
+    },
+    "msg_131": {
+        "content": ".*DataSourceGCE.py[WARNING]: address \"http://metadata.google.internal/computeMetadata/v1/\" is not resolvable.*",
+        "analyze": "NetworkManager haven't update dns record when cloud-init use it.",
+        "branch": "rhel8,rhel9",
+        "status": "active",
+        "link": "",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_132": {
+        "content": ".*Failed to find module 'ipmi-devintf'.*",
+        "analyze": "fwupd contains modules-load.d which include this module but not exists in initramfs",
+        "branch": "rhel9",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2092888",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_133": {
+        "content": ".*pam_motd(sshd:session): pam_motd: error scanning directory /run/motd.d.*",
+        "analyze": "Existing bug",
+        "branch": "rhel8",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2093495",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_134": {
+        "content": "Warning: Unmaintained hardware is detected:  e1000",
+        "analyze": "e1000 is legacy",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "dmesg",
+        "trigger": ""
     }
 }

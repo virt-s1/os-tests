@@ -55,7 +55,7 @@ class TestGCPImage(unittest.TestCase):
         utils_lib.run_cmd(self, "cat "+testfile)
         # If base is a file
         if basefile:
-            src_file = self.data_dir + '/azure/{}'.format(basefile)
+            src_file = self.data_dir + '/gcp/{}'.format(basefile)
             # Base file content is different in multiple RHEL versions
             if project:
                 src_file += "_rhel{}".format(project)
@@ -91,7 +91,6 @@ class TestGCPImage(unittest.TestCase):
         utils_lib.run_cmd(self, "sudo rpm -V "+package, expect_ret=0, msg="Verify no file changed in package "+package)
 
     ######## Test cases ########
-    # FIXME reviewed
     def test_check_bash_history(self):
         '''
         Verify no old .bash_history exists
@@ -100,7 +99,7 @@ class TestGCPImage(unittest.TestCase):
             cmd = 'sudo cat ~{}/.bash_history'.format(user)
             utils_lib.run_cmd(self, cmd, expect_not_ret='0', msg='check bash history does not exist in fresh image')
 
-    # TODO: GCP use gce-disk-expand instead of cloud-init
+    # FIXME reviewed: GCP use gce-disk-expand instead of cloud-init
     # def test_check_cloudinit_cfg_mounts_growpart(self):
     #     '''
     #     bz: 966888
@@ -113,7 +112,7 @@ class TestGCPImage(unittest.TestCase):
     #             expect_kw='- growpart,- mounts',
     #             msg='check /etc/cloud/cloud.cfg to make sure there is mounts/growpart in cloud_init_modules(bz966888)')
 
-    # TODO: GCP use google-osconfig-agent instead of cloud-init
+    # FIXME reviewed: GCP use google-compute-engine-oslogin google-guest-agent instead of cloud-init
     # def test_check_cloudinit_cfg_no_wheel(self):
     #     '''
     #     bz: 1549638
@@ -127,7 +126,6 @@ class TestGCPImage(unittest.TestCase):
     #             expect_not_kw='wheel',
     #             msg='check /etc/cloud/cloud.cfg to make sure no wheel in default_user group(bz1549638)')
 
-    # FIXME reviewed
     def test_check_cmdline_console(self):
         '''
         net.ifnames=0 biosdevname=0 scsi_mod.use_blk_mq=Y console=ttyS0,38400n8 should be in cmdline
@@ -137,7 +135,6 @@ class TestGCPImage(unittest.TestCase):
         utils_lib.run_cmd(self, "sudo cat /proc/cmdline", expect_ret=0, expect_kw='scsi_mod.use_blk_mq=Y', msg='check scsi_mod.use_blk_mq=Y in cmdline')
         utils_lib.run_cmd(self, "sudo cat /proc/cmdline", expect_ret=0, expect_kw='console=ttyS0,38400n8', msg='check console=ttyS0,38400n8 in cmdline')
 
-    # FIXME reviewed
     def test_check_cmdline_crashkernel(self):
         '''
         crashkernel should be enabled in image
@@ -153,7 +150,6 @@ class TestGCPImage(unittest.TestCase):
                 expect_kw = 'crashkernel=2G-:448M'
         utils_lib.run_cmd(self, "sudo cat /proc/cmdline", expect_ret=0, expect_kw=expect_kw, msg='check crashkernel is enabled')
 
-    # FIXME reviewed
     def test_check_blacklist(self):
         '''
         bz: 1645772
@@ -165,7 +161,6 @@ class TestGCPImage(unittest.TestCase):
         for module in blacklist:
             utils_lib.run_cmd(self, "sudo cat {}".format(file_check), expect_ret=0, expect_kw='blacklist '+module, msg='check "{}" in {}'.format(module, file_check))
 
-    # FIXME reviewed
     def test_check_cmdline_rhgb_quiet(self):
         '''
         rhbz: 1122300
@@ -173,7 +168,6 @@ class TestGCPImage(unittest.TestCase):
         '''
         utils_lib.run_cmd(self, "sudo cat /proc/cmdline", expect_ret=0, expect_not_kw='rhgb,quiet', msg='check no rhgb and quiet in boot cmd')
 
-    # FIXME reviewed
     def test_check_cpu_flags(self):
         '''
         rhbz: 1061348
@@ -183,7 +177,6 @@ class TestGCPImage(unittest.TestCase):
         cmd = "sudo cat /proc/cpuinfo"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='avx,xsave,pcid', msg='check avx,xsave,pcid flags')
 
-    # FIXME reviewed
     def test_check_pkg_wanted(self):
         '''
         Verify requied pkgs are installed.
@@ -203,7 +196,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
             cmd = 'rpm -q {}'.format(pkg)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check {} installed'.format(pkg))
 
-    # FIXME reviewed
     def test_check_firewalld(self):
         '''
         firewalld should be enabled
@@ -211,7 +203,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         cmd = 'sudo systemctl is-active firewalld'
         utils_lib.run_cmd(self,cmd, expect_ret=0, msg='check firewalld is running')
 
-    # TODO reviewed
     def test_check_grub(self):
         '''
         Check grub2 config for el7:
@@ -239,7 +230,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
             utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw="/boot/grub2/grubenv",
                 msg='check /boot/grub2/grubenv is a file rather than a link')
 
-    # FIXME reviewed
     def test_check_hosts(self):
         '''
         des: localhost ipv6 and ipv4 should be set in /etc/hosts
@@ -248,7 +238,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         cmd = "sudo cat /etc/hosts"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=expect_kws, msg='check /etc/hosts')
 
-    # FIXME reviewed
     def test_check_inittab(self):
         '''
         check default runlevel or systemd target
@@ -265,14 +254,13 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
             if 'el5' in out:
                 utils_lib.run_cmd(self, "grep '^si:' /etc/inittab", expect_kw="si::sysinit:/etc/rc.d/rc.sysinit")
 
-    # FIXME reviewed
     def test_check_nameserver(self):
         '''
         check if DNS resolving works
         '''
         utils_lib.run_cmd(self, "ping -c 5 google-public-dns-a.google.com", expect_ret=0, msg='check if DNS resolving works')
 
-    # TODO no such settings
+    # FIXME review: no such settings
     # def test_check_network_setup(self):
     #     '''
     #     1. NETWORKING=yes in /etc/sysconfig/network
@@ -282,31 +270,30 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
     #     utils_lib.run_cmd(self, 'egrep "^DEVICE=(|\\\")eth0(|\\\")" /etc/sysconfig/network-scripts/ifcfg-eth0', expect_ret=0, msg='check eth0 used')
 
 
-    # TODO NetworkManager-cloud-setup is not installed
-    def test_check_nm_cloud_setup(self):
-        '''
-        rhbz: 1822853
-        des: 
-        <=8.4: check NetworkManager-cloud-setup is not installed
-        >=8.5: check NetworkManager-cloud-setup is installed and nm-cloud-setup.timer is setup for Azure and enabled
-        '''
-        product_id = utils_lib.get_product_id(self)
-        if float(product_id) < float('8.5'):
-            cmd = "rpm -q NetworkManager-cloud-setup"
-            utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='Check if NetworkManager-cloud-setup is not installed')
-        else:
-            cmd = "rpm -q NetworkManager-cloud-setup"
-            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Check if NetworkManager-cloud-setup is installed')
-            cmd = "sudo systemctl is-enabled nm-cloud-setup"
-            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Check if nm-cloud-setup is enabled')
+    # FIXME reviewed: NetworkManager-cloud-setup is not installed
+    #  def test_check_nm_cloud_setup(self):
+        #  '''
+        #  rhbz: 1822853
+        #  des:
+        #  <=8.4: check NetworkManager-cloud-setup is not installed
+        #  >=8.5: check NetworkManager-cloud-setup is installed and nm-cloud-setup.timer is setup for Azure and enabled
+        #  '''
+        #  product_id = utils_lib.get_product_id(self)
+        #  if float(product_id) < float('8.5'):
+            #  cmd = "rpm -q NetworkManager-cloud-setup"
+            #  utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='Check if NetworkManager-cloud-setup is not installed')
+        #  else:
+            #  cmd = "rpm -q NetworkManager-cloud-setup"
+            #  utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Check if NetworkManager-cloud-setup is installed')
+            #  cmd = "sudo systemctl is-enabled nm-cloud-setup"
+            #  utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Check if nm-cloud-setup is enabled')
+#
+            #  COMPOSER-842
+            #  file_check = '/usr/lib/systemd/system/nm-cloud-setup.service.d/10-rh-enable-for-azure.conf'
+            #  expect_kw='Environment=NM_CLOUD_SETUP_AZURE=yes'
+            #  cmd = "sudo cat {}".format(file_check)
+            #  utils_lib.run_cmd(self, cmd, expect_kw=expect_kw, msg='Check if "{}" is set in {}'.format(expect_kw, file_check))
 
-            #COMPOSER-842
-            file_check = '/usr/lib/systemd/system/nm-cloud-setup.service.d/10-rh-enable-for-azure.conf'
-            expect_kw='Environment=NM_CLOUD_SETUP_AZURE=yes'
-            cmd = "sudo cat {}".format(file_check)
-            utils_lib.run_cmd(self, cmd, expect_kw=expect_kw, msg='Check if "{}" is set in {}'.format(expect_kw, file_check))
-
-    # FIXME reviewed
     def test_check_no_avc_denials(self):
         '''
         check there is no avc denials (selinux)
@@ -314,7 +301,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         cmd = "x=$(sudo ausearch -m avc 2>&1 &); echo $x"
         utils_lib.run_cmd(self, cmd, expect_kw='no matches', msg='check no avc denials')
 
-    # FIXME reviewed
     def test_check_numa(self):
         '''
         check if NUMA is enabled on supported machine
@@ -332,7 +318,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         else:
             self.log.info("only 1 node found")
 
-    # FIXME reviewed
     def test_check_pkg_signed(self):
         '''
         check no pkg signature is none,
@@ -353,9 +338,8 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         cmd = "sudo rpm -qa --qf '%{NAME}-%{VERSION}-%{RELEASE} %{SIGPGP:pgpsig}\n'|grep -v gpg-pubkey"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='none', msg='check no pkg signature is none')
         cmd = "sudo rpm -qa --qf '%{NAME}-%{VERSION}-%{RELEASE} %{SIGPGP:pgpsig}\n'|grep -vE '(gpg-pubkey|rhui)'|awk -F' ' '{print $NF}'|sort -u|wc -l"
-        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='1', msg='check use only one keyid')
+        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='2', msg='check use only two keyid')
 
-    # FIXME reviewed
     def test_check_product_id(self):
         '''
         bz: 1938930
@@ -371,7 +355,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         cmd = 'sudo rct cat-cert /etc/pki/product-default/*.pem'
         utils_lib.run_cmd(self,cmd, expect_ret=0, expect_kw="Version: {}".format(product_id), msg='check product certificate')
 
-    # FIXME reviewed
     def test_check_rhui_cert(self):
         '''
         Verify /etc/pki/rhui/product/content.crt exists
@@ -388,7 +371,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         now_date = utils_lib.run_cmd(self,cmd, msg='get now date')
         self.assertTrue(int(end_date) > int(now_date), "RHUI cert has expired")
 
-    # FIXME reviewed
     def test_check_rhel_version(self):
         '''
         check if rhel provider matches /etc/redhat-release
@@ -398,7 +380,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         cmd = "echo $(sudo rpm -q --qf '%{VERSION}' --whatprovides " + release_file + ')'
         utils_lib.run_cmd(self,cmd, expect_kw=product_id, msg='check redhat-release version match')
 
-    # FIXME reviewed
     def test_check_rhui_pkg(self):
         """
         8.4 images should have EUS RHUI. 
@@ -412,7 +393,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         cmd = 'sudo rpm -q google-rhui-client-rhel{}-eus'.format(x_version)
         utils_lib.run_cmd(self, cmd, expect_ret=1, msg="Verify EUS RHUI is not installed in RHEL-{}".format(product_id))
 
-    # FIXME reviewed
     def test_check_root_is_locked(self):
         """
         Root account should be locked
@@ -421,18 +401,18 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         cmd = 'sudo passwd -S root | grep -q LK'
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check root is locked')
 
-    # FIXME reviewed
     def test_check_shells(self):
         """
         Check for bash/nologin shells in /etc/shells
         """
         utils_lib.run_cmd(self, 'sudo cat /etc/shells', expect_kw='/bin/bash', msg='check /bin/bash in /etc/shells')
 
-    # FIXME reviewed
     def test_check_sshd(self):
         '''
         sshd service shoud be on, password authentication shoud be disabled
         '''
+        is_systemd = utils_lib.run_cmd(self, 'rpm -q systemd > /dev/null && echo True || echo False')
+        self.log.info("Is systemd system:{}".format(is_systemd))
         cmd = 'sudo cat /etc/ssh/sshd_config'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='PasswordAuthentication no', msg='check if password auth disabled')
         cmd = "sudo grep -E -q '^PasswordAuthentication yes(.*)' /etc/ssh/sshd_config"
@@ -440,7 +420,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         cmd = "sudo grep -E -q '^PasswordAuthentication no' /etc/ssh/sshd_config"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='double check if password auth disabled')
 
-    # FIXME reviewed
     def test_check_sysconfig_kernel(self):
         '''
         des: UPDATEDEFAULT=yes and DEFAULTKERNEL=kernel should be set in /etc/sysconfig/kernel
@@ -449,7 +428,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         cmd = "sudo cat /etc/sysconfig/kernel"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=expect_kws, msg='check /etc/sysconfig/kernel')
 
-    # FIXME reviewed
     def test_check_timezone(self):
         '''
         rhbz: 1187669
@@ -457,29 +435,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         '''
         utils_lib.run_cmd(self, 'date', expect_kw='UTC', msg='check timezone is set to UTC')
 
-    # FIXME reviewed
-    def test_check_udev_kernel(self):
-        '''
-        des: /etc/udev/rules.d/80-net-name-slot.rules link to /dev/null
-        ks ref:
-        # For cloud images, 'eth0' _is_ the predictable device name, since
-        # we don't want to be tied to specific virtual (!) hardware
-        rm -f /etc/udev/rules.d/70*
-        ln -s /dev/null /etc/udev/rules.d/80-net-name-slot.rules
-        '''
-        product_id = utils_lib.get_product_id(test_instance)
-        if float(product_id) > float('8.4'):
-            #COMPOSER-844 - this set not required in rhel8+
-            cmd = "sudo ls -l /etc/udev/rules.d/80-net-name-slot.rules"
-            utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='check /etc/udev/rules.d/80-net-name-slot.rules not existing')
-        else:
-            expect_kws = '/dev/null'
-            cmd = "sudo ls -l /etc/udev/rules.d/80-net-name-slot.rules"
-            utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=expect_kws, msg='check /etc/udev/rules.d/80-net-name-slot.rules')
-        cmd = 'sudo cat /etc/udev/rules.d/70-persistent-net.rules'
-        utils_lib.run_cmd(self, cmd, expect_ret=0,msg='check /etc/udev/rules.d/70-persistent-net.rules')
-
-    # FIXME reviewed
     def test_check_username(self):
         """
         Check no old username in fresh image
@@ -488,7 +443,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
             cmd = 'sudo cat /etc/passwd|grep {}'.format(user)
             utils_lib.run_cmd(self, cmd, expect_not_ret='0', msg='check no {} user in fresh image'.format(user))
 
-    # FIXME reviewed
     def test_check_yum_dnf_plugins(self):
         '''
         bz: 1932802
@@ -497,26 +451,18 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         '''
         cmd = 'sudo cat /etc/yum/pluginconf.d/product-id.conf'
         utils_lib.run_cmd(self,cmd, expect_ret=0, expect_kw='enabled=1', msg='check yum product-id plugin is enabled')
-        cmd = "sudo rpm -qa|grep rhui"
-        ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='Check if it is a RHUI image')
-        if ret == 0:
-            # RHUI image
-            expect_kw = "enabled=0"
-            status = "disabled"
-        else:
-            # SCA image
-            expect_kw = "enabled=1"
-            status = "enabled"
-        if self.rhel_x_version >= 8:
-            expect_kw += ",disable_system_repos=0"
         # Yum plugin
+        yum_expect_kw = "enabled=0"
         cmd = "sudo cat /etc/yum/pluginconf.d/subscription-manager.conf|sed -s 's/ = /=/g'"
-        utils_lib.run_cmd(self,cmd, expect_ret=0, expect_kw=expect_kw, msg='check yum subscription-manager plugin is {}'.format(status))
+        utils_lib.run_cmd(self,cmd, expect_ret=0, expect_kw=yum_expect_kw, msg='check yum subscription-manager plugin is {}'.format(yum_expect_kw))
         # Dnf plugin
+        if self.rhel_x_version >= 8:
+            dnf_expect_kw = "enabled=0,disable_system_repos=0"
+        else:
+            dnf_expect_kw = "enabled=1"
         cmd = "sudo cat /etc/dnf/plugins/subscription-manager.conf|sed -s 's/ = /=/g'"
-        utils_lib.run_cmd(self,cmd, expect_ret=0, expect_kw=expect_kw, msg='check dnf subscription-manager plugin is {}'.format(status))
+        utils_lib.run_cmd(self,cmd, expect_ret=0, expect_kw=dnf_expect_kw, msg='check dnf subscription-manager plugin is {}'.format(dnf_expect_kw))
 
-    # FIXME reviewed
     def test_check_auditd(self):
         """
         Check auditd:
@@ -526,7 +472,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         utils_lib.run_cmd(self, 'sudo systemctl is-active auditd', expect_ret=0, msg="Ensure auditd service is active")
         utils_lib.run_cmd(self, 'sudo rpm -V audit', expect_ret=0, msg='Ensure /etc/auditd.conf is not changed')
 
-    # FIXME reviewed
     def test_check_ttyS0_conf(self):
         """
         bz: 1103344
@@ -536,14 +481,12 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         utils_lib.run_cmd(self, 'sudo cat /etc/init/ttyS0.conf', expect_not_ret=0, msg='make sure no /etc/init/ttyS0.conf found')
         utils_lib.run_cmd(self, 'sudo cat /etc/init/ttyS0.bak', msg='ttyS0.bak may also not in RHEL nowadays')
 
-    # FIXME reviewed
     def test_check_rpm_V_unsatisfied_dependencies(self):
         '''
         check unsatisfied dependencies of pkg.
         '''
         utils_lib.run_cmd(self, "sudo rpm -Va", expect_not_kw='Unsatisfied', timeout=300, msg='check unsatisfied dependencies of pkg')
 
-    # FIXME reviewed
     def test_check_selinux(self):
         '''
         SELinux should be in enforcing/targeted mode
@@ -552,19 +495,17 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         utils_lib.run_cmd(self, 'sudo getenforce',expect_kw='Enforcing', msg='check selinux current mode is Enforcing')
         utils_lib.run_cmd(self, 'sudo cat /etc/sysconfig/selinux',expect_kw='SELINUX=enforcing,SELINUXTYPE=targeted', msg='check selinux current setting')
 
-    # FIXME reviewed
-    def test_check_yum_repoinfo(self):
-        '''
-        Verify yum repoinfo, repo-pkgs should not be 0
-        '''
-        cmd = "sudo rpm -qa|grep rhui"
-        ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='Check if it is a RHUI image')
-        if ret != 0:
-            self.skipTest("Skip in non-RHUI image")
-        cmd = "sudo yum repoinfo"
-        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='Repo-pkgs          : 0', timeout=1200, msg='try to get repo info')
+    #  def test_check_yum_repoinfo(self):
+        #  '''
+        #  Verify yum repoinfo, repo-pkgs should not be 0
+        #  '''
+        #  cmd = "sudo rpm -qa|grep rhui"
+        #  ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='Check if it is a RHUI image')
+        #  if ret != 0:
+            #  self.skipTest("Skip in non-RHUI image")
+        #  cmd = "sudo yum repoinfo"
+        #  utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='Repo-pkgs          : 0', timeout=1200, msg='try to get repo info')
 
-    # FIXME reviewed
     def test_yum_package_install(self):
         '''
         Verify yum function
@@ -579,7 +520,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         utils_lib.run_cmd(self, r"sudo rpm -q --queryformat '%{NAME}' zsh", expect_ret=0)
         utils_lib.run_cmd(self, "sudo rpm -e zsh", expect_ret=0)
 
-    # FIXME reviewed
     def test_check_subscription_manager_auto_config(self):
         '''
         bz: 1932802, 1905398
@@ -603,7 +543,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         cmd = "sudo systemctl is-enabled rhsmcertd"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to check rhsmcertd enabled')
 
-    # TODO add this check or not?
     # def test_check_pkgs(self):
     #     '''
     #     Compare full package list
@@ -617,7 +556,7 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
     #     utils_lib.run_cmd(self, cmd)
     #     self._check_file_content(base_file, test_file, msg="Check packages list", project=self.rhel_x_version)
 
-    # TODO waagent is only for Azure
+    # FIXME reviewed: waagent is only for Azure
     # def test_check_waagent_resourcedisk_format(self):
     #     '''
     #     Verify the ResourceDisk.Format is disabled in waagent.conf
@@ -625,7 +564,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
     #     cmd = "sudo cat /etc/waagent.conf | grep ResourceDisk.Format"
     #     utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='ResourceDisk.Format=n', msg='Check ResourceDisk.Format in waagent.conf')
 
-    # FIXME reviewed
     def test_check_services_active(self):
         '''
         Verify the necessary services are active
@@ -636,7 +574,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
             cmd = 'systemctl is-active {}'.format(service)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check {} is active'.format(service))
 
-    # TODO in review
     def test_check_grub_params(self):
         '''
         Verify /etc/default/grub params
@@ -644,7 +581,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         filename = '/etc/default/grub'
         self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
 
-    # FIXME reviewed
     def test_check_kdump_status(self):
         '''
         Verify the kdump is enabled
@@ -652,7 +588,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         cmd = "sudo kdumpctl status"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='Kdump is operational', msg='Check kdump status')
 
-    # TODO in review
     def test_check_messages(self):
         '''
         Verify no error/fail/trace in /var/log/messages
@@ -671,7 +606,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         ]
         self._check_log('/var/log/messages', ignore_list, 'error|fail|trace')
 
-    # TODO in review
     def test_check_dmesg(self):
         '''
         Verify no err/fail/warn/trace in dmesg
@@ -687,7 +621,7 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         utils_lib.run_cmd(self, 'dmesg > /tmp/dmesg.log')
         self._check_log('/tmp/dmesg.log', ignore_list)
 
-    # TODO cloudinit is not exists on GCP
+    # FIXME reviewed: cloudinit is not exists on GCP
     # def test_check_cloudinit_log(self):
     #     '''
     #     Verify no err/fail/warn/trace in /var/log/cloud-init.log
@@ -706,7 +640,7 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
     #     ]
     #     self._check_log('/var/log/cloud-init.log', ignore_list)
 
-    # TODO waagent is only for Azure
+    # FIXME reviewed: waagent is only for Azure
     # def test_check_waagent_log(self):
     #     '''
     #     Verify no err/fail/warn/trace in /var/log/waagent.log
@@ -719,7 +653,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
     #     ]
     #     self._check_log('/var/log/waagent.log', ignore_list)
 
-    # TODO in review
     def test_check_journal_log(self):
         '''
         Verify no traceback|ordering in journalctl -xl
@@ -728,21 +661,18 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         utils_lib.run_cmd(self, 'sudo journalctl -xl > /tmp/journal.log')
         self._check_log('/tmp/journal.log', ignore_list, 'traceback|ordering')
 
-    # FIXME reviewed
     def test_check_no_fail_service(self):
         '''
         Verify no failed service
         '''
         utils_lib.run_cmd(self, 'sudo systemctl list-units|grep -i fail', expect_not_ret=0, msg="Verify no failed service.")
 
-    # FIXME reviewed
     def test_get_kernel_version(self):
         '''
         Get kernel version and record in the log
         '''
         utils_lib.run_cmd(self, 'sudo uname -r')
 
-    # FIXME reviewed
     def test_check_boot_time(self):
         """
         check if there's boot time delay
@@ -751,7 +681,7 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         boot_time_sec = utils_lib.getboottime(self)
         utils_lib.compare_nums(self, num1=boot_time_sec, num2=max_boot_time, ratio=0, msg="Compare with cfg specified max_boot_time")
 
-    # TODO only virtio drivers
+    # FIXME reviewed: only virtio drivers
     # def test_check_hyperv_drivers(self):
     #     '''
     #     Verify hyperv drivers are loaded
@@ -773,7 +703,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
     #     cmd = "/sbin/lsmod|grep -iE 'hv|hyperv'"
     #     utils_lib.run_cmd(self, cmd, expect_kw=','.join(hyperv_driver_list), msg="Verify hyperv drivers are loaded")
 
-    # FIXME reviewed
     def test_check_dracut_conf(self):
         '''
         Check /etc/dracut.conf
@@ -781,21 +710,18 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         cmd = "cat /etc/dracut.conf|grep -v '^#'"
         utils_lib.run_cmd(self, cmd, expect_output='', msg="Verify no config in /etc/dracut.conf")
         cmd = "sudo cat /etc/dracut.conf.d/gce.conf"
-        expect_kw='force_drivers+=" nvme "'
+        expect_kw='force_drivers\+=" nvme "'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=expect_kw, msg="Verify nvme driver in /etc/dracut.conf.d/gce.conf")
 
-    # FIXME reviewed
     def test_check_hostkey_permission(self):
         '''
         bz: 2013644
-        Verify /etc/ssh/ssh_host_xxx_key permission are 640, group is ssh_keys.
+        Verify /etc/ssh/ssh_host_xxx_key permission are 600, group is root.
         '''
-        utils_lib.run_cmd(test_instance,
-                "ls -l /etc/ssh/{ssh_host_ecdsa_key,ssh_host_ed25519_key,ssh_host_rsa_key}",
-                expect_not_kw='-rw-------. 1 root root',
-                msg='check ssh files permission set are correct')
+        expected = "-rw-------.rootroot"
+        cmd = "ls -l /etc/ssh/{ssh_host_ecdsa_key,ssh_host_ed25519_key,ssh_host_rsa_key}|awk '{print $1$3$4}'|uniq"
+        utils_lib.run_cmd(self, cmd, expect_output=expected, msg="Verify /etc/ssh/ssh_host_xxx_key permission is 600, group is ssh_keys")
 
-    # TODO in review
     def test_check_kdump_configuration(self):
         '''
         Verify /etc/sysconfig/kdump and /etc/kdump.conf are not changed
@@ -835,7 +761,6 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
 #         # Check /etc/kdump.conf
 #         self._check_file_content(testfile="/etc/kdump.conf", expected=kdump_conf, msg="Check /etc/kdump.conf")
 
-    # FIXME reviewed
     def test_check_dnf_conf(self):
         '''
         Check /etc/dnf/dnf.conf
@@ -854,7 +779,6 @@ ip_resolve = 4
         filename = '/etc/dnf/dnf.conf'
         self._check_file_content(testfile=filename, expected=dnf_conf, msg="Check /etc/dnf/dnf.conf")
 
-    # FIXME reviewed
     def test_check_authselect(self):
         '''
         Check authselect current
@@ -864,7 +788,7 @@ ip_resolve = 4
         cmd = 'authselect current'
         utils_lib.run_cmd(self, cmd, expect_output="No existing configuration detected.", msg="Check authselect current")
 
-    # TODO cloudinit is not exists on GCP
+    # FIXME reviewed: cloudinit is not exists on GCP
     # def test_check_logging_cfg(self):
     #     '''
     #     Check /etc/cloud/cloud.cfg.d/05_logging.cfg
@@ -876,7 +800,6 @@ ip_resolve = 4
     #         filename = '/etc/cloud/cloud.cfg.d/05_logging.cfg'
     #     self._check_file_content(filename.split('/')[-1], filename)
 
-    # FIXME reviewed
     def test_no_sshkeys_knownhosts(self):
         '''
         Verify no extra files under /root/.ssh/ except authorized_keys
@@ -884,7 +807,6 @@ ip_resolve = 4
         cmd = "sudo ls /root/.ssh/"
         utils_lib.run_cmd(self, cmd, expect_not_ret='0', msg="Check no such dir /root/.ssh")
 
-    # FIXME reviewed
     def test_check_clientaliveinterval(self):
         '''
         Verify ClientAliveInterval 420 in /etc/ssh/sshd_config
@@ -892,7 +814,7 @@ ip_resolve = 4
         cmd = "sudo grep ^ClientAliveInterval /etc/ssh/sshd_config"
         utils_lib.run_cmd(self, cmd, expect_output="ClientAliveInterval 420", msg="Verify ClientAliveInterval is 420")
 
-    # TODO only for Azure
+    # FIXME reviewed: only for Azure
     # def test_check_91_azure_datasource(self):
     #     '''
     #     Check file /etc/cloud/cloud.cfg.d/91-azure_datasource.cfg
@@ -900,7 +822,7 @@ ip_resolve = 4
     #     filename = "/etc/cloud/cloud.cfg.d/91-azure_datasource.cfg"
     #     self._check_file_content(filename.split('/')[-1], filename)
 
-    # TODO only for Azure
+    # FIXME reviewed: only for Azure
     # def test_check_68_azure_sriov_nm_unmanaged_rules(self):
     #     '''
     #     Check file /etc/udev/rules.d/68-azure-sriov-nm-unmanaged.rules
@@ -908,7 +830,7 @@ ip_resolve = 4
     #     filename = "/etc/udev/rules.d/68-azure-sriov-nm-unmanaged.rules"
     #     self._check_file_content(filename.split('/')[-1], filename)
 
-    # TODO only for Azure
+    # FIXME reviewed: only for Azure
     # def test_check_66_azure_storage_rules(self):
     #     '''
     #     Check file /etc/udev/rules.d/66-azure-storage.rules
@@ -918,7 +840,7 @@ ip_resolve = 4
     #     filename = '/etc/udev/rules.d/66-azure-storage.rules'
     #     self._check_file_content(filename.split('/')[-1], filename)
 
-    # TODO only for Azure
+    # FIXME reviewed: only for Azure
     # def test_check_99_azure_product_uuid_rules(self):
     #     '''
     #     Check file /etc/udev/rules.d/99-azure-product-uuid.rules
@@ -928,7 +850,7 @@ ip_resolve = 4
     #     filename = '/etc/udev/rules.d/99-azure-product-uuid.rules'
     #     self._check_file_content(filename.split('/')[-1], filename)
 
-    # TODO cloudinit is not exists on GCP
+    # FIXME reviewed: cloudinit is not exists on GCP
     # def test_check_cloud_cfg(self):
     #     '''
     #     Verify file /etc/cloud/cloud.cfg is not changed
@@ -940,7 +862,6 @@ ip_resolve = 4
     #     if self.rhel_x_version >= 9:
     #         utils_lib.run_cmd(self, cmd="cat /etc/cloud/cloud.cfg", expect_kw="_netdev", msg="Verify _netdev is in RHEL-9 cloud.cfg")
 
-    # TODO in review
 #     def test_check_pwquality_conf(self):
 #         '''
 #         Check file /etc/security/pwquality.conf
@@ -956,7 +877,7 @@ ip_resolve = 4
 # '''
 #         self._check_file_content(expected=expected, testfile=filename)
 
-    # TODO waagent is only for Azure
+    # FIXME reviewed: waagent is only for Azure
     # def test_check_waagent_conf(self):
     #     '''
     #     Check file /etc/waagent.conf
@@ -965,20 +886,17 @@ ip_resolve = 4
     #     filename = '/etc/waagent.conf'
     #     self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
 
-    # TODO in review
     def test_check_networkmanager_conf(self):
         '''
         Check /etc/NetworkManager/NetworkManager.conf
         '''
         expected = '''\
 [main]
-plugins = ifcfg-rh,
 [logging]
 '''
         filename = '/etc/NetworkManager/NetworkManager.conf'
         self._check_file_content(expected=expected, testfile=filename)
 
-    # FIXME reviewed
     def test_check_authselect_conf(self):
         '''
         Check config files under /etc/authselect
@@ -990,57 +908,50 @@ plugins = ifcfg-rh,
         cmd = "ls /etc/authselect/custom/"
         utils_lib.run_cmd(self, cmd, expect_output='')
 
-    # TODO in review
-    def test_check_fingerprint_auth(self):
-        '''
-        Check file /etc/pam.d/fingerprint-auth
-        '''
-        filename = '/etc/pam.d/fingerprint-auth'
-        self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
+    #  def test_check_fingerprint_auth(self):
+        #  '''
+        #  Check file /etc/pam.d/fingerprint-auth
+        #  '''
+        #  filename = '/etc/pam.d/fingerprint-auth'
+        #  self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
 
-    # TODO in review
-    def test_check_password_auth(self):
-        '''
-        Check file /etc/pam.d/password-auth
-        '''
-        filename = '/etc/pam.d/password-auth'
-        self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
+    #  def test_check_password_auth(self):
+        #  '''
+        #  Check file /etc/pam.d/password-auth
+        #  '''
+        #  filename = '/etc/pam.d/password-auth'
+        #  self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
 
-    # TODO in review
-    def test_check_postlogin(self):
-        '''
-        Check file /etc/pam.d/postlogin
-        '''
-        filename = '/etc/pam.d/postlogin'
-        self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
+    #  def test_check_postlogin(self):
+        #  '''
+        #  Check file /etc/pam.d/postlogin
+        #  '''
+        #  filename = '/etc/pam.d/postlogin'
+        #  self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
 
-    # TODO in review
-    def test_check_smartcard_auth(self):
-        '''
-        Check file /etc/pam.d/smartcard-auth
-        '''
-        filename = '/etc/pam.d/smartcard-auth'
-        self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
+    #  def test_check_smartcard_auth(self):
+        #  '''
+        #  Check file /etc/pam.d/smartcard-auth
+        #  '''
+        #  filename = '/etc/pam.d/smartcard-auth'
+        #  self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
 
-    # TODO in review
-    def test_check_system_auth(self):
-        '''
-        Check file /etc/pam.d/system-auth
-        '''
-        filename = '/etc/pam.d/system-auth'
-        self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
+    #  def test_check_system_auth(self):
+        #  '''
+        #  Check file /etc/pam.d/system-auth
+        #  '''
+        #  filename = '/etc/pam.d/system-auth'
+        #  self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
         
-    # FIXME reviewed
     def test_check_chrony_conf(self):
         '''
         Verify file /etc/chrony.conf is not changed
         '''
         # filename = '/etc/chrony.conf'
         # self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
-        self._check_file_not_changed("chrony")
-        utils_lib.run_cmd(self, "sudo cat /etc/chrony.conf", expect_ret=0, expect_kw='server metadata.google.internal', msg='check chrony points to Amazon Time Sync service')
+        # self._check_file_not_changed("chrony")
+        utils_lib.run_cmd(self, "sudo cat /etc/chrony.conf", expect_ret=0, expect_kw='server metadata.google.internal iburst', msg='check chrony points to Google Time Sync service')
 
-    # TODO in review
     def test_check_authconfig(self):
         '''
         Verify no /etc/sysconfig/authconfig file
@@ -1054,7 +965,6 @@ plugins = ifcfg-rh,
             filename = '/etc/sysconfig/authconfig'
             self._check_file_content(filename.split('/')[-1], filename)
 
-    # FIXME reviewed
     def test_check_yum_conf(self):
         '''
         Check file /etc/yum.conf
@@ -1086,7 +996,6 @@ ip_resolve = 4
         filename = '/etc/yum.conf'
         self._check_file_content(testfile=filename, expected=expected, project=self.rhel_x_version)
 
-    # FIXME reviewed
     def test_check_langpacks_conf(self):
         '''
         Verify /etc/yum/pluginconf.d/langpacks.conf
@@ -1116,13 +1025,13 @@ langpack_locales = en_US.UTF-8
     #     filename = '/etc/crypto-policies/back-ends/nss.config'
     #     self._check_file_content(filename.split('/')[-1], filename)
 
-    # TODO in review
-    def test_check_osdisk_size(self):
-        '''
-        Verify os disk size is 64 GiB
-        '''
-        cmd = "sudo fdisk -l|grep 'Linux LVM'|awk '{print $5}'"
-        utils_lib.run_cmd(self, cmd, expect_kw='63G', msg="Verify os disk size is 64 GiB")
+    # FIXME reviewed: only for Azure
+    #  def test_check_osdisk_size(self):
+        #  '''
+        #  Verify os disk size is 64 GiB
+        #  '''
+        #  cmd = "sudo fdisk -l|grep 'Linux LVM'|awk '{print $5}'"
+        #  utils_lib.run_cmd(self, cmd, expect_kw='63G', msg="Verify os disk size is 64 GiB")
 
     # Inactive this case because the service list is not always the same
     # def test_check_service_list(self):
@@ -1135,7 +1044,6 @@ langpack_locales = en_US.UTF-8
     #     base_file = 'services'
     #     self._check_file_content(base_file, test_file, msg="Compare services list", project=self.rhel_x_version)
 
-    # FIXME reviewed
     def test_check_sshd_config(self):
         '''
         Check file content /etc/ssh/sshd_config
@@ -1194,7 +1102,6 @@ Subsystem       sftp    /usr/libexec/openssh/sftp-server
         filename = "/etc/ssh/sshd_config"
         self._check_file_content(testfile=filename, expected=expected)
 
-    # FIXME reviewed
     def test_check_metadata(self):
         '''
         Verify can get metadata
@@ -1204,7 +1111,6 @@ Subsystem       sftp    /usr/libexec/openssh/sftp-server
         self.assertEqual(output, "0", 
             "Cannot parse metadata to get azEnvironment")
 
-    # FIXME reviewed
     def test_check_cds_hostnames(self):
         '''
         Check cds hostnames
@@ -1217,7 +1123,6 @@ Subsystem       sftp    /usr/libexec/openssh/sftp-server
             cmd = "sudo getent hosts {}".format(cds)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check {}'.format(cds))
 
-    # FIXME reviewed
     def test_z_check_subscription_manager_auto_function(self):
         '''
         Verify auto_registration function works
@@ -1246,7 +1151,7 @@ Subsystem       sftp    /usr/libexec/openssh/sftp-server
         else:
             self.fail("Fail to auto register!")
 
-    # TODO only for azure
+    # FIXME reviewed: only for azure
     # def test_check_image_generation(self):
     #     '''
     #     (image test only)Check generation according to image name
@@ -1258,6 +1163,13 @@ Subsystem       sftp    /usr/libexec/openssh/sftp-server
     #         self.assertEqual(self._get_generation(), 'gen1', "Expected: gen1; Real: gen2")
     #     else:
     #         self.assertEqual(self._get_generation(), 'gen2', "Expected: gen2; Real: gen1")
+
+    def test_check_dnf_automatic_conf(self):
+        '''
+        Verify /etc/dnf/automatic.conf
+        '''
+        filename = '/etc/dnf/automatic.conf'
+        self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
 
     def tearDown(self):
         pass

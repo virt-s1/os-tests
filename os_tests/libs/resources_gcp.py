@@ -1,13 +1,18 @@
 from .resources import VMResource, StorageResource, NetworkResource, UnSupportedAction, UnSupportedStatus
 from os_tests.libs import utils_lib
+import logging
 import time
 import sys
 try:
     from apiclient.discovery import build
-    from google.oauth2 import service_account
+    from google.oauth2 import service_account, id_token
+    import google.auth.transport.requests
 except ImportError as err:
     print("Please install google-api-python-client module if run gcp test")
     sys.exit(1)
+
+LOG = logging.getLogger('os_tests.os_tests_run')
+logging.basicConfig(level=logging.INFO)
 
 
 def get_service(api_name, api_version, scopes, key_file_location):
@@ -33,6 +38,12 @@ def get_service(api_name, api_version, scopes, key_file_location):
                     cache_discovery=False)
 
     return service
+
+
+def verify_token(token: str, audience: str) -> dict:
+    request = google.auth.transport.requests.Request()
+    payload = id_token.verify_token(token, request=request, audience=audience)
+    return payload
 
 
 def wait_for_operation(compute, project, zone, operation):
@@ -126,13 +137,17 @@ class GCPVM(VMResource):
         f_ip = self.data['networkInterfaces'][0]['accessConfigs'][0]['natIP']
         return f_ip
 
-    def create(self, wait=False):
+    def create(self, sev=False, wait=False):
         # Get image.
         source_disk_image = get_image(self.service_v1, self.project,
                                       self.image_name)['selfLink']
 
         # Configure the machine
         machine_type = "zones/%s/machineTypes/%s" % (self.zone, self.flavor)
+        if sev:
+            machine_type = "zones/%s/machineTypes/n2d-standard-2" % self.zone
+        if "n2d" in self.flavor or "c2d" in self.flavor:
+            sev = True
 
         config = {
             'name':
@@ -170,12 +185,18 @@ class GCPVM(VMResource):
                     'https://www.googleapis.com/auth/logging.write'
                 ]
             }],
-            'scheduling':
-            {
-               'provisioningModel': 'SPOT',
-               'instanceTerminationAction': 'DELETE'
+            'scheduling': {
+                'provisioningModel': 'SPOT',
+                'instanceTerminationAction': 'DELETE'
             },
         }
+
+        if sev:
+            config['confidentialInstanceConfig'] = {
+                "enableConfidentialCompute": True
+            }
+            config['disks'][0]['interface'] = 'NVME'
+            config['networkInterfaces'][0]['nicType'] = 'GVNIC'
 
         operation = self.service_v1.instances().insert(project=self.project,
                                                        zone=self.zone,
@@ -284,8 +305,21 @@ class GCPVM(VMResource):
     def show(self):
         return self.data
 
+    def is_sev_enabled(self, token, audience):
+        sev = False
+        payload = verify_token(token, audience)
+        if 'instance_confidentiality' in payload['google'][
+                'compute_engine'] and payload['google']['compute_engine'][
+                    'instance_confidentiality'] == 1:
+            sev = True
+        return sev
+
     def get_console_log(self):
-        raise NotImplementedError
+        response = self.service_v1.instances().getSerialPortOutput(
+            project=self.project, zone=self.zone,
+            instance=self.vm_name).execute()
+        LOG.info(response['contents'])
+        return response['contents']
 
     def disk_count(self):
         raise NotImplementedError
@@ -312,4 +346,4 @@ class GCPVM(VMResource):
         raise NotImplementedError
 
     def is_exist(self):
-        raise NotImplementedError
+        return self.exists()

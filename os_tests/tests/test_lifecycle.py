@@ -117,8 +117,8 @@ class TestLifeCycle(unittest.TestCase):
         polarion_id:
         bz: 1787270
         '''
-        #self.skipTest("skip it for now because paramiko know issue when enabled fips https://github.com/paramiko/paramiko/pull/1643")
 
+        utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_ret=0)
         self.log.info("Check system can boot with fips=1")
         output = utils_lib.run_cmd(self, 'uname -r', expect_ret=0)
         if 'el7' in output:
@@ -170,7 +170,7 @@ class TestLifeCycle(unittest.TestCase):
         out = utils_lib.run_cmd(self, cmd)
         if 'hpet' in out:
             utils_lib.run_cmd(self, 'sudo cat /proc/iomem|grep -i hpet', expect_kw='HPET 0')
-        utils_lib.check_log(self, "error,warn,fail,trace,Trace", skip_words='ftrace', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, "error,warn,fail,CallTrace", skip_words='ftrace', rmt_redirect_stdout=True)
 
     def test_boot_mitigations(self):
         '''
@@ -191,7 +191,7 @@ class TestLifeCycle(unittest.TestCase):
         time.sleep(10)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='mitigations=auto,nosmt')
-        utils_lib.check_log(self, "error,warn,fail,trace,Trace", skip_words='ftrace,Failed to write ATTR', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, "error,warn,fail,CallTrace", skip_words='ftrace,Failed to write ATTR', rmt_redirect_stdout=True)
 
     def test_boot_usbcore_quirks(self):
         '''
@@ -210,7 +210,7 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw=option)
         cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50'
         utils_lib.run_cmd(self, cmd, expect_kw='No such file or directory', msg='make sure there is no core generated')
-        utils_lib.check_log(self, "error,warn,fail,trace,Trace", skip_words='ftrace', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, "error,warn,fail,trace,CallTrace", skip_words='ftrace', rmt_redirect_stdout=True)
 
     def test_reboot_resolve_content(self):
         """
@@ -263,13 +263,12 @@ class TestLifeCycle(unittest.TestCase):
         bz: 1654962
         polarion_id: RHEL7-58669
         '''
-        cmd = 'systemctl is-active kdump'
-        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check kdump service')
+        for cmd in ['sudo kdumpctl showmem','cat /proc/cmdline','systemctl is-active kdump']:
+            utils_lib.run_cmd(self, cmd, expect_ret=0)
         output = utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
-        if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self):
-            self.skipTest("Cancel as bug 1654962 in arm guest which \
-no plan to fix it in the near future!")
-
+        product_id = utils_lib.get_product_id(self)
+        if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self) and float(product_id) < 8.6:
+            self.skipTest("Cancel as bug 1654962 in arm guest earlier than 8.6 2082405" )
         utils_lib.run_cmd(self,
                     r'sudo rm -rf /var/crash/*',
                     expect_ret=0,
@@ -324,9 +323,9 @@ no plan to fix it in the near future!")
             N/A
         """
         utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
-        if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self):
-            self.skipTest("Cancel as bug 1654962 in arm guest which \
-no plan to fix it in the near future!")
+        product_id = utils_lib.get_product_id(self)
+        if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self) and float(product_id) < 8.6:
+            self.skipTest("Cancel as bug 1654962 in arm guest earlier than 8.6 2082405" )
         
         cmd = "grep processor /proc/cpuinfo | wc -l"
         cpu_counts = int(utils_lib.run_cmd(self, cmd, expect_ret=0,
@@ -357,8 +356,8 @@ no plan to fix it in the near future!")
                                           "find /var/crash",
                                           expect_ret=0,
                                           msg="list /var/crash after crash")
-            if res_after == res_before:
-                self.fail("Test failed as no crash dump file found")
+            self.assertNotEqual(res_after, res_before,
+                                "Test failed as no crash dump file found")
 
             cmd = "sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50"
             utils_lib.run_cmd(self, cmd, expect_ret=0,
@@ -516,6 +515,8 @@ no plan to fix it in the near future!")
             N/A
         """
         before = utils_lib.run_cmd(self, 'last reboot --time-format full')
+        if not self.vm:
+            self.skipTest('no vm provider found')
         self.vm.reboot(wait=True)
         time.sleep(30)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
@@ -557,15 +558,16 @@ no plan to fix it in the near future!")
         debug_want:
             N/A
         """
-        before = utils_lib.run_cmd(self, 'last reboot --time-format full')
+        before = utils_lib.run_cmd(self, 'last reboot --time-format full|wc -l')
         utils_lib.run_cmd(self, 'sudo reboot')
         time.sleep(10)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         output = utils_lib.run_cmd(self, 'whoami')
-        self.assertEqual(
-            self.vm.vm_username, output.strip(),
-            "Reboot VM error: output of cmd `who` unexpected -> %s" % output)
-        after = utils_lib.run_cmd(self, 'last reboot --time-format full')
+        if self.vm:
+            self.assertEqual(
+                self.vm.vm_username, output.strip(),
+                "Reboot VM error: output of cmd `who` unexpected -> %s" % output)
+        after = utils_lib.run_cmd(self, 'last reboot --time-format full|wc -l')
         self.assertNotEqual(
             before, after,
             "Reboot VM error: before -> %s; after -> %s" % (before, after))
@@ -608,15 +610,94 @@ no plan to fix it in the near future!")
         debug_want:
             N/A
         """
+        if not self.vm:
+            self.skipTest('no vm provider found')
         self.vm.stop(wait=True)
         self.assertTrue(self.vm.is_stopped(),
                         "Stop VM error: VM status is not SHUTOFF")
         self._start_vm_and_check()
-        utils_lib.run_cmd(self, 'shutdown now')
+        utils_lib.run_cmd(self, 'sudo shutdown now')
         for count in utils_lib.iterate_timeout(
                 60, "Timed out waiting for getting server stopped."):
             if self.vm.is_stopped(): break
         self._start_vm_and_check()
+
+    def _update_kernel_args(self, boot_param_required):
+        cmd = 'sudo grubby --update-kernel=ALL --args="{}"'.format(boot_param_required)
+        utils_lib.run_cmd(self, cmd, msg="append {} to boot params".format(boot_param_required))
+        utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
+        time.sleep(10)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        cat_proc_cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline')
+        return cat_proc_cmdline
+
+    def test_start_vm_iommu(self):
+        """
+        case_tag:
+            Lifecycle
+        case_name:
+            test_start_vm_iommu
+        case_file:
+            os_tests.tests.test_lifecycle.TestLifeCycle.test_start_vm_iommu kernel command.
+        component:
+            lifecycle
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Check /proc/cmdline after configure intel_iommu equal on .
+        key_steps:
+            1. Update kernel command line using grubby command and than check /proc/cmdline.
+        expect_result:
+            1. Update kernel command line using grubby command and than check /proc/cmdline.
+        debug_want:
+            N/A
+        """
+        if utils_lib.is_arch(self, arch='x86_64'):
+            boot_param_required = 'intel_iommu=on'
+            out = utils_lib.run_cmd(self, 'cat /proc/cmdline', msg='Check boot line')
+            if boot_param_required not in out:
+                cat_proc_cmdline = self._update_kernel_args(boot_param_required)
+                self.assertIn(boot_param_required, cat_proc_cmdline, msg='Expect intel_iommu=on in /proc/cmdline')
+
+    def test_boot_nr_cpus(self):
+        """
+        case_tag:
+            Lifecycle
+        case_name:
+            test_boot_nr_cpus
+        case_file:
+            os_tests.tests.test_lifecycle.TestLifeCycle.test_boot_nr_cpus kernel command.
+        component:
+            lifecycle
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Check /proc/cmdline after configure nr_cpus equal 1 and then 2 .
+        key_steps:
+            1. Update kernel command line using grubby command and than check /proc/cmdline.
+        expect_result:
+            1. Update kernel command line using grubby command and than check /proc/cmdline.
+        debug_want:
+            N/A
+        """
+        for cpus in [1,2]:
+            boot_param_required = 'nr_cpus='+str(cpus)
+            cat_proc_cmdline = self._update_kernel_args(boot_param_required)
+            self.assertIn(boot_param_required, cat_proc_cmdline, msg='Expect intel_iommu=on in /proc/cmdline')
+            online_cpu_num = int(utils_lib.run_cmd(self, 'cat /proc/cpuinfo | grep processor | wc -l'))
+            self.assertEqual(online_cpu_num, cpus, msg='Check online cpus numbers equal to nr_cpus in kernel command line. Expect: %s, Actual: %s' % (cpus, online_cpu_num))
 
     def tearDown(self):
         reboot_require = False
