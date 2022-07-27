@@ -232,8 +232,6 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         Check generation according to vm name
         '''
         hostname = utils_lib.run_cmd(self, 'hostname')
-        self.log.info("==========")
-        self.log.info(hostname)
         if 'gen1' in hostname:
             self.assertEqual(self._get_generation(), 'gen1', "Expected: gen1; Real: gen2")
         else:
