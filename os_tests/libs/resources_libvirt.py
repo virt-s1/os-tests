@@ -85,10 +85,10 @@ class LibvirtVM(VMResource):
             )
             root.insert(3, sub_cpu)
             sub_loader = ET.fromstring('<loader readonly="yes" type="pflash">\
-/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>')
+/usr/share/AAVMF/AAVMF_CODE.fd</loader>')
             root.find("os").insert(0, sub_loader)
             sub_nvram = ET.fromstring(
-                "<nvram template='/usr/share/OVMF/OVMF_VARS.fd'>\
+                "<nvram template='/usr/share/AAVMF/AAVMF_VARS.fd'>\
 %s/OVMF_VARS.fd</nvram>" % self.image_dir)
             root.find("os").insert(0, sub_nvram)
             root.find("devices").find("rng").find(
