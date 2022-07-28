@@ -86,7 +86,7 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         '''
         check there is no avc denials (selinux)
         '''
-        cmd = "x=$(sudo ausearch -m avc 2>&1 &); echo $x"
+        cmd = "x=$(sudo ausearch -m AVC,USER_AVC -ts boot 2>&1 &); echo $x"
         utils_lib.run_cmd(self, cmd, expect_kw='no matches', msg='check no avc denials')
 
     def test_check_timezone(self):
@@ -95,13 +95,13 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         '''
         utils_lib.run_cmd(self, 'date', expect_kw='EDT', msg='check timezone is EDT')
 
-    def test_check_selinux(self):
-        '''
-        SELinux should be in enforcing/targeted mode
-        '''
-        out = utils_lib.run_cmd(self, 'uname -r', msg='get kernel version')
-        utils_lib.run_cmd(self, 'sudo getenforce',expect_kw='Enforcing', msg='check selinux current mode is Enforcing')
-        utils_lib.run_cmd(self, 'sudo cat /etc/sysconfig/selinux',expect_kw='SELINUX=enforcing,SELINUXTYPE=targeted', msg='check selinux current setting')
+    # def test_check_selinux(self):
+    #     '''
+    #     SELinux should be in enforcing/targeted mode
+    #     '''
+    #     utils_lib.run_cmd(self, 'uname -r', msg='get kernel version')
+    #     utils_lib.run_cmd(self, 'sudo getenforce',expect_kw='Enforcing', msg='check selinux current mode is Enforcing')
+    #     utils_lib.run_cmd(self, 'sudo cat /etc/sysconfig/selinux',expect_kw='SELINUX=enforcing,SELINUXTYPE=targeted', msg='check selinux current setting')
 
     def test_check_services_active(self):
         '''
