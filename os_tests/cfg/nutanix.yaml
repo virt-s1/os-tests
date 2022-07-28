@@ -6,26 +6,30 @@ Credential:
   password:
   cvm_username: 
   cvm_password:
+  host_username:
+  host_password:
 Subscription:
   username: 
   password: 
+  baseurl:
+  serverurl:
 VM:
-  rhel_ver: '9.0'
-  username: cloud-user
-  password: redhat
-  keypair: xen-jenkins
-  vm_name: vm_script
+  rhel_ver: 
+  username:
+  password:
+  keypair:
+  vm_name:
   image_name: 
   image_name_iso: 
   image_name_kickstart_iso: 
   storage_container_uuid: 
-  network_uuid: 
+  network_uuid:
   private_network_uuid:
   private_network_subnet:
-  custom_data:
-  if_uefi_boot: True
-  if_secure_boot: True
-  machine_type: q35
+  custom_data: 
+  if_uefi_boot: 
+  if_secure_boot: 
+  machine_type: 
 BootTime:
   first_launch: 30
   acpi_reboot: 25
@@ -39,4 +43,3 @@ Flavor:
   memory: 4
   size: 10
   virt: kvm
-
