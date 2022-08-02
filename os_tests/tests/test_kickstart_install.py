@@ -1,6 +1,5 @@
 import unittest
 import time
-import subprocess
 from os_tests.libs import utils_lib
 from tipset.libs import rmt_ssh
 
