@@ -229,7 +229,7 @@ class TestStorage(unittest.TestCase):
     def test_add_ide_empty_cdrom(self):
         """
         case_tag:
-            Storage
+            Storage,Storage_tier1
         case_name:
             test_add_ide_empty_cdrom
         case_file:
@@ -286,7 +286,7 @@ class TestStorage(unittest.TestCase):
     def test_add_sata_clone_cdrom_from_img_service(self):
         """
         case_tag:
-            Storage
+            Storage,Storage_tier2
         case_name:
             test_add_sata_clone_cdrom_from_img_service
         case_file:
@@ -345,7 +345,7 @@ class TestStorage(unittest.TestCase):
     def test_add_remove_multi_scsi(self):
         """
         case_tag:
-            Storage
+            Storage,Storage_tier1
         case_name:
             test_add_remove_multi_scsi
         case_file:
@@ -454,7 +454,7 @@ class TestStorage(unittest.TestCase):
     def test_online_take_restore_snapshot(self):
         """
         case_tag:
-            Storage
+            Storage,Storage_tier1
         case_name:
             test_online_take_restore_snapshot
         case_file:
@@ -486,7 +486,7 @@ class TestStorage(unittest.TestCase):
     def test_offline_take_restore_snapshot_clone_snapshot(self):
         """
         case_tag:
-            Storage
+            Storage,Storage_tier1
         case_name:
             test_offline_take_restore_snapshot_clone_snapshot
         case_file:
@@ -523,7 +523,7 @@ class TestStorage(unittest.TestCase):
     def test_expand_scsi_disk_online(self):
         """
         case_tag:
-            Storage
+            Storage,Storage_tier1
         case_name:
             test_expand_scsi_disk_online
         case_file:
@@ -560,10 +560,10 @@ class TestStorage(unittest.TestCase):
         #Get init size of test disk
         cmd='sudo fdisk -s {}'.format(test_disk)
         test_disk_origin_size = int(utils_lib.run_cmd(self, cmd, expect_ret=0))/(1024*1024)
-        self.assertEqual(self.vm.prism.minimum_disk_size, test_disk_origin_size, msg='disk size is not the same with init value')
+        self.assertEqual(self.vm.prism.attach_disk_size, test_disk_origin_size, msg='disk size is not the same with init value')
         #Expand size of test disk when VM running
         try:
-            self.disk.modify_disk_size(test_disk_origin_size, 'scsi', disk_index=1, expand_size=9)
+            self.disk.modify_disk_size(test_disk_origin_size, 'scsi', disk_index=1, expand_size=5)
         except NotImplementedError:
             self.skipTest('modify disk size func is not implemented in {}'.format(self.vm.provider))
         except UnSupportedAction:
@@ -590,7 +590,7 @@ class TestStorage(unittest.TestCase):
     def test_multi_disk(self):
         """
         case_tag:
-            Storage
+            Storage,Storage_tier1
         case_name:
             test_multi_disk
         case_file:
@@ -767,10 +767,11 @@ class TestStorage(unittest.TestCase):
             self.log.info('Delete ide.3 for refresh user data')
             self.vm.stop(wait=True)
             time.sleep(60)
-            disk_uuid = self.vm.get_disk_uuid('ide', device_index=3)
             if self.vm.prism.machine_type == 'pc':
+                disk_uuid = self.vm.get_disk_uuid('ide', device_index=3)
                 self.vm.detach_disk('ide', disk_uuid, device_index=3, wait=True)
             else:
+                disk_uuid = self.vm.get_disk_uuid('sata', device_index=3)
                 self.vm.detach_disk('sata', disk_uuid, device_index=3, wait=True)
             self.vm.clone_vm(clone_from_vm_or_snapshot, vm_name, cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus, override_network_config=False, fresh_install=True, vm_custom_file="test.sh", vm_userdata_file="userdata.yaml")
         except NotImplementedError:
@@ -789,6 +790,7 @@ class TestStorage(unittest.TestCase):
                 VMBecloned_ip = nic['ip_address']
         #clone from snapshot not support to refresh install
         if clone_from_vm_or_snapshot == "clone_from_vm":
+            self.log.info("Testing password login on cloned VM %s" % VMBecloned_ip)
             ssh = rmt_ssh.RemoteSSH()
             ssh.rmt_node = VMBecloned_ip
             ssh.rmt_user = self.vm.vm_username
@@ -810,8 +812,9 @@ class TestStorage(unittest.TestCase):
         if clone_from_vm_or_snapshot == "clone_from_vm":
             custome_data = utils_lib.run_cmd(self, "sudo chmod 755 /tmp/test.sh \n sudo /tmp/test.sh \n sudo cat /tmp/test.txt", expect_ret=0, rmt_node=self.params['remote_nodes'][1])
             expect_cusome_data = "Test files to copy"
-            self.assertIn(expect_cusome_data, custome_data, msg="Custome data is not right, Expect: %s, real: %s" % (expect_cusome_data, custome_data))
-            self.assertIn(expect_cusome_data, custome_data, msg="Custome data is not right, Expect: %s, real: %s" % (expect_cusome_data, custome_data))
+            self.assertIn(expect_cusome_data,
+                          custome_data,
+                          msg="Custome data is not right, Expect: %s, real: %s" % (expect_cusome_data, custome_data))
         #tear down
         self.vm.prism.delete_vm(VMBecloned['uuid'])
         self.params['remote_nodes'].pop()
@@ -822,7 +825,7 @@ class TestStorage(unittest.TestCase):
     def test_clone_from_vm(self):
         """
         case_tag:
-            Storage
+            Storage,Storage_tier1
         case_name:
             test_clone_from_vm
         case_file:
@@ -860,7 +863,7 @@ class TestStorage(unittest.TestCase):
     def test_add_remove_multi_cdrom(self):
         """
         case_tag:
-            Storage
+            Storage,Storage_tier2
         case_name:
             test_add_remove_multi_cdrom
         case_file:
@@ -895,8 +898,9 @@ class TestStorage(unittest.TestCase):
                 self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
             except UnSupportedAction:
                 self.skipTest('attch disk func is not supported in {}'.format(self.vm.provider))
-        if self.vm.provider == 'nutanix':
-            if  self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
+            if  self.vm.provider == 'nutanix' and (self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35'):
+                    total_num = 5
+            else:
                 for i in range(0,3):
                     try:
                         self.vm.attach_disk('ide', disk_size=0, is_cdrom=True, device_index=i, wait=True, is_empty=True)
@@ -904,11 +908,7 @@ class TestStorage(unittest.TestCase):
                         self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
                     except UnSupportedAction:
                         self.skipTest('attch disk func is not supported in {}'.format(self.vm.provider))
-                    total_num = 5
-            else:
-                    total_num = 9
-        else:
-                    total_num = 9
+                total_num = 9
         self.vm.start(wait=True)
         utils_lib.init_connection(self, timeout=self.timeout)
         new_disk_num = self._get_disk_num('rom')
@@ -946,7 +946,7 @@ class TestStorage(unittest.TestCase):
     def test_fio_crctest(self):
         """
         case_tag:
-            Storage
+            Storage,Storage_tier2
         case_name:
             test_fio_crctest
         case_file:
@@ -981,7 +981,7 @@ class TestStorage(unittest.TestCase):
     def test_ssd_trim(self):
         """
         case_tag:
-            Storage
+            Storage,Storage_tier2
         case_name:
             test_ssd_trim
         case_file:

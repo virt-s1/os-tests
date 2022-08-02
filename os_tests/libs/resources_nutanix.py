@@ -621,6 +621,10 @@ runcmd:
             % (filter_name, filter_value))
         return self.make_request(endpoint, 'get')
 
+    def get_vm_by_uuid(self, vm_uuid):
+        endpoint = urljoin(self.base_url, "vms/%s" % vm_uuid)
+        return self.make_request(endpoint, 'get')
+
 class NutanixVM(VMResource):
     def __init__(self, params):
         super(NutanixVM, self).__init__(params)
@@ -761,6 +765,7 @@ class NutanixVM(VMResource):
                 "Timed out waiting for server to get deleted.")
 
     def start(self, wait=True):
+        logging.info("start vm")
         res = self.prism.start_vm(self.data.get('uuid'))
         if wait:
             self.wait_for_status(

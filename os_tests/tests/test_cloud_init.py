@@ -337,7 +337,7 @@ class TestCloudInit(unittest.TestCase):
         #workaround nutanix dev console issue
         if self.vm.provider == 'nutanix':
             cmd = '''cat /var/log/cloud-init.log | grep -Pzo "Traceback.*\\n\s+File.*" | \
-grep -Pzv "stages.py\\",\s+line\s+1088|util.py\\",\s+line\s+399"'''
+grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         else:
             cmd = 'sudo cat /var/log/cloud-init.log'
         utils_lib.run_cmd(self,
@@ -1714,7 +1714,7 @@ ssh_pwauth: 1
             3. run hostnamectl command and then check resolv.conf again
             4. reboot
             5. Check /etc/resolv.conf
-        """ 
+        """
         cmd = 'cat /etc/resolv.conf'
         utils_lib.run_cmd(self,
                           cmd,
