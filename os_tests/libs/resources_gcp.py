@@ -42,7 +42,7 @@ def get_service(api_name, api_version, scopes, key_file_location):
 
 def verify_token(token: str, audience: str) -> dict:
     request = google.auth.transport.requests.Request()
-    payload = id_token.verify_token(token, request=request, audience=audience)
+    payload = id_token.verify_token(token, request=request, audience=audience, clock_skew_in_seconds=150)
     return payload
 
 
