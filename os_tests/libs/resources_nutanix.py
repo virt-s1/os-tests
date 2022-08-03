@@ -128,8 +128,9 @@ class PrismApi(PrismSession):
         self.if_secure_boot = params['VM']['if_secure_boot']
         self.machine_type = params['VM']['machine_type']
         self.vm_custom_file = None
-        self.minimum_disk_size = 1
+        self.attach_disk_size = 5
         self.run_uuid = params.get('run_uuid')
+        self.user_data = None
 
         super(PrismApi, self).__init__(self.cvmIP, username, password)
 
@@ -173,13 +174,25 @@ class PrismApi(PrismSession):
             ssh_key = '\nssh_authorized_keys:\n- %s' % ssh_pubkey
             ssh_pwauth = ''
         # Attach user_data.
-        user_data = '#cloud-config\ndisable_root: false\nlock_passwd: false%s%s\nruncmd:\n- sed -i "/PermitRootLogin prohibit/c\PermitRootLogin yes" /etc/ssh/sshd_config\n- systemctl restart sshd\n' % (
+        user_data = '#cloud-config\n'
+        user_data_ssh_key = '''\
+disable_root: false
+lock_passwd: false%s%s
+runcmd:
+- grubby --update-kernel=ALL --args="console=tty0"
+- systemctl restart cloud-final
+- sed -i "/PermitRootLogin prohibit/c\PermitRootLogin yes" /etc/ssh/sshd_config
+- systemctl restart sshd\n''' % (
             ssh_pwauth, ssh_key)
-        user_data += '- mkdir /tmp/userdata_{}\n'.format(self.run_uuid)
+        user_data += user_data_ssh_key+'- mkdir /tmp/userdata_{}\n'.format(self.run_uuid)
         user_data += '''- [ sh, -xc, "echo $(date) ': hello today!'" ]'''
         user_data += '\ncloud_config_modules:\n - mounts\n - locale\n - set-passwords\n - yum-add-repo\n - disable-ec2-metadata\n - runcmd'
         if self.vm_user_data:
             user_data += self.vm_user_data
+        if self.user_data != None:
+            user_data = self.user_data
+            user_data += user_data_ssh_key
+        logging.info('userdata for creating vm is \n %s' % user_data)
         # Attach user script.
         user_script=[]
         if self.vm_custom_file:
@@ -238,7 +251,7 @@ class PrismApi(PrismSession):
                 "is_cdrom": False,
                 "is_empty": True,
                 "vm_disk_create": {
-                "size": self.minimum_disk_size*1024*1024*1024,
+                "size": self.attach_disk_size*1024*1024*1024,
                 "storage_container_uuid": self.storage_container_uuid
                 }
             }
@@ -608,6 +621,10 @@ class PrismApi(PrismSession):
             % (filter_name, filter_value))
         return self.make_request(endpoint, 'get')
 
+    def get_vm_by_uuid(self, vm_uuid):
+        endpoint = urljoin(self.base_url, "vms/%s" % vm_uuid)
+        return self.make_request(endpoint, 'get')
+
 class NutanixVM(VMResource):
     def __init__(self, params):
         super(NutanixVM, self).__init__(params)
@@ -630,8 +647,15 @@ class NutanixVM(VMResource):
         self.private_network_subnet = params['VM']['private_network_subnet']
         self.ssh_pubkey = utils_lib.get_public_key()
         self.arch = 'x86_64'
-        self.vm_custom_file = 'test.sh'
+        self.vm_custom_file = 'man-page-day.sh'
         self.provider = params['Cloud']['provider']
+        self.subscription_username = params['Subscription']['username']
+        self.subscription_password = params['Subscription']['password']
+        self.subscription_serverurl = params['Subscription'].get('serverurl')
+        self.subscription_baseurl = params['Subscription'].get('baseurl')
+        self.host_username = params['Credential']['host_username']
+        self.host_password = params['Credential']['host_password']
+        self.user_data = None
 
         self.prism = PrismApi(params)
 
@@ -668,11 +692,12 @@ class NutanixVM(VMResource):
         # minus 1 for user data cd-rom disk
         return len(self.show()['vm_disk_info'])-1
 
+    @property
     def host_ip(self):
         self._data = None
         for host in self.prism.list_hosts_detail()["entities"]:
             if host['uuid'] == self.data.get('host_uuid'):
-                ip = host['service_vmexternal_ip']
+                ip = host['hypervisor_address']
                 break
         return ip
 
@@ -712,6 +737,7 @@ class NutanixVM(VMResource):
     def create(self, single_nic=True, wait=True, vm_name=None):
         logging.info("Create VM, single_nic is " + str(single_nic))
         self.prism.vm_user_data = self.vm_user_data
+        self.prism.user_data = self.user_data
         self.prism.vm_custom_file = self.vm_custom_file
         res = self.prism.create_vm(self.ssh_pubkey, single_nic, vm_name)
         if wait:
@@ -730,7 +756,7 @@ class NutanixVM(VMResource):
                 "Timed out waiting for server to get created.")
         self._data = None
 
-    def delete(self, wait=False):
+    def delete(self, wait=True):
         logging.info("Delete VM")
         res = self.prism.delete_vm(self.data.get('uuid'))
         if wait:
@@ -738,7 +764,7 @@ class NutanixVM(VMResource):
                 res['task_uuid'], 30,
                 "Timed out waiting for server to get deleted.")
 
-    def start(self, wait=False):
+    def start(self, wait=True):
         logging.info("start vm")
         res = self.prism.start_vm(self.data.get('uuid'))
         if wait:

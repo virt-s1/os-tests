@@ -210,7 +210,8 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw=option)
         cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50'
         utils_lib.run_cmd(self, cmd, expect_kw='No such file or directory', msg='make sure there is no core generated')
-        utils_lib.check_log(self, "error,warn,fail,trace,CallTrace", skip_words='ftrace', rmt_redirect_stdout=True)
+        #remove trace for "memory used for stack traces" or "Callback from call_rcu_tasks_trace() invoked"
+        utils_lib.check_log(self, "error,warn,fail,CallTrace", rmt_redirect_stdout=True)
 
     def test_reboot_resolve_content(self):
         """
@@ -454,7 +455,7 @@ class TestLifeCycle(unittest.TestCase):
     def test_check_secure_boot(self):
         """
         case_tag:
-            Lifecycle
+            Lifecycle,Lifecycle_tier2
         case_name:
             test_check_secure_boot
         case_file:
@@ -490,7 +491,7 @@ class TestLifeCycle(unittest.TestCase):
     def test_reboot_vm(self):
         """
         case_tag:
-            Lifecycle
+            Lifecycle,Lifecycle_tier1
         case_name:
             test_reboot_vm
         case_file:
@@ -534,7 +535,7 @@ class TestLifeCycle(unittest.TestCase):
     def test_reboot_inside_vm(self):
         """
         case_tag:
-            Lifecycle
+            Lifecycle,Lifecycle_tier1
         case_name:
             test_reboot_inside_vm
         case_file:
@@ -586,7 +587,7 @@ class TestLifeCycle(unittest.TestCase):
     def test_stop_start_vm(self):
         """
         case_tag:
-            Lifecycle
+            Lifecycle,Lifecycle_tier1
         case_name:
             test_stop_start_vm
         case_file:
@@ -634,7 +635,7 @@ class TestLifeCycle(unittest.TestCase):
     def test_start_vm_iommu(self):
         """
         case_tag:
-            Lifecycle
+            Lifecycle,Lifecycle_tier2
         case_name:
             test_start_vm_iommu
         case_file:
@@ -668,7 +669,7 @@ class TestLifeCycle(unittest.TestCase):
     def test_boot_nr_cpus(self):
         """
         case_tag:
-            Lifecycle
+            Lifecycle,Lifecycle_tier2
         case_name:
             test_boot_nr_cpus
         case_file:

@@ -12,6 +12,11 @@ class TestCloudInit(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, cancel_ret='0', msg = "check cloud-init-local is enabled")
         self.timeout = 180
 
+    @property
+    def rhel_x_version(self):
+        product_id = utils_lib.get_product_id(self)
+        return int(product_id.split('.')[0])
+
     def test_check_cloudinit_cfg_no_wheel(self):
         """
         case_tag:
@@ -249,16 +254,24 @@ class TestCloudInit(unittest.TestCase):
         debug_want:
             cloud init log file
         """
+        #define string to avoid /dev/console issue on nutanix
+        plus_grep = ' | grep WARNING | grep -Pvo "scripts-user|console|cc_ssh_authkey_fingerprints"'
+        if self.vm.provider == 'nutanix':
+            cmd='sudo cat /var/log/cloud-init.log' + plus_grep
+        else:
+            cmd='sudo cat /var/log/cloud-init.log'
         utils_lib.run_cmd(self,
-                    'sudo cat /var/log/cloud-init.log',
-                    expect_ret=0,
+                    cmd,
                     expect_not_kw='WARNING',
                     msg='check /var/log/cloud-init.log')
         if 'release 7' not in utils_lib.run_cmd(self,
                                           'sudo cat /etc/redhat-release'):
+            if self.vm.provider == 'nutanix':
+                cmd='sudo cat /var/log/cloud-init-output.log' + plus_grep
+            else:
+                cmd='sudo cat /var/log/cloud-init-output.log'
             utils_lib.run_cmd(self,
-                        'sudo cat /var/log/cloud-init-output.log',
-                        expect_ret=0,
+                        cmd,
                         expect_not_kw='WARNING',
                         msg='check /var/log/cloud-init-output.log')
 
@@ -321,9 +334,14 @@ class TestCloudInit(unittest.TestCase):
         debug_want:
             cloud-init log file
         """
+        #workaround nutanix dev console issue
+        if self.vm.provider == 'nutanix':
+            cmd = '''cat /var/log/cloud-init.log | grep -Pzo "Traceback.*\\n\s+File.*" | \
+grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
+        else:
+            cmd = 'sudo cat /var/log/cloud-init.log'
         utils_lib.run_cmd(self,
-                    'sudo cat /var/log/cloud-init.log',
-                    expect_ret=0,
+                    cmd,
                     expect_not_kw='Traceback',
                     msg='check /var/log/cloud-init.log')
         if 'release 7' not in utils_lib.run_cmd(self,
@@ -571,8 +589,9 @@ class TestCloudInit(unittest.TestCase):
             N/A
         maintainer:
             minl@redhat.com
-        description:
-            VM can successfully login after provisioning(with password authentication)
+        description: |
+            VM can successfully login after provisioning(with password authentication).
+            Linked case: test_cloudinit_remove_cache_and_reboot_password
         key_steps:
             1. Create a VM with only password authentication
         expect_result:
@@ -609,13 +628,20 @@ class TestCloudInit(unittest.TestCase):
         self.assertIn(self.vm.vm_username,
                          test_sudo[1].strip(),
                          "Fail to check login user name: %s" % format(test_sudo[1].strip()))
+        self.log.info("Test case test_cloudinit_remove_cache_and_reboot_password together")
+        cmd = "sudo rm -rf /var/lib/cloud/instances/* \n sudo reboot"
+        utils_lib.send_ssh_cmd(NewVM_ip, self.vm.vm_username, self.vm.vm_password, cmd)
+        time.sleep(40)
+        test_login = utils_lib.send_ssh_cmd(NewVM_ip, self.vm.vm_username, self.vm.vm_password, "whoami")
+        self.assertEqual(self.vm.vm_username,
+                         test_login[1].strip(),
+                         "Fail to login with password: %s" % format(test_login[1].strip()))
         #teardown
         self.vm.ssh_pubkey=save_ssh_pubkey
         self.vm.delete()
         self.vm.create(wait=True)
         self.vm.start(wait=True)
         time.sleep(30)
-        self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
 
     def test_cloudinit_verify_hostname(self):
@@ -645,6 +671,8 @@ class TestCloudInit(unittest.TestCase):
         debug_want:
             N/A
         """
+        #Restart cloud-init incase log be deleted by previous case.
+        utils_lib.run_cmd(self, 'sudo systemctl restart cloud-init', expect_ret=0)
         for cmd in ['hostname', 'nmcli general hostname', 'hostnamectl|grep Static']:
             check_hostname = utils_lib.run_cmd(self, 'sudo cat /var/log/cloud-init.log', expect_ret=0)
             self.assertIn(self.vm.vm_name, check_hostname, "'%s': Hostname is not correct" % cmd)
@@ -811,8 +839,9 @@ EOF""".format(device, size), expect_ret=0)
             N/A
         maintainer:
             minl@redhat.com
-        description:
-            Test if custom data as script can be executed. File test.sh has be pre-uploaded and configured when provision VM.
+        description: |
+            Test if custom data as script can be executed. File man-page-day.sh has be pre-uploaded and configured when provision VM.
+            Linked case test_cloudinit_man_page.
         key_steps: |
             1. Create VM with custom data.
             2. Check if custom data as script can be executed.
@@ -823,11 +852,9 @@ EOF""".format(device, size), expect_ret=0)
         """
         if self.vm.provider != 'nutanix':
             self.skipTest('skip run as this needs to configure vm_custom_file, configured on nutanix')
-        utils_lib.run_cmd(self,"sudo chmod 777 /tmp/%s" % self.vm.prism.vm_custom_file)
-        utils_lib.run_cmd(self,"sudo /tmp/%s" % self.vm.prism.vm_custom_file)
-        self.assertEqual("Test files to copy",
-                         utils_lib.run_cmd(self, "sudo cat /tmp/test.txt").strip(),
-                         "The custom data script is not executed correctly.")
+        utils_lib.run_cmd(self,"sudo chmod 777 /tmp/%s" % self.vm.vm_custom_file)
+        res = utils_lib.run_cmd(self,"sudo /tmp/%s cloud-init" % self.vm.vm_custom_file)
+        self.assertIn("13x OK", res, "man-page-day.sh check failed.")
 
     def test_cloudinit_save_and_handle_customdata_cloudinit_config(self):
         """
@@ -1566,6 +1593,8 @@ EOF""".format(device, size), expect_ret=0)
             time.sleep(30)
         self.vm.config_drive = True
         self.vm.create()
+        if self.vm.is_stopped():
+            self.vm.start(wait=True)
         time.sleep(30)
         self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
@@ -1591,6 +1620,8 @@ EOF""".format(device, size), expect_ret=0)
         self.vm.delete()
         self.vm.config_drive = None
         self.vm.create()
+        if self.vm.is_stopped():
+            self.vm.start(wait=True)
         time.sleep(30)
         self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
@@ -1611,7 +1642,9 @@ EOF""".format(device, size), expect_ret=0)
         key_steps:
             1. Create a VM with only password authentication
             2. Login with password, should have sudo privilege
-        """     
+        """
+        if self.vm.provider == 'nutanix':
+            self.skipTest('skip run as nutanix test this in case test_cloudinit_login_with_password')
         self.log.info(
             "RHEL7-103830 - CLOUDINIT-TC: VM can login with password authentication")
         if self.vm.exists():
@@ -1681,7 +1714,7 @@ ssh_pwauth: 1
             3. run hostnamectl command and then check resolv.conf again
             4. reboot
             5. Check /etc/resolv.conf
-        """ 
+        """
         cmd = 'cat /etc/resolv.conf'
         utils_lib.run_cmd(self,
                           cmd,
@@ -1755,6 +1788,8 @@ ssh_pwauth: 1
             self.vm.delete()
             time.sleep(30)
         self.vm.create()
+        if self.vm.is_stopped():
+            self.vm.start(wait=True)
         time.sleep(30)
         self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
@@ -1873,6 +1908,8 @@ ssh_pwauth: 1
         #teardown        
         self.vm.delete()
         self.vm.create()
+        if self.vm.is_stopped():
+            self.vm.start(wait=True)
         time.sleep(30)
         self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
@@ -1953,7 +1990,7 @@ ssh_pwauth: 1
             3. check network config file
         """
         if self.vm.provider != 'openstack':
-            self.skipTest('skip run as this case is openstack specific')
+            self.skipTest('skip run as this case is openstack specific.')
         self.log.info(
             "RHEL-186180 - CLOUDINIT-TC: correct config for dhcp-stateless openstack subnets")
         # the second nic using hard code?  (net-ipv6-stateless, only subnet ipv6, dhcp-stateless)
@@ -2088,6 +2125,8 @@ packages:
 """.format(self.vm.subscription_username, self.vm.subscription_password, 
     self.vm.subscription_baseurl, self.vm.subscription_serverurl, package)
         self.vm.create()
+        if self.vm.is_stopped():
+            self.vm.start(wait=True)
         time.sleep(30)
         self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
@@ -2126,8 +2165,13 @@ packages:
                     msg="Fail to install package {} by cloud-init".format(package))
         #teardown        
         self.vm.delete()
-        self.vm.user_data = save_userdata
+        if self.vm.provider == 'nutanix':
+            self.vm.user_data = None
+        else:
+            self.vm.user_data = save_userdata
         self.vm.create()
+        if self.vm.is_stopped():
+            self.vm.start(wait=True)
         time.sleep(30)
         self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
@@ -2180,6 +2224,8 @@ rh_subscription:
 """.format(self.vm.subscription_username, self.vm.subscription_password, 
     self.vm.subscription_baseurl, self.vm.subscription_serverurl)
         self.vm.create()
+        if self.vm.is_stopped():
+            self.vm.start(wait=True)
         time.sleep(30)
         self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
@@ -2222,11 +2268,440 @@ rh_subscription:
             "Repo of {} is not disabled".format(disable_repo))
         #teardown        
         self.vm.delete()
-        self.vm.user_data = save_userdata
+        if self.vm.provider == 'nutanix':
+            self.vm.user_data = None
+        else:
+            self.vm.user_data = save_userdata
         self.vm.create()
+        if self.vm.is_stopped():
+            self.vm.start(wait=True)
         time.sleep(30)
         self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
+
+    def _verify_rh_subscription(self, config):
+        utils_lib.run_cmd(self,"sudo subscription-manager unregister")
+        utils_lib.run_cmd(self,
+            "sudo rm -f /var/lib/cloud/instance/sem/config_rh_subscription /var/log/cloud-init*.log")
+        utils_lib.run_cmd(self,"echo '''%s''' | sudo tee /etc/cloud/cloud.cfg.d/test_rh_subscription.cfg" % config)
+        utils_lib.run_cmd(self,"sudo cloud-init single -n rh_subscription", timeout=600)
+        cmd="sudo grep 'Registered successfully' /var/log/cloud-init.log"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="No 'Registered successfully log in cloud-init.log")
+        utils_lib.run_cmd(self,"sudo subscription-manager identity", expect_ret=0, msg="Fail to register with subscription-manager")
+
+    def test_cloudinit_auto_register_with_subscription_manager(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_name:
+            test_cloudinit_auto_register_with_subscription_manager
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_auto_register_with_subscription_manager
+        component:
+            cloudinit
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Auto register by cloud-init
+        key_steps: |
+            1. Add content to /etc/cloud/cloud.cfg.d/test_rh_subscription.cfg
+            2. Run rh_subscription module
+            3. Verify can register with subscription-manager
+            4. Verify can auto-attach manually
+        expect_result:
+            register with subscription-manager successfully.
+        debug_want:
+            N/A
+        """
+        CONFIG='''rh_subscription:
+    username: {}
+    password: {}
+    rhsm-baseurl: {}
+    server-hostname: {}
+    '''.format(self.vm.subscription_username, self.vm.subscription_password,
+               self.vm.subscription_baseurl, self.vm.subscription_serverurl)
+        self._verify_rh_subscription(CONFIG)
+
+    def _get_test_disk(self):
+        '''
+        Look for non-boot disk to do test
+        '''
+        test_disk = None
+        cmd = "lsblk -r --output NAME,MOUNTPOINT|awk -F' ' '{if($2) printf\"%s \",$1}'"
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0)
+        mount_disks = output.split(' ')
+        cmd = 'lsblk -d --output NAME|grep -v NAME'
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0)
+        disk_list = output.split('\n')
+        for disk in disk_list:
+            disk_in_use = False
+            if not disk:
+                continue
+            for mount_disk in mount_disks:
+                if disk in mount_disk:
+                    self.log.info('Disk is mounted: {}'.format(disk))
+                    disk_in_use = True
+                    break
+            if not disk_in_use:
+                cmd = 'sudo mkfs.ext3 /dev/{} -F'.format(disk)
+                ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='test can clean fs on {}'.format(disk))
+                if ret == 0:
+                    test_disk = disk
+                    break
+                else:
+                    self.log.info('Cannot clean fs on {} - skip'.format(disk))
+                    continue
+        if test_disk:
+            self.log.info('Test disk is found: {}'.format(test_disk))
+        else:
+             self.skipTest("No free disk for testing.")
+        return '/dev/' + test_disk
+
+    def test_cloudinit_swapon_with_xfs_filesystem(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_name:
+            test_cloudinit_swapon_with_xfs_filesystem
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_swapon_with_xfs_filesystem
+        component:
+            cloudinit
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Test swapon when created on a xfs filesystem by cloud-init.
+        key_steps: |
+            1. Add additional data disk and format to xfs, mount to /datatest and add to /etc/fstab
+            2. Configure cloud-config and run mounts module
+            # cat /etc/cloud/cloud.cfg.d/test_swap.cfg
+            swap:
+              filename: /datatest/swap.img
+              size: "auto" # or size in bytes
+              maxsize: 2G
+            3. Check the swap, verify /datadisk/swap.img exists, verify no error logs in cloud-init.log
+            expect_result:
+                register with subscription-manager successfully.
+        debug_want:
+            N/A
+        """
+        # Get previous swap size
+        old_swap = utils_lib.run_cmd(self, "free -m|grep Swap|awk '{print $2}'")
+        # Attach data disk
+        if(not self._get_test_disk()):
+            self.skipTest("test disk not found, provision VM should has at least 1 attached disk")
+        else:
+            test_disk = self._get_test_disk()
+        test_part = test_disk + "1"
+        utils_lib.run_cmd(self, "ls {}".format(test_disk), expect_ret=0, msg="check if there is attached disk to be tested.")
+        utils_lib.run_cmd(self, "sudo parted {} rm 1 -s".format(test_disk))
+        utils_lib.run_cmd(self, "sudo parted {} mklabel msdos -s".format(test_disk))
+        utils_lib.run_cmd(self, "sudo parted {} mkpart primary xfs 1048k 4000M -s".format(test_disk))
+        utils_lib.run_cmd(self, "sudo mkfs.xfs {} -f".format(test_part))
+        utils_lib.run_cmd(self, "sudo mkdir -p /datatest")
+        utils_lib.run_cmd(self, "sudo mount {} /datatest".format(test_part))
+        utils_lib.run_cmd(self, "sudo mount|grep /datatest", expect_ret=0, msg="Fail to mount datadisk")
+        # Test begin
+        CONFIG='''\
+swap:
+  filename: /datatest/swap.img
+  size: "auto" # or size in bytes
+  maxsize: 2G'''
+        utils_lib.run_cmd(self,"echo '''%s''' | sudo tee /etc/cloud/cloud.cfg.d/test_swap.cfg" % CONFIG)
+        utils_lib.run_cmd(self, "sudo rm -f /var/lib/cloud/instance/sem/config_mounts /var/log/cloud-init*.log")
+        utils_lib.run_cmd(self, "sudo cloud-init single --name mounts")
+        new_swap = utils_lib.run_cmd(self, "free -m|grep Swap|awk '{print $2}'")
+        self.assertAlmostEqual(first=int(old_swap)+2047, second=int(new_swap), delta=1,
+            msg="The enabled swap size does not correct.")
+        utils_lib.run_cmd(self, "ls /datatest/swap.img", expect_ret=0, msg="/datatest/swap.img doesn't exist.")
+        utils_lib.run_cmd(self, "grep swap.img /etc/fstab", expect_ret=0, msg="Fail to add swap to /etc/fstab")
+        cmd = "grep 'Permission denied' /var/log/cloud-init-output.log"
+        utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg="There are Permission denied logs in /var/log/cloud-init-output.log")
+        #teardown
+        utils_lib.run_cmd(self, "swapoff /datatest/swap.img")
+        utils_lib.run_cmd(self, "umount /datatest")
+        utils_lib.run_cmd(self, "rm -rf /datatest")
+        utils_lib.run_cmd(self, "sed -i '/.*\/datatest.*/d' /etc/fstab")
+
+    def _generate_password(self, password, hash, salt=''):
+        import crypt
+        if hash == 'md5':
+            crypt_type = '$1$'
+        elif hash == 'sha-256':
+            crypt_type = '$5$'
+        elif hash == 'sha-512':
+            crypt_type = '$6$'
+        else:
+            assert False, 'Unhandled hash option: {}'.format(hash)
+        # Generate a random salt
+        if salt == '':
+            with open('/dev/urandom', 'rb') as urandom:
+                while True:
+                    byte = urandom.read(1)
+
+                    if byte in (b'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+                                b'./0123456789'):
+                        salt += byte.decode("utf8","ignore")
+                        if len(salt) == 16:
+                            break
+        salt = crypt_type + salt
+        hashed = crypt.crypt(password, salt)
+        return hashed
+
+    def test_cloudinit_chpasswd_with_hashed_passwords(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_name:
+            test_cloudinit_chpasswd_with_hashed_passwords
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_chpasswd_with_hashed_passwords
+        component:
+            cloudinit
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+           chpasswd in cloud-init should support hashed passwords.
+        key_steps: |
+            1. Add 6 users in the VM
+            2. Add different passwords to /etc/cloud/cloud.conf.d/test_hash_passwords.cfg
+            3. Verify if cloud-init can handle these passwords
+        expect_result:
+            cloud-init can handle these passwords
+        debug_want:
+            N/A
+        """
+        for i in range(1, 7):
+            user = "test{}".format(str(i))
+            utils_lib.run_cmd(self, "sudo userdel -r {}".format(user))
+            utils_lib.run_cmd(self, "sudo useradd {}".format(user))
+            utils_lib.run_cmd(self, "sudo id {}".format(user), expect_ret=0, msg="Fail to create user {}".format(user))
+        # Run set_passwords module
+        base_pw = "RedHat@2019"
+        pw_config_dict = {
+            "test1": self._generate_password(base_pw, "md5"),
+            "test2": self._generate_password(base_pw, "sha-256"),
+            "test3": self._generate_password(base_pw, "sha-512"),
+            "test4": base_pw,
+            "test5": "R",
+            "test6": "RANDOM"
+        }
+        CONFIG='''\
+chpasswd:
+  list:
+    - test1:{test1}
+    - test2:{test2}
+    - test3:{test3}
+    - test4:{test4}'''.format(**pw_config_dict)
+        utils_lib.run_cmd(self,"echo '''%s''' | sudo tee /etc/cloud/cloud.cfg.d/test_hash_passwords.cfg" % CONFIG)
+        utils_lib.run_cmd(self, "sudo rm -f /var/lib/cloud/instance/sem/config_set_passwords /var/log/cloud-init*.log")
+        output = utils_lib.run_cmd(self, "sudo cloud-init single --name set_passwords")
+        test4_salt = utils_lib.run_cmd(self, "sudo getent shadow test4").split('$')[2]
+        shadow_dict = {
+            "test1": pw_config_dict['test1'],
+            "test2": pw_config_dict['test2'],
+            "test3": pw_config_dict['test3'],
+            "test4": "test4:{}:".format(self._generate_password(base_pw, "sha-512", test4_salt)),
+        }
+        for user in shadow_dict:
+            real = utils_lib.run_cmd(self, "sudo getent shadow {}".format(user))
+            expect = shadow_dict.get(user)
+            self.assertIn(expect, real,
+                "The {} password in /etc/shadow doesn't meet the expectation. Real:{} Expect:{}".format(user, real, expect))
+        #Move this step after checking test4 pwd
+        for line in output.split('\n'):
+            if "test5" in line:
+                test5_pw = line.split(':')[1]
+            elif "test6" in line:
+                test6_pw = line.split(':')[1]
+            elif "failed" in line:
+                self.fail("Failed to set password, analyze:  conpath = \"/dev/console\",wfh.flush(), OSError: [Errno 5] Input/output error; root cause:  should same with BZ2034588")
+        # From cloud-init-21.1-3.el8 or cloud-init-21.1-4.el9 the password should not in the output and cloud-init-output.log
+        if "test5_pw" in vars() or "test6_pw" in vars():
+            self.fail("Should not show random passwords in the output")
+
+    def test_cloudinit_check_default_config(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_name:
+            test_cloudinit_check_default_config
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_check_default_config
+        component:
+            cloudinit
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+           Check the cloud-init default config file /etc/cloud/cloud.cfg
+        key_steps: |
+            1. Verify default values in cloud.cfg
+        expect_result:
+            Default values in cloud.cfg correct
+        debug_want:
+            N/A
+        """
+        check_file = self.utils_dir + '/default_cloud.cfg'
+        check_file_tmp = '/tmp/default_cloud.cfg'
+        if self.params['remote_node'] is not None:
+            cmd = 'ls -l {}'.format(check_file_tmp)
+            ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='check if {} exists'.format(check_file))
+            if ret != 0:
+                self.log.info('Copy {} to remote'.format(check_file))
+                self.SSH.put_file(local_file=check_file, rmt_file=check_file_tmp)
+        else:
+            cmd = 'sudo cp -f {} {}'.format(check_file,check_file_tmp)
+            utils_lib.run_cmd(self, cmd)
+        diff = utils_lib.run_cmd(self, "diff /tmp/default_cloud.cfg /etc/cloud/cloud.cfg")
+        self.assertEqual(diff, '',
+            "Default cloud.cfg is changed:\n"+diff)
+
+    def test_cloudinit_lang_is_not_en_us_utf8(self):
+        """
+        case_tag:
+            cloud_utils_growpart,cloud_utils_growpart_tier2
+        case_name:
+            test_cloudinit_lang_is_not_en_us_utf8
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_lang_is_not_en_us_utf8
+        component:
+            cloudinit
+        bugzilla_id:
+            1885992
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+           Verify cloud-utils-growpart works well when LANG is not en_US.UTF-8
+        key_steps: |
+            1. Verify cloud-utils-growpart works well when LANG is not en_US.UTF-8
+        expect_result:
+            cloud-utils-growpart works well when LANG is not en_US.UTF-8
+        debug_want:
+            N/A
+        """
+        if(not self._get_test_disk()):
+            self.skipTest("test disk not found, provision VM should has at least 1 attached disk")
+        else:
+            test_disk = self._get_test_disk()
+        res = utils_lib.run_cmd(self, "LANG=cs_CZ.UTF-8 growpart %s -v -N" % test_disk)
+        self.assertNotIn("unexpected output", res, msg="BZ#1885992 growpart doesn't work when LANG=cs_CZ.UTF-8")
+
+    def test_cloudinit_mount_with_noexec_option(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_name:
+            test_cloudinit_mount_with_noexec_option
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_mount_with_noexec_option
+        component:
+            cloudinit
+        bugzilla_id:
+            1857309
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+           Verify cloud-init runs well when VM mounts /var/tmp with noexec option
+        key_steps: |
+            1. Mount /tmp /var/tmp with noexec option
+        expect_result:
+            cloud-init runs well when VM mounts /var/tmp with noexec option
+        debug_want:
+            N/A
+        """
+        # Mount /tmp /var/tmp with noexec option
+        utils_lib.run_cmd(self, "sudo dd if=/dev/zero of=/var/tmp.partition bs=1024 count=1024000")
+        utils_lib.run_cmd(self, "sudo /sbin/mke2fs /var/tmp.partition ")
+        utils_lib.run_cmd(self, "sudo mount -o loop,noexec,nosuid,rw /var/tmp.partition /tmp")
+        utils_lib.run_cmd(self, "sudo chmod 1777 /tmp")
+        utils_lib.run_cmd(self, "sudo mount -o rw,noexec,nosuid,nodev,bind /tmp /var/tmp")
+        utils_lib.run_cmd(self, "sudo echo '/var/tmp.partition /tmp ext2 loop,noexec,nosuid,rw 0 0' >> /etc/fstab")
+        utils_lib.run_cmd(self, "sudo echo '/tmp /var/tmp none rw,noexec,nosuid,nodev,bind 0 0' >> /etc/fstab")
+        utils_lib.run_cmd(self, "sudo rm -rf /var/lib/cloud/instance /var/lib/cloud/instances/* /var/log/cloud-init.log")
+        # Restart VM
+        self.vm.reboot(wait=True)
+        time.sleep(30)
+        utils_lib.init_connection(self, timeout=1200)
+        # Verify cloud-init.log
+        utils_lib.run_cmd(self, "sudo grep 'Permission denied' /var/log/cloud-init.log",expect_ret=1, msg="BZ#1857309. Should not have 'Permission denied'")
+
+    def test_cloudinit_no_networkmanager(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_name:
+            test_cloudinit_no_networkmanager
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_no_networkmanager
+        component:
+            cloudinit
+        bugzilla_id:
+            1898943
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Verify cloud-init works well if NetworkManager not installed
+        key_steps: |
+            Install network-scripts and remve NetworkManager then check cloud-init final service.
+        expect_result:
+            cloud-init final service works well
+        debug_want:
+            N/A
+        """
+        if float(self.rhel_x_version) >= 9.0:
+            self.skipTest('skip run this case, network-script is not be supported by rhel 9 any more')
+        utils_lib.is_pkg_installed(self,"network-scripts")
+        utils_lib.run_cmd(self, "sudo /usr/lib/systemd/systemd-sysv-install enable network")
+        # Remove ifcfg files other than eth0 and lo
+        utils_lib.run_cmd(self, "sudo rm -f $(find /etc/sysconfig/network-scripts/ifcfg-*|grep -vE '(eth0|lo)')")
+        utils_lib.run_cmd(self, "sudo systemctl start network", expect_ret=0, msg="Fail to start network.service")
+        utils_lib.run_cmd(self, "systemctl status network")
+        utils_lib.run_cmd(self, "yum remove -y NetworkManager", timeout=300)
+        utils_lib.run_cmd(self, "rpm -q NetworkManager", expect_ret=0, msg="Fail to remove NetworkManager")
+        utils_lib.run_cmd(self, "rm -rf /var/lib/cloud/instance /var/lib/cloud/instances/* /var/log/cloud-init.log")
+        # Restart VM and verify connection
+        self.vm.reboot(wait=True)
+        time.sleep(30)
+        utils_lib.init_connection(self, timeout=1200)
+        res = utils_lib.run_cmd(self, "sudo systemctl status cloud-final")
+        self.assertIn("active (exited)", res, "cloud-final.service status is not active (exited)")
+        utils_lib.run_cmd(self, "sudo subscription-manager unregister")
 
     def tearDown(self):
         if 'test_cloudinit_sshd_keypair' in self.id():
