@@ -1044,11 +1044,11 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl -b 0", match_word_
                       rmt_get_pty=rmt_get_pty)
 
     for keyword in log_keyword.split(','):
-        ret = find_word(test_instance, out, keyword, baseline_dict=baseline_dict, skip_words=skip_words)
+        ret, msg = find_word(test_instance, out, keyword, baseline_dict=baseline_dict, skip_words=skip_words)
         if not ret and baseline_dict is not None:
-            test_instance.fail("New {} in {} log".format(keyword, check_cmd))
+            test_instance.fail("New {} in {} log\n{}".format(keyword, check_cmd, '\n'.join(msg)))
         elif not ret:
-            test_instance.fail("Found {} in {} log!".format(keyword, check_cmd))
+            test_instance.fail("Found {} in {} log!\n{}".format(keyword, check_cmd, '\n'.join(msg)))
         else:
             test_instance.log.info("No unexpected {} in {} log!".format(keyword, check_cmd))
 
@@ -1119,6 +1119,7 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
     fail_rate = 70
     no_fail = True
     check_done = False
+    msg = []
     for line1 in tmp_list:
         find_it = False
         if baseline_dict is not None:
@@ -1190,9 +1191,10 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
         if not find_it:
             test_instance.log.info("This is a new exception!")
             test_instance.log.info("{}".format(line1))
+            msg.append(line1)
             no_fail = False
 
-    return no_fail
+    return no_fail, msg
 
 def get_product_id(test_instance):
     cmd = "source /etc/os-release ;echo $VERSION_ID"
