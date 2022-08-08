@@ -119,7 +119,7 @@ class GCPVM(VMResource):
         self.vm_username = params['VM'].get('username')
         self.vm_password = params['VM'].get('password')
 
-        self.arch = 'x86_64'
+        self.arch = params.get('Flavor').get('arch')
 
     @property
     def data(self):

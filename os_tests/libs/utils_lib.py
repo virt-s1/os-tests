@@ -1106,7 +1106,7 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
     tmp_list = re.findall('.*%s.*' % log_keyword, check_str, flags=re.I)
     if len(tmp_list) == 0:
         test_instance.log.info("No %s found!", log_keyword)
-        return True
+        return True, []
     else:
         test_instance.log.info("%s found!", log_keyword)
     if skip_words is not None:
@@ -1114,7 +1114,7 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
             tmp_list = [x for x in tmp_list if skip_word not in x]
     if len(tmp_list) == 0:
         test_instance.log.info("No {} found after skipped {}!".format(log_keyword, skip_words))
-        return True
+        return True, []
     # compare 2 string, if similary over fail_rate, consider it as same.
     fail_rate = 70
     no_fail = True
