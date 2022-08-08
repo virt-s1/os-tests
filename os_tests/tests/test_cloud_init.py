@@ -1124,7 +1124,7 @@ EOF""".format(device, size), expect_ret=0)
         key_steps:
         """
         if self.vm.provider != 'openstack':
-            self.skipTest('skip run as this needs to configure user-date, configured on openstack')
+            self.skipTest('skip run as this needs to configure user-data, configured on openstack')
         cmd = 'sudo cat /var/log/messages'
         utils_lib.run_cmd(self, 
                           cmd, 
@@ -1643,10 +1643,13 @@ EOF""".format(device, size), expect_ret=0)
             1. Create a VM with only password authentication
             2. Login with password, should have sudo privilege
         """
+        if not self.vms:
+            self.skipTest("No vm found")
         if self.vm.provider == 'nutanix':
             self.skipTest('skip run as nutanix test this in case test_cloudinit_login_with_password')
-        self.log.info(
-            "RHEL7-103830 - CLOUDINIT-TC: VM can login with password authentication")
+        for attrname in ['vm_password', 'keypair']:
+            if not hasattr(self.vm, attrname):
+                self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
         if self.vm.exists():
             self.vm.delete()
             time.sleep(30)
@@ -1780,8 +1783,6 @@ ssh_pwauth: 1
             # systemd-analyze blame
             4. The boot time should be less than 50s, cloud-init services startup time should less than 18s
         """
-        self.log.info(
-            "RHEL-189580 - CLOUDINIT-TC: Check VM first launch boot time and cloud-init startup time")
         max_boot_time = 60
         cloud_init_startup_time = 20
         if self.vm.exists():
@@ -1794,12 +1795,7 @@ ssh_pwauth: 1
         self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
         # check cloud-init status is done and services are active
-        self._check_cloudinit_done_and_service_isactive()
-        # Check boot time
-        boot_time_sec = utils_lib.getboottime(self)
-        self.assertLess(
-            float(boot_time_sec), float(max_boot_time), 
-            "First boot time is greater than {}".format(max_boot_time))        
+        self._check_cloudinit_done_and_service_isactive()      
         # Check cloud-init services time
         service_list = ['cloud-init-local.service',
                         'cloud-init.service',
@@ -1810,6 +1806,11 @@ ssh_pwauth: 1
             self.assertLess(
                 float(service_time_sec), float(cloud_init_startup_time), 
                 "{0} startup time is greater than {1}".format(service, cloud_init_startup_time))
+        # Check overal boot time
+        boot_time_sec = utils_lib.getboottime(self)
+        self.assertLess(
+            float(boot_time_sec), float(max_boot_time), 
+            "First boot time is greater than {}".format(max_boot_time))  
 
     def test_cloudinit_reboot_time(self):
         """
@@ -1831,17 +1832,10 @@ ssh_pwauth: 1
             # systemd-analyze blame
             4. The reboot time should be less than 30s, cloud-init services startup time should less than 5s
         """
-        self.log.info(
-            "RHEL-282359 - CLOUDINIT-TC: Check VM subsequent boot time and cloud-init startup time")
-        max_boot_time = 30
+        max_boot_time = 40
         cloud_init_startup_time = 5
         # Reboot VM
         self._reboot_inside_vm()
-        # Check boot time
-        boot_time_sec = utils_lib.getboottime(self)
-        self.assertLess(
-            float(boot_time_sec), float(max_boot_time), 
-            "First boot time is greater than {}".format(max_boot_time))
         # Check cloud-init services time
         service_list = ['cloud-init-local.service',
                         'cloud-init.service',
@@ -1852,6 +1846,11 @@ ssh_pwauth: 1
             self.assertLess(
                 float(service_time_sec), float(cloud_init_startup_time), 
                 "{0} startup time is greater than {1}".format(service, cloud_init_startup_time))
+        # Check overall boot time
+        boot_time_sec = utils_lib.getboottime(self)
+        self.assertLess(
+            float(boot_time_sec), float(max_boot_time), 
+            "Reboot time is greater than {}".format(max_boot_time))
 
     def test_cloudinit_disable_cloudinit(self):        
         """
@@ -2319,6 +2318,9 @@ rh_subscription:
         debug_want:
             N/A
         """
+        for attrname in ['subscription_username', 'subscription_password']:
+            if not hasattr(self.vm, attrname):
+                self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
         CONFIG='''rh_subscription:
     username: {}
     password: {}
@@ -2556,29 +2558,19 @@ chpasswd:
             N/A
         maintainer:
             minl@redhat.com
-        description:
-           Check the cloud-init default config file /etc/cloud/cloud.cfg
+        description: |
+           Check the cloud-init default config file /etc/cloud/cloud.cfg is not changed.
+           It is recommended to add specific setting to /etc/cloud/cloud.cfg.d instead of 
+           changing /etc/cloud/cloud.cfg directly.
         key_steps: |
-            1. Verify default values in cloud.cfg
+            1. rpm -V cloud-init
         expect_result:
-            Default values in cloud.cfg correct
+            No change in cloud.cfg
         debug_want:
             N/A
         """
-        check_file = self.utils_dir + '/default_cloud.cfg'
-        check_file_tmp = '/tmp/default_cloud.cfg'
-        if self.params['remote_node'] is not None:
-            cmd = 'ls -l {}'.format(check_file_tmp)
-            ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='check if {} exists'.format(check_file))
-            if ret != 0:
-                self.log.info('Copy {} to remote'.format(check_file))
-                self.SSH.put_file(local_file=check_file, rmt_file=check_file_tmp)
-        else:
-            cmd = 'sudo cp -f {} {}'.format(check_file,check_file_tmp)
-            utils_lib.run_cmd(self, cmd)
-        diff = utils_lib.run_cmd(self, "diff /tmp/default_cloud.cfg /etc/cloud/cloud.cfg")
-        self.assertEqual(diff, '',
-            "Default cloud.cfg is changed:\n"+diff)
+        utils_lib.run_cmd(self, 'cat /etc/cloud/cloud.cfg')
+        utils_lib.run_cmd(self, 'rpm -V cloud-init', expect_not_kw='/etc/cloud/cloud.cfg')
 
     def test_cloudinit_lang_is_not_en_us_utf8(self):
         """
