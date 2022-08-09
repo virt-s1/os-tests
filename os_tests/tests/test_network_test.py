@@ -4,7 +4,7 @@ import time
 import random
 
 from os_tests.libs import utils_lib
-from os_tests.libs.utils_lib import run_cmd, init_connection
+from os_tests.libs.utils_lib import run_cmd
 
 class TestNetworkTest(unittest.TestCase):
     def setUp(self):
@@ -18,7 +18,7 @@ class TestNetworkTest(unittest.TestCase):
         for net in output.split('\n'):
             if len(net) < 3:
                 continue
-            cmd = "ping {} -c 6 -I {}".format(self.params.get('ping_server'), net)
+            cmd = "sudo ping {} -c 6 -I {}".format(self.params.get('ping_server'), net)
             ret = utils_lib.run_cmd(self, cmd, ret_status=True)
             if ret == 0:
                 self.nic = net
@@ -39,6 +39,11 @@ class TestNetworkTest(unittest.TestCase):
             self.SSH.interval = 60
         else:
             self.ssh_timeout = 180
+
+    @property
+    def rhel_x_version(self):
+        product_id = utils_lib.get_product_id(self)
+        return int(product_id.split('.')[0])
 
     def test_ethtool_G(self):
         '''
@@ -525,6 +530,7 @@ COMMIT
         '''
         Add remove multi nics according to specific parameters.
         '''
+        self.log.info("Enter _test_add_remove_multi_nics procedure")
         #record origin nic's mac and name
         origin_nic_name = utils_lib.run_cmd(self, "ls /sys/class/net/ | grep -v lo").strip()
         origin_nic_mac = utils_lib.run_cmd(self, "cat /sys/class/net/%s/address" % origin_nic_name).strip()
@@ -592,7 +598,7 @@ COMMIT
     def test_add_remove_multi_virtio_no_ip_spec(self):
         """
         case_tag:
-            Network
+            Network,Network_tier1
         case_name:
             test_add_remove_multi_virtio_no_ip_spec
         case_file:
@@ -625,7 +631,7 @@ COMMIT
     def test_add_remove_multi_virtio_ip_spec(self):
         """
         case_tag:
-            Network
+            Network,Network_tier1
         case_name:
             test_add_remove_multi_virtio_ip_spec
         case_file:
@@ -658,7 +664,7 @@ COMMIT
     def test_add_remove_multi_e1000_nic(self):
         """
         case_tag:
-            Network
+            Network,Network_tier1
         case_name:
             test_add_remove_multi_e1000_nic
         case_file:
@@ -688,6 +694,7 @@ COMMIT
         self._test_add_remove_multi_nics(2, self.vm.private_network_uuid, self.vm.private_network_subnet, 'e1000')
 
     def _test_unload_load_nic_driver(self, driver):
+        self.log.info("Enter _test_unload_load_nic_driver procedure")
         #record the first nic
         origin_nic_name = utils_lib.run_cmd(self, "ls /sys/class/net/ | grep -v lo").strip()
         origin_nic_mac = utils_lib.run_cmd(self, "cat /sys/class/net/%s/address" % origin_nic_name).strip()
@@ -712,10 +719,20 @@ COMMIT
         new_nic_name = utils_lib.run_cmd(self, "ls /sys/class/net/ | grep -v lo").strip()
         self.assertEqual(origin_nic_name, new_nic_name, msg="Second nic name changed after unload/load nic driver three times, Expect: %s, real: %s" % (origin_nic_name, new_nic_name))
 
+    def _create_vm1(self):
+        self.vm.create(vm_name='ScriptCreateVM1')
+        vm1 = self.vm.get_vm_by_filter('vm_name', 'ScriptCreateVM1')
+        self.vms.append(vm1)
+        self.vm.prism.start_vm(vm1['uuid'])
+        time.sleep(60)
+        self.vm.vm1_ip = self.vms[1]['vm_nics'][0]['ip_address']
+        self.log.info("IP of new created VM is %s " % self.vm.vm1_ip)
+        return vm1
+
     def test_ping_arp_ping(self):
         """
         case_tag:
-            Network
+            Network,Network_tier2
         case_name:
             test_ping_arp_ping
         case_file:
@@ -740,51 +757,82 @@ COMMIT
         debug_want:
             N/A
         """
-        dest_ip = self.vms[0].floating_ip
+        nic_name = utils_lib.run_cmd(self, "ls /sys/class/net/ | grep -v lo").strip()
         if len(self.vms) == 1:
-            self.vm.create(vm_name='ScriptCreateVM1')
-            vm1 = self.vm.get_vm_by_filter('vm_name', 'ScriptCreateVM1')
-            self.vms.append(vm1)
-            self.vm.prism.start_vm(vm1['uuid'])
-        for nic in vm1.get('vm_nics'):
-            if nic['network_uuid'] == self.vm.network_uuid:
-                VM1_ip = nic['ip_address']
-        init_connection(self, timeout=self.ssh_timeout, rmt_node=VM1_ip)
-        vm1_nic_name = utils_lib.run_cmd(self, "ls /sys/class/net/ | grep -v lo", rmt_node=VM1_ip).strip()
-        utils_lib.run_cmd(self, 'arping -I %s %s -c 2' % (vm1_nic_name, dest_ip), rmt_node=VM1_ip) #To avoid broadcast packet in the first time.
-        utils_lib.run_cmd(self, 'arping -I %s %s -c 10' % (vm1_nic_name, dest_ip), rmt_node=VM1_ip, expect_kw='Received 10 response')
-        utils_lib.run_cmd(self, 'sudo ping -f %s -c 600' % (dest_ip), rmt_node=VM1_ip, expect_kw='0% packet loss')
-        #tear down - delete cloned VM
-        self.vm.prism.delete_vm(vm1['uuid'])
+            self._create_vm1()
+        arp_result = utils_lib.run_cmd(self, 'arping -I %s %s -c 10' % (nic_name, self.vm.vm1_ip))
+        arp_response = int(re.search('Received\s+(\d+)\s+response', arp_result, re.I).groups()[0])
+        self.assertAlmostEqual(first=int(arp_response), second=10, delta=1, msg='check arping response error, expect:%s, real:%s')
+        utils_lib.run_cmd(self, 'sudo ping -f %s -c 2' % (self.vm.vm1_ip), expect_ret=0)
+        utils_lib.run_cmd(self, 'sudo ping -f %s -c 600' % (self.vm.vm1_ip), expect_kw='0% packet loss')
 
     def test_iperf(self):
         """
-        a simple case to run iperf between 2 nodes
+        case_tag:
+            Network,Network_tier2
+        case_name:
+            test_iperf
+        case_file:
+            os_tests.tests.test_netwrok_test.TestNetworkTest.test_iperf
+        component:
+            network
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Test arping and ping -f between guests.
+        key_steps: |
+            1. Create 1 more guest.
+            2. Test arping and ping -f between guests.
+        expect_result:
+            No package lost
+        debug_want:
+            N/A
         """
+        if self.vm.provider == 'nutanix':
+            if len(self.vm.prism.list_hosts_detail()["entities"])==1:
+                self.skipTest('Need to test between VMs on different hosts')
+        if len(self.vms) == 1:
+            self._create_vm1()
+        vm1_host_uuid = self.vm.prism.get_vm_by_uuid(self.vms[1]['uuid'])['host_uuid']
+        if self.vms[0].vm_host_uuid() == vm1_host_uuid:
+            self.log.info('vm1 host uuid %s is different with vm2: %s, do migration' % (self.vms[0].vm_host_uuid(), vm1_host_uuid))
+            self.vm.migrate()
+        self.log.info('Install iperf3 on vm[0]')
+        utils_lib.is_cmd_exist(self,"iperf3")
+        self.log.info('Install iperf3 on vm[1]')
+        utils_lib.init_connection(self, timeout=180, rmt_node=self.vm.vm1_ip)
+        utils_lib.run_cmd(self, "sudo yum install -y iperf3", expect_ret=0, timeout=180, rmt_node=self.vm.vm1_ip)
+        self.log.info('Start iperf testing')
         iperf_srv_cmd = 'sudo bash -c "iperf3 -s >/dev/null 2>&1 &"'
-        if self.vms:
-            if not self.vms[1].exists():
-                self.vms[1].create()
-                if self.vms[1].is_stopped():
-                    self.vms[1].start(wait=True)
-            init_connection(self, timeout=self.ssh_timeout, vm=self.vms[1])
-            self.params['remote_nodes'].append(self.vms[1].floating_ip)
-            run_cmd(self, iperf_srv_cmd, vm=self.vms[1])
-        elif not self.vms and self.params['remote_nodes']:
-            init_connection(self, timeout=self.ssh_timeout, rmt_node=self.params['remote_nodes'][1])
-            run_cmd(self, iperf_srv_cmd, rmt_node=self.params['remote_nodes'][1])
-        else:
-            self.skipTest('2 nodes required')
+        utils_lib.run_cmd(self, iperf_srv_cmd, rmt_node=self.vm.vm1_ip)
         cmd = "ip addr show {}".format(self.nic)
-        output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to get {} ipv4 address'.format(self.nic),rmt_node=self.params['remote_nodes'][-1])
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to get {} ipv4 address'.format(self.nic), rmt_node=self.vm.vm1_ip)
         srv_ipv4 = re.findall('[\d.]{7,16}', output)[0]
         iperf_cli_cmd = 'iperf3 -c {} -t 60'.format(srv_ipv4)
-        run_cmd(self, iperf_cli_cmd, expect_ret=0, timeout=120)
+        res = utils_lib.run_cmd(self, iperf_cli_cmd, expect_ret=0, timeout=120)
+        if not re.search('(\d+)\s+Mbits/sec.+sender', res):
+            res = utils_lib.run_cmd(self, iperf_cli_cmd, expect_ret=0, timeout=120)
+        send_speed = re.search('(\d+)\s+Mbits/sec.+sender', res).group().split()[0]
+        receive_speed = re.search('(\d+)\s+Mbits/sec.+receiver', res).group().split()[0]
+        for speed in [send_speed, receive_speed]:
+            self.assertAlmostEqual(
+            first=int(speed),
+            second=1000,
+            delta=500,
+            msg="Gap is two much between actural speed and expect speed. Expect: %s, real: %s" %(1000, speed)
+        )
+
 
     def test_unload_load_virtio(self):
         """
         case_tag:
-            Network
+            Network,Network_tier1
         case_name:
             test_unload_load_virtio
         case_file:
@@ -815,7 +863,7 @@ COMMIT
     def test_unload_load_e1000(self):
         """
         case_tag:
-            Network
+            Network,Network_tier1
         case_name:
             test_unload_load_e1000
         case_file:
@@ -848,7 +896,7 @@ COMMIT
     def test_ethtool_K_offload(self):
         """
         case_tag:
-            Network
+            Network,Network_tier2
         case_name:
             test_ethtool_K_offload
         case_file:
@@ -1016,7 +1064,6 @@ COMMIT
                 cmd = 'fi_info -p efa'
                 utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw="provider: efa", msg='Check the Libfabric EFA interfaces')
             
-   
     def test_load_unload_efa_driver(self):
         """
         case_tag:
@@ -1067,11 +1114,118 @@ COMMIT
             if ret == 0:
                 self.log.info('efa driver is loaded successfully')
 
+    def test_scp_mtu_9000(self):
+        """
+        case_tag:
+            Network,Network_tier2
+        case_name:
+            test_scp_mtu_9000
+        case_file:
+            os_tests.tests.test_netwrok_test.TestNetworkTest.test_scp_mtu_9000
+        component:
+            Network
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Test SCP a large file (size 5G) with MTU = 9000.
+        key_steps:
+            SCP a large file (size 5G) with MTU = 9000.
+        expect_result:
+            SCP a large file (size 5G) with MTU = 9000 successful.
+        debug_want:
+            N/A
+        """
+        for attrname in ['host_ip']:
+            if not hasattr(self.vm, attrname):
+                self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
+        #change vm's mtu
+        vm_host_ip = self.vm.host_ip
+        self.log.info("vm host ip is %s" %vm_host_ip)
+        host_mtu_check = utils_lib.send_ssh_cmd(vm_host_ip, self.vm.host_username, self.vm.host_password, "ifconfig | grep 9000")
+        if 'mtu 9000' not in host_mtu_check[1]:
+            self.skipTest("MTU of the vm host is not 9000")
+        utils_lib.is_pkg_installed(self,"net-tools")
+        nic_name = utils_lib.run_cmd(self, "ls /sys/class/net/ | grep -v lo").strip()
+        utils_lib.run_cmd(self, 'sudo ifconfig %s mtu 9000' % nic_name, expect_ret=0)
+        if len(self.vms) == 1:
+            self._create_vm1()
+        vm1_host_uuid = self.vm.prism.get_vm_by_uuid(self.vms[1]['uuid'])['host_uuid']
+        if self.vms[0].vm_host_uuid() != vm1_host_uuid:
+            self.log.info('vm1 host uuid %s is different with vm2: %s, do migration' % (self.vms[0].vm_host_uuid(), vm1_host_uuid))
+            self.vm.migrate(host_uuid=vm1_host_uuid, wait=True)
+        utils_lib.init_connection(self, timeout=180, rmt_node=self.vm.vm1_ip)
+        utils_lib.run_cmd(self, 'sudo yum install -y net-tools', rmt_node=self.vm.vm1_ip, timeout=180)
+        cmd="ls /sys/class/net/ | grep -v lo"
+        vm1_nic_name = utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.vm.vm1_ip).strip()
+        utils_lib.run_cmd(self, 'sudo ifconfig %s mtu 9000' % vm1_nic_name, expect_ret=0, rmt_node=self.vm.vm1_ip)
+        #create key
+        key_file_check = utils_lib.run_cmd(self, "ls ~/.ssh/id_rsa.pub")
+        if 'No such file or directory' in key_file_check:
+            utils_lib.run_cmd(self, "ssh-keygen -f ~/.ssh/id_rsa -N ''", expect_ret=0)
+        id_rsa_pub_key = utils_lib.run_cmd(self, 'cat ~/.ssh/id_rsa.pub')
+        utils_lib.run_cmd(self,"echo '''%s''' > ~/.ssh/authorized_keys" % id_rsa_pub_key, rmt_node=self.vm.vm1_ip)
+        utils_lib.run_cmd(self, 'dd if=/dev/zero of=5G.img bs=1M count=5222', timeout=600)
+        scp_cmd = 'scp -o StrictHostKeyChecking=no 5G.img {}@{}:~'.format(self.vm.vm_username, self.vm.vm1_ip)
+        utils_lib.run_cmd(self, scp_cmd, expect_ret=0, timeout=600)
+        file_size = int(utils_lib.run_cmd(self, "ls -l ~/5G.img | awk '{print $5}'", expect_ret=0).strip())/(1024*1024*1024)
+        self.assertAlmostEqual(first=5, second=file_size, delta=0.1, msg="Value of copied file is not right, Expect: 5, real: %s" % (file_size))
+
+    def test_pktgen_sh(self):
+        """
+        case_tag:
+            Network,Network_tier2
+        case_name:
+            test_pktgen_sh
+        case_file:
+            os_tests.tests.test_netwrok_test.TestNetworkTest.test_pktgen_sh
+        component:
+            Network
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Test pktgen script.
+        key_steps:
+            Run pktgen script.
+        expect_result:
+            All cases passed.
+        debug_want:
+            N/A
+        """
+        check_file = self.utils_dir + '/nw_pktgen.sh'
+        check_file_tmp = '/tmp/nw_pktgen.sh'
+        if self.params['remote_node'] is not None:
+            cmd = 'ls -l {}'.format(check_file_tmp)
+            ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='check if {} exists'.format(check_file))
+            if ret != 0:
+                self.log.info('Copy {} to remote'.format(check_file))
+                self.SSH.put_file(local_file=check_file, rmt_file=check_file_tmp)
+        else:
+            cmd = 'sudo cp -f {} {}'.format(check_file,check_file_tmp)
+            utils_lib.run_cmd(self, cmd)
+        utils_lib.run_cmd(self,"sudo chmod 755 %s" % check_file_tmp)
+        res = utils_lib.run_cmd(self,"sudo /tmp/nw_pktgen.sh %s" % self.rhel_x_version)
+        self.assertIn("INFO: Case passed", res, "nw_pktgen.sh check failed.")
 
     def tearDown(self):
         if 'test_mtu_min_max_set' in self.id():
             mtu_cmd = "sudo ip link set dev %s mtu %s" % (self.nic, self.mtu_old)
             utils_lib.run_cmd(self, mtu_cmd, expect_ret=0, msg='restore mtu')
+        if 'test_ping_arp_ping' in self.id() or 'test_iperf' in self.id() or 'test_scp_mtu_9000' in self.id():
+            if self.vm.provider == 'nutanix':
+                self.vm.prism.delete_vm(self.vms[1]['uuid'])
+                self.vms.pop()
         utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', skip_words='ftrace', cursor=self.dmesg_cursor)
 
 if __name__ == '__main__':

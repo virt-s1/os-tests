@@ -178,14 +178,16 @@ def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=N
             test_instance.SSHs[0] = ssh
     test_instance.SSH = test_instance.SSHs[0]
 
-def send_ssh_cmd(rmt_node, rmt_user, rmt_password, command):
+def send_ssh_cmd(rmt_node, rmt_user, rmt_password, command, timeout=60):
     ssh = rmt_ssh.RemoteSSH()
     ssh.rmt_node = rmt_node
     ssh.rmt_user = rmt_user
     ssh.rmt_password = rmt_password
     ssh.create_connection()
-    status, outputs = ssh.remote_excute(command)
+    status, outputs = ssh.remote_excute(command, timeout)
+    logging.info('\n command: %s \n status %s \n outputs %s \n' % (command, status, outputs))
     ssh.close()
+
     return [status,outputs]
 
 def get_cfg(cfg_file = None):

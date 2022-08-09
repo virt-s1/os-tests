@@ -260,7 +260,7 @@ runcmd:
             'machine_type': self.machine_type
         }
         return self.make_request(endpoint, 'post', data=data)
-       
+
     def create_vm_ISO_kickstart(self):
         logging.debug("Create VM by ISO kickstart")
         endpoint = urljoin(self.base_url, "vms")
@@ -633,7 +633,9 @@ class NutanixVM(VMResource):
         # VM parameters
         #self.vm_name = params.get('vm_name', '*/VM/*')
         self.vm_name = params['VM']['vm_name']
-
+        self.cpu = params['Flavor']['cpu']
+        self.memory = params['Flavor']['memory']
+        self.image_name = params['VM']['image_name']
         # VM access parameters
         #self.vm_username = params.get('username', '*/VM/*')
         self.vm_username = params['VM']['username']
@@ -656,6 +658,7 @@ class NutanixVM(VMResource):
         self.host_username = params['Credential']['host_username']
         self.host_password = params['Credential']['host_password']
         self.user_data = None
+        self.vm1_ip = ''
 
         self.prism = PrismApi(params)
 
@@ -755,6 +758,34 @@ class NutanixVM(VMResource):
                 res['task_uuid'], 60,
                 "Timed out waiting for server to get created.")
         self._data = None
+
+    def create_vm_by_acli(self, vm_name, memory, cores_per_vcpu, vcpus, if_uefi_boot, if_vtpm):
+        logging.info('Create VM by acli')
+        if self.prism.machine_type == 'q35':
+            cdrom_bus = 'sata'
+        else:
+            cdrom_bus = 'ide'
+        create_vm_cmd1 = 'acli vm.create %s memory=%s num_cores_per_vcpu=%s num_vcpus=%s uefi_boot=%s virtual_tpm=%s machine_type=%s' \
+            %(vm_name, memory, cores_per_vcpu, vcpus, if_uefi_boot, if_vtpm, self.prism.machine_type)
+        create_vm_cmd2 = 'acli vm.disk_create %s clone_from_image=%s' \
+            %(vm_name, self.image_name)
+        create_vm_cmd2_1 = 'acli vm.disk_create %s cdrom=true bus=%s clone_from_adsf_file=/%s/seed.iso' \
+            %(vm_name, cdrom_bus, self.prism.get_container()['name'])
+        create_vm_cmd3 = 'acli vm.nic_create %s connected=true network=%s request_ip=true' \
+            % (vm_name, self.network_uuid)
+        start_vm_cmd = 'acli vm.on %s' % vm_name
+        create_vm = self.cvm_cmd(create_vm_cmd1)
+        if 'Unknown keyword argument' in create_vm:
+            logging.error('There is an unknown keyword argument when create VM: \n' % create_vm)
+        elif not 'complete' in create_vm:
+            logging.error('Create VM not complete: \n %s' % create_vm)
+        for cmd, error_log in zip([create_vm_cmd2, create_vm_cmd2_1, create_vm_cmd3, start_vm_cmd], \
+            ['Attach disk not complete', 'Attach cd-rom not complete', 'Create NIC not complete', 'Start VM not complete']):
+            cmd_res = self.cvm_cmd(cmd)
+            if not 'complete' in cmd_res:
+                logging.error('%s \n %s' %(error_log, cmd_res))
+        vm = self.get_vm_by_filter('vm_name', vm_name)
+        return vm
 
     def delete(self, wait=True):
         logging.info("Delete VM")
