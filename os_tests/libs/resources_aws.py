@@ -71,6 +71,7 @@ class EC2VM(VMResource):
         self.is_created = False
         self.another_ip = None
         self.run_uuid = params.get('run_uuid')
+        self.user_data = '#!/bin/bash\nmkdir /tmp/userdata_{}'.format(self.run_uuid)
 
     def show(self):
         if self.is_exist():
@@ -146,7 +147,7 @@ class EC2VM(VMResource):
             'HibernationOptions':{
                 'Configured': self.hibernation_support
             },
-            "UserData":'#!/bin/bash\nmkdir /tmp/userdata_{}'.format(self.run_uuid)
+            "UserData":self.user_data
         }
         if self.efa_support:
             if enable_efa:
@@ -154,21 +155,28 @@ class EC2VM(VMResource):
             else:
                 LOG.info("efa is supported, but disable it as request")
         #vm_kwargs["EnclaveOptions"]["Enabled"] = True
-        if self.additionalinfo == None or self.additionalinfo == '':
-            try:
-                self.ec2_instance = self.resource.create_instances(**vm_kwargs)[0]
-                self.is_created = True
-            except ClientError as err:
-                LOG.error("Failed to create instance!")
-                self.is_createable = False
-                raise err
-            except Exception as err:
-                raise err
-        if self.additionalinfo != None and self.additionalinfo != '':
+        if not self.additionalinfo:
+            for i in range(0,2):
+                LOG.info("Create instance {}".format(vm_kwargs))
+                try:
+                    self.ec2_instance = self.resource.create_instances(**vm_kwargs)[0]
+                    self.is_created = True
+                    break
+                except Exception as err:
+                    LOG.error("Failed to create instance with error:{}".format(err))
+                    if 'UnsupportedHibernationConfiguration' in str(err):
+                        LOG.info("try to launch with hibernation disabled")
+                        self.hibernation_support = False
+                        vm_kwargs["HibernationOptions"]['Configured'] = self.hibernation_support
+                        continue
+                    raise err
+            if not self.is_created:
+                raise Exception("Cannot create instance")
+        if self.additionalinfo:
             for additionalinfo in self.additionalinfo.split(';'):
                 try:
-                    LOG.error("Create instance with AdditionalInfo: {}".format(additionalinfo))
                     vm_kwargs['AdditionalInfo'] = additionalinfo
+                    LOG.info("Create instance {}".format(vm_kwargs))
                     self.ec2_instance = self.resource.create_instances(**vm_kwargs)[0]
                     self.is_created = True
                 except Exception as err:
@@ -176,7 +184,7 @@ class EC2VM(VMResource):
                 if self.is_created:
                     break
             if not self.is_created:
-                raise 'Cannot create'
+                raise Exception("Cannot create instance")
         if wait:
             try:
                 self.ec2_instance.wait_until_running()
@@ -200,6 +208,13 @@ class EC2VM(VMResource):
             return None
         LOG.info("Public ip is: %s" % self.ipv4)
         return self.ipv4
+
+    @property
+    @utils_lib.wait_for(not_ret=None, ck_not_ret=True, timeout=120)
+    def vm_name(self):
+        self.ec2_instance.reload()
+        LOG.info("private_dns_name is: {}".format(self.ec2_instance.private_dns_name))
+        return self.ec2_instance.private_dns_name
 
     @property
     @utils_lib.wait_for(not_ret=None, ck_not_ret=True, timeout=120)
