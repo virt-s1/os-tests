@@ -115,48 +115,57 @@ def init_ssh(params=None, timeout=600, interval=10, log=None, rmt_node=None):
     ssh.timeout = timeout
     ssh.interval = interval
     ssh.create_connection()
-    if ssh.ssh_client is not None:
-        return ssh
-    return None
+    return ssh
 
 def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=None):
     if not test_instance.params['remote_node'] and not rmt_node and not vm:
         return
+    new_vm_ip = None
     if test_instance.vm:
         new_vm_ip =  test_instance.vm.floating_ip
         if new_vm_ip != test_instance.params['remote_node']:
             test_instance.params['remote_node'] = new_vm_ip
             test_instance.params['remote_nodes'][0] = new_vm_ip
             test_instance.log.info("set default remote_node to new address {}".format(test_instance.params['remote_node']))
+        if test_instance.SSH and test_instance.SSH.rmt_node != new_vm_ip:
+            test_instance.log.info("main vm ip changed, remove existing connection")
+            test_instance.SSHs.remove(test_instance.SSH)
     rmt_node = rmt_node or test_instance.params['remote_node'] or None
     if vm:
         if hasattr(vm, 'floating_ip'):
             rmt_node = vm.floating_ip
-    test_instance.log.info("remote_node found, all tests will run in {}".format(rmt_node))
+    test_instance.log.info("remote_node found, init connection {}".format(rmt_node))
     ssh_exists = False
+    is_active = False
     try:
         ssh_num = 0
         for i, ssh in enumerate(test_instance.SSHs):
             ssh.log = test_instance.log
+            if ssh.rmt_node == new_vm_ip:
+                test_instance.SSH = ssh
             if ssh.rmt_node == rmt_node:
                 ssh_exists = True
                 ssh_num = i
                 ret, _, _ = ssh.cli_run(cmd='uname -r')
                 if ret == 0:
                     test_instance.log.info("connection is live")
-                    test_instance.SSH = test_instance.SSHs[0]
-                    return
+                    is_active = True
                 break
+        test_instance.SSHs[0] = test_instance.SSH
+        if is_active:
+            return
     except AttributeError:
         pass
     except Exception:
         test_instance.log.info("connection is not live")
     if ssh_exists:
         test_instance.log.info("found exists dead connection, re-connect")
-        test_instance.SSHs[i].create_connection()
-        return
-    ssh = init_ssh(params=test_instance.params, timeout=timeout, interval=interval, log=test_instance.log, rmt_node=rmt_node)
-    if not ssh:
+        test_instance.SSHs[ssh_num].create_connection()
+        ssh = test_instance.SSHs[ssh_num]
+    else:
+        ssh = init_ssh(params=test_instance.params, timeout=timeout, interval=interval, log=test_instance.log, rmt_node=rmt_node)
+        test_instance.SSHs.append(ssh)
+    if not ssh.ssh_client:
         if vm:
             try:
                 vm.get_console_log()
@@ -168,14 +177,6 @@ def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=N
             except NotImplementedError:
                 test_instance.log.info("{} not implement this func: get_console_log".format(test_instance.vm.provider))
         test_instance.fail("Cannot make ssh connection to remote, please check")
-    test_instance.SSHs.append(ssh)
-    if len(test_instance.SSHs) == 1:
-        test_instance.SSH = test_instance.SSHs[0]
-        return
-    if test_instance.vm and test_instance.SSH.rmt_node != new_vm_ip:
-        if rmt_node == new_vm_ip:
-            test_instance.SSH = ssh
-            test_instance.SSHs[0] = ssh
     test_instance.SSH = test_instance.SSHs[0]
 
 def send_ssh_cmd(rmt_node, rmt_user, rmt_password, command):
@@ -260,21 +261,25 @@ def init_case(test_instance):
     if test_instance.vm:
         if not test_instance.vm.exists():
             test_instance.vm.create()
-            if test_instance.vm.is_stopped():
-                test_instance.vm.start(wait=True)
+        if test_instance.vm.is_stopped():
+            test_instance.vm.start(wait=True)
         floating_ip = test_instance.vm.floating_ip
+        if test_instance.params['remote_node'] and floating_ip != test_instance.params['remote_node']:
+            if test_instance.params['remote_node'] in test_instance.params['remote_nodes']:
+                test_instance.params['remote_nodes'].remove(test_instance.params['remote_node'])
         test_instance.params['remote_node'] = floating_ip
-        test_instance.params['remote_port'] = test_instance.vm.port or 22
         if floating_ip not in test_instance.params['remote_nodes']:
             test_instance.params['remote_nodes'].append(floating_ip)
+        test_instance.params['remote_port'] = test_instance.vm.port or 22
 
     if test_instance.is_rmt:
         init_connection(test_instance)
         if not test_instance.params['remote_node']:
-            test_instance.skipTest("remote_node not found")
-        test_instance.SSH.log = test_instance.log
-        if  test_instance.SSH.ssh_client is None:
-            test_instance.fail("Cannot make ssh connection to remote, please check")
+            test_instance.fail("remote_node not found")
+        if test_instance.SSH:
+            test_instance.SSH.log = test_instance.log
+            if  not test_instance.SSH.ssh_client:
+                test_instance.fail("Cannot make ssh connection to remote, please check")
     node_info = "{}/node_info".format(attachment_dir)
     node_info_data = {}
     if not os.path.exists(node_info):
@@ -511,7 +516,7 @@ def run_cmd(test_instance,
             test_instance.log.error("Run cmd failed again {}".format(err))
     if status is None and test_instance.vms:
         for vm in test_instance.vms:
-            if rmt_node == vm.floating_ip:
+            if vm.exists() and rmt_node == vm.floating_ip:
                 try:
                     test_instance.vm.get_console_log()
                 except NotImplementedError:

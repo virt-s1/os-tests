@@ -38,6 +38,7 @@ def main():
     if vms:
         is_rmt = True
         cfg_data['remote_nodes'] = []
+        cfg_data['remote_node'] = None
         cfg_data['remote_user'] = args.remote_user
         cfg_data['remote_password'] = args.remote_password
         cfg_data['remote_keyfile'] = args.remote_keyfile
