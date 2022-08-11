@@ -531,7 +531,14 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         # 2. Check os disk and fs capacity
         boot_dev = self._get_boot_temp_devices()
         dev_size = utils_lib.run_cmd(self, "lsblk /dev/{0} --output NAME,SIZE -r |grep -o -P '(?<={0} ).*(?=G)'".format(boot_dev))
-        os_disk_size = int(self.vm.show()['vm_disk_info'][0]['size'])/(1024*1024*1024)
+        is_support = True
+        try:
+            os_disk_size = int(self.vm.show()['vm_disk_info'][0]['size'])/(1024*1024*1024)
+        except Exception as err:
+            is_support = False
+            self.log.info(err)
+        if not is_support:
+            self.skipTest("This might not be supported in your platform to get vm_disk_info")
         self.assertAlmostEqual(
             first=float(dev_size),
             second=float(os_disk_size),
@@ -928,7 +935,6 @@ EOF""".format(device, size), expect_ret=0)
         self.vm.create(single_nic=False, wait=True)
         self.vm.start(wait=True)
         time.sleep(30)
-        self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
         ip_list_vm = utils_lib.run_cmd(self,
             "ip addr|grep -Po 'inet \\K.*(?=/)'|grep -v '127.0.0.1'").strip().split('\n')
@@ -946,7 +952,6 @@ EOF""".format(device, size), expect_ret=0)
         self.vm.create(wait=True)
         self.vm.start(wait=True)
         time.sleep(30)
-        self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
 
     def test_cloudinit_login_with_publickey(self):
@@ -1402,7 +1407,7 @@ EOF""".format(device, size), expect_ret=0)
         self._verify_authorizedkeysfile(".ssh/authorized_keys")
         # Check ~/.ssh authority is correct, bug 1995840
         self.assertEqual(
-            "drwx------. cloud-user cloud-user",
+            "drwx------. {0} {0}".format(self.vm.vm_username),
             utils_lib.run_cmd(self,
                 "ls -ld /home/%s/.ssh | awk '{print $1,$3,$4}'" %(self.vm.vm_username)).rstrip('\n'),
             "The authority .ssh is wrong!")
@@ -1481,10 +1486,8 @@ EOF""".format(device, size), expect_ret=0)
             2. Check /var/log/cloud-init.log
             cloud-init should config static ip route via "ip route append" 
         """
-        if self.vm.provider == 'nutanix':
-            self.skipTest('skip run for nutanix platform on which there is no ip route append command')
-        self.log.info(
-            "RHEL-288020 - CLOUDINIT-TC: Check ip route append when config static ip route")
+        if self.vm.provider in ['nutanix','aws']:
+            self.skipTest('skip run on {} platform which there is no ip route append command used'.format(self.vm.provider))
         cmd = 'cat /var/log/cloud-init.log | grep append'
 
         utils_lib.run_cmd(self,
@@ -1596,7 +1599,6 @@ EOF""".format(device, size), expect_ret=0)
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
-        self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
         output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
         self.assertEqual(
@@ -1623,7 +1625,6 @@ EOF""".format(device, size), expect_ret=0)
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
-        self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
 
     def test_cloudinit_login_with_password_userdata(self):
@@ -1681,7 +1682,6 @@ ssh_pwauth: 1
         self.vm.user_data = save_userdata
         self.vm.create()
         time.sleep(30)
-        self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
 
     def _reboot_inside_vm(self):       
@@ -1726,7 +1726,13 @@ ssh_pwauth: 1
                           msg='check if there is dns information in /etc/resolv.conf')
         #get network dns information
         output = utils_lib.run_cmd(self, 'cloud-init query ds.network_json.services').rstrip('\n')
-        services = json.loads(output)
+        is_support = True
+        try:
+            services = json.loads(output)  
+        except Exception:
+            is_support = False
+        if not is_support:
+            self.skipTest("Unable to load output as json, might be not supported.{}".format(output))
         for service in services:
             expect_dns_addr=service.get("address")
             utils_lib.run_cmd(self,
@@ -1792,8 +1798,8 @@ ssh_pwauth: 1
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
-        self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
+        boot_time_sec = utils_lib.getboottime(self)
         # check cloud-init status is done and services are active
         self._check_cloudinit_done_and_service_isactive()      
         # Check cloud-init services time
@@ -1807,7 +1813,6 @@ ssh_pwauth: 1
                 float(service_time_sec), float(cloud_init_startup_time), 
                 "{0} startup time is greater than {1}".format(service, cloud_init_startup_time))
         # Check overal boot time
-        boot_time_sec = utils_lib.getboottime(self)
         self.assertLess(
             float(boot_time_sec), float(max_boot_time), 
             "First boot time is greater than {}".format(max_boot_time))  
@@ -1836,6 +1841,7 @@ ssh_pwauth: 1
         cloud_init_startup_time = 5
         # Reboot VM
         self._reboot_inside_vm()
+        boot_time_sec = utils_lib.getboottime(self)
         # Check cloud-init services time
         service_list = ['cloud-init-local.service',
                         'cloud-init.service',
@@ -1847,7 +1853,6 @@ ssh_pwauth: 1
                 float(service_time_sec), float(cloud_init_startup_time), 
                 "{0} startup time is greater than {1}".format(service, cloud_init_startup_time))
         # Check overall boot time
-        boot_time_sec = utils_lib.getboottime(self)
         self.assertLess(
             float(boot_time_sec), float(max_boot_time), 
             "Reboot time is greater than {}".format(max_boot_time))
@@ -1910,7 +1915,6 @@ ssh_pwauth: 1
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
-        self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
 
     def test_cloudinit_create_vm_two_nics(self):
@@ -1944,7 +1948,6 @@ ssh_pwauth: 1
             time.sleep(30)
         self.vm.create()
         time.sleep(30)
-        self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
         output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
         self.assertEqual(
@@ -1968,7 +1971,6 @@ ssh_pwauth: 1
         self.vm.second_nic_id = None
         self.vm.create()
         time.sleep(30)
-        self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
 
     def test_cloudinit_create_vm_stateless_ipv6(self):
@@ -1999,7 +2001,6 @@ ssh_pwauth: 1
             time.sleep(30)
         self.vm.create()
         time.sleep(30)
-        self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
         output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
         self.assertEqual(
@@ -2022,7 +2023,6 @@ ssh_pwauth: 1
         self.vm.second_nic_id = None
         self.vm.create()
         time.sleep(30)
-        self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
 
     def test_cloudinit_create_vm_stateful_ipv6(self):
@@ -2053,7 +2053,6 @@ ssh_pwauth: 1
             time.sleep(30)
         self.vm.create()
         time.sleep(30)
-        self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
         output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
         self.assertEqual(
@@ -2075,7 +2074,6 @@ ssh_pwauth: 1
         self.vm.second_nic_id = None
         self.vm.create()
         time.sleep(30)
-        self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
 
     def test_cloudinit_auto_install_package_with_subscription_manager(self):
@@ -2127,7 +2125,6 @@ packages:
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
-        self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
         # check login
         output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
@@ -2172,7 +2169,6 @@ packages:
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
-        self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
 
     def test_cloudinit_verify_rh_subscription_enablerepo_disablerepo(self):
@@ -2226,7 +2222,6 @@ rh_subscription:
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
-        self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
         # check login
         output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
@@ -2275,7 +2270,6 @@ rh_subscription:
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
-        self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=self.timeout)
 
     def _verify_rh_subscription(self, config):
@@ -2404,13 +2398,14 @@ rh_subscription:
         # Attach data disk
         if(not self._get_test_disk()):
             self.skipTest("test disk not found, provision VM should has at least 1 attached disk")
-        else:
-            test_disk = self._get_test_disk()
-        test_part = test_disk + "1"
+        test_disk = self._get_test_disk()
         utils_lib.run_cmd(self, "ls {}".format(test_disk), expect_ret=0, msg="check if there is attached disk to be tested.")
         utils_lib.run_cmd(self, "sudo parted {} rm 1 -s".format(test_disk))
         utils_lib.run_cmd(self, "sudo parted {} mklabel msdos -s".format(test_disk))
         utils_lib.run_cmd(self, "sudo parted {} mkpart primary xfs 1048k 4000M -s".format(test_disk))
+        cmd = " lsblk -l {}|grep part|sort|uniq|cut -f1 -d' '|head -n1".format(test_disk)
+        test_part = '/dev/' + utils_lib.run_cmd(self, cmd, expect_ret=0, msg='get test part')
+        test_part = test_part.strip('\n')
         utils_lib.run_cmd(self, "sudo mkfs.xfs {} -f".format(test_part))
         utils_lib.run_cmd(self, "sudo mkdir -p /datatest")
         utils_lib.run_cmd(self, "sudo mount {} /datatest".format(test_part))
@@ -2432,10 +2427,10 @@ swap:
         cmd = "grep 'Permission denied' /var/log/cloud-init-output.log"
         utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg="There are Permission denied logs in /var/log/cloud-init-output.log")
         #teardown
-        utils_lib.run_cmd(self, "swapoff /datatest/swap.img")
-        utils_lib.run_cmd(self, "umount /datatest")
-        utils_lib.run_cmd(self, "rm -rf /datatest")
-        utils_lib.run_cmd(self, "sed -i '/.*\/datatest.*/d' /etc/fstab")
+        utils_lib.run_cmd(self, "sudo swapoff /datatest/swap.img")
+        utils_lib.run_cmd(self, "sudo umount /datatest")
+        utils_lib.run_cmd(self, "sudo rm -rf /datatest")
+        utils_lib.run_cmd(self, "sudo bash -c \"sed -i '/.*\/datatest.*/d' /etc/fstab\"")
 
     def _generate_password(self, password, hash, salt=''):
         import crypt

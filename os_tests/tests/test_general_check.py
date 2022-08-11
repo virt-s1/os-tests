@@ -1848,8 +1848,10 @@ current_device"
             self.assertEqual('aws', virt_what_output.strip('\n'))
         elif utils_lib.is_metal(self):
             self.log.info("Found it is a bare metal system!")
-        elif utils_lib.is_aws(self) and utils_lib.is_arch(self, arch='aarch64'):
+        elif utils_lib.is_aws(self) and utils_lib.is_arch(self, arch='aarch64') and utils_lib.is_metal(self):
             self.assertEqual('aws', virt_what_output.strip('\n'))
+        elif utils_lib.is_aws(self) and utils_lib.is_arch(self, arch='aarch64') and not utils_lib.is_metal(self):
+            self.assertEqual('kvm\naws\n', virt_what_output)
         else:
             self.skipTest("Unknow hypervisor")
 

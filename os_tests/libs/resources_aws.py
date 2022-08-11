@@ -71,7 +71,7 @@ class EC2VM(VMResource):
         self.is_created = False
         self.another_ip = None
         self.run_uuid = params.get('run_uuid')
-        self.user_data = '#!/bin/bash\nmkdir /tmp/userdata_{}'.format(self.run_uuid)
+        self.user_data = '#!/bin/bash\nmkdir -p /tmp/userdata_{}'.format(self.run_uuid)
 
     def show(self):
         if self.is_exist():
