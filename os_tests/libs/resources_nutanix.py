@@ -718,7 +718,14 @@ class NutanixVM(VMResource):
             if host['uuid'] == self.data.get('host_uuid'):
                 cpu_num = host['num_cpu_sockets']
                 break
-        return cpu_num       
+        return cpu_num
+
+    def host_gpu_info(self):
+        self._data = None
+        for host in self.prism.list_hosts_detail()["entities"]:
+            if host['uuid'] == self.data.get('host_uuid'):
+                gpu_info = host['host_gpus']
+        return gpu_info   
 
     def vm_host_uuid(self):
         self._data = None
@@ -897,6 +904,11 @@ class NutanixVM(VMResource):
         mem_gb = (self.data.get('memory_mb') / 1024)
         return mem_gb
 
+    def get_vgpu_info(self):
+        self._data = None
+        vgpu_info = self.data.get('vm_gpus')
+        return vgpu_info
+
     def update_vcpu_num(self, vcpu_num_target):
         '''
         If target vCPU number is less than current, the key steps will be:
@@ -1032,6 +1044,48 @@ class NutanixVM(VMResource):
             for count in utils_lib.iterate_timeout(
                     60, "Timed out waiting for verify vnuma nodes number changing."):
                 if self.get_memory_vnuma() == vnuma_num_target:
+                    break
+
+    def assign_vgpu(self, device_name):
+        '''
+        Key steps:
+        1. Power off VM
+        2. Assign vgpu
+        3. Power on VM
+        '''
+        if self.is_started():
+            self.stop(wait=True)
+            
+        logging.info("Add vgpu to VM")
+        res = self.cvm_cmd("acli vm.gpu_assign %s gpu=%s" % (self.data.get('uuid'), device_name))
+        logging.info(res)
+        if "pending" in res.lower() and "cannot" not in res.lower():
+            logging.info("vGPU has assigned to VM successfully.")
+            self.start(wait=True)
+            for count in utils_lib.iterate_timeout(
+                    10, "Timed out waiting for verify vGPU assignment."):
+                if self.get_vgpu_info():
+                    break
+
+    def deassign_vgpu(self, device_name):
+        '''
+        Key steps:
+        1. Power off VM
+        2. Deassign vgpu
+        3. Power on VM
+        '''
+        if self.is_started():
+            self.stop(wait=True)
+            
+        logging.info("Add vgpu to VM")
+        res = self.cvm_cmd("acli vm.gpu_deassign %s gpu=%s" % (self.data.get('uuid'), device_name))
+        logging.info(res)
+        if "pending" in res.lower() and "cannot" not in res.lower():
+            logging.info("vGPU has deassigned from VM successfully.")
+            self.start(wait=True)
+            for count in utils_lib.iterate_timeout(
+                    10, "Timed out waiting for verify vGPU deassignment."):
+                if not self.get_vgpu_info():
                     break
 
     def attach_disk(self, device_bus, disk_size, is_cdrom, device_index, wait=False, **empty_or_clone):

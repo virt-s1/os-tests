@@ -30,11 +30,22 @@ VM:
   if_uefi_boot: 
   if_secure_boot: 
   machine_type: 
+vGPU:
+  device_name: 
+  software_version: 
+  driver_file: 
+  cuda_file: 
+  ftp_url: 
 BootTime:
-  first_launch: 30
-  acpi_reboot: 25
+  first_launch: 
+  acpi_reboot: 
 Stress:
-  reboot_cycles: 100
+  reboot_cycles: 
+Upgrade:
+  minor: 
+  in_place: 
+  leapp_repo_url: 
+  leapp_data_url:
 Other:
   packages:
 Flavor:

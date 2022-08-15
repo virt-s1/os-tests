@@ -41,7 +41,7 @@ class TestNutanixVM(unittest.TestCase):
                         msg="Verify RHEL guest is still alive")
         self.log.info("Live migration has completed")
     
-    def _fio_test(self, test_log):
+    def _fio_test(self):
         '''
         Initial fio test and put into background for processing.
         '''
@@ -49,6 +49,8 @@ class TestNutanixVM(unittest.TestCase):
         cmd = "[[ -d /tmp/fio_test ]] || mkdir /tmp/fio_test"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Create test dir")
         utils_lib.is_cmd_exist(self, cmd='fio')
+
+        test_log = "/tmp/live_migrate_fio_test.log"
         cmd = "setsid fio --group_reporting=1 --name=nutanix-fio-test \
 --numjobs=4 --iodepth=4 --size=500m --bs=4k --rw=randrw -rwmixread=70 \
 --ioengine=psync --time_based=1 --runtime=300 \
@@ -59,11 +61,12 @@ class TestNutanixVM(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw="nutanix",
                                      msg="Check if all fio test jobs have started")
 
-    def _verify_fio_test(self, test_log):
+    def _verify_fio_test(self):
         '''
         Check if fio test is still alive.
         '''
         self.log.info("Verify fio test")
+        test_log = "/tmp/live_migrate_fio_test.log"
         utils_lib.run_cmd(self, "cat %s" % test_log, expect_ret=0, expect_kw="nutanix",
                                      msg="Check fio test log")        
         cmd = "ps -ef | grep -v grep | grep fio-test"
@@ -72,7 +75,7 @@ class TestNutanixVM(unittest.TestCase):
         
         cmd = "ps -ef | grep -v grep | grep fio-test | wc -l"
         for count in utils_lib.iterate_timeout(
-                240, "Timed out waiting for complete fio test", wait=5):
+                300, "Timed out waiting for complete fio test", wait=10):
             fio_jobs = int(utils_lib.run_cmd(self, cmd, expect_ret=0,
                                         msg="Check if all fio test jobs are still alive").strip())
             if fio_jobs == 0:
@@ -81,7 +84,7 @@ class TestNutanixVM(unittest.TestCase):
         cmd = "cat %s" % test_log
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Check fio test log")
 
-    def _ping_test(self, test_ip, test_log):
+    def _ping_test(self, test_ip):
         '''
         Initial ping test and put into background for processing.
         '''
@@ -90,7 +93,7 @@ class TestNutanixVM(unittest.TestCase):
         cmd = "setsid ping %s > %s" % (test_ip, test_log)
         utils_lib.run_cmd(self, cmd, msg="Start ping test", timeout=2)
 
-    def _verify_ping_test(self, test_ip, test_log):
+    def _verify_ping_test(self, test_ip):
         '''
         Check if ping test is still alive, and verify package loss rate of ping test.
         '''
@@ -102,6 +105,8 @@ class TestNutanixVM(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, expect_ret=0,
                           msg="Send sigint to ping test")
         time.sleep(10)
+        
+        test_log = "/tmp/live_migrate_ping_test.log"
         cmd = "cat %s" % test_log
         utils_lib.run_cmd(self, cmd, expect_ret=0,
                           msg="Check ping test log")
@@ -120,6 +125,44 @@ class TestNutanixVM(unittest.TestCase):
         self.assertLessEqual(pkgs_trans - pkgs_rec, 2,
                              "ping test failed. Packges received/transmitted: %s/%s, average round-trip time: %sms" %
                              (pkgs_rec, pkgs_trans, rrt_avg))
+
+    def _stress_memory_stressapptest(self, mb_for_stress, sec_for_stress):
+        '''
+        1. Download stressapptest from https://github.com/stressapptest/stressapptest.git
+        2. Compile and install stressapptest
+        3. Initialize memory stress test via stressapptest
+        '''
+        rpm_pkgs = ["git", "make", "gcc", "gcc-c++"]
+        for rpm_pkg in rpm_pkgs:
+            utils_lib.is_pkg_installed(self, pkg_name=rpm_pkg, cancel_case=True)
+
+        git_url = "https://github.com/stressapptest/stressapptest.git"
+        cmd = "sudo git clone %s && cd stressapptest/ && \
+sudo ./configure && sudo make && sudo make install" % git_url
+        utils_lib.run_cmd(self, cmd,
+                          expect_ret=0,
+                          msg="Install stressapptest",
+                          timeout=300)
+
+        test_log = "/tmp/stressapptest_memory.log"
+        cmd = "[[ -f ~/stressapptest/src/stressapptest ]] && \
+sudo setsid ~/stressapptest/src/stressapptest -M %s -s %s > %s" % \
+            (mb_for_stress, sec_for_stress, test_log)
+        utils_lib.run_cmd(self, cmd,
+                          msg="Start stressapptest stress test",
+                          timeout=2)
+
+    def _verify_stress_memory_stressapptest(self):
+        '''
+        Verify memory memory stressapptest test is passed
+        '''
+        cmd = "cat /tmp/stressapptest_memory.log"
+        for count in utils_lib.iterate_timeout(
+                180, "Timed out waiting for complete memory stressapptest test", wait=10):
+            ret = utils_lib.run_cmd(self, cmd, expect_ret=0,
+                                    msg="Check memory stressapptest test status")
+            if "Status: PASS" in ret:
+                break
 
     def _verify_cpu_cores(self):
         '''
@@ -142,16 +185,31 @@ class TestNutanixVM(unittest.TestCase):
         self.log.info("Verify memory capacity (GB) between Nutanix AHV and RHEL guest")
         mem_in_ahv = float(self.vm.get_memory_size())
         if not expect_ratio:
-            if mem_in_ahv <= 1:
-                expect_ratio = 0.75
-            elif mem_in_ahv in range(2, 4):
-                expect_ratio = 0.8
-            elif mem_in_ahv in range(4, 8):
-                expect_ratio = 0.88
-            elif mem_in_ahv >= 8:
+            if mem_in_ahv == 1:
+                expect_ratio = 0.69
+            elif mem_in_ahv == 2:
+                expect_ratio = 0.74
+            elif mem_in_ahv == 3:
+                expect_ratio = 0.82
+            elif mem_in_ahv == 4:
+                expect_ratio = 0.86
+            elif mem_in_ahv == 5:
+                expect_ratio = 0.87
+            elif mem_in_ahv == 6:
+                expect_ratio = 0.89
+            elif mem_in_ahv == 7:
+                expect_ratio = 0.90
+            elif mem_in_ahv == 8:
+                expect_ratio = 0.91
+            elif mem_in_ahv in range(9, 11):
                 expect_ratio = 0.92
-        mem_in_guest = float(round(utils_lib.get_memsize(self), 2))
-        
+            elif mem_in_ahv in range(11, 13):
+                expect_ratio = 0.93
+            elif mem_in_ahv in range(14, 18):
+                expect_ratio = 0.94
+            elif mem_in_ahv >= 18:
+                expect_ratio = 0.95
+        mem_in_guest = float(round(utils_lib.get_memsize(self), 3))
         self.assertLess(mem_in_guest, mem_in_ahv,
                         "Test failed, memory capacity on RHEL guest: %s is more than on Nutanix AHV: %s" %
                         (mem_in_guest, mem_in_ahv))
@@ -186,6 +244,43 @@ class TestNutanixVM(unittest.TestCase):
         utils_lib.init_connection(self)
         self._verify_memory_size()
 
+    def _trigger_kernel_crash(self):
+        utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
+        product_id = utils_lib.get_product_id(self)
+        if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self) and float(product_id) < 8.6:
+            self.skipTest("Cancel as bug 1654962 in arm guest earlier than 8.6 2082405" )
+
+        cmd = "systemctl is-active kdump || sudo systemctl start kdump"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check kdump service status")
+        
+        utils_lib.run_cmd(self,
+                    "sudo rm -rf /var/crash/*",
+                    expect_ret=0,
+                    msg="clean /var/crash")
+        utils_lib.run_cmd(self, "sudo sync", expect_ret=0)
+        self.log.info("Before system crash")
+        res_before = utils_lib.run_cmd(self,
+                                        "find /var/crash",
+                                        expect_ret=0,
+                                        msg="list /var/crash before crash")
+        cmd = "sudo bash -c 'echo c > /proc/sysrq-trigger'"
+        utils_lib.run_cmd(self, cmd, msg='trigger crash')
+        time.sleep(60)
+
+        utils_lib.init_connection(self)
+        self.log.info("After system crash")
+        res_after = utils_lib.run_cmd(self,
+                                        "find /var/crash",
+                                        expect_ret=0,
+                                        msg="list /var/crash after crash")
+        self.assertNotEqual(res_after, res_before,
+                            "Test failed as no crash dump file found")
+
+        cmd = "sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50"
+        utils_lib.run_cmd(self, cmd, expect_ret=0,
+                            expect_kw="write_sysrq_trigger",
+                            msg="Check if crash happened")
+
     def _reboot_os_cycles(self, reboot_cycles, time_wait=10):
         for cycle in range(1, reboot_cycles+1):
             self.log.info("Reboot cycle: %d" % cycle)
@@ -200,6 +295,77 @@ class TestNutanixVM(unittest.TestCase):
             
             self.assertNotEqual(res_after, res_before,
                                 "Test failed as VM is still alive after reboot")
+
+    def _prepare_repo(self, target_release):
+        '''
+        1. Prepare repo file for the target release
+        2. Get the compose ID of target release        
+        '''
+        release_id = target_release.split('.')[0]
+        image_url = "http://download.eng.bos.redhat.com/rhel-%s/nightly/RHEL-%s/latest-RHEL-%s.0" % \
+            (release_id, release_id, target_release)
+        image_compose = "%s/COMPOSE_ID" % image_url
+        
+        repo_baseos = "%s/compose/BaseOS/x86_64/os/" % image_url
+        repo_appstream = "%s/compose/AppStream/x86_64/os/" % image_url
+        repo_crb = "%s/compose/CRB/x86_64/os/" % image_url
+
+        repo_template = """[BaseOS]
+name=baseos
+baseurl=BaseOS_URL
+enabled=1
+gpgcheck=0
+
+[AppStream]
+name=appstream
+baseurl=AppStream_URL
+enabled=1
+gpgcheck=0
+
+[CRB]
+name=crb
+baseurl=CRB_URL
+enabled=1
+gpgcheck=0"""
+        latest_repo = repo_template.replace("BaseOS_URL", repo_baseos)\
+            .replace("AppStream_URL", repo_appstream)\
+            .replace("CRB_URL", repo_crb)
+
+        repo_file="/etc/yum.repos.d/rhel.repo"
+        cmd = "[[ -f %s ]] && sudo mv %s %s.old" % (repo_file, repo_file, repo_file)
+        utils_lib.run_cmd(self, cmd,
+                          msg="Backup the exist repo file")
+
+        cmd = "sudo touch %s && sudo chmod 777 %s && sudo echo '%s' > %s && sudo chmod 644 %s" % \
+            (repo_file, repo_file, latest_repo, repo_file, repo_file)
+        utils_lib.run_cmd(self, cmd, expect_ret=0,
+                          msg="Create new repo file with target release")
+
+        utils_lib.is_cmd_exist(self, cmd="wget", cancel_case=True)
+        cmd = "sudo wget -nv --directory-prefix=/tmp %s" % image_compose
+        utils_lib.run_cmd(self, cmd, expect_ret=0,
+                          msg="Download compose ID file from %s" % image_compose)
+        ret = utils_lib.run_cmd(self, "sudo cat /tmp/COMPOSE_ID", expect_ret=0,
+                          msg="Get compose ID")
+        self.log.info("RHEL compose ID: %s" % ret)
+
+    def _sanity_test(self, target_release, dmesg_cursor):
+        '''
+        1. Network works normally
+        2. Check dmesg log and make sure no unexpected log
+        '''
+        utils_lib.run_cmd(self, "cat /etc/redhat-release",
+                          expect_ret=0,
+                          expect_kw=target_release,
+                          msg="Check OS release")
+
+        utils_lib.check_log(self, 
+                            "error,warn,fail,unable,unknown,Unknown,Call trace,Call Trace",
+                            log_cmd='dmesg -T', cursor=dmesg_cursor)
+
+        cmd = "sudo dmesg -c && sudo rm -rf /run/log/journal/* && sudo systemctl restart systemd-journald"
+        utils_lib.run_cmd(self, cmd, expect_ret=0,
+                          msg="Clear dmesg and journalctl log for further test")
 
     def test_live_migration(self):
         '''
@@ -266,13 +432,12 @@ class TestNutanixVM(unittest.TestCase):
         debug_want:
             N/A
         '''
-        test_log = "/tmp/live_migrate_fio_test.log"
         host_list = self.vm.host_uuid
 
         self._verify_live_migration(host_list)
-        self._fio_test(test_log)
+        self._fio_test()
         self._live_migration(host_list)
-        self._verify_fio_test(test_log)
+        self._verify_fio_test()
 
     def test_live_migration_network(self):
         '''
@@ -307,12 +472,11 @@ class TestNutanixVM(unittest.TestCase):
         '''
         host_list = self.vm.host_uuid
         cvmIP = self.vm.params['Cloud']['cvm_ip']
-        test_log = "/tmp/live_migrate_ping_test.log"
 
         self._verify_live_migration(host_list)
-        self._ping_test(cvmIP, test_log)
+        self._ping_test(cvmIP)
         self._live_migration(host_list)
-        self._verify_ping_test(cvmIP, test_log)
+        self._verify_ping_test(cvmIP)
 
     def test_check_cpu_model(self):
         '''
@@ -463,46 +627,6 @@ class TestNutanixVM(unittest.TestCase):
                          "Test failed as recover VM vCPUs failed")
         utils_lib.init_connection(self)
         self._verify_cpu_cores()
-        
-    def test_hot_add_memory(self):
-        '''
-        case_tag:
-            Memory
-        case_name:
-            test_hot_add_memory
-        case_file:
-            os_tests.tests.test_nutanix_vm.test_hot_add_memory
-        component:
-            Memory
-        bugzilla_id:
-            N/A
-        is_customer_case:
-            False
-        customer_case_id:
-            N/A
-        testplan:
-            N/A
-        maintainer:
-            shshang@redhat.com
-        description:
-            Add memory to a powered on VM
-        key_steps: |
-            1. Add memory to a powered on VM
-            2. Verify memory size on RHEL guest OS
-        expect_result:
-            Memory size is consistent between Nutanix AHV and RHEL guest OS
-        debug_want:
-            N/A
-        '''
-        mem_gb_current = self.vm.get_memory_size()
-        mem_gb_target = mem_gb_current * 2
-        self.log.info("Hot add VM memory")
-        self.vm.update_memory_size(mem_gb_target)
-        self.assertEqual(self.vm.get_memory_size(), mem_gb_target,
-                         "Test failed as hot add VM memory failed")
-        time.sleep(10)
-        self._verify_memory_size()
-        self._recover_memory(mem_gb_current)
 
     def test_add_vcpu(self):
         '''
@@ -598,6 +722,94 @@ class TestNutanixVM(unittest.TestCase):
                          "Test failed as recover VM cpu cores failed")
         utils_lib.init_connection(self)
         self._verify_cpu_cores()
+
+    def test_hot_add_memory(self):
+        '''
+        case_tag:
+            Memory
+        case_name:
+            test_hot_add_memory
+        case_file:
+            os_tests.tests.test_nutanix_vm.test_hot_add_memory
+        component:
+            Memory
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        customer_case_id:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            shshang@redhat.com
+        description:
+            Add memory to a powered on VM
+        key_steps: |
+            1. Add memory to a powered on VM
+            2. Verify memory size on RHEL guest OS
+        expect_result:
+            Memory size is consistent between Nutanix AHV and RHEL guest OS
+        debug_want:
+            N/A
+        '''
+        mem_gb_current = self.vm.get_memory_size()
+        mem_gb_target = mem_gb_current * 2
+        self.log.info("Hot add VM memory")
+        self.vm.update_memory_size(mem_gb_target)
+        self.assertEqual(self.vm.get_memory_size(), mem_gb_target,
+                         "Test failed as hot add VM memory failed")
+        time.sleep(10)
+
+        self._verify_memory_size()
+        self._recover_memory(mem_gb_current)
+
+    def test_hot_add_memory_stress(self):
+        '''
+        case_tag:
+            Memory
+        case_name:
+            test_hot_add_memory_stress
+        case_file:
+            os_tests.tests.test_nutanix_vm.test_hot_add_memory_stress
+        component:
+            Memory
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        customer_case_id:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            shshang@redhat.com
+        description:
+            Add memory to a powered on VM while memory is in stress status
+        key_steps: |
+            1. Add memory to a powered on VM while memory is in stress status
+            2. Verify memory size on RHEL guest OS
+        expect_result:
+            Memory size is consistent between Nutanix AHV and RHEL guest OS
+        debug_want:
+            N/A
+        '''
+        mem_gb_current = self.vm.get_memory_size()
+        mem_gb_target = mem_gb_current * 2
+
+        mb_for_stress = mem_gb_current / 2 * 1024
+        sec_for_stress = 120
+        self._stress_memory_stressapptest(mb_for_stress, sec_for_stress)
+        
+        self.log.info("Hot add VM memory")
+        self.vm.update_memory_size(mem_gb_target)
+        self.assertEqual(self.vm.get_memory_size(), mem_gb_target,
+                         "Test failed as hot add VM memory failed")
+        time.sleep(10)
+
+        self._verify_stress_memory_stressapptest()
+        self._verify_memory_size()
+        self._recover_memory(mem_gb_current)
         
     def test_add_memory(self):
         '''
@@ -740,6 +952,55 @@ class TestNutanixVM(unittest.TestCase):
             self.assertEqual(self.vm.get_memory_vnuma(), vnuma_num_current,
                             "Test failed as recover VM vnuma failed")
 
+    def test_kdump_single_cpu(self):
+        """
+        case_tag:
+            kdump
+        case_name:
+            test_kdump_single_core
+        case_file:
+            os_tests.tests.test_nutanix_vm.test_kdump_single_core
+        component:
+            kdump
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        customer_case_id:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            shshang@redhat.com
+        description:
+            Test kdump on VM with single cpu core
+        key_steps: |
+            1. Triger crash on VM with single cpu core
+            2. Check if kdump is working and dump file will be generated
+        expect_result:
+            kdump is working and dump file will be generated
+        debug_want:
+            N/A
+        debug_want:
+            N/A
+        """
+        vcpu_num_current = self.vm.get_vcpu_num()
+        vcpu_num_target = 1
+        self.vm.update_vcpu_num(vcpu_num_target)
+        self.assertEqual(self.vm.get_vcpu_num(), vcpu_num_target,
+                         "Test failed as add VM vCPUs failed")
+        utils_lib.init_connection(self)
+        self._verify_cpu_cores()
+        
+        self._trigger_kernel_crash()
+        
+        self.log.info("Recover VM vCPUs")
+        self.vm.update_vcpu_num(vcpu_num_current)
+        self.assertEqual(self.vm.get_vcpu_num(), vcpu_num_current,
+                         "Test failed as recover VM vCPUs failed")
+        utils_lib.init_connection(self)
+        self._verify_cpu_cores()
+
     def test_check_firstlaunch_time(self):
         """
         case_tag:
@@ -773,6 +1034,8 @@ class TestNutanixVM(unittest.TestCase):
             N/A
         """
         firstlaunch_time = self.vm.params['BootTime']['first_launch']
+        if not firstlaunch_time:
+            self.skipTest("Skip as first_launch is not set in nutanix.yaml")
         boot_time_sec = utils_lib.getboottime(self)
         utils_lib.compare_nums(self, num1=boot_time_sec, num2=firstlaunch_time, ratio=0,
                                msg="Compare with cfg specified firstlaunch_time")
@@ -813,6 +1076,8 @@ class TestNutanixVM(unittest.TestCase):
         self.vm.reboot(wait=True)
         utils_lib.init_connection(self)
         reboot_time = self.vm.params['BootTime']['acpi_reboot']
+        if not reboot_time:
+            self.skipTest("Skip as acpi_reboot is not specified in nutanix.yaml")
         boot_time_sec = utils_lib.getboottime(self)
         utils_lib.compare_nums(self, num1=boot_time_sec, num2=reboot_time, ratio=0,
                                msg="Compare with cfg specified reboot_time")
@@ -850,8 +1115,8 @@ class TestNutanixVM(unittest.TestCase):
         debug_want:
             N/A
         """
-        is_uefi_boot = self.vm.params['VM']['if_uefi_boot']
-        if not is_uefi_boot:
+        uefi_boot = self.vm.params['VM']['if_uefi_boot']
+        if not uefi_boot:
             self.skipTest("Skip as VM is not in UEFI boot mode")
         
         mem_gb_current = self.vm.get_memory_size()
@@ -903,7 +1168,7 @@ class TestNutanixVM(unittest.TestCase):
         """
         reboot_cycles = self.vm.params['Stress']['reboot_cycles']
         if not reboot_cycles or reboot_cycles < 1:
-            self.skipTest("Skip as reboot_cycles is not defined in .yaml file")
+            self.skipTest("Skip as reboot_cycles is not defined in nutanix.yaml")
 
         self._reboot_os_cycles(reboot_cycles)
 
@@ -942,8 +1207,8 @@ class TestNutanixVM(unittest.TestCase):
         debug_want:
             N/A
         """
-        if_secure_boot = self.vm.params['VM']['if_secure_boot']
-        if if_secure_boot:
+        secure_boot = self.vm.params['VM']['if_secure_boot']
+        if secure_boot:
             self.skipTest('''Red Hat Insights error \
 "sed: can't read /sys/kernel/debug/sched_features: Operation not permitted" When using secure boot''')
         
@@ -1006,9 +1271,365 @@ class TestNutanixVM(unittest.TestCase):
                           expect_ret=0, expect_not_kw="debug",
                           msg="Verifying default kernel has recovered")
 
+    def test_upgrade_minor_path(self):
+        """
+        case_tag:
+            Upgrade
+        case_name:
+            test_upgrade_minor_path
+        case_file:
+            os_tests.tests.test_nutanix_vm.test_upgrade_minor_path
+        component:
+            GeneralVerification
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        customer_case_id:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            shshang@redhat.com
+        description:
+            Upgrade RHEL between minor version, for example: 8.6 to 8.7
+        key_steps: |
+            1. Upgrade RHEL between minor version, for example: 8.6 to 8.7
+            2. Check VM status
+            3. Check OS status
+        expect_result:
+            1. VM working normally after upgraded
+            2. No unexpected error
+        debug_want:
+            N/A
+        debug_want:
+            N/A
+        """
+        target_release = self.vm.params['Upgrade']['minor']
+        if not target_release:
+            self.skipTest("Skip test as minor update is not defined in nutanix.yaml")
+            
+        rhel_release = utils_lib.get_product_id(self).rstrip()
+        if rhel_release == target_release:
+            self.skipTest("Skip test as target release: %s is the same as current release: %s" % (target_release, rhel_release))
+        if rhel_release.split('.')[0] != target_release.split('.')[0]:
+            self.skipTest("Skip test as minor update path from %s to %s is not supported" % (rhel_release, target_release))
+        if rhel_release.split('.')[1] > target_release.split('.')[1]:
+            self.skipTest("Skip test as target release: %s is older than current release: %s" % (target_release, rhel_release))
+
+        self._prepare_repo(target_release)
+        
+        cmd = "sudo yum update -y"
+        utils_lib.run_cmd(self, cmd, expect_ret=0,
+                          msg="Run yum update",
+                          timeout=1800)
+        utils_lib.run_cmd(self, "sudo reboot",
+                          msg="Reboot OS")
+        time.sleep(60)
+        utils_lib.init_connection(self)
+
+        dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='dmesg -T')
+        utils_lib.run_cmd(self, "sudo reboot", msg="Reboot OS to re-scan dmesg log")
+        utils_lib.init_connection(self)
+        self._sanity_test(target_release, dmesg_cursor)
+
+    def test_upgrade_in_place(self):
+        """
+        case_tag:
+            Upgrade
+        case_name:
+            test_upgrade_in_place
+        case_file:
+            os_tests.tests.test_nutanix_vm.test_upgrade_in_place
+        component:
+            GeneralVerification
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        customer_case_id:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            shshang@redhat.com
+        description:
+            In-place upgrade RHEL 8 to latest RHEL 9
+        key_steps: |
+            1. In-place upgrade RHEL 8 to latest RHEL 9
+            2. Check VM status
+            3. Check OS status
+        expect_result:
+            1. VM working normally after in-place upgrade
+            2. No unexpected error
+        debug_want:
+            N/A
+        debug_want:
+            N/A
+        """
+        rhel_release = utils_lib.get_product_id(self).rstrip()
+        target_release = self.vm.params['Upgrade']['in_place']
+        if not target_release:
+            self.skipTest("Skip test as in-place upgrade is not defined in nutanix.yaml")
+        if rhel_release == target_release:
+            self.skipTest("Skip test as target release: %s is the same as current release: %s" % (target_release, rhel_release))
+        if rhel_release.split('.')[0] >= target_release.split('.')[0]:
+            self.skipTest("Skip test as in-place upgrade path from %s to %s is not supported" % (rhel_release, target_release))
+
+        leapp_repo_url = self.vm.params['Upgrade']['leapp_repo_url']
+        if not leapp_repo_url:
+            self.skipTest("Skip test as leapp_repo_url is not defined in nutanix.yaml")
+        leapp_data_url = self.vm.params['Upgrade']['leapp_data_url']
+        if not leapp_data_url:
+            self.skipTest("Skip test as leapp_data_url is not defined in nutanix.yaml")
+
+        utils_lib.is_cmd_exist(self, cmd="wget", cancel_case=True)
+        cmd = "sudo wget --no-check-certificate -nv --directory-prefix=/etc/yum.repos.d/ %s && \
+sudo dnf install leapp-upgrade-el8toel9 -y" % leapp_repo_url
+        utils_lib.run_cmd(self, cmd, expect_ret=0,
+                          msg="Install Leapp upgrade package")
+
+        cmd = "sudo wget --no-check-certificate -nv --directory-prefix=/etc/leapp/files/ %s/unsupported_pci_ids.json && \
+sudo wget --no-check-certificate -nv --directory-prefix=/etc/leapp/files/ %s/unsupported_driver_names.json && \
+sudo wget --no-check-certificate -nv --directory-prefix=/etc/leapp/files/ %s/pes-events.json && \
+sudo wget --no-check-certificate -nv --directory-prefix=/etc/leapp/files/ %s/repomap.json && \
+sudo wget --no-check-certificate -nv --directory-prefix=/etc/leapp/files/ %s/device_driver_deprecation_data.json" % \
+            (leapp_data_url, leapp_data_url, leapp_data_url, leapp_data_url, leapp_data_url)
+        utils_lib.run_cmd(self, cmd, expect_ret=0,
+                          msg="Get Leapp data files and saved to /etc/leapp/files/")
+
+        self._prepare_repo(target_release)
+        leapp_upgrade_repo = "/etc/leapp/files/leapp_upgrade_repositories.repo"
+        utils_lib.run_cmd(self, "sudo mv /etc/yum.repos.d/rhel.repo %s" % leapp_upgrade_repo, 
+                          expect_ret=0,
+                          msg="Prepare the leapp upgrade repository")
+
+        cmd = "sudo LEAPP_UNSUPPORTED=1 LEAPP_DEVEL_DATABASE_SYNC_OFF=1 leapp preupgrade --debug --no-rhsm"
+        utils_lib.run_cmd(self, cmd,
+                          expect_ret=0,
+                          msg="Run leapp preupgrade",
+                          timeout=3600)
+        cmd = "sudo LEAPP_UNSUPPORTED=1 LEAPP_DEVEL_DATABASE_SYNC_OFF=1 leapp upgrade --debug --no-rhsm"
+        utils_lib.run_cmd(self, cmd,
+                          expect_ret=0,
+                          msg="Run leapp upgrade",
+                          timeout=3600)
+        utils_lib.run_cmd(self, "sudo cp %s /etc/yum.repos.d/rhel.repo" % leapp_upgrade_repo, 
+                          expect_ret=0,
+                          msg="Recover the repo file")
+
+        utils_lib.run_cmd(self, "sudo reboot", msg="Reboot OS to take effects of upgrade")
+        time.sleep(180)
+        utils_lib.init_connection(self)
+
+        dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='dmesg -T')
+        utils_lib.run_cmd(self, "sudo reboot", msg="Reboot OS to re-scan dmesg log")
+        utils_lib.init_connection(self)
+        self._sanity_test(target_release, dmesg_cursor)
+
+    def test_vgpu_add_device(self):
+        """
+        case_tag:
+            vGPU
+        case_name:
+            test_vgpu_add_device
+        case_file:
+            os_tests.tests.test_nutanix_vm.test_vgpu_add_device
+        component:
+            vGPU
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        customer_case_id:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            shshang@redhat.com
+        description:
+            Assign vGPU to VM and check VM status
+        key_steps: |
+            1. Assign vGPU to VM
+            2. Check VM status
+        expect_result:
+            1. VM working normally after assigned vGPU
+            2. No unexpected error
+        debug_want:
+            N/A
+        debug_want:
+            N/A
+        """
+        device_name = self.vm.params['vGPU']['device_name']
+        if self.vm.host_gpu_info():
+            if not device_name:
+                self.skipTest("Skip test as no vGPU device specified in nutanix.yaml")
+            self.vm.assign_vgpu(device_name)
+
+        utils_lib.init_connection(self)
+        utils_lib.run_cmd(self, "lspci",
+                          expect_ret=0, expect_kw="Tesla T4",
+                          msg="Verifying if vgpu device has been detected")
+        
+        TestNutanixVM.vm_vgpu_device = True
+
+    def test_vgpu_disable_nouveau(self):
+        """
+        case_tag:
+            vGPU
+        case_name:
+            test_vgpu_disable_nouveau
+        case_file:
+            os_tests.tests.test_nutanix_vm.test_vgpu_disable_nouveau
+        component:
+            vGPU
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        customer_case_id:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            shshang@redhat.com
+        description:
+            Disable nouveau driver and check VM status
+        key_steps: |
+            1. Disable nouveau driver
+            2. Check VM status
+        expect_result:
+            1. VM working normally after disabled nouveau driver
+            2. No unexpected error
+        debug_want:
+            N/A
+        debug_want:
+            N/A
+        """
+        if not self.vm_vgpu_device:
+            self.skipTest("Skip test as must run 'test_vgpu_add_device' first")
+
+        cmd = "sudo lsmod | grep nouveau && \
+sudo touch /etc/modprobe.d/blacklist-nouveau.conf && \
+sudo chmod 777 /etc/modprobe.d/blacklist-nouveau.conf && \
+sudo echo 'blacklist nouveau' >> /etc/modprobe.d/blacklist-nouveau.conf && \
+sudo echo 'options nouveau modeset=0' >> /etc/modprobe.d/blacklist-nouveau.conf && \
+sudo chmod 644 /etc/modprobe.d/blacklist-nouveau.conf && \
+sudo cat /etc/modprobe.d/blacklist-nouveau.conf"
+        utils_lib.run_cmd(self, cmd, expect_ret=0,
+                          msg="Check if the Nouveau driver is present and disabled it")
+
+        cmd = "sudo dracut --force"
+        utils_lib.run_cmd(self, cmd, expect_ret=0,
+                          msg="Regenerate the kernel initial RAM file system (initramfs)",
+                          timeout=120)
+
+        cmd = "[[ -f /etc/gdm/custom.conf ]] && \
+sudo grep WaylandEnable /etc/gdm/custom.conf && \
+sudo chmod 777 etc/gdm/custom.conf && \
+sudp sed -i '/WaylandEnable=false/s/^#//' /etc/gdm/custom.conf && \
+sudo chmod 644 etc/gdm/custom.conf && \
+sudo cat /etc/gdm/custom.conf"
+        utils_lib.run_cmd(self, cmd,
+                          msg="Disable the Wayland display server protocol to revert to the X Window System")
+
+        cmd = "sudo systemctl get-default | grep graphical.target && \
+sudo systemctl set-default multi-user.target"
+        utils_lib.run_cmd(self, cmd, msg="Set OS to text mode")
+
+        utils_lib.run_cmd(self, "sudo reboot", msg="Reboot to take effects")
+        utils_lib.init_connection(self)
+        utils_lib.run_cmd(self, "lsmod | grep nouveau",
+                          expect_not_ret=0,
+                          msg="Check if the Nouveau driver has been disabled")
+
+        TestNutanixVM.vm_vgpu_disable_nouveau = True
+
+    def test_vgpu_driver_installation(self):
+        """
+        case_tag:
+            vGPU
+        case_name:
+            test_vgpu_driver_installation
+        case_file:
+            os_tests.tests.test_nutanix_vm.test_vgpu_driver_installation
+        component:
+            vGPU
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        customer_case_id:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            shshang@redhat.com
+        description:
+            Install vGPU driver and check VM status
+        key_steps: |
+            1. Install vGPU driver
+            2. Check VM status
+        expect_result:
+            1. VM working normally after installed vGPU driver
+            2. No unexpected error
+        debug_want:
+            N/A
+        debug_want:
+            N/A
+        """
+        supported_release = ["8.6", "8.7"]
+        rhel_release = utils_lib.get_product_id(self).rstrip()
+        if rhel_release not in supported_release:
+            self.skipTest("Skip test as RHEL%s is not supported" % rhel_release)
+        
+        if not self.vm_vgpu_disable_nouveau:
+            self.skipTest("Skip test as must run 'test_vgpu_disable_nouveau' first")
+        
+        rpm_pkgs = ["make", "gcc", "gcc-c++",
+                    "kernel-headers-$(uname -r)", "kernel-devel-$(uname -r)",
+                    "elfutils-libelf-devel"]
+        for rpm_pkg in rpm_pkgs:
+            utils_lib.is_pkg_installed(self, pkg_name=rpm_pkg, cancel_case=True)
+
+        ftp_url = self.vm.params['vGPU']['ftp_url']
+        if not ftp_url:
+            self.skipTest("Skip test as no ftp url specified in nutanix.yaml")
+        software_version = self.vm.params['vGPU']['software_version']
+        if not software_version:
+            self.skipTest("Skip test as no software version specified in nutanix.yaml")
+        driver_file = self.vm.params['vGPU']['driver_file']
+        if not driver_file:
+            self.skipTest("Skip test as no driver file specified in nutanix.yaml")
+        driver_version = driver_file.split("-")[3]
+
+        cmd = "sudo wget -nv --directory-prefix=/tmp %s/driver/%s/%s" % (ftp_url, software_version, driver_file)
+        utils_lib.is_cmd_exist(self, cmd="wget", cancel_case=True)
+        utils_lib.run_cmd(self, cmd, expect_ret=0,
+                          msg="Check if the Nouveau driver has been disabled")
+
+        cmd = "sudo chmod +x /tmp/%s && \
+sudo /tmp/%s --no-opengl-files --accept-license --install-compat32-libs --silent" % (driver_file, driver_file)
+        utils_lib.run_cmd(self, cmd,
+                          msg="Install the NVIDIA driver",
+                          timeout=300)
+
+        utils_lib.run_cmd(self, "sudo reboot", msg="Reboot to take effects")
+        utils_lib.init_connection(self)
+        utils_lib.run_cmd(self, "nvidia-smi",
+                          expect_ret=0,
+                          expect_kw=driver_version,
+                          msg="Check if the Nouveau driver has been disabled")
+
+        TestNutanixVM.vm_vgpu_driver = True
+
     def tearDown(self):
-        utils_lib.check_log(self, "error,warn,fail,unable,unknown,Unknown,Call trace,Call Trace",
-                            log_cmd='dmesg -T', cursor=self.dmesg_cursor)
+        if "upgrade" in self.id():
+            pass
+        else:
+            utils_lib.check_log(self, 
+                                "error,warn,fail,unable,unknown,Unknown,Call trace,Call Trace",
+                                log_cmd='dmesg -T', cursor=self.dmesg_cursor)
 
 if __name__ == '__main__':
     unittest.main()

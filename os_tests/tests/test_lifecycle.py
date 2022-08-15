@@ -320,8 +320,6 @@ class TestLifeCycle(unittest.TestCase):
             kdump is working and dump file will be generated
         debug_want:
             N/A
-        debug_want:
-            N/A
         """
         utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
         product_id = utils_lib.get_product_id(self)
@@ -350,7 +348,6 @@ class TestLifeCycle(unittest.TestCase):
             utils_lib.run_cmd(self, cmd, msg='trigger crash')
             time.sleep(30)
 
-            self.params['remote_node'] = self.vm.floating_ip
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
             self.log.info("After system crash")
             res_after = utils_lib.run_cmd(self,

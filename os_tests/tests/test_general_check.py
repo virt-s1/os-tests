@@ -2115,6 +2115,40 @@ current_device"
         except NotImplementedError:
                 self.skipTest('SEV check is not implemented on %s' % self.vm.provider)
 
+    def test_check_secure_ioerror(self):
+        """
+        case_tag:
+            secure_log
+        case_name:
+            test_check_secure_ioerror
+        case_file:
+            os_tests.tests.test_general_check.test_check_secure_ioerror
+        component:
+            secure_log
+        bugzilla_id:
+            1103344
+        is_customer_case:
+            False
+        customer_case_id:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            shshang@redhat.com
+        description:
+            Check there is no io error in /var/log/secure.
+            https://access.redhat.com/solutions/975803
+        key_steps: |
+            1. Check /var/log/secure via command "sudo cat /var/log/secure".
+        expect_result:
+            There isn't "Input/output error" in secure log.
+        debug_want:
+            N/A
+        """
+        self.log.info("Check /var/log/secure")
+        utils_lib.run_cmd(self, "sudo cat /var/log/secure", expect_ret=0)
+        utils_lib.run_cmd(self, "sudo cp /var/log/secure /tmp", expect_ret=0)
+        utils_lib.run_cmd(self, "sudo cat /var/log/secure", expect_not_kw="Input/output error")
 
     def tearDown(self):
         pass
