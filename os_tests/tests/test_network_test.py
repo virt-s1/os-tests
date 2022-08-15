@@ -801,7 +801,7 @@ COMMIT
             self._create_vm1()
         vm1_host_uuid = self.vm.prism.get_vm_by_uuid(self.vms[1]['uuid'])['host_uuid']
         if self.vms[0].vm_host_uuid() == vm1_host_uuid:
-            self.log.info('vm1 host uuid %s is different with vm2: %s, do migration' % (self.vms[0].vm_host_uuid(), vm1_host_uuid))
+            self.log.info('vm1 host uuid %s is same with vm2: %s, do migration' % (self.vms[0].vm_host_uuid(), vm1_host_uuid))
             self.vm.migrate()
         self.log.info('Install iperf3 on vm[0]')
         utils_lib.is_cmd_exist(self,"iperf3")

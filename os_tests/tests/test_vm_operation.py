@@ -346,10 +346,10 @@ class TestVMOperation(unittest.TestCase):
                     sudo chmod 0600 /swap;
                     sudo mkswap /swap;
                     sudo swapon /swap;
-                    offset=$(filefrag -v /swap| awk '{if($1==\"0:\"){print $4}}');
+                    offset=$(sudo filefrag -v /swap| awk '{if($1==\"0:\"){print $4}}');
                     uuid=$(findmnt -no UUID -T /swap);
                     sudo grubby --update-kernel=ALL  --args=\"resume_offset=${offset//.} resume=UUID=$uuid\";
-                    sudo echo '/swap    swap    swap   defaults 0 0' >> /etc/fstab
+                    echo '/swap    swap    swap   defaults 0 0' | sudo tee -a /etc/fstab
                     """
                 utils_lib.run_cmd(self, cmd, timeout=240)
 
