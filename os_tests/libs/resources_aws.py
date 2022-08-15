@@ -592,6 +592,7 @@ class EC2NIC(NetworkResource):
     AWS Network class
     '''
     __network_interface = None
+    EC2_CLIENT = boto3.client('ec2')
 
     def __init__(self, params):
         super(EC2NIC, self).__init__(params)
@@ -698,19 +699,31 @@ class EC2NIC(NetworkResource):
             LOG.info("Failed to add tag to %s", self.__network_interface.id)
             LOG.error(err)
 
-    def create(self):
+    def create(self,interfaceType='interface'):
         '''Create a new network interface
         '''
         try:
-            self.__network_interface = self.subnet.create_network_interface(
-                Description=self.tag, Groups=[
-                    self.security_group_ids,
-                ])
-            LOG.info("%s network interface created!" %
-                     self.__network_interface.id)
-            self.add_tag()
-            self.id = self.__network_interface.id
-            return True
+            if interfaceType == 'efa':
+                self.__network_interface = self.subnet.create_network_interface(
+                    Description=self.tag,
+                    InterfaceType='efa',
+                    SubnetId=self.subnet_id,
+                    Groups=[self.security_group_ids, ])
+                LOG.info("%s efa network interface created!" %
+                         self.__network_interface.id)
+                self.add_tag()
+                self.id = self.__network_interface.id
+                return self.__network_interface
+            else:
+                self.__network_interface = self.subnet.create_network_interface(
+                    Description=self.tag, Groups=[
+                        self.security_group_ids,
+                    ])
+                LOG.info("%s network interface created!" %
+                         self.__network_interface.id)
+                self.add_tag()
+                self.id = self.__network_interface.id
+                return True
         except Exception as err:
             LOG.info("Failed to create interface")
             LOG.error(err)
@@ -812,3 +825,36 @@ class EC2NIC(NetworkResource):
             LOG.error("NIC cannot detach from %s error %s" %
                       (instance_id, err))
             return False
+
+    def allocate_eip(self):
+        try:
+            return self.EC2_CLIENT.allocate_address(Domain='vpc', TagSpecifications=[
+                {'ResourceType': 'elastic-ip', 'Tags': [{'Key': 'Name', 'Value': 'efa-elastic-ip'}, ]}, ])
+        except Exception as err:
+            LOG.info("Failed to allocate elastic ip")
+            LOG.error(err)
+
+    def associate_eip(self,instance_id):
+        try:
+            response = self.EC2_CLIENT.describe_addresses(Filters=[{'Name': 'tag:Name', 'Values': ['efa-elastic-ip']}])
+            public_ip = response['Addresses'][0]['PublicIp']
+            allocation_id = response['Addresses'][0]['AllocationId']
+            self.EC2_CLIENT.associate_address(InstanceId=instance_id, AllocationId=allocation_id)
+            LOG.info(f'EIP {public_ip} associated with the instance {instance_id}')
+            return True
+        except Exception as err:
+            LOG.info("Failed to associate elastic ip to the instance")
+            LOG.error(err)
+            return False
+
+    def release_eip(self):
+        try:
+            response = self.EC2_CLIENT.describe_addresses(
+                Filters=[{'Name': 'tag:Name', 'Values': ['efa-elastic-ip']}])
+            public_ip = response['Addresses'][0]['PublicIp']
+            allocation_id = response['Addresses'][0]['AllocationId']
+            self.EC2_CLIENT.release_address(AllocationId=allocation_id)
+            LOG.info(f'EIP {public_ip} has been released')
+        except Exception as err:
+            LOG.info("Failed to release Elastic IP")
+            LOG.error(err)
