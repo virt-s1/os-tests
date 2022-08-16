@@ -3,6 +3,7 @@ import copy
 import os
 import sys
 from os_tests.libs.utils_lib import get_cfg, init_ssh, init_args, init_provider, filter_case_doc
+from os_tests.libs import utils_lib
 from shutil import rmtree
 import os_tests
 from os_tests.libs.html_runner import HTMLTestRunner
@@ -128,7 +129,12 @@ def main():
     if final_ts.countTestCases() == 0:
         log.info("No case found!")
         sys.exit(1)
-    if args.is_listcase or args.verifydoc:
+    if args.is_listcase or args.verifydoc or args.uploaddoc:
+        if args.uploaddoc:    
+            cfg_file, cfg_data = get_cfg(cfg_file=args.uploaddoc)
+            for case in final_ts:
+                if 'polarion' in cfg_data.get('provider'):
+                    utils_lib.case_to_polarion(case=case, cfg=cfg_data)
         log.info('\n'.join([case.id() for case in final_ts]))
         log.info("Total case num: %s"%final_ts.countTestCases())
     else:

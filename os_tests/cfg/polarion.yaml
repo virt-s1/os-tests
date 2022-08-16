@@ -1,0 +1,17 @@
+# This is ONLY a template for access polarion system
+# Please copy it to other place to pass to cli
+# Not recommend you edit it directly in case leaking sensitive information.
+provider : polarion
+project : "RHELVIRT"
+# will add prefix to all default document and cases names
+# this is required when you create your own sub collection
+# for examle, if you set prefix to '[AWS]'
+# the document name will be '[AWS]OS-TESTS Test Suite Test Cases'
+prefix : ''
+# it is not recommened to maintain cases in many places with diff prefixes.
+# you still can rename it.
+document : "OS-TESTS Test Suite Test Cases"
+space : "VirtQE-Cloud"
+# will pick up default author when maintainer field is not found in case docstring
+author : "xiliang"
+parent_id : ""
