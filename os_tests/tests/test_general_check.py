@@ -2030,7 +2030,7 @@ current_device"
                 msg="please attach this archive if file bug", timeout=180)
         gz_file = re.findall('/var/.*tar.gz', out)[0]
         file_name = gz_file.split('/')[-1]
-        if self.params['remote_node'] is not None:
+        if self.params.get('remote_node') is not None:
             self.log.info('retrive {} from remote'.format(file_name))
             self.SSH.get_file(rmt_file='/tmp/{}'.format(file_name),local_file='{}/debug/{}'.format(self.log_dir,file_name))
         else:
