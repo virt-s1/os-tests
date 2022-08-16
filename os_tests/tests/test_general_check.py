@@ -2135,10 +2135,10 @@ current_device"
             N/A
         maintainer:
             shshang@redhat.com
-        description:
+        description: |
             Check there is no io error in /var/log/secure.
             https://access.redhat.com/solutions/975803
-        key_steps: |
+        key_steps:
             1. Check /var/log/secure via command "sudo cat /var/log/secure".
         expect_result:
             There isn't "Input/output error" in secure log.

@@ -1077,7 +1077,7 @@ class NutanixVM(VMResource):
         if self.is_started():
             self.stop(wait=True)
             
-        logging.info("Add vgpu to VM")
+        logging.info("Remove vgpu from VM")
         res = self.cvm_cmd("acli vm.gpu_deassign %s gpu=%s" % (self.data.get('uuid'), device_name))
         logging.info(res)
         if "pending" in res.lower() and "cannot" not in res.lower():
