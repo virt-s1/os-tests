@@ -296,14 +296,14 @@ sudo setsid ~/stressapptest/src/stressapptest -M %s -s %s > %s" % \
             self.assertNotEqual(res_after, res_before,
                                 "Test failed as VM is still alive after reboot")
 
-    def _prepare_repo(self, target_release):
+    def _prepare_repo(self, image_site, target_release):
         '''
         1. Prepare repo file for the target release
         2. Get the compose ID of target release        
         '''
         release_id = target_release.split('.')[0]
-        image_url = "http://download.eng.bos.redhat.com/rhel-%s/nightly/RHEL-%s/latest-RHEL-%s.0" % \
-            (release_id, release_id, target_release)
+        image_url = "%s/rhel-%s/nightly/RHEL-%s/latest-RHEL-%s.0" % \
+            (image_site, release_id, release_id, target_release)
         image_compose = "%s/COMPOSE_ID" % image_url
         
         repo_baseos = "%s/compose/BaseOS/x86_64/os/" % image_url
@@ -1317,7 +1317,10 @@ gpgcheck=0"""
         if rhel_release.split('.')[1] > target_release.split('.')[1]:
             self.skipTest("Skip test as target release: %s is older than current release: %s" % (target_release, rhel_release))
 
-        self._prepare_repo(target_release)
+        image_site = self.vm.params['Upgrade']['image_site']
+        if not image_site:
+            self.skipTest("Skip test as image site is not defined in nutanix.yaml")
+        self._prepare_repo(image_site, target_release)
         
         cmd = "sudo yum update -y"
         utils_lib.run_cmd(self, cmd, expect_ret=0,
@@ -1398,7 +1401,11 @@ sudo wget --no-check-certificate -nv --directory-prefix=/etc/leapp/files/ %s/dev
         utils_lib.run_cmd(self, cmd, expect_ret=0,
                           msg="Get Leapp data files and saved to /etc/leapp/files/")
 
-        self._prepare_repo(target_release)
+        image_site = self.vm.params['Upgrade']['image_site']
+        if not image_site:
+            self.skipTest("Skip test as image site is not defined in nutanix.yaml")
+        self._prepare_repo(image_site, target_release)
+
         leapp_upgrade_repo = "/etc/leapp/files/leapp_upgrade_repositories.repo"
         utils_lib.run_cmd(self, "sudo mv /etc/yum.repos.d/rhel.repo %s" % leapp_upgrade_repo, 
                           expect_ret=0,
