@@ -1613,7 +1613,7 @@ sudo systemctl set-default multi-user.target"
         cmd = "sudo wget -nv --directory-prefix=/tmp %s/driver/%s/%s" % (ftp_url, software_version, driver_file)
         utils_lib.is_cmd_exist(self, cmd="wget", cancel_case=True)
         utils_lib.run_cmd(self, cmd, expect_ret=0,
-                          msg="Check if the Nouveau driver has been disabled")
+                          msg="Download vGPU driver from ftp server.")
 
         cmd = "sudo chmod +x /tmp/%s && \
 sudo /tmp/%s --no-opengl-files --accept-license --install-compat32-libs --silent" % (driver_file, driver_file)
@@ -1626,7 +1626,7 @@ sudo /tmp/%s --no-opengl-files --accept-license --install-compat32-libs --silent
         utils_lib.run_cmd(self, "nvidia-smi",
                           expect_ret=0,
                           expect_kw=driver_version,
-                          msg="Check if the Nouveau driver has been disabled")
+                          msg="Check if the vGPU driver has been installed successfully")
 
         TestNutanixVM.vm_vgpu_driver = True
 
