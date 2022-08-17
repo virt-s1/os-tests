@@ -47,11 +47,9 @@ class TestAzureImage(unittest.TestCase):
         cmd = "sudo grep -iE 'err|fail|warn|trace' {}|grep -vE '{}'".format(filename, '|'.join(ignore_list))
         output = utils_lib.run_cmd(self, cmd, msg="Check {} in {}".format(keyword, filename))
         if output:
-            self.log.info("Unexpected logs exist in {}.\n{}".format(filename, output))
-            return False
+            self.fail("Unexpected logs exist in {}.\n{}".format(filename, output))
         else:
             self.log.info("No unexpected logs in "+filename)
-            return True
 
     def _check_file_content(self, basefile=None, testfile=None, expected=None, msg=None, project=None):
         '''
@@ -696,7 +694,8 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
             'Stderr: mount: .*: unknown filesystem type .ntfs.',
             'SKIPPED: device_part_info.* failed: /dev/mapper/rootvg-rootlv not a partition',
             'modules with 0 failures',
-            'Failed to get raw userdata in module rightscale_userdata'
+            'Failed to get raw userdata in module rightscale_userdata',
+            'nofail'
         ]
         self._check_log('/var/log/cloud-init.log', ignore_list)
 
