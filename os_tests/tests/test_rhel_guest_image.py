@@ -13,12 +13,18 @@ class TestGuestImage(unittest.TestCase):
         """
         case_name:
             test_check_rootfs_uuid_in_fstab
+        case_tag:
+            Validation
+        case_file:
+            os_tests.tests.test_rhel_guest_image.py
         component:
             rhel-guest-image
         bugzilla_id:
             1006883
         is_customer_case:
             False
+        testplan:
+            N/A
         maintainer:
             wshi@redhat.com
         description:
@@ -27,6 +33,8 @@ class TestGuestImage(unittest.TestCase):
             1. cat /etc/fstab
         expect_result:
             root partition is identified by UUID
+        debug_want:
+            N/A
         """
         fs_spec = ""
         cmd = "cat /etc/fstab"
@@ -48,12 +56,18 @@ class TestGuestImage(unittest.TestCase):
         """
         case_name:
            test_check_partitions
+        case_tag:
+            Validation
+        case_file:
+            os_tests.tests.test_rhel_guest_image.py
         component:
             rhel-guest-image
         bugzilla_id:
             1673094
         is_customer_case:
             False
+        testplan:
+            N/A
         maintainer:
             wshi@redhat.com
         description:
@@ -61,7 +75,9 @@ class TestGuestImage(unittest.TestCase):
         key_steps:
             1. lsblk
         expect_result:
-            #TODO
+            contains /boot, /boot/efi partition
+        debug_want:
+            N/A
         """
         cmd = "df / | tail -n 1"
         output = utils_lib.run_cmd(self,
@@ -101,12 +117,18 @@ class TestGuestImage(unittest.TestCase):
         """
         case_name:
             test_check_boot_partition_guid
+        case_tag:
+            Validation
+        case_file:
+            os_tests.tests.test_rhel_guest_image.py
         component:
             rhel-guest-image
         bugzilla_id:
             2057231
         is_customer_case:
             False
+        testplan:
+            N/A
         maintainer:
             wshi@redhat.com
         description:
@@ -115,6 +137,8 @@ class TestGuestImage(unittest.TestCase):
             1. lsblk -n -o PARTTYPE,MOUNTPOINT | grep '/boot$'
         expect_result:
             GUID = bc13c2ff-59e6-4262-a352-b275fd6f7172
+        debug_want:
+            N/A
         """
         product_id = utils_lib.get_product_id(self)
         if float(product_id) >= 9.0 and (
@@ -135,12 +159,18 @@ class TestGuestImage(unittest.TestCase):
         """
         case_name:
             test_check_etc_sysconfig_kernel
+        case_tag:
+            Validation
+        case_file:
+            os_tests.tests.test_rhel_guest_image.py
         component:
             rhel-guest-image
         bugzilla_id:
             N/A
         is_customer_case:
             False
+        testplan:
+            N/A
         maintainer:
             wshi@redhat.com
         description:
@@ -149,6 +179,8 @@ class TestGuestImage(unittest.TestCase):
             1. cat /etc/sysconfig/kernel
         expect_result:
             UPDATEDEFAULT=yes and DEFAULTKERNEL=kernel
+        debug_want:
+            N/A
         """
         cmd = "cat /etc/sysconfig/kernel"
         output = utils_lib.run_cmd(self,
@@ -164,12 +196,18 @@ class TestGuestImage(unittest.TestCase):
         """
         case_name:
             test_check_etc_default_grub
+        case_tag:
+            Validation
+        case_file:
+            os_tests.tests.test_rhel_guest_image.py
         component:
             rhel-guest-image
         bugzilla_id:
             N/A
         is_customer_case:
             False
+        testplan:
+            N/A
         maintainer:
             wshi@redhat.com
         description:
@@ -178,6 +216,8 @@ class TestGuestImage(unittest.TestCase):
             1. cat /etc/default/grub
         expect_result:
             GRUB_DEFAULT=saved
+        debug_want:
+            N/A
         """
         cmd = "cat /etc/default/grub"
         output = utils_lib.run_cmd(self,
@@ -191,12 +231,18 @@ class TestGuestImage(unittest.TestCase):
         """
         case_name:
             test_check_default_runlevel
+        case_tag:
+            Validation
+        case_file:
+            os_tests.tests.test_rhel_guest_image.py
         component:
             rhel-guest-image
         bugzilla_id:
             N/A
         is_customer_case:
             False
+        testplan:
+            N/A
         maintainer:
             wshi@redhat.com
         description:
@@ -205,6 +251,8 @@ class TestGuestImage(unittest.TestCase):
             1. systemctl get-default
         expect_result:
             multi-user.target
+        debug_want:
+            N/A
         """
         cmd = "systemctl get-default"
         output = utils_lib.run_cmd(self,
@@ -218,12 +266,18 @@ class TestGuestImage(unittest.TestCase):
         """
         case_name:
             test_check_default_timezone
+        case_tag:
+            Validation
+        case_file:
+            os_tests.tests.test_rhel_guest_image.py
         component:
             rhel-guest-image
         bugzilla_id:
             N/A
         is_customer_case:
             False
+        testplan:
+            N/A
         maintainer:
             wshi@redhat.com
         description:
@@ -232,6 +286,8 @@ class TestGuestImage(unittest.TestCase):
             1. timedatectl | grep 'Time zone'
         expect_result:
             America/New_York
+        debug_want:
+            N/A
         """
         cmd = "timedatectl | grep 'Time zone'"
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="get timezone")
@@ -242,12 +298,18 @@ class TestGuestImage(unittest.TestCase):
         """
         case_name:
             test_check_size_of_rootfs
+        case_tag:
+            Validation
+        case_file:
+            os_tests.tests.test_rhel_guest_image.py
         component:
             rhel-guest-image
         bugzilla_id:
             1045242
         is_customer_case:
             False
+        testplan:
+            N/A
         maintainer:
             wshi@redhat.com
         description:
@@ -255,7 +317,9 @@ class TestGuestImage(unittest.TestCase):
         key_steps:
             1. timedatectl | grep 'Time zone'
         expect_result:
-            America/New_York
+            rootfs size nearly the same as disk size (>90%)
+        debug_want:
+            N/A
         """
         fs_size = 0
         cmd = "df -h"
@@ -275,12 +339,18 @@ class TestGuestImage(unittest.TestCase):
         """
         case_name:
             test_check_password_hash_for_root
+        case_tag:
+            Validation
+        case_file:
+            os_tests.tests.test_rhel_guest_image.py
         component:
             rhel-guest-image
         bugzilla_id:
             1032175
         is_customer_case:
             False
+        testplan:
+            N/A
         maintainer:
             wshi@redhat.com
         description:
@@ -288,7 +358,9 @@ class TestGuestImage(unittest.TestCase):
         key_steps:
             1. cat /etc/shadow
         expect_result:
-            !! or *
+            "!! or *"
+        debug_want:
+            N/A
         """
         sp_pwdp = ""
         cmd = "sudo cat /etc/shadow"
@@ -308,12 +380,18 @@ class TestGuestImage(unittest.TestCase):
         """
         case_name:
             test_check_selinux_status
+        case_tag:
+            Validation
+        case_file:
+            os_tests.tests.test_rhel_guest_image.py
         component:
             rhel-guest-image
         bugzilla_id:
             N/A
         is_customer_case:
             False
+        testplan:
+            N/A
         maintainer:
             wshi@redhat.com
         description:
@@ -323,6 +401,8 @@ class TestGuestImage(unittest.TestCase):
             2. cat /etc/selinux/config|grep SELINUX=
         expect_result:
             Enforcing/enforcing
+        debug_want:
+            N/A
         """
         cmd = "getenforce"
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="getenforce")
@@ -343,12 +423,18 @@ class TestGuestImage(unittest.TestCase):
         """
         case_name:
             test_check_selinux_contexts
+        case_tag:
+            Validation
+        case_file:
+            os_tests.tests.test_rhel_guest_image.py
         component:
             rhel-guest-image
         bugzilla_id:
             N/A
         is_customer_case:
             False
+        testplan:
+            N/A
         maintainer:
             wshi@redhat.com
         description:
@@ -357,6 +443,8 @@ class TestGuestImage(unittest.TestCase):
             1. restorecon -R -v -n
         expect_result:
             all files labeled with existing selinux contexts
+        debug_want:
+            N/A
         """
         selinux_now = "/tmp/" + "selinux.now"
         product_id = utils_lib.get_product_id(self)
@@ -389,12 +477,18 @@ class TestGuestImage(unittest.TestCase):
         """
         case_name:
             test_check_files_controlled_by_rpm
+        case_tag:
+            Validation
+        case_file:
+            os_tests.tests.test_rhel_guest_image.py
         component:
             rhel-guest-image
         bugzilla_id:
             N/A
         is_customer_case:
             False
+        testplan:
+            N/A
         maintainer:
             wshi@redhat.com
         description:
@@ -403,6 +497,8 @@ class TestGuestImage(unittest.TestCase):
             1. rpm -ql
         expect_result:
             No unexpected orphan files
+        debug_want:
+            N/A
         """
         product_id = utils_lib.get_product_id(self)
         data_file = "rogue.el%s.lst" % product_id.split('.')[0]
@@ -431,12 +527,18 @@ class TestGuestImage(unittest.TestCase):
         """
         case_name:
             test_check_file_content_integrity
+        case_tag:
+            Validation
+        case_file:
+            os_tests.tests.test_rhel_guest_image.py
         component:
             rhel-guest-image
         bugzilla_id:
             N/A
         is_customer_case:
             False
+        testplan:
+            N/A
         maintainer:
             wshi@redhat.com
         description:
@@ -445,6 +547,8 @@ class TestGuestImage(unittest.TestCase):
             1. rpm -Va
         expect_result:
             No unexpected file modifications
+        debug_want:
+            N/A
         """
         product_id = utils_lib.get_product_id(self)
         data_file = "rpm_va.el%s.lst" % product_id.split('.')[0]
@@ -496,12 +600,18 @@ class TestGuestImage(unittest.TestCase):
         """
         case_name:
             test_check_boot_cmdline_parameters
+        case_tag:
+            Validation
+        case_file:
+            os_tests.tests.test_rhel_guest_image.py
         component:
             rhel-guest-image
         bugzilla_id:
             1144155
         is_customer_case:
             False
+        testplan:
+            N/A
         maintainer:
             wshi@redhat.com
         description:
@@ -510,6 +620,8 @@ class TestGuestImage(unittest.TestCase):
             1. cat /proc/cmdline
         expect_result:
             no_timer_check console=tty0 console=ttyS0,115200n8 net.ifnames=0 crashkernel=
+        debug_want:
+            N/A
         """
         for count in utils_lib.iterate_timeout(
                 120, "Timed out waiting for getting IP address."):
@@ -549,20 +661,28 @@ class TestGuestImage(unittest.TestCase):
         """
         case_name:
             test_check_package_signature
+        case_tag:
+            Validation
+        case_file:
+            os_tests.tests.test_rhel_guest_image.py
         component:
             rhel-guest-image
         bugzilla_id:
             N/A
         is_customer_case:
             False
+        testplan:
+            N/A
         maintainer:
             wshi@redhat.com
         description:
             check packages are signed
         key_steps:
-            1. rpm -qa --qf '%{name}-%{version}-%{release}.%{arch} (%{SIGPGP:pgpsig})\n'|grep -v 'Key ID'
+            1. "rpm -qa --qf '%{name}-%{version}-%{release}.%{arch} (%{SIGPGP:pgpsig})\\n'|grep -v 'Key ID'"
         expect_result:
             Red Hat managed packages should be signed
+        debug_want:
+            N/A
         """
         data_file = "rpm_sign.lst"
         src_path = self.data_dir + '/guest-images/' + data_file
@@ -585,12 +705,18 @@ class TestGuestImage(unittest.TestCase):
         """
         case_name:
             test_check_manpage
+        case_tag:
+            Validation
+        case_file:
+            os_tests.tests.test_rhel_guest_image.py
         component:
             rhel-guest-image
         bugzilla_id:
             200203
         is_customer_case:
             False
+        testplan:
+            N/A
         maintainer:
             wshi@redhat.com
         description:
@@ -599,6 +725,8 @@ class TestGuestImage(unittest.TestCase):
             1. man -P cat man
         expect_result:
             return code is 0
+        debug_want:
+            N/A
         """
         cmd = "man -P cat man"
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="run man cmd")
@@ -607,12 +735,18 @@ class TestGuestImage(unittest.TestCase):
         """
         case_name:
             test_check_services_status
+        case_tag:
+            Validation
+        case_file:
+            os_tests.tests.test_rhel_guest_image.py
         component:
             rhel-guest-image
         bugzilla_id:
             974554
         is_customer_case:
             False
+        testplan:
+            N/A
         maintainer:
             wshi@redhat.com
         description:
@@ -621,6 +755,8 @@ class TestGuestImage(unittest.TestCase):
             1. systemctl
         expect_result:
             services is active and enabled
+        debug_want:
+            N/A
         """
         enabled_services = ['tuned', 'rhsmcertd']
         product_id = utils_lib.get_product_id(self)
@@ -653,12 +789,18 @@ class TestGuestImage(unittest.TestCase):
         """
         case_name:
             test_check_network_cfg
+        case_tag:
+            Validation
+        case_file:
+            os_tests.tests.test_rhel_guest_image.py
         component:
             rhel-guest-image
         bugzilla_id:
             983611
         is_customer_case:
             False
+        testplan:
+            N/A
         maintainer:
             wshi@redhat.com
         description:
@@ -667,6 +809,8 @@ class TestGuestImage(unittest.TestCase):
             1. cat /etc/sysconfig/network
         expect_result:
             NOZEROCONF=yes
+        debug_want:
+            N/A
         """
         flag = False
         cmd = "cat /etc/sysconfig/network"
