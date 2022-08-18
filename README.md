@@ -153,3 +153,7 @@ If adding case, please verify case doc before pushing.
 ```bash
 $ os-tests --verifydoc -p <casename>
 ```
+To upload cases other test management system, like polarion.
+```bash
+$ os-tests  -p <casename> --uploaddoc polarion.yaml
+```

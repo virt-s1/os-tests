@@ -201,6 +201,8 @@ class TestCloudInit(unittest.TestCase):
             cloudinit,cloudinit_tier1
         case_name:
             test_check_cloudinit_log_critical
+        case_file:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_cloud_init.py
         component:
             cloud-init
         bugzilla_id:
@@ -504,11 +506,11 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         bugzilla_id:
             1447177
         is_customer_case:
-            N/A
+            False
         testplan:
             N/A
         maintainer:
-            minl@redha.tcom
+            minl@redhat.com
         description:
             RHEL7-103839 - CLOUDINIT-TC: Auto extend root partition and filesystem
         key_steps: |
