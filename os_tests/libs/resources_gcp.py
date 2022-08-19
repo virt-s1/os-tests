@@ -120,6 +120,7 @@ class GCPVM(VMResource):
         self.vm_password = params['VM'].get('password')
 
         self.arch = params.get('Flavor').get('arch')
+        self.nic_type = params.get('Flavor').get('nic_type')
 
     @property
     def data(self):
@@ -173,7 +174,8 @@ class GCPVM(VMResource):
                 'accessConfigs': [{
                     'type': 'ONE_TO_ONE_NAT',
                     'name': 'External NAT'
-                }]
+                }],
+                "nicType": self.nic_type
             }],
 
             # Allow the instance to access cloud storage and logging.
