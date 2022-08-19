@@ -155,7 +155,7 @@ ssh_pwauth: 0
                     server, f_ip.floating_ip_address)
         self._data = None
 
-    def delete(self, wait=False):
+    def delete(self, wait=True):
         f_ip = self.floating_ip
         try:
             if f_ip and self.floating_network_id != '' and self.floating_network_id is not None:
