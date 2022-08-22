@@ -511,7 +511,7 @@ int main(int argc, char *argv[])
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         utils_lib.run_cmd(self, 'ulimit -c unlimited;/tmp/pp', msg='run it to trigger core dump')
         utils_lib.run_cmd(self, 'sudo ls /var/lib/systemd/coredump/core.pp*', expect_ret=0, msg='check core file generated')
-        utils_lib.check_log(self, "error,warn,fail", log_cmd='journalctl -b0', cursor=self.cursor, rmt_redirect_stdout=True)
+        utils_lib.check_log(self, "warn,fail", log_cmd='journalctl -b0', cursor=self.cursor, rmt_redirect_stdout=True)
 
     def test_podman_build_image(self):
         '''

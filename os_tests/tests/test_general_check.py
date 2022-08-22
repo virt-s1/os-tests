@@ -513,7 +513,7 @@ available_clocksource'
         utils_lib.run_cmd(self, "rpm -qa|grep linux-firmware",msg='get linux-firmware pkg version')
         check_cmd = r"sudo grep . /sys/devices/system/cpu/vulnerabilities/* | \
 sed 's/:/^/' | column -t -s^"
-        utils_lib.run_cmd(self, check_cmd, expect_ret=0)
+        utils_lib.run_cmd(self, check_cmd, expect_ret=0, msg='retrive cpu vulnerabilities statics')
 
         output = utils_lib.run_cmd(self, 'uname -r', expect_ret=0)
         if utils_lib.is_metal(self):
@@ -526,13 +526,13 @@ sed 's/:/^/' | column -t -s^"
                 "Skip spec_store_bypass,Retpoline and mds in RHEL7 vms")
             check_cmd = r"sudo grep . /sys/devices/system/cpu/vulnerabilities/* | \
 grep -v spec_store_bypass|grep -v 'tsx_async_abort'|grep -v 'Vulnerable: Retpoline'|\
-grep -v mds| sed 's/:/^/' | column -t -s^"
+grep -v mds|grep -v 'no microcode'|grep -v retbleed| sed 's/:/^/' | column -t -s^"
         else:
             self.log.info(
                 "Skip spec_store_bypass and mds,itlb_multihit in vms")
             check_cmd = r"sudo grep . /sys/devices/system/cpu/vulnerabilities/*|\
 grep -v spec_store_bypass|grep -v 'tsx_async_abort'|grep -v mds|grep -v \
-itlb_multihit|sed 's/:/^/' | column -t -s^"
+itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -s^"
 
         utils_lib.run_cmd(self, check_cmd, expect_ret=0, expect_not_kw='Vulnerable')
 

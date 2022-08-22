@@ -1,3 +1,4 @@
+from copy import deepcopy
 import os
 import random
 import re
@@ -153,6 +154,8 @@ def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=N
                     test_instance.log.info("connection is live")
                     is_active = True
                 break
+        if not test_instance.SSH:
+            test_instance.SSH = test_instance.SSHs[0]
         test_instance.SSHs[0] = test_instance.SSH
         if is_active:
             return
@@ -268,7 +271,7 @@ def init_case(test_instance):
         if test_instance.vm.is_stopped():
             test_instance.vm.start(wait=True)
         floating_ip = test_instance.vm.floating_ip
-        if test_instance.params['remote_node'] and floating_ip != test_instance.params['remote_node']:
+        if test_instance.params.get('remote_node') and floating_ip != test_instance.params['remote_node']:
             if test_instance.params['remote_node'] in test_instance.params['remote_nodes']:
                 test_instance.params['remote_nodes'].remove(test_instance.params['remote_node'])
         test_instance.params['remote_node'] = floating_ip
@@ -1148,23 +1151,24 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
     if len(tmp_list) == 0:
         test_instance.log.info("No {} found after skipped {}!".format(log_keyword, skip_words))
         return True, []
+    unknow_log = deepcopy(tmp_list)
     # compare 2 string, if similary over fail_rate, consider it as same.
     fail_rate = 70
     no_fail = True
     check_done = False
-    msg = []
     for line1 in tmp_list:
+        # this round go through with regex
         find_it = False
-        if baseline_dict is not None:
+        if baseline_dict:
             for basekey in baseline_dict:
                 for sub_basekey_content in baseline_dict[basekey]["content"].split(';'):
                     check_done = False
                     if sub_basekey_content and re.search(sub_basekey_content, line1):
                         if baseline_dict[basekey]["status"] == 'active':
-                            test_instance.log.info("Found a similar issue matched in baseline.")
+                            test_instance.log.info("Found a similar log matched in baseline.")
                             find_it = True
                         else:
-                            test_instance.log.info("Found a similar issue matched in baseline. But it is not active, please check manually")
+                            test_instance.log.info("Found a similar log matched in baseline. But it is not active, please check manually")
                             find_it = False
                             no_fail = False
                             check_done = True
@@ -1186,8 +1190,17 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
                               baseline_dict[basekey]["path"]))
                         check_done = True
                         break
-                if find_it or check_done:
+                if find_it:
+                    unknow_log.remove(line1)
                     break
+                if check_done:
+                    break
+    tmp_list = deepcopy(unknow_log)
+    for line1 in tmp_list:
+        # this round go through with content compare
+        find_it = False
+        if baseline_dict:
+            for basekey in baseline_dict:
                 line1_tmp = line1
                 line2_tmp = baseline_dict[basekey]["content"]
                 line1_tmp, line2_tmp = clean_sentence(test_instance, line1_tmp, line2_tmp)
@@ -1221,13 +1234,13 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
                         find_it = False
                         no_fail = False
                     break
-        if not find_it:
-            test_instance.log.info("This is a new exception!")
-            test_instance.log.info("{}".format(line1))
-            msg.append(line1)
-            no_fail = False
+            if find_it:
+                unknow_log.remove(line1)
+    if unknow_log:
+        test_instance.log.info("Below items are unknow!\n{}".format(unknow_log))
+        no_fail = False
 
-    return no_fail, msg
+    return no_fail, unknow_log
 
 def get_product_id(test_instance):
     cmd = "source /etc/os-release ;echo $VERSION_ID"

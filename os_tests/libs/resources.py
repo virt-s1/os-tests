@@ -87,6 +87,22 @@ class VMResource(BaseResource):
         """
 
     @property
+    def is_secure_boot(self):
+        """
+        vm provisioned with secure boot or not
+        :return: True|False
+        """
+        return False
+
+    @property
+    def is_uefi_boot(self):
+        """
+        vm provisioned with uefi or not
+        :return: True|False
+        """
+        return False
+
+    @property
     def port(self):
         """
         get vm's open port for ssh connection

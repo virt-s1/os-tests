@@ -1,5 +1,6 @@
 import unittest
 import time
+import random
 from os_tests.libs import utils_lib
 
 class TestLifeCycle(unittest.TestCase):
@@ -37,7 +38,7 @@ class TestLifeCycle(unittest.TestCase):
         polarion_id:
         bz: 1703366
         '''
-        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+        if self.vm and self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
             self.skipTest('''Red Hat Insights error "sed: can't read /sys/kernel/debug/sched_features: Operation not permitted" When using secure boot''')
         self.old_grub_index = utils_lib.run_cmd(self, 'sudo grubby --default-index', expect_ret=0)
         self.log.info("Check kernel-debug can boot up!")
@@ -331,7 +332,11 @@ class TestLifeCycle(unittest.TestCase):
         cmd = "grep processor /proc/cpuinfo | wc -l"
         cpu_counts = int(utils_lib.run_cmd(self, cmd, expect_ret=0,
                                            msg = "Get cpu counts"))
-        for core_num in range(cpu_counts):
+        test_cpus = range(cpu_counts)
+        if utils_lib.is_aws(self) and cpu_counts > 3:
+            test_cpus = random.choices(range(cpu_counts),k=2)
+            self.log.info("It takes too long time in aws bare metal system or instances with tens of vcpus, pick up 2 of them to test {}".format(test_cpus))
+        for core_num in test_cpus:
             self.log.info("Trigger kdump on core %d" % core_num)
             cmd = "systemctl is-active kdump || sudo systemctl start kdump"
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check kdump service status")
@@ -397,7 +402,7 @@ class TestLifeCycle(unittest.TestCase):
             self.log.info('try to swith {}'.format(kernel))
             kernel_vmlinuz = "/boot/" + kernel.replace('kernel','vmlinuz')
             kernel_initramfs = "/boot/" + kernel.replace('kernel','initramfs') + ".img"
-            if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+            if self.vm and self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
                 cmd = "sudo kexec -l %s --initrd=%s --reuse-cmdline -s" % (kernel_vmlinuz, kernel_initramfs) #kexec systems using UEFI + SecureBoot using the kexec option "-s"
             else:
                 cmd = "sudo kexec -l %s --initrd=%s --reuse-cmdline" % (kernel_vmlinuz, kernel_initramfs)
@@ -441,7 +446,7 @@ class TestLifeCycle(unittest.TestCase):
             self.log.info('try to swith {}'.format(kernel))
             kernel_vmlinuz = "/boot/" + kernel.replace('kernel','vmlinuz')
             kernel_initramfs = "/boot/" + kernel.replace('kernel','initramfs') + ".img"
-            if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+            if self.vm and self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
                 cmd = "sudo kexec -l %s --initrd=%s --reuse-cmdline -s" % (kernel_vmlinuz, kernel_initramfs) #kexec systems using UEFI + SecureBoot using the kexec option "-s"
             else:
                 cmd = "sudo kexec -l %s --initrd=%s --reuse-cmdline" % (kernel_vmlinuz, kernel_initramfs)
@@ -479,12 +484,15 @@ class TestLifeCycle(unittest.TestCase):
         debug_want:
             N/A
         """
+        if not self.vm:
+            self.skipTest("no vms found to determin vm's boot configration!")
+        utils_lib.is_cmd_exist(self, cmd='mokutil')
         secure_boot_check = utils_lib.run_cmd(self, "mokutil --sb-state")
-        if self.vm.prism.if_secure_boot:
+        if self.vm.is_secure_boot:
             self.assertIn("SecureBoot enabled", secure_boot_check, msg='secure boot check error: %s' % secure_boot_check)
         else:
-            if self.vm.prism.if_uefi_boot:
-                self.assertIn("This system doesn't support Secure Boot", secure_boot_check, msg='secure boot check error: %s' % secure_boot_check)
+            if self.vm.is_uefi_boot:
+                self.assertRegex(secure_boot_check, "This system doesn't support Secure Boot|SecureBoot disabled", msg='secure boot check error: %s' % secure_boot_check)
             else:
                 self.assertIn("EFI variables are not supported on this system", secure_boot_check, msg='secure boot check error: %s' % secure_boot_check)
 

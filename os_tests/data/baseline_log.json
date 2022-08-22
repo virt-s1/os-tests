@@ -621,7 +621,7 @@
         "trigger": "mcelog does not support this processor"
     },
     "msg_71": {
-        "content": "systemd[1]: mcelog.service: Failed with result 'exit-code'.",
+        "content": ".*systemd[1]: mcelog.service: Failed with result 'exit-code'.*",
         "analyze": "Information only on unsupported cpu.",
         "branch": "rhel",
         "status": "active",
@@ -1152,7 +1152,7 @@
         "trigger": "Started libcontainer"
     },
     "msg_130": {
-        "content": ".*nm-cloud-setup.service: Failed with result 'signal'..*;",
+        "content": ".*nm-cloud-setup.service: Failed with result 'signal'.*",
         "analyze": "Info only, will trigger when NetworkManager restart",
         "branch": "rhel",
         "status": "active",
@@ -1195,5 +1195,14 @@
         "link": "",
         "path": "dmesg",
         "trigger": ""
+    },
+    "msg_135": {
+        "content": ".*data leaks possible.*",
+        "analyze": "data leaks is expected as no microcode loaded in virtual system",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "dmesg",
+        "trigger": "Hypervisor detected"
     }
 }
