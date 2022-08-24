@@ -16,3 +16,4 @@ Flavor:
   size: 20G
   virt: kvm
   arch: x86_64
+  nic_type: VIRTIO_NET

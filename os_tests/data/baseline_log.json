@@ -1197,6 +1197,69 @@
         "trigger": ""
     },
     "msg_135": {
+        "content": "cloud-final.service: Main process exited, code=exited, status=2/INVALIDARGUMENT",
+        "analyze": "Kernel cmdline contains 'console=ttyS0' in RHEL qcow2 image, but Nutanix AHV doesn't has serial console, which will caused cloud-final.service failed to start, then trigger this message",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2034588",
+        "path": "journal",
+        "trigger": "ahv"
+    },
+    "msg_136": {
+        "content": "cloud-final.service: Failed with result 'exit-code'.",
+        "analyze": "Kernel cmdline contains 'console=ttyS0' in RHEL qcow2 image, but Nutanix AHV doesn't has serial console, which will caused cloud-final.service failed to start, then trigger this message",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2034588",
+        "path": "journal",
+        "trigger": "ahv"
+    },
+    "msg_137": {
+        "content": "cc_scripts_user.py[WARNING]: Failed to run module scripts-user (scripts in /var/lib/cloud/instance/scripts)",
+        "analyze": "Kernel cmdline contains 'console=ttyS0' in RHEL qcow2 image, but Nutanix AHV doesn't has serial console, which will caused cloud-final.service failed to start, then trigger this message",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2034588",
+        "path": "journal",
+        "trigger": "ahv"
+    },
+    "msg_138": {
+        "content": "util.py[WARNING]: Running module scripts-user (<module 'cloudinit.config.cc_scripts_user' from '/usr/lib/python3.9/site-packages/cloudinit/config/cc_scripts_user.py'>) failed",
+        "analyze": "Kernel cmdline contains 'console=ttyS0' in RHEL qcow2 image, but Nutanix AHV doesn't has serial console, which will caused cloud-final.service failed to start, then trigger this message",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2034588",
+        "path": "journal",
+        "trigger": "ahv"
+    },
+    "msg_139": {
+        "content": "util.py[WARNING]: Running module ssh-authkey-fingerprints (<module 'cloudinit.config.cc_ssh_authkey_fingerprints' from '/usr/lib/python3.9/site-packages/cloudinit/config/cc_ssh_authkey_fingerprints.py'>) failed",
+        "analyze": "Kernel cmdline contains 'console=ttyS0' in RHEL qcow2 image, but Nutanix AHV doesn't has serial console, which will caused cloud-final.service failed to start, then trigger this message",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2034588",
+        "path": "journal",
+        "trigger": "ahv"
+    },
+    "msg_140": {
+        "content": "cc_keys_to_console.py[WARNING]: Writing keys to the system console failed!",
+        "analyze": "Kernel cmdline contains 'console=ttyS0' in RHEL qcow2 image, but Nutanix AHV doesn't has serial console, which will caused cloud-final.service failed to start, then trigger this message",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2034588",
+        "path": "journal",
+        "trigger": "ahv"
+    },
+    "msg_141": {
+        "content": "util.py[WARNING]: Running module keys-to-console (<module 'cloudinit.config.cc_keys_to_console' from '/usr/lib/python3.9/site-packages/cloudinit/config/cc_keys_to_console.py'>) failed",
+        "analyze": "Kernel cmdline contains 'console=ttyS0' in RHEL qcow2 image, but Nutanix AHV doesn't has serial console, which will caused cloud-final.service failed to start, then trigger this message",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2034588",
+        "path": "journal",
+        "trigger": "ahv"
+    },
+    "msg_142": {
         "content": ".*data leaks possible.*",
         "analyze": "data leaks is expected as no microcode loaded in virtual system",
         "branch": "rhel",
