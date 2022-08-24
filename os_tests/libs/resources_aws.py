@@ -233,6 +233,27 @@ class EC2VM(VMResource):
         LOG.info(volumes_list)
         return len(volumes_list)
 
+    @property
+    def is_secure_boot(self):
+        return False
+
+    @property
+    def is_uefi_boot(self):
+        self.ec2_instance.reload()
+        try:
+            bootmode = self.client.describe_instances(
+                InstanceIds=[
+                    self.ec2_instance.id,
+                ])['Reservations'][0]['Instances'][0].get("BootMode")
+            LOG.info('boot mode: {}'.format(bootmode))
+            if bootmode and 'uefi' in bootmode:
+                return True
+            else:
+                return False
+        except Exception as error:
+            LOG.info('Cannot determin boot mode, return False')
+        return False
+
     def start(self, wait=True):
         start_ok = False
         if self.additionalinfo != None and self.additionalinfo != '':
