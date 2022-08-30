@@ -69,12 +69,12 @@ class TestStorage(unittest.TestCase):
             blktests_rpm = utils_dir + '/blktests-master.x86_64.rpm'
             blktests_rpm_tmp = '/tmp/blktests-master.x86_64.rpm'
         if not utils_lib.is_pkg_installed(self, pkg_name='blktests',is_install=False) and 'blktests' in self.id():
-            if self.params['remote_node'] is not None:
+            if self.params['remote_node']:
                 self.log.info('Copy {} to remote'.format(blktests_rpm))
                 self.SSH.put_file(local_file=blktests_rpm, rmt_file=blktests_rpm_tmp)
                 blktests_rpm = blktests_rpm_tmp
         if 'blktests' in self.id():
-            utils_lib.pkg_install(self, pkg_name='blktests', pkg_url=blktests_rpm)
+            utils_lib.pkg_install(self, pkg_name='blktests', pkg_url=blktests_rpm,force=True)
         self.cursor = utils_lib.get_cmd_cursor(self, timeout=120)
         self.timeout = 180
 
@@ -259,13 +259,14 @@ class TestStorage(unittest.TestCase):
             if self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
                 self.skipTest("Cannot attach an IDE Disk when secure boot is enabled or when vm machine type is q35")
         origin_disk_num = self._get_disk_num('rom')
+        utils_lib.check_attribute(self.vm, 'attach_disk',test_instance=self, cancel_case=True)
         self.vm.stop(wait=True)
         try:
             self.vm.attach_disk('ide', disk_size=0, is_cdrom=True, device_index=1, wait=True, is_empty=True)
         except NotImplementedError:
-            self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
+            self.skipTest('attach_disk func is not implemented in {}'.format(self.vm.provider))
         except UnSupportedAction:
-            self.skipTest('attch disk func is not supported in {}'.format(self.vm.provider))
+            self.skipTest('attach_disk func is not supported in {}'.format(self.vm.provider))
         self.vm.start(wait=True)
         utils_lib.init_connection(self, timeout=self.timeout)
         new_disk_num = self._get_disk_num('rom')
@@ -313,6 +314,7 @@ class TestStorage(unittest.TestCase):
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
         origin_disk_num = self._get_disk_num('rom')
+        utils_lib.check_attribute(self.vm, 'attach_disk',test_instance=self, cancel_case=True)
         self.vm.stop(wait=True)
         try:
             self.vm.attach_disk('sata', disk_size=0, is_cdrom=True, device_index=0, wait=True, is_empty=False, clone='clone_from_img_service')
@@ -371,6 +373,7 @@ class TestStorage(unittest.TestCase):
         """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
+        utils_lib.check_attribute(self.vm, 'attach_disk',test_instance=self, cancel_case=True)
         for i in range(10):
             #get random device size
             random_dev_size = random.randint(1,10)
@@ -413,6 +416,7 @@ class TestStorage(unittest.TestCase):
         """
         cmd = "touch ~/snpst.txt \n ls ~/snpst.txt"
         utils_lib.run_cmd(self, cmd, expect_ret=0)
+        utils_lib.check_attribute(self.vm, 'take_snapshot',test_instance=self, cancel_case=True)
         if is_offline:
             self.vm.stop(wait=True)
         try:
@@ -560,6 +564,7 @@ class TestStorage(unittest.TestCase):
         #Get init size of test disk
         cmd='sudo fdisk -s {}'.format(test_disk)
         test_disk_origin_size = int(utils_lib.run_cmd(self, cmd, expect_ret=0))/(1024*1024)
+        utils_lib.check_attribute(self.vm, 'prism',test_instance=self, cancel_case=True)
         self.assertEqual(self.vm.prism.attach_disk_size, test_disk_origin_size, msg='disk size is not the same with init value')
         #Expand size of test disk when VM running
         try:
@@ -619,6 +624,7 @@ class TestStorage(unittest.TestCase):
         """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
+        utils_lib.check_attribute(self.vm, 'attach_disk',test_instance=self, cancel_case=True)
         scsi_set_size = random.randint(6,10)
         pci_set_size = random.randint(6,10)
         ide_set_size = random.randint(6,10)
@@ -763,6 +769,7 @@ class TestStorage(unittest.TestCase):
         self.params['remote_nodes'].pop()
 
     def _clone_vm(self,clone_from_vm_or_snapshot, vm_name, cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus):
+        utils_lib.check_attribute(self.vm, 'prism',test_instance=self, cancel_case=True)
         try:
             self.log.info('Delete ide.3 for refresh user data')
             self.vm.stop(wait=True)
@@ -890,6 +897,7 @@ class TestStorage(unittest.TestCase):
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
         origin_disk_num = self._get_disk_num('rom')
+        utils_lib.check_attribute(self.vm, 'attach_disk',test_instance=self, cancel_case=True)
         self.vm.stop(wait=True)
         for i in range(0,6):
             try:
@@ -942,6 +950,112 @@ class TestStorage(unittest.TestCase):
                         self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
         self.vm.start(wait=True)
         utils_lib.init_connection(self, timeout=self.timeout)
+
+    def test_check_disk_count(self):
+        '''
+        description:
+            check disk count in vm matches the vm assigned
+        testplan:
+            N/A
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        maintainer: 
+            xiliang
+        case_priority:
+            0
+        case_component: 
+            Storage
+        key_steps:
+            1. Launch an vm.
+            2. Check online disks count via command "$ sudo lsblk -d".
+        pass_criteria: 
+            The online disks count is the same with attached disks.
+        '''
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
+        utils_lib.check_attribute(self.vm, 'disk_count',test_instance=self, cancel_case=True)
+        online_disk = utils_lib.get_disk_online(self)
+        if self.vm.disk_count != online_disk:
+            self.fail('disk assigned:{} not match disk online:{}'.format(self.vm.disk_count, online_disk))
+
+    def test_disk_hotplug(self):
+        '''
+        description:
+            Check hotplug disks when vm is running. Linked case RHEL7-93570.
+            Will add disk read&write in auto test later.
+        testplan:
+            N/A
+        bugzilla_id:
+            2004072
+        is_customer_case:
+            False
+        maintainer: 
+            xiliang
+        case_priority:
+            0
+        case_component: 
+            Storage
+        key_steps:
+            1. Launch an vm.
+            2. Check online disks count via command "$ lsblk -d".
+            3. When instance is in running state, attach 4 disks to this instance.
+            4. Connect instance via ssh, check online disks count again.
+            5. Create partition and filesystem for the attached disks, format and mount the disks, check read and write in the attached disks.
+            6. Detach the disks.
+        pass_criteria: 
+            Disks can be attached to the running instance successfully.
+            The online disks count is the same with the orignial disks in spec plus attached disks.
+            Read and write in attached disks work well.
+            And no error, hang or crash in system.
+            Disks can be detached successfully in step 6.
+        '''
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
+        online_disk_1 = utils_lib.get_disk_online(self)
+        if not self.disk:
+            self.skipTest('Skip as lacking of storage provision support.')
+        if not self.disk.is_exist():
+            self.disk.create()
+        time.sleep(20)
+        if not self.vm.attach_block(self.disk, '/dev/sdz'):
+            self.fail('attach failed')
+        timeout = 60
+        interval = 2
+        time_start = int(time.time())
+        while True:
+           if not self.disk.is_free():
+               break
+           time_end = int(time.time())
+           if time_end - time_start > timeout:
+              self.log.info('timeout ended: {}'.format(timeout))
+              break
+           self.log.info('retry after {}s'.format(interval))
+           time.sleep(interval)
+        time.sleep(5)
+        utils_lib.run_cmd(self, 'dmesg|tail -20', msg="Get the last dmesg")
+        online_disk_2 = utils_lib.get_disk_online(self)
+        if online_disk_2 == online_disk_1:
+            self.fail('Online disk count - before:{} after attach:{}'.format(online_disk_1,online_disk_2))
+        if not self.vm.detach_block(self.disk):
+            self.fail('detach failed')
+        timeout = 120
+        interval = 2
+        time_start = int(time.time())
+        while True:
+           if self.disk.is_free():
+               break
+           time_end = int(time.time())
+           if time_end - time_start > timeout:
+              self.log.info('timeout ended: {}'.format(timeout))
+              break
+           self.log.info('retry after {}s'.format(interval))
+           time.sleep(interval)
+        utils_lib.run_cmd(self, 'dmesg|tail -20', msg="Get the last dmesg")
+        online_disk_2 = utils_lib.get_disk_online(self)
+        if online_disk_2 != online_disk_1:
+            self.fail('Online disk count - before:{} after detach:{}'.format(online_disk_1,online_disk_2))
 
     def test_fio_crctest(self):
         """
@@ -1027,7 +1141,7 @@ class TestStorage(unittest.TestCase):
                     disk_discard = disk.split(' ')[0]
                     self.log.info("%s supports discard" % disk)
         if disk_discard is None:
-            self.cancel("No disk supports discard found.")
+            self.skipTest("No disk supports discard found.")
         cmd = 'sudo lsblk |grep -i part'
         output = utils_lib.run_cmd(self, cmd)
         if disk_discard not in output:

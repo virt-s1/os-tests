@@ -962,7 +962,7 @@ def pkg_install(test_instance, pkg_name=None, pkg_url=None, force=False):
             pkg_name {string} -- pkg name
             pkg_url {string} -- pkg url or location if it is not in default repo
         """
-        if not is_pkg_installed(test_instance, pkg_name=pkg_name):
+        if not is_pkg_installed(test_instance, pkg_name=pkg_name, cancel_case=False, is_install=False):
             test_instance.log.info("Try install {} automatically!".format(pkg_name))
             if pkg_url is not None:
                 test_instance.log.info("Install {} from {}".format(pkg_name, pkg_url))
@@ -981,7 +981,7 @@ def pkg_install(test_instance, pkg_name=None, pkg_url=None, force=False):
                 cmd = 'sudo yum -y reinstall %s' % pkg_name
             run_cmd(test_instance, cmd, timeout=1200)
 
-        if not is_pkg_installed(test_instance, pkg_name=pkg_name) and pkg_url is not None and force:
+        if not is_pkg_installed(test_instance, pkg_name=pkg_name, cancel_case=False, is_install=False) and pkg_url is not None and force:
             test_instance.log.info('Install without dependences!')
             cmd = 'sudo rpm -ivh %s --nodeps' % pkg_url
             if force:
@@ -1409,3 +1409,26 @@ def normalize_data_size(value_str, order_magnitude="M", factor="1024"):
         return "%.1f" % data_size
     else:
         return ("%.20f" % data_size).rstrip('0')
+
+def check_attribute(target, attributes, test_instance=None, cancel_case=True):
+    '''
+    check if has required attribute
+    if test_instance passed, can skip case as required
+    '''
+    if test_instance:
+        func_write = test_instance.log.info
+    else:
+        func_write = print
+    if not target or not attributes:
+        msg = 'target or attributes is None'
+        func_write(msg)
+        return False
+    for attrname in attributes.split(','):
+        if not hasattr(target, attrname):
+            msg = 'no {} found {}'.format(attrname,target)
+            if test_instance and cancel_case:
+                test_instance.skipTest(msg)
+            else:
+                func_write(msg)
+            return False
+    return True

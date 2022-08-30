@@ -2416,13 +2416,14 @@ rh_subscription:
         CONFIG='''\
 swap:
   filename: /datatest/swap.img
-  size: "auto" # or size in bytes
+  size: "8M" # or size in bytes
   maxsize: 2G'''
+        utils_lib.run_cmd(self,'sudo tail /var/log/cloud-init.log')
         utils_lib.run_cmd(self,"echo '''%s''' | sudo tee /etc/cloud/cloud.cfg.d/test_swap.cfg" % CONFIG)
         utils_lib.run_cmd(self, "sudo rm -f /var/lib/cloud/instance/sem/config_mounts /var/log/cloud-init*.log")
         utils_lib.run_cmd(self, "sudo cloud-init single --name mounts")
         new_swap = utils_lib.run_cmd(self, "free -m|grep Swap|awk '{print $2}'")
-        self.assertAlmostEqual(first=int(old_swap)+2047, second=int(new_swap), delta=1,
+        self.assertAlmostEqual(first=int(old_swap)+7, second=int(new_swap), delta=1,
             msg="The enabled swap size does not correct.")
         utils_lib.run_cmd(self, "ls /datatest/swap.img", expect_ret=0, msg="/datatest/swap.img doesn't exist.")
         utils_lib.run_cmd(self, "grep swap.img /etc/fstab", expect_ret=0, msg="Fail to add swap to /etc/fstab")
