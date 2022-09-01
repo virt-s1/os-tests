@@ -11,7 +11,32 @@ class TestKickstartInstall(unittest.TestCase):
         utils_lib.init_case(self)
 
     def test_kickstart_install_vm(self):
-
+        """
+        case_tag:
+            KickstartInstall,KickstartInstall_tier1
+        case_name:
+            test_kickstart_install_vm
+        case_file:
+            os_tests.tests.test_kickstart_install.TestKickstartInstall.test_kickstart_install_vm
+        component:
+            KickstartInstall
+        bugzilla_id:
+            1898943
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Verify kickstart installation.
+        key_steps: |
+            Install vm by kickstart iso image.
+        expect_result:
+            VM works well after kickstart install.
+        debug_want:
+            N/A
+        """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
         elif self.vm.provider != 'nutanix':

@@ -553,6 +553,7 @@ COMMIT
                         break
             self.log.info("Add nic for %s time(s)" % i)
             self.vm.attach_nic(network_uuid, ip_address, driver)
+        time.sleep(10)
         set_ip_list.sort()
         if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
             #start vm
@@ -614,9 +615,9 @@ COMMIT
         maintainer:
             minl@redhat.com
         description:
-            Add/Remove four NICs without IP, check nic number and driver.
+            Add/Remove multi NICs without IP, check nic number and driver.
         key_steps:
-            Add/Remove four NICs without IP.
+            Add/Remove multi NICs without IP.
         expect_result:
             Check nic number and driver without error.
         debug_want:
@@ -647,9 +648,9 @@ COMMIT
         maintainer:
             minl@redhat.com
         description:
-            Add/Remove four NICs with IP, check nic number and driver.
+            Add/Remove multi NICs with IP, check nic number and driver.
         key_steps:
-            Add/Remove four NICs with IP.
+            Add/Remove multi NICs with IP.
         expect_result:
             Check nic number and driver without error.
         debug_want:

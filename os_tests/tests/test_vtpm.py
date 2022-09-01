@@ -177,6 +177,33 @@ cat secret.dec'''
         self._test_vtpm_encryption_decryption()
 
     def test_deploy_vm_with_vtpm(self):
+        """
+        case_tag:
+            VTPM,VTPM_tier1
+        case_name:
+            test_deploy_vm_with_vtpm
+        case_file:
+            os_tests.tests.test_vtpm.TestVTPM.test_deploy_vm_with_vtpm
+        component:
+            VTPM
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Add vTPM device when creating a RHEL guest and check status.
+        key_steps: |
+            1. Add vTPM device by acli command.
+            2. Check device info and log and encryption/decryption.
+        expect_result:
+            No error threw.
+        debug_want:
+            output from dmesg or journal
+        """
         new_vm = self.vm.create_vm_by_acli('scriptCreateVtpmVM', str(self.vm.memory)+'G', '2', self.vm.cpu, 'true', 'true')
         self.vms.append(new_vm)
         new_vm_ip = self.vms[1]['vm_nics'][0]['ip_address']

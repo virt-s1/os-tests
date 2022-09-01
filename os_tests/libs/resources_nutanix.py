@@ -261,7 +261,7 @@ runcmd:
         }
         return self.make_request(endpoint, 'post', data=data)
 
-    def create_vm_ISO_kickstart(self):
+    def create_vm_ISO_kickstart(self, single_nic=True):
         logging.debug("Create VM by ISO kickstart")
         endpoint = urljoin(self.base_url, "vms")
 	# Attach image.
@@ -276,9 +276,11 @@ runcmd:
             logging.error("Image not found, image list be got is %s" % str(vmdisk_uuid))
             exit(1)
         # Attach NICs (all).
-        network_uuids = []
-        for network in self.list_networks_detail()["entities"]:
-            network_uuids.append({"network_uuid": network["uuid"]})
+        network_uuids = [{"network_uuid": self.network_uuid}]
+        if not single_nic:
+            for network in self.list_networks_detail()["entities"]:
+                if network["uuid"] != self.network_uuid:
+                    network_uuids.append({"network_uuid": network["uuid"]})
         data = {
             'boot': {
                 'uefi_boot': False
@@ -663,6 +665,22 @@ class NutanixVM(VMResource):
         self.prism = PrismApi(params)
 
     @property
+    def is_secure_boot(self):
+        """
+        vm provisioned with secure boot or not
+        :return: True|False
+        """
+        return self.prism.if_secure_boot
+
+    @property
+    def is_uefi_boot(self):
+        """
+        vm provisioned with uefi or not
+        :return: True|False
+        """
+        return self.prism.if_uefi_boot
+
+    @property
     def data(self):
         if not self._data:
             self._data = {}
@@ -756,9 +774,9 @@ class NutanixVM(VMResource):
                 "Timed out waiting for server to get created.")
         self._data = None
         
-    def create_by_ISO_kickstart(self, wait=False):
+    def create_by_ISO_kickstart(self, wait=False, single_nic=True):
         logging.info("Create VM by ISO kickstart")
-        res = self.prism.create_vm_ISO_kickstart()
+        res = self.prism.create_vm_ISO_kickstart(single_nic)
         logging.debug("res is " + str(res))
         if wait:
             self.wait_for_status(
