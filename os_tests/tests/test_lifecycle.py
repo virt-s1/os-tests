@@ -32,6 +32,8 @@ class TestLifeCycle(unittest.TestCase):
                   break
                self.log.info('retry after {}s'.format(interval))
                time.sleep(interval)
+            for cmd in ['sudo kdumpctl showmem','cat /proc/cmdline','systemctl status kdump']:
+                utils_lib.run_cmd(self, cmd, expect_ret=0)
 
     def test_boot_debugkernel(self):
         '''
@@ -265,9 +267,6 @@ class TestLifeCycle(unittest.TestCase):
         bz: 1654962
         polarion_id: RHEL7-58669
         '''
-        for cmd in ['sudo kdumpctl showmem','cat /proc/cmdline','systemctl is-active kdump']:
-            utils_lib.run_cmd(self, cmd, expect_ret=0)
-        output = utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
         product_id = utils_lib.get_product_id(self)
         if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self) and float(product_id) < 8.6:
             self.skipTest("Cancel as bug 1654962 in arm guest earlier than 8.6 2082405" )
@@ -322,7 +321,6 @@ class TestLifeCycle(unittest.TestCase):
         debug_want:
             N/A
         """
-        utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
         product_id = utils_lib.get_product_id(self)
         if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self) and float(product_id) < 8.6:
             self.skipTest("Cancel as bug 1654962 in arm guest earlier than 8.6 2082405" )
@@ -383,9 +381,10 @@ class TestLifeCycle(unittest.TestCase):
             0
         case_component: 
             Kdump
-        key_steps:
+        key_steps: |
             1. Launch an instance with multi kernels installed.
-            2. Load each kernel with command "sudo kexec -l /boot/vmlinuz-$version --initrd=/boot/initramfs-$version.img --reuse-cmdline"
+            2. Load each kernel with command "sudo kexec -s -l /boot/vmlinuz-$version --initrd=/boot/initramfs-$version.img --reuse-cmdline"
+            note: kexec "-s" is recommended in 2118669 devel's comment
         pass_criteria: 
             System shutdown and reboot with the specified kernel version, kernel can be loaded via kexec.
         '''
@@ -400,9 +399,9 @@ class TestLifeCycle(unittest.TestCase):
             kernel_vmlinuz = "/boot/" + kernel.replace('kernel','vmlinuz')
             kernel_initramfs = "/boot/" + kernel.replace('kernel','initramfs') + ".img"
             if self.vm and self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
-                cmd = "sudo kexec -l %s --initrd=%s --reuse-cmdline -s" % (kernel_vmlinuz, kernel_initramfs) #kexec systems using UEFI + SecureBoot using the kexec option "-s"
+                cmd = "sudo kexec -s -l %s --initrd=%s --reuse-cmdline -s" % (kernel_vmlinuz, kernel_initramfs) #kexec systems using UEFI + SecureBoot using the kexec option "-s"
             else:
-                cmd = "sudo kexec -l %s --initrd=%s --reuse-cmdline" % (kernel_vmlinuz, kernel_initramfs)
+                cmd = "sudo kexec -s -l %s --initrd=%s --reuse-cmdline" % (kernel_vmlinuz, kernel_initramfs)
             utils_lib.run_cmd(self, cmd, msg='Switch kernel', expect_ret=0)
             cmd = "sudo systemctl kexec"
             utils_lib.run_cmd(self, cmd, msg='fast reboot system')
@@ -426,9 +425,9 @@ class TestLifeCycle(unittest.TestCase):
             0
         case_component: 
             Kdump
-        key_steps:
+        key_steps: |
             1. Launch an instance with multi kernels installed.
-            2. Load each kernel with command "sudo kexec -l /boot/vmlinuz-$version --initrd=/boot/initramfs-$version.img --reuse-cmdline"
+            2. Load each kernel with command "sudo kexec -s -l /boot/vmlinuz-$version --initrd=/boot/initramfs-$version.img --reuse-cmdline"
             3. When the kernel is loaded, run command "sudo kexec -e".
         pass_criteria: 
             Kernel can be loaded via kexec, and system will reboot into the loaded kernel via kexec -e without calling shutdown(8).
@@ -444,9 +443,9 @@ class TestLifeCycle(unittest.TestCase):
             kernel_vmlinuz = "/boot/" + kernel.replace('kernel','vmlinuz')
             kernel_initramfs = "/boot/" + kernel.replace('kernel','initramfs') + ".img"
             if self.vm and self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
-                cmd = "sudo kexec -l %s --initrd=%s --reuse-cmdline -s" % (kernel_vmlinuz, kernel_initramfs) #kexec systems using UEFI + SecureBoot using the kexec option "-s"
+                cmd = "sudo kexec -s -l %s --initrd=%s --reuse-cmdline -s" % (kernel_vmlinuz, kernel_initramfs) #kexec systems using UEFI + SecureBoot using the kexec option "-s"
             else:
-                cmd = "sudo kexec -l %s --initrd=%s --reuse-cmdline" % (kernel_vmlinuz, kernel_initramfs)
+                cmd = "sudo kexec -s -l %s --initrd=%s --reuse-cmdline" % (kernel_vmlinuz, kernel_initramfs)
             utils_lib.run_cmd(self, cmd, msg='Switch kernel', expect_ret=0)
             cmd = "sudo kexec -e"
             utils_lib.run_cmd(self, cmd, msg='fast reboot system')
@@ -711,18 +710,15 @@ class TestLifeCycle(unittest.TestCase):
             cmd = "sudo grubby --set-default-index=%s" % self.old_grub_index
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="restore default boot index to {}".format(self.old_grub_index))
             reboot_require = True
-        if 'test_boot_hpet_mmap_enabled' in self.id():
-            cmd = 'sudo grubby --update-kernel=ALL  --remove-args="hpet_mmap=1"'
-            utils_lib.run_cmd(self, cmd, msg='Remove "hpet_mmap=1"')
-            reboot_require = True
-        if 'test_boot_mitigations' in self.id():
-            cmd = 'sudo grubby --update-kernel=ALL  --remove-args="mitigations=auto,nosmt"'
-            utils_lib.run_cmd(self, cmd, msg='Remove "mitigations=auto,nosmt"')
-            reboot_require = True
-        if 'test_boot_usbcore_quirks' in self.id():
-            cmd = 'sudo grubby --update-kernel=ALL  --remove-args="usbcore.quirks=quirks=0781:5580:bk,0a5c:5834:gij"'
-            utils_lib.run_cmd(self, cmd, msg='Remove "usbcore.quirks=quirks=0781:5580:bk,0a5c:5834:gij"')
-            reboot_require = True
+
+        addon_args = ["hpet_mmap=1", "mitigations=auto,nosmt", "usbcore.quirks=quirks=0781:5580:bk,0a5c:5834:gij",
+        "nr_cpus=1","nr_cpus=2", "intel_iommu=on", "fips=1"]
+        cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline')
+        for arg in addon_args:
+            if arg in cmdline:
+                cmd = 'sudo grubby --update-kernel=ALL  --remove-args={}'.format(arg)
+                utils_lib.run_cmd(self, cmd, msg='Remove {}'.format(arg))
+                reboot_require = True
         if reboot_require:
             utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test to restore setting')
             time.sleep(10)
