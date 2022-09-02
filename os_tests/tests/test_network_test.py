@@ -12,7 +12,7 @@ class TestNetworkTest(unittest.TestCase):
         self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='dmesg -T')
         cmd = "ip link show|grep mtu|grep -v lo|awk -F':' '{print $2}'"
         output = utils_lib.run_cmd(self, cmd, expect_ret=0)
-        self.nic = "eth0"
+        self.active_nic  = "eth0"
         self.log.info("Test which nic connects to public")
         nic_found = False
         for net in output.split('\n'):
@@ -21,18 +21,18 @@ class TestNetworkTest(unittest.TestCase):
             cmd = "sudo ping {} -c 6 -I {}".format(self.params.get('ping_server'), net)
             ret = utils_lib.run_cmd(self, cmd, ret_status=True)
             if ret == 0:
-                self.nic = net
+                self.active_nic  = net
                 nic_found = True
                 break
         if not nic_found:
             for net in output.split('\n'):
                 #man systemd.net-naming-scheme
                 if net.startswith(('eth','en')):
-                    self.nic = net
+                    self.active_nic  = net
                     break
-        self.log.info("Pick up nic {}".format(self.nic))
-        cmd = "ip addr show {}".format(self.nic)
-        output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to get {} ipv4 address'.format(self.nic))
+        self.log.info("Pick up nic {}".format(self.active_nic ))
+        cmd = "ip addr show {}".format(self.active_nic )
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to get {} ipv4 address'.format(self.active_nic ))
         self.ipv4 = re.findall('[\d.]{7,16}', output)[0]
         if utils_lib.is_metal(self):
             self.ssh_timeout = 1200
@@ -96,7 +96,7 @@ class TestNetworkTest(unittest.TestCase):
 
         '''
         self.log.info("Test change rx/tx ring setting.")
-        query_cmd = "ethtool -g {}".format(self.nic)
+        query_cmd = "ethtool -g {}".format(self.active_nic )
         output = utils_lib.run_cmd(self, query_cmd, cancel_not_kw='Operation not supported', msg='Query Operation not supported')
 
         max_rx, max_rx_mini, max_rx_jumbo, max_tx = None, None, None, None
@@ -119,13 +119,13 @@ class TestNetworkTest(unittest.TestCase):
                 rx = 128
             else:
                 rx = 256
-            cmd = "sudo ethtool -G {} rx {}".format(self.nic, rx)
+            cmd = "sudo ethtool -G {} rx {}".format(self.active_nic , rx)
             output = utils_lib.run_cmd(self, cmd, msg="Set rx")
             if "not supported" not in output:
                 utils_lib.run_cmd(self, query_cmd, expect_kw="RX:\t\t{}".format(rx), msg="Check rx")
-                #cmd = "sudo ethtool -G {} rx 0".format(self.nic)
+                #cmd = "sudo ethtool -G {} rx 0".format(self.active_nic )
                 #utils_lib.run_cmd(self, cmd, expect_kw="Invalid argument", msg="Check rx cannot set to 0")
-                cmd = "sudo ethtool -G {} rx -1".format(self.nic)
+                cmd = "sudo ethtool -G {} rx -1".format(self.active_nic )
                 utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg="Check rx cannot set to -1")
         if max_rx_mini is not None and 'n/a' not in max_rx_mini and int(max_rx_mini) > 0:
             if int(max_rx_mini) >= 1024:
@@ -134,15 +134,15 @@ class TestNetworkTest(unittest.TestCase):
                 rx_mini = 128
             else:
                 rx_mini = 256
-            cmd = "sudo ethtool -G {} rx-mini {}".format(self.nic, rx_mini )
+            cmd = "sudo ethtool -G {} rx-mini {}".format(self.active_nic , rx_mini )
             output = utils_lib.run_cmd(self, cmd, msg="Set rx-mini")
             if "not supported" not in output:
                 out = utils_lib.run_cmd(self, query_cmd, expect_kw="RX Mini:\t{}".format(rx_mini), msg="Check rx-mini")
                 if "RX Mini:\t0" not in out:
-                    cmd = "sudo ethtool -G {} rx-mini 0".format(self.nic)
+                    cmd = "sudo ethtool -G {} rx-mini 0".format(self.active_nic )
                     utils_lib.run_cmd(self, cmd)
                     utils_lib.run_cmd(self, query_cmd, expect_kw="RX Mini:\t0", msg="Check rx-mini canset to 0")
-                cmd = "sudo ethtool -G {} rx-mini -1".format(self.nic)
+                cmd = "sudo ethtool -G {} rx-mini -1".format(self.active_nic )
                 utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg="Check rx cannot rx-mini to -1")
         if max_rx_jumbo is not None and 'n/a' not in max_rx_jumbo and int(max_rx_jumbo) > 0:
             if int(max_rx_jumbo) >= 1024:
@@ -151,15 +151,15 @@ class TestNetworkTest(unittest.TestCase):
                 rx_jumbo = 128
             else:
                 rx_jumbo = 256
-            cmd = "sudo ethtool -G {} rx-jumbo {}".format(self.nic, rx_jumbo)
+            cmd = "sudo ethtool -G {} rx-jumbo {}".format(self.active_nic , rx_jumbo)
             output = utils_lib.run_cmd(self, cmd, msg="Set rx_jumbo")
             if "not supported" not in output:
                 out = utils_lib.run_cmd(self, query_cmd, expect_kw="RX Jumbo:\t{}".format(rx_jumbo), msg="Check rx_jumbo")
                 if "RX Jumbo:\t0" not in out:
-                    cmd = "sudo ethtool -G {} rx-jumbo 0".format(self.nic)
+                    cmd = "sudo ethtool -G {} rx-jumbo 0".format(self.active_nic )
                     #utils_lib.run_cmd(self, cmd, expect_kw="Invalid argument", msg="Check rx-jumbo cannot set to 0")
                     utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg="Check rx-jumbo cannot set to 0")
-                cmd = "sudo ethtool -G {} rx-jumbo -1".format(self.nic)
+                cmd = "sudo ethtool -G {} rx-jumbo -1".format(self.active_nic )
                 utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg="Check rx-jumbo cannot set to -1")
         if max_tx is not None and 'n/a' not in max_tx and int(max_tx) > 0:
             if int(max_tx) >= 1024:
@@ -168,13 +168,13 @@ class TestNetworkTest(unittest.TestCase):
                 tx = 128
             else:
                 tx = 256
-            cmd = "sudo ethtool -G {} tx {}".format(self.nic, tx)
+            cmd = "sudo ethtool -G {} tx {}".format(self.active_nic , tx)
             output = utils_lib.run_cmd(self, cmd, msg="Set tx")
             if "not supported" not in output:
                 utils_lib.run_cmd(self, query_cmd, expect_kw="TX:\t\t{}".format(tx), msg="Check tx")
-                #cmd = "sudo ethtool -G {} tx 0".format(self.nic)
+                #cmd = "sudo ethtool -G {} tx 0".format(self.active_nic )
                 #utils_lib.run_cmd(self, cmd, expect_kw="Invalid argument", msg="Check tx cannot set to 0")
-                cmd = "sudo ethtool -G {} tx -1".format(self.nic)
+                cmd = "sudo ethtool -G {} tx -1".format(self.active_nic )
                 utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg="Check tx cannot set to -1")
 
         utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', skip_words='ftrace', cursor=self.dmesg_cursor)
@@ -202,7 +202,7 @@ class TestNetworkTest(unittest.TestCase):
             eg. # ethtool -P eth0
                 Permanent address: 00:16:3d:fb:78:34
         '''
-        cmd = "ethtool -P {}".format(self.nic)
+        cmd = "ethtool -P {}".format(self.active_nic )
         output = utils_lib.run_cmd(self,
                              cmd,
                              expect_not_kw='00:00:00:00:00:00',
@@ -212,7 +212,7 @@ class TestNetworkTest(unittest.TestCase):
                 '[0-9a-z]{2}:[0-9a-z]{2}:[0-9a-z]{2}:[0-9a-z]{2}:\
 [0-9a-z]{2}:[0-9a-z]{2}', output))
         self.log.info("Get mac: %s" % mac)
-        cmd = "ip addr show {}".format(self.nic)
+        cmd = "ip addr show {}".format(self.active_nic )
         output = utils_lib.run_cmd(self,
                              cmd,
                              expect_kw=mac,
@@ -258,30 +258,30 @@ class TestNetworkTest(unittest.TestCase):
 
         '''
         product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
-        cmd = "sudo ethtool -i {}".format(self.nic)
+        cmd = "sudo ethtool -i {}".format(self.active_nic )
         output = utils_lib.run_cmd(self, cmd, expect_ret=0)
         if 'ena' in output:
             self.log.info('ena driver found!')
             if float(product_id) > 8.4:
-                cmd = "ethtool -S {}|grep xdp".format(self.nic)
+                cmd = "ethtool -S {}|grep xdp".format(self.active_nic )
                 utils_lib.run_cmd(self, cmd, expect_ret=0,msg='Check if have xdp information')
             else:
                 self.skipTest('ena driver does not support xdp prior to 8.4')
         else:
-            cmd = "ethtool -S {}|grep xdp".format(self.nic)
+            cmd = "ethtool -S {}|grep xdp".format(self.active_nic )
             utils_lib.run_cmd(self, cmd, cancel_ret='0', msg='Check if have xdp support')
         if float(product_id) > 8.3 and utils_lib.is_arch(self, arch='x86_64'):
             utils_lib.is_cmd_exist(self, 'xdp-loader')
             self.log.info('please attach debug log with -vv appended when report xdp-tools issue')
             cmd = 'sudo xdp-loader status'
             utils_lib.run_cmd(self, cmd, expect_ret=0,msg='Check xdp-loader status')
-            cmd = 'sudo xdp-loader unload -a {}'.format(self.nic)
+            cmd = 'sudo xdp-loader unload -a {}'.format(self.active_nic )
             utils_lib.run_cmd(self, cmd,msg='unload xdp-filter if have')
-            cmd = 'sudo xdp-filter load --mode skb {}'.format(self.nic)
+            cmd = 'sudo xdp-filter load --mode skb {}'.format(self.active_nic )
             utils_lib.run_cmd(self, cmd, expect_ret=0,msg='load xdp-filter')
             cmd = 'sudo xdp-loader status'
             utils_lib.run_cmd(self, cmd, expect_ret=0,expect_kw='XDP_PASS',msg='Check xdp-loader status again')
-            cmd = 'sudo xdp-loader unload -a {}'.format(self.nic)
+            cmd = 'sudo xdp-loader unload -a {}'.format(self.active_nic )
             utils_lib.run_cmd(self, cmd, expect_ret=0,msg='unload xdp-filter')
             cmd = 'sudo xdp-loader status'
             utils_lib.run_cmd(self, cmd, expect_ret=0,expect_not_kw='XDP_PASS',msg='Check xdp-loader status again')
@@ -299,11 +299,11 @@ class TestNetworkTest(unittest.TestCase):
 
         utils_lib.is_cmd_exist(self, cmd='ethtool')
         utils_lib.msg_to_syslog(self)
-        cmd = 'ip link show {}'.format(self.nic)
+        cmd = 'ip link show {}'.format(self.active_nic )
         out = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='save the mtu before change')
         self.mtu_old = re.findall('mtu [0-9]+',out)[0].split(' ')[1]
         self.log.info("Get old mtu: {}".format(self.mtu_old))
-        cmd = "sudo ethtool -i {}".format(self.nic)
+        cmd = "sudo ethtool -i {}".format(self.active_nic )
         output = utils_lib.run_cmd(self, cmd, expect_ret=0)
         if 'ena' in output:
             self.log.info('ena found!')
@@ -364,15 +364,15 @@ class TestNetworkTest(unittest.TestCase):
 
         self.log.info("Trying to change mtu to %s" % mtu_range)
         for mtu_size in mtu_range:
-            mtu_cmd = "sudo ip link set dev %s mtu %s" % (self.nic, mtu_size)
-            mtu_check = "sudo ip link show dev {}".format(self.nic)
+            mtu_cmd = "sudo ip link set dev %s mtu %s" % (self.active_nic , mtu_size)
+            mtu_check = "sudo ip link show dev {}".format(self.active_nic )
             if mtu_size <= mtu_max and mtu_size >= mtu_min:
                 utils_lib.run_cmd(self, mtu_cmd, expect_ret=0)
                 utils_lib.run_cmd(self, mtu_check, expect_ret=0, expect_kw="mtu {}".format(mtu_size))
             elif mtu_size < mtu_min or mtu_size > mtu_max:
                 utils_lib.run_cmd(self, mtu_cmd, expect_not_ret=0)
                 utils_lib.run_cmd(self, mtu_check, expect_ret=0, expect_not_kw="mtu {}".format(mtu_size))
-        cmd = "sudo ping {} -c 10 -I {}".format(self.params.get('ping_server'), self.nic) #add sudo here or it will fail against 8.7
+        cmd = "sudo ping {} -c 10 -I {}".format(self.params.get('ping_server'), self.active_nic ) #add sudo here or it will fail against 8.7
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', cursor=self.dmesg_cursor, skip_words='ftrace')
 
@@ -407,7 +407,7 @@ class TestNetworkTest(unittest.TestCase):
             utils_lib.run_cmd(self, cmd, msg='get nm-cloud-setup.timer status')
         cmd = 'ip r'
         utils_lib.run_cmd(self, cmd, msg='print route before testing')
-        cmd = "sudo nmcli |grep 'connected to'|grep {}|awk -F'to' '{{print $NF}}'".format(self.nic)
+        cmd = "sudo nmcli |grep 'connected to'|grep {}|awk -F'to' '{{print $NF}}'".format(self.active_nic )
         con_name = utils_lib.run_cmd(self, cmd, msg='try to get connection name')
         con_name = con_name.strip('\n')
         con_name = con_name.lstrip(' ')
@@ -812,8 +812,8 @@ COMMIT
         self.log.info('Start iperf testing')
         iperf_srv_cmd = 'sudo bash -c "iperf3 -s >/dev/null 2>&1 &"'
         utils_lib.run_cmd(self, iperf_srv_cmd, rmt_node=self.vm.vm1_ip)
-        cmd = "ip addr show {}".format(self.nic)
-        output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to get {} ipv4 address'.format(self.nic), rmt_node=self.vm.vm1_ip)
+        cmd = "ip addr show {}".format(self.active_nic )
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to get {} ipv4 address'.format(self.active_nic ),rmt_node=self.params['remote_nodes'][-1])
         srv_ipv4 = re.findall('[\d.]{7,16}', output)[0]
         iperf_cli_cmd = 'iperf3 -c {} -t 60'.format(srv_ipv4)
         res = utils_lib.run_cmd(self, iperf_cli_cmd, expect_ret=0, timeout=120)
@@ -1115,6 +1115,79 @@ COMMIT
             if ret == 0:
                 self.log.info('efa driver is loaded successfully')
 
+    def test_attach_detach_efa_device(self):
+        """
+        case_tag:
+            network,efa
+        case_name:
+            test_attach_detach_efa_device
+        case_file:
+            test_network_test.py
+        component:
+            kernel
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            libhe@redhat.com
+        description:
+            Check EFA device can be attached and detached
+        key_steps: |
+            1.# Create an EFA network interface
+            2.# Allocate an Elastic IP
+            3.# Launch an instance which supports EFA but EFA is not enabled, check EFA is disabled
+            4.# Stop the instance, Associate Elastic IP to the instance
+            5.# Attach EFA network interface to the instance,
+            6.# Start the instance, check EFA is enabled for the instance
+            7.# Stop the instance, detach EFA Network Interface
+            8.# Start the instance,check EFA is disabled for the instance
+            9.# Delete EFA network Interface and release Elastic IP
+        expect_result:
+            EFA driver can be attached and detached successfully
+        debug_want:
+            N/A
+    	"""
+        if not self.vm or self.vm.provider != "aws":
+            self.skipTest("Skip test case since instance is not vm or aws")
+        else:
+            instance_type = self.vm.instance_type
+            if not self.vm.efa_support:
+                self.skipTest('EFA is not supported on the instance ' + instance_type)
+
+            if self.vms:
+                    self.vms[1].create(enable_efa=False)
+                    if self.vms[1].is_stopped():
+                        self.vms[1].start(wait=True)
+                    init_connection(self, timeout=self.ssh_timeout, vm=self.vms[1])
+                    run_cmd(self, 'lspci|grep EFA', expect_ret=1, vm=self.vms[1])
+
+                    # Create EFA network interface and allocate elastic ip
+                    self.nic.create(interfaceType='efa')
+                    self.nic.allocate_eip()
+
+                    # Associate elastic ip  and attach EFA network interface to the instance
+                    instance_id = run_cmd(self, 'cat /var/lib/cloud/data/instance-id', vm=self.vms[1])
+                    self.vms[1].stop(wait=True)
+                    self.log.info('start associating elastic ip to the instance')
+                    self.nic.associate_eip(instance_id.strip())
+                    self.log.info('start attaching network interface')
+                    self.nic.attach_to_instance(instance_id.strip(),1)
+
+                    # Check if EFA network interface is attached successfully
+                    self.log.info('start vms[1]')
+                    self.vms[1].start(wait=True)
+                    init_connection(self, timeout=self.ssh_timeout, vm=self.vms[1])
+                    run_cmd(self, 'lspci|grep EFA', expect_ret=0, vm=self.vms[1])
+
+                    # Release elastic ip
+                    self.vms[1].stop(wait=True)
+                    self.vms[1].delete(wait=True)
+                    self.log.info('start releasing elastic ip')
+                    self.nic.release_eip()
+
     def test_scp_mtu_9000(self):
         """
         case_tag:
@@ -1177,6 +1250,53 @@ COMMIT
         file_size = int(utils_lib.run_cmd(self, "ls -l ~/5G.img | awk '{print $5}'", expect_ret=0).strip())/(1024*1024*1024)
         self.assertAlmostEqual(first=5, second=file_size, delta=0.1, msg="Value of copied file is not right, Expect: 5, real: %s" % (file_size))
 
+    def test_mpi_app_via_efa_provider(self):
+        """
+        case_tag:
+            network,efa
+        case_name:
+            test_mpi_app_via_efa_provider
+        case_file:
+            test_network_test.py
+        component:
+            kernel
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            libhe@redhat.com
+        description:
+            Check MPI app run via efa provider
+        key_steps: |
+            1.# sudo yum install libfabric
+            2.# sudo yum install openmpi
+            3.# git clone https://github.com/mpitutorial/mpitutorial && cd mpitutorial/tutorials/mpi-hello-world/code/
+            4.# export PATH=$PATH:/usr/lib64/openmpi/bin && cd ~/mpitutorial/tutorials/mpi-hello-world/code/
+            5.# make
+            6.# export OMPI_MCA_mtl_base_verbose=100 && /usr/lib64/openmpi/bin/mpirun ~/mpitutorial/tutorials/mpi-hello-world/code/mpi_hello_world
+        expect_result:
+            MPI application run via efa provider
+        debug_want:
+            efa,libfabric
+        """
+        if not self.vm or self.vm.provider != "aws":
+            self.skipTest("Skip test case since instance is not vm or aws")
+
+        instance_type = self.vm.instance_type
+        if not self.vm.efa_support:
+            self.skipTest('EFA is not supported on the instance ' + instance_type)
+        if utils_lib.is_pkg_installed(self, 'libfabric'):
+            if utils_lib.is_pkg_installed(self,'openmpi'):
+                if utils_lib.is_pkg_installed(self,'git'):
+                    cmd = 'git clone https://github.com/mpitutorial/mpitutorial && cd mpitutorial/tutorials/mpi-hello-world/code/'
+                    utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Download OPENMPI Hello_world App')
+                    if utils_lib.is_pkg_installed(self,'make'):
+                        cmd = 'export PATH=$PATH:/usr/lib64/openmpi/bin && cd ~/mpitutorial/tutorials/mpi-hello-world/code/ && make && export OMPI_MCA_mtl_base_verbose=100 && /usr/lib64/openmpi/bin/mpirun ~/mpitutorial/tutorials/mpi-hello-world/code/mpi_hello_world'
+                        utils_lib.run_cmd(self, cmd, expect_ret=0,expect_kw="provider: efa_0-rdm",msg='Check MPI app run via efa provider')
+
     def test_pktgen_sh(self):
         """
         case_tag:
@@ -1186,7 +1306,7 @@ COMMIT
         case_file:
             os_tests.tests.test_netwrok_test.TestNetworkTest.test_pktgen_sh
         component:
-            Network
+            network
         bugzilla_id:
             N/A
         is_customer_case:
@@ -1221,7 +1341,7 @@ COMMIT
 
     def tearDown(self):
         if 'test_mtu_min_max_set' in self.id():
-            mtu_cmd = "sudo ip link set dev %s mtu %s" % (self.nic, self.mtu_old)
+            mtu_cmd = "sudo ip link set dev %s mtu %s" % (self.active_nic , self.mtu_old)
             utils_lib.run_cmd(self, mtu_cmd, expect_ret=0, msg='restore mtu')
         if 'test_ping_arp_ping' in self.id() or 'test_iperf' in self.id() or 'test_scp_mtu_9000' in self.id():
             if self.vm.provider == 'nutanix':
