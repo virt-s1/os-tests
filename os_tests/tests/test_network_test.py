@@ -1125,6 +1125,13 @@ COMMIT
             test_network_test.py
         component:
             kernel
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
             libhe@redhat.com
         description:
             Check EFA device can be attached and detached
@@ -1191,6 +1198,13 @@ COMMIT
             os_tests.tests.test_netwrok_test.TestNetworkTest.test_scp_mtu_9000
         component:
             Network
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
             minl@redhat.com
         description:
             Test SCP a large file (size 5G) with MTU = 9000.
@@ -1246,6 +1260,13 @@ COMMIT
             test_network_test.py
         component:
             kernel
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
             libhe@redhat.com
         description:
             Check MPI app run via efa provider
@@ -1285,7 +1306,14 @@ COMMIT
         case_file:
             os_tests.tests.test_netwrok_test.TestNetworkTest.test_pktgen_sh
         component:
-            Network
+            network
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
             minl@redhat.com
         description:
             Test pktgen script.
