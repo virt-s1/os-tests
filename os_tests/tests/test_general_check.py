@@ -513,7 +513,7 @@ available_clocksource'
         utils_lib.run_cmd(self, "rpm -qa|grep linux-firmware",msg='get linux-firmware pkg version')
         check_cmd = r"sudo grep . /sys/devices/system/cpu/vulnerabilities/* | \
 sed 's/:/^/' | column -t -s^"
-        utils_lib.run_cmd(self, check_cmd, expect_ret=0)
+        utils_lib.run_cmd(self, check_cmd, expect_ret=0, msg='retrive cpu vulnerabilities statics')
 
         output = utils_lib.run_cmd(self, 'uname -r', expect_ret=0)
         if utils_lib.is_metal(self):
@@ -526,13 +526,13 @@ sed 's/:/^/' | column -t -s^"
                 "Skip spec_store_bypass,Retpoline and mds in RHEL7 vms")
             check_cmd = r"sudo grep . /sys/devices/system/cpu/vulnerabilities/* | \
 grep -v spec_store_bypass|grep -v 'tsx_async_abort'|grep -v 'Vulnerable: Retpoline'|\
-grep -v mds| sed 's/:/^/' | column -t -s^"
+grep -v mds|grep -v 'no microcode'|grep -v retbleed| sed 's/:/^/' | column -t -s^"
         else:
             self.log.info(
                 "Skip spec_store_bypass and mds,itlb_multihit in vms")
             check_cmd = r"sudo grep . /sys/devices/system/cpu/vulnerabilities/*|\
 grep -v spec_store_bypass|grep -v 'tsx_async_abort'|grep -v mds|grep -v \
-itlb_multihit|sed 's/:/^/' | column -t -s^"
+itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -s^"
 
         utils_lib.run_cmd(self, check_cmd, expect_ret=0, expect_not_kw='Vulnerable')
 
@@ -2030,7 +2030,7 @@ current_device"
                 msg="please attach this archive if file bug", timeout=180)
         gz_file = re.findall('/var/.*tar.gz', out)[0]
         file_name = gz_file.split('/')[-1]
-        if self.params['remote_node'] is not None:
+        if self.params.get('remote_node') is not None:
             self.log.info('retrive {} from remote'.format(file_name))
             self.SSH.get_file(rmt_file='/tmp/{}'.format(file_name),local_file='{}/debug/{}'.format(self.log_dir,file_name))
         else:
@@ -2115,6 +2115,40 @@ current_device"
         except NotImplementedError:
                 self.skipTest('SEV check is not implemented on %s' % self.vm.provider)
 
+    def test_check_secure_ioerror(self):
+        """
+        case_tag:
+            secure_log
+        case_name:
+            test_check_secure_ioerror
+        case_file:
+            os_tests.tests.test_general_check.test_check_secure_ioerror
+        component:
+            secure_log
+        bugzilla_id:
+            1103344
+        is_customer_case:
+            False
+        customer_case_id:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            shshang@redhat.com
+        description: |
+            Check there is no io error in /var/log/secure.
+            https://access.redhat.com/solutions/975803
+        key_steps:
+            1. Check /var/log/secure via command "sudo cat /var/log/secure".
+        expect_result:
+            There isn't "Input/output error" in secure log.
+        debug_want:
+            N/A
+        """
+        self.log.info("Check /var/log/secure")
+        utils_lib.run_cmd(self, "sudo cat /var/log/secure", expect_ret=0)
+        utils_lib.run_cmd(self, "sudo cp /var/log/secure /tmp", expect_ret=0)
+        utils_lib.run_cmd(self, "sudo cat /var/log/secure", expect_not_kw="Input/output error")
 
     def tearDown(self):
         pass

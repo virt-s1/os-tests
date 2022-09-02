@@ -1,3 +1,4 @@
+from copy import deepcopy
 import os
 import random
 import re
@@ -36,6 +37,8 @@ def init_args():
                     help='skip cases, add --strict for skipping exactly', required=False)
     parser.add_argument('--verifydoc', dest='verifydoc', action='store_true',
                     help='verify or show case doc only', required=False)
+    parser.add_argument('--uploaddoc', dest='uploaddoc', default=None, action='store',
+                    help='upload doc to specific test case management system, eg. polarion', required=False)
     parser.add_argument('--filter_by', dest='filter_by', default='case_name', action='store',
                     help="filter by 'case_name'(default),'case_tag','case_file','component','bugzilla_id',\
                         'is_customer_case','testplan','maintainer','description','key_steps',\
@@ -151,6 +154,8 @@ def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=N
                     test_instance.log.info("connection is live")
                     is_active = True
                 break
+        if not test_instance.SSH:
+            test_instance.SSH = test_instance.SSHs[0]
         test_instance.SSHs[0] = test_instance.SSH
         if is_active:
             return
@@ -179,14 +184,16 @@ def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=N
         test_instance.fail("Cannot make ssh connection to remote, please check")
     test_instance.SSH = test_instance.SSHs[0]
 
-def send_ssh_cmd(rmt_node, rmt_user, rmt_password, command):
+def send_ssh_cmd(rmt_node, rmt_user, rmt_password, command, timeout=60):
     ssh = rmt_ssh.RemoteSSH()
     ssh.rmt_node = rmt_node
     ssh.rmt_user = rmt_user
     ssh.rmt_password = rmt_password
     ssh.create_connection()
-    status, outputs = ssh.remote_excute(command)
+    status, outputs = ssh.remote_excute(command, timeout)
+    logging.info('\n command: %s \n status %s \n outputs %s \n' % (command, status, outputs))
     ssh.close()
+
     return [status,outputs]
 
 def get_cfg(cfg_file = None):
@@ -264,7 +271,7 @@ def init_case(test_instance):
         if test_instance.vm.is_stopped():
             test_instance.vm.start(wait=True)
         floating_ip = test_instance.vm.floating_ip
-        if test_instance.params['remote_node'] and floating_ip != test_instance.params['remote_node']:
+        if test_instance.params.get('remote_node') and floating_ip != test_instance.params['remote_node']:
             if test_instance.params['remote_node'] in test_instance.params['remote_nodes']:
                 test_instance.params['remote_nodes'].remove(test_instance.params['remote_node'])
         test_instance.params['remote_node'] = floating_ip
@@ -303,6 +310,30 @@ def finish_case(test_instance):
         test_instance {Test instance} -- unittest.TestCase instance
     """
     pass
+
+def case_to_polarion(case=None,cfg=None):
+    from os_tests.libs.polarion import PolarionCase
+    polarion_case = PolarionCase(cfg=cfg)
+    LOG.info("upload {}".format(case.id()))
+    yaml_data = {}
+    try:
+        yaml_data = load(case._testMethodDoc, Loader=Loader)
+        if not hasattr(yaml_data,'get'):
+            yaml_data = {}
+            yaml_data['case_name'] = case.id()
+        else:
+            yaml_data['case_name'] = case.id()
+    except Exception as err:
+        yaml_fail = err
+        yaml_data['case_name'] = case.id()
+        LOG.info("please verify its docstring before uploading")
+        return False
+    polarion_case.casedoc = yaml_data
+    if polarion_case.query_case():
+        polarion_case.update_case()
+    else:
+        polarion_case.add_new()
+    return True
 
 def filter_case_doc(case=None, patterns=None, skip_patterns=None, filter_field='case_name', strict=False, verify_doc=False ):
     if patterns is None and skip_patterns is None and not verify_doc:
@@ -380,7 +411,7 @@ def filter_case_doc(case=None, patterns=None, skip_patterns=None, filter_field='
             print(yaml_fail)
             return is_select and not is_skip
         for i in expect_fields:
-            if not yaml_data.get(i):
+            if yaml_data.get(i) == None:
                 print('missing {}'.format(i))
     return is_select and not is_skip
 
@@ -931,7 +962,7 @@ def pkg_install(test_instance, pkg_name=None, pkg_url=None, force=False):
             pkg_name {string} -- pkg name
             pkg_url {string} -- pkg url or location if it is not in default repo
         """
-        if not is_pkg_installed(test_instance, pkg_name=pkg_name):
+        if not is_pkg_installed(test_instance, pkg_name=pkg_name, cancel_case=False, is_install=False):
             test_instance.log.info("Try install {} automatically!".format(pkg_name))
             if pkg_url is not None:
                 test_instance.log.info("Install {} from {}".format(pkg_name, pkg_url))
@@ -950,7 +981,7 @@ def pkg_install(test_instance, pkg_name=None, pkg_url=None, force=False):
                 cmd = 'sudo yum -y reinstall %s' % pkg_name
             run_cmd(test_instance, cmd, timeout=1200)
 
-        if not is_pkg_installed(test_instance, pkg_name=pkg_name) and pkg_url is not None and force:
+        if not is_pkg_installed(test_instance, pkg_name=pkg_name, cancel_case=False, is_install=False) and pkg_url is not None and force:
             test_instance.log.info('Install without dependences!')
             cmd = 'sudo rpm -ivh %s --nodeps' % pkg_url
             if force:
@@ -1120,23 +1151,24 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
     if len(tmp_list) == 0:
         test_instance.log.info("No {} found after skipped {}!".format(log_keyword, skip_words))
         return True, []
+    unknow_log = deepcopy(tmp_list)
     # compare 2 string, if similary over fail_rate, consider it as same.
     fail_rate = 70
     no_fail = True
     check_done = False
-    msg = []
     for line1 in tmp_list:
+        # this round go through with regex
         find_it = False
-        if baseline_dict is not None:
+        if baseline_dict:
             for basekey in baseline_dict:
                 for sub_basekey_content in baseline_dict[basekey]["content"].split(';'):
                     check_done = False
                     if sub_basekey_content and re.search(sub_basekey_content, line1):
                         if baseline_dict[basekey]["status"] == 'active':
-                            test_instance.log.info("Found a similar issue matched in baseline.")
+                            test_instance.log.info("Found a similar log matched in baseline.")
                             find_it = True
                         else:
-                            test_instance.log.info("Found a similar issue matched in baseline. But it is not active, please check manually")
+                            test_instance.log.info("Found a similar log matched in baseline. But it is not active, please check manually")
                             find_it = False
                             no_fail = False
                             check_done = True
@@ -1158,8 +1190,17 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
                               baseline_dict[basekey]["path"]))
                         check_done = True
                         break
-                if find_it or check_done:
+                if find_it:
+                    unknow_log.remove(line1)
                     break
+                if check_done:
+                    break
+    tmp_list = deepcopy(unknow_log)
+    for line1 in tmp_list:
+        # this round go through with content compare
+        find_it = False
+        if baseline_dict:
+            for basekey in baseline_dict:
                 line1_tmp = line1
                 line2_tmp = baseline_dict[basekey]["content"]
                 line1_tmp, line2_tmp = clean_sentence(test_instance, line1_tmp, line2_tmp)
@@ -1193,13 +1234,13 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
                         find_it = False
                         no_fail = False
                     break
-        if not find_it:
-            test_instance.log.info("This is a new exception!")
-            test_instance.log.info("{}".format(line1))
-            msg.append(line1)
-            no_fail = False
+            if find_it:
+                unknow_log.remove(line1)
+    if unknow_log:
+        test_instance.log.info("Below items are unknow!\n{}".format(unknow_log))
+        no_fail = False
 
-    return no_fail, msg
+    return no_fail, unknow_log
 
 def get_product_id(test_instance):
     cmd = "source /etc/os-release ;echo $VERSION_ID"
@@ -1368,3 +1409,26 @@ def normalize_data_size(value_str, order_magnitude="M", factor="1024"):
         return "%.1f" % data_size
     else:
         return ("%.20f" % data_size).rstrip('0')
+
+def check_attribute(target, attributes, test_instance=None, cancel_case=True):
+    '''
+    check if has required attribute
+    if test_instance passed, can skip case as required
+    '''
+    if test_instance:
+        func_write = test_instance.log.info
+    else:
+        func_write = print
+    if not target or not attributes:
+        msg = 'target or attributes is None'
+        func_write(msg)
+        return False
+    for attrname in attributes.split(','):
+        if not hasattr(target, attrname):
+            msg = 'no {} found {}'.format(attrname,target)
+            if test_instance and cancel_case:
+                test_instance.skipTest(msg)
+            else:
+                func_write(msg)
+            return False
+    return True

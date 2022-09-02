@@ -201,6 +201,8 @@ class TestCloudInit(unittest.TestCase):
             cloudinit,cloudinit_tier1
         case_name:
             test_check_cloudinit_log_critical
+        case_file:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_cloud_init.py
         component:
             cloud-init
         bugzilla_id:
@@ -504,11 +506,11 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         bugzilla_id:
             1447177
         is_customer_case:
-            N/A
+            False
         testplan:
             N/A
         maintainer:
-            minl@redha.tcom
+            minl@redhat.com
         description:
             RHEL7-103839 - CLOUDINIT-TC: Auto extend root partition and filesystem
         key_steps: |
@@ -672,18 +674,16 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         description:
             Successfully set VM hostname
         key_steps:
-            1. Check hostname by different command
+            1. Check hostname is correct
         expect_result:
             1. Host name is correct
         debug_want:
             N/A
         """
-        #Restart cloud-init incase log be deleted by previous case.
-        utils_lib.run_cmd(self, 'sudo systemctl restart cloud-init', expect_ret=0)
-        for cmd in ['hostname', 'nmcli general hostname', 'hostnamectl|grep Static']:
-            check_hostname = utils_lib.run_cmd(self, 'sudo cat /var/log/cloud-init.log', expect_ret=0)
-            self.assertIn(self.vm.vm_name, check_hostname, "'%s': Hostname is not correct" % cmd)
-
+        output = utils_lib.run_cmd(self, "hostname", expect_ret=0).rstrip('\n')
+        self.assertEqual(output, self.vm.vm_name.replace('_', '-'),
+                         "The hostname is wrong")
+        
     def _cloudinit_auto_resize_partition(self, label):
         """
         :param label: msdos/gpt
@@ -1807,8 +1807,12 @@ ssh_pwauth: 1
                         'cloud-init.service',
                         'cloud-config.service',
                         'cloud-final.service']
+        service_time_list = []
         for service in service_list:
             service_time_sec = self._get_service_startup_time("%s" % service)
+            self.log.info("Service boot time for {0} is {1}".format(service,service_time_sec))
+            service_time_list.append(service_time_sec)
+        for service_time_sec in service_time_list:
             self.assertLess(
                 float(service_time_sec), float(cloud_init_startup_time), 
                 "{0} startup time is greater than {1}".format(service, cloud_init_startup_time))
@@ -1847,8 +1851,12 @@ ssh_pwauth: 1
                         'cloud-init.service',
                         'cloud-config.service',
                         'cloud-final.service']
+        service_time_list = []
         for service in service_list:
             service_time_sec = self._get_service_startup_time("%s" % service)
+            self.log.info("Service boot time for {0} is {1}".format(service,service_time_sec))
+            service_time_list.append(service_time_sec)
+        for service_time_sec in service_time_list:
             self.assertLess(
                 float(service_time_sec), float(cloud_init_startup_time), 
                 "{0} startup time is greater than {1}".format(service, cloud_init_startup_time))
@@ -1936,13 +1944,12 @@ ssh_pwauth: 1
             3. check network config file
         """
         if self.vm.provider != 'openstack':
-            self.skipTest('skip run as this case is openstack specific which using openstack PSI NIC uuid')
-        self.log.info(
-            "RHEL-186186 - CLOUDINIT-TC: launch an instance with 2 interfaces")
-        # the second nic using hard code? (the second network only contains ipv6, network name provider_net_ipv6_only, ipv6 slaac)
+            self.skipTest('skip run as this case is openstack specific which using openstack PSI NIC uuid')        
+        # The second nic uses hard code (the second network only contains ipv6, network name provider_net_ipv6_only, ipv6 slaac)
         # if the second nic has ipv4, the ssh login may select it but it could not be connected
         # this solution ensure ssh using eth0 ipv4
         self.vm.second_nic_id = "10e45d6d-5924-48ee-9f5a-9713f5facc36"
+        gateway = "2620:52:0:9c::fe"
         if self.vm.exists():
             self.vm.delete()
             time.sleep(30)
@@ -1958,12 +1965,9 @@ ssh_pwauth: 1
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=',UP,')
         cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')        
         cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)-', cloudinit_ver).group(1))
-        if cloudinit_ver < 22.1:
-            cmd = 'sudo cat /etc/sysconfig/network-scripts/ifcfg-eth1'
-            utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='DEVICE=eth1')
-        else:
-            cmd = 'sudo cat /etc/NetworkManager/system-connections/cloud-init-eth1.nmconnection'
-            utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='id=cloud-init eth1')
+        # Check ping gateway successful
+        cmd = "ping6 {} -c 3".format(gateway)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='0% packet loss')
         # check cloud-init status is done and services are active
         self._check_cloudinit_done_and_service_isactive()
         #teardown        
@@ -1992,10 +1996,9 @@ ssh_pwauth: 1
         """
         if self.vm.provider != 'openstack':
             self.skipTest('skip run as this case is openstack specific.')
-        self.log.info(
-            "RHEL-186180 - CLOUDINIT-TC: correct config for dhcp-stateless openstack subnets")
-        # the second nic using hard code?  (net-ipv6-stateless, only subnet ipv6, dhcp-stateless)
-        self.vm.second_nic_id = "e66c7343-98d6-4f07-9d64-2b8bb31d7df8"
+        # The second nic uses hard code (net-ipv6-stateless-test, only subnet ipv6, dhcp-stateless)
+        self.vm.second_nic_id = "21f1d63a-197c-4f36-957a-4c8f4a24bb73"
+        gateway = "2020:1:1:1::1"
         if self.vm.exists():
             self.vm.delete()
             time.sleep(30)
@@ -2015,7 +2018,9 @@ ssh_pwauth: 1
         if cloudinit_ver < 22.1:
             cmd = 'sudo cat /etc/sysconfig/network-scripts/ifcfg-eth1'
             utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='DHCPV6C_OPTIONS=-S,IPV6_AUTOCONF=yes')
-        # Will add NM keyfile check after BZ 2098501 fix
+        # Check ping gateway successful
+        cmd = "ping6 {} -c 3".format(gateway)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='0% packet loss')
         # check cloud-init status is done and services are active
         self._check_cloudinit_done_and_service_isactive()
         #teardown        
@@ -2044,10 +2049,9 @@ ssh_pwauth: 1
         """
         if self.vm.provider != 'openstack':
             self.skipTest('skip run as this case is openstack specific')
-        self.log.info(
-            "RHEL-186181 - CLOUDINIT-TC: correct config for dhcp-stateful openstack subnets")
-        # the second nic using hard code? (net-ipv6-stateful, only subnet ipv6, dhcp-stateful)
-        self.vm.second_nic_id = "9b57a458-5c76-4e4e-b6bf-f1e01388a3b4"
+        # The second nic uses hard code (net-ipv6-stateful-test, only subnet ipv6, dhcp-stateful)
+        self.vm.second_nic_id = "c0020823-5d4c-444a-aee7-b0fe6b3219cc"
+        gateway = "2010:1:1:1::1"
         if self.vm.exists():
             self.vm.delete()
             time.sleep(30)
@@ -2066,7 +2070,9 @@ ssh_pwauth: 1
         if cloudinit_ver < 22.1:
             cmd = 'sudo cat /etc/sysconfig/network-scripts/ifcfg-eth1'
             utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='IPV6_FORCE_ACCEPT_RA=yes')
-        # Will add NM keyfile check after BZ 2098501 fix
+        # Check ping gateway successful
+        cmd = "ping6 {} -c 3".format(gateway)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='0% packet loss')
         # check cloud-init status is done and services are active
         self._check_cloudinit_done_and_service_isactive()
         #teardown        
@@ -2414,13 +2420,14 @@ rh_subscription:
         CONFIG='''\
 swap:
   filename: /datatest/swap.img
-  size: "auto" # or size in bytes
+  size: "8M" # or size in bytes
   maxsize: 2G'''
+        utils_lib.run_cmd(self,'sudo tail /var/log/cloud-init.log')
         utils_lib.run_cmd(self,"echo '''%s''' | sudo tee /etc/cloud/cloud.cfg.d/test_swap.cfg" % CONFIG)
         utils_lib.run_cmd(self, "sudo rm -f /var/lib/cloud/instance/sem/config_mounts /var/log/cloud-init*.log")
         utils_lib.run_cmd(self, "sudo cloud-init single --name mounts")
         new_swap = utils_lib.run_cmd(self, "free -m|grep Swap|awk '{print $2}'")
-        self.assertAlmostEqual(first=int(old_swap)+2047, second=int(new_swap), delta=1,
+        self.assertAlmostEqual(first=int(old_swap)+7, second=int(new_swap), delta=1,
             msg="The enabled swap size does not correct.")
         utils_lib.run_cmd(self, "ls /datatest/swap.img", expect_ret=0, msg="/datatest/swap.img doesn't exist.")
         utils_lib.run_cmd(self, "grep swap.img /etc/fstab", expect_ret=0, msg="Fail to add swap to /etc/fstab")
@@ -2673,7 +2680,9 @@ chpasswd:
         """
         if float(self.rhel_x_version) >= 9.0:
             self.skipTest('skip run this case, network-script is not be supported by rhel 9 any more')
-        utils_lib.is_pkg_installed(self,"network-scripts")
+        pkg_install_check = utils_lib.is_pkg_installed(self,"network-scripts")
+        if not pkg_install_check and self.vm.provider == 'openstack':
+            self.skipTest('skip run this case, network-script is not installed')
         utils_lib.run_cmd(self, "sudo /usr/lib/systemd/systemd-sysv-install enable network")
         # Remove ifcfg files other than eth0 and lo
         utils_lib.run_cmd(self, "sudo rm -f $(find /etc/sysconfig/network-scripts/ifcfg-*|grep -vE '(eth0|lo)')")

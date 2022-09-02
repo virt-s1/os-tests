@@ -155,10 +155,10 @@ ssh_pwauth: 0
                     server, f_ip.floating_ip_address)
         self._data = None
 
-    def delete(self, wait=False):
+    def delete(self, wait=True):
         f_ip = self.floating_ip
         try:
-            if f_ip and self.floating_network_id != '':
+            if f_ip and self.floating_network_id != '' and self.floating_network_id is not None:
                 f_ip_id = self.conn.network.find_ip(f_ip)
                 self.conn.network.delete_ip(f_ip_id)
         except InvalidRequest as err:

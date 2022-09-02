@@ -260,8 +260,8 @@ runcmd:
             'machine_type': self.machine_type
         }
         return self.make_request(endpoint, 'post', data=data)
-       
-    def create_vm_ISO_kickstart(self):
+
+    def create_vm_ISO_kickstart(self, single_nic=True):
         logging.debug("Create VM by ISO kickstart")
         endpoint = urljoin(self.base_url, "vms")
 	# Attach image.
@@ -276,9 +276,11 @@ runcmd:
             logging.error("Image not found, image list be got is %s" % str(vmdisk_uuid))
             exit(1)
         # Attach NICs (all).
-        network_uuids = []
-        for network in self.list_networks_detail()["entities"]:
-            network_uuids.append({"network_uuid": network["uuid"]})
+        network_uuids = [{"network_uuid": self.network_uuid}]
+        if not single_nic:
+            for network in self.list_networks_detail()["entities"]:
+                if network["uuid"] != self.network_uuid:
+                    network_uuids.append({"network_uuid": network["uuid"]})
         data = {
             'boot': {
                 'uefi_boot': False
@@ -633,7 +635,9 @@ class NutanixVM(VMResource):
         # VM parameters
         #self.vm_name = params.get('vm_name', '*/VM/*')
         self.vm_name = params['VM']['vm_name']
-
+        self.cpu = params['Flavor']['cpu']
+        self.memory = params['Flavor']['memory']
+        self.image_name = params['VM']['image_name']
         # VM access parameters
         #self.vm_username = params.get('username', '*/VM/*')
         self.vm_username = params['VM']['username']
@@ -656,8 +660,25 @@ class NutanixVM(VMResource):
         self.host_username = params['Credential']['host_username']
         self.host_password = params['Credential']['host_password']
         self.user_data = None
+        self.vm1_ip = ''
 
         self.prism = PrismApi(params)
+
+    @property
+    def is_secure_boot(self):
+        """
+        vm provisioned with secure boot or not
+        :return: True|False
+        """
+        return self.prism.if_secure_boot
+
+    @property
+    def is_uefi_boot(self):
+        """
+        vm provisioned with uefi or not
+        :return: True|False
+        """
+        return self.prism.if_uefi_boot
 
     @property
     def data(self):
@@ -715,7 +736,14 @@ class NutanixVM(VMResource):
             if host['uuid'] == self.data.get('host_uuid'):
                 cpu_num = host['num_cpu_sockets']
                 break
-        return cpu_num       
+        return cpu_num
+
+    def host_gpu_info(self):
+        self._data = None
+        for host in self.prism.list_hosts_detail()["entities"]:
+            if host['uuid'] == self.data.get('host_uuid'):
+                gpu_info = host['host_gpus']
+        return gpu_info   
 
     def vm_host_uuid(self):
         self._data = None
@@ -746,15 +774,43 @@ class NutanixVM(VMResource):
                 "Timed out waiting for server to get created.")
         self._data = None
         
-    def create_by_ISO_kickstart(self, wait=False):
+    def create_by_ISO_kickstart(self, wait=False, single_nic=True):
         logging.info("Create VM by ISO kickstart")
-        res = self.prism.create_vm_ISO_kickstart()
+        res = self.prism.create_vm_ISO_kickstart(single_nic)
         logging.debug("res is " + str(res))
         if wait:
             self.wait_for_status(
                 res['task_uuid'], 60,
                 "Timed out waiting for server to get created.")
         self._data = None
+
+    def create_vm_by_acli(self, vm_name, memory, cores_per_vcpu, vcpus, if_uefi_boot, if_vtpm):
+        logging.info('Create VM by acli')
+        if self.prism.machine_type == 'q35':
+            cdrom_bus = 'sata'
+        else:
+            cdrom_bus = 'ide'
+        create_vm_cmd1 = 'acli vm.create %s memory=%s num_cores_per_vcpu=%s num_vcpus=%s uefi_boot=%s virtual_tpm=%s machine_type=%s' \
+            %(vm_name, memory, cores_per_vcpu, vcpus, if_uefi_boot, if_vtpm, self.prism.machine_type)
+        create_vm_cmd2 = 'acli vm.disk_create %s clone_from_image=%s' \
+            %(vm_name, self.image_name)
+        create_vm_cmd2_1 = 'acli vm.disk_create %s cdrom=true bus=%s clone_from_adsf_file=/%s/seed.iso' \
+            %(vm_name, cdrom_bus, self.prism.get_container()['name'])
+        create_vm_cmd3 = 'acli vm.nic_create %s connected=true network=%s request_ip=true' \
+            % (vm_name, self.network_uuid)
+        start_vm_cmd = 'acli vm.on %s' % vm_name
+        create_vm = self.cvm_cmd(create_vm_cmd1)
+        if 'Unknown keyword argument' in create_vm:
+            logging.error('There is an unknown keyword argument when create VM: \n' % create_vm)
+        elif not 'complete' in create_vm:
+            logging.error('Create VM not complete: \n %s' % create_vm)
+        for cmd, error_log in zip([create_vm_cmd2, create_vm_cmd2_1, create_vm_cmd3, start_vm_cmd], \
+            ['Attach disk not complete', 'Attach cd-rom not complete', 'Create NIC not complete', 'Start VM not complete']):
+            cmd_res = self.cvm_cmd(cmd)
+            if not 'complete' in cmd_res:
+                logging.error('%s \n %s' %(error_log, cmd_res))
+        vm = self.get_vm_by_filter('vm_name', vm_name)
+        return vm
 
     def delete(self, wait=True):
         logging.info("Delete VM")
@@ -865,6 +921,11 @@ class NutanixVM(VMResource):
         self._data = None
         mem_gb = (self.data.get('memory_mb') / 1024)
         return mem_gb
+
+    def get_vgpu_info(self):
+        self._data = None
+        vgpu_info = self.data.get('vm_gpus')
+        return vgpu_info
 
     def update_vcpu_num(self, vcpu_num_target):
         '''
@@ -1001,6 +1062,48 @@ class NutanixVM(VMResource):
             for count in utils_lib.iterate_timeout(
                     60, "Timed out waiting for verify vnuma nodes number changing."):
                 if self.get_memory_vnuma() == vnuma_num_target:
+                    break
+
+    def assign_vgpu(self, device_name):
+        '''
+        Key steps:
+        1. Power off VM
+        2. Assign vgpu
+        3. Power on VM
+        '''
+        if self.is_started():
+            self.stop(wait=True)
+            
+        logging.info("Add vgpu to VM")
+        res = self.cvm_cmd("acli vm.gpu_assign %s gpu=%s" % (self.data.get('uuid'), device_name))
+        logging.info(res)
+        if "pending" in res.lower() and "cannot" not in res.lower():
+            logging.info("vGPU has assigned to VM successfully.")
+            self.start(wait=True)
+            for count in utils_lib.iterate_timeout(
+                    10, "Timed out waiting for verify vGPU assignment."):
+                if self.get_vgpu_info():
+                    break
+
+    def deassign_vgpu(self, device_name):
+        '''
+        Key steps:
+        1. Power off VM
+        2. Deassign vgpu
+        3. Power on VM
+        '''
+        if self.is_started():
+            self.stop(wait=True)
+            
+        logging.info("Remove vgpu from VM")
+        res = self.cvm_cmd("acli vm.gpu_deassign %s gpu=%s" % (self.data.get('uuid'), device_name))
+        logging.info(res)
+        if "pending" in res.lower() and "cannot" not in res.lower():
+            logging.info("vGPU has deassigned from VM successfully.")
+            self.start(wait=True)
+            for count in utils_lib.iterate_timeout(
+                    10, "Timed out waiting for verify vGPU deassignment."):
+                if not self.get_vgpu_info():
                     break
 
     def attach_disk(self, device_bus, disk_size, is_cdrom, device_index, wait=False, **empty_or_clone):
