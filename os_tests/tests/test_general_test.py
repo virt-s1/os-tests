@@ -730,8 +730,6 @@ RUN touch /tmp/test.txt
         cmd = "sudo systemctl restart libvirtd"
         utils_lib.run_cmd(self, cmd, cancel_ret='0', msg = "restart libvirtd")
         utils_lib.is_cmd_exist(self, cmd='virsh')
-        self.ssh_timeout = 1200
-        self.log.info('set ssh connection timeout to {}'.format(self.ssh_timeout))
         if utils_lib.is_arch(self, arch='x86_64'):
             boot_param_required = 'intel_iommu=on'
             out = utils_lib.run_cmd(self, 'cat /proc/cmdline', msg='Check boot line')

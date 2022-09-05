@@ -34,11 +34,6 @@ class TestNetworkTest(unittest.TestCase):
         cmd = "ip addr show {}".format(self.active_nic )
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to get {} ipv4 address'.format(self.active_nic ))
         self.ipv4 = re.findall('[\d.]{7,16}', output)[0]
-        if utils_lib.is_metal(self):
-            self.ssh_timeout = 1200
-            self.SSH.interval = 60
-        else:
-            self.ssh_timeout = 180
 
     @property
     def rhel_x_version(self):

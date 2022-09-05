@@ -162,12 +162,14 @@ class TestStorage(unittest.TestCase):
             test_disk = self._get_test_disk()
         utils_lib.is_cmd_exist(self,"growpart")
         utils_lib.is_pkg_installed(self,"lvm2")
-        test_part = test_disk + "1"
 
         cmd = 'sudo wipefs -a {}'.format(test_disk)
         utils_lib.run_cmd(self,cmd,msg="wipe all fs from {}".format(test_disk))
         cmd = " sudo parted -s {} mklabel gpt mkpart primary ext4 1MB 1024MB".format(test_disk)
         utils_lib.run_cmd(self,cmd,msg = "make disk part")
+        cmd = " lsblk -l {}|grep part|sort|uniq|cut -f1 -d' '|head -n1".format(test_disk)
+        test_part = '/dev/' + utils_lib.run_cmd(self, cmd, expect_ret=0, msg='get test part')
+        test_part = test_part.strip('\n')
 
         cmd = "sudo pvcreate {} -ff -y".format(test_part)
         utils_lib.run_cmd(self,cmd,msg= "create lvm on disk")
