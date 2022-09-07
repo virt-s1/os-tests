@@ -11,6 +11,9 @@ class TestCloudInit(unittest.TestCase):
         cmd = "sudo systemctl is-enabled cloud-init-local"
         utils_lib.run_cmd(self, cmd, cancel_ret='0', msg = "check cloud-init-local is enabled")
         self.timeout = 180
+        if 'test_cloudinit_no_networkmanager' in self.id():
+            self.NM_install = utils_lib.run_cmd(self, "rpm -q NetworkManager", ret_status=True)
+            self.network_install = utils_lib.run_cmd(self, "rpm -q network-scripts", ret_status=True)
 
     @property
     def rhel_x_version(self):
@@ -364,8 +367,10 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         '''
         if self.vm.provider == 'nutanix':
             self.skipTest('skip run for nutanix platform on which use config drive to fetch metadata but not http service')
-        cmd = r"curl http://169.254.169.254/latest/meta-data/instance-type"
-
+        if self.vm.provider == 'ali':
+            cmd = r"curl http://100.100.100.200/latest/meta-data"
+        else:
+            cmd = r"curl http://169.254.169.254/latest/meta-data/instance-type"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw="Not Found")
 
     def test_check_output_isexist(self):
@@ -2679,25 +2684,44 @@ chpasswd:
             N/A
         """
         if float(self.rhel_x_version) >= 9.0:
-            self.skipTest('skip run this case, network-script is not be supported by rhel 9 any more')
+            self.skipTest('skip run this case, network-script is not be supported by rhel 9 any more')        
         pkg_install_check = utils_lib.is_pkg_installed(self,"network-scripts")
         if not pkg_install_check and self.vm.provider == 'openstack':
-            self.skipTest('skip run this case, network-script is not installed')
+            # Register to rhsm stage
+            reg_cmd = "sudo subscription-manager register --username {0} --password {1} --serverurl {2} --baseurl {3}".format(
+                self.vm.subscription_username, 
+                self.vm.subscription_password, 
+                self.vm.subscription_serverurl,
+                self.vm.subscription_baseurl)
+            utils_lib.run_cmd(self, reg_cmd)
+            utils_lib.run_cmd(self, "sudo subscription-manager attach --auto")
+            pkg_install_check = utils_lib.is_pkg_installed(self,"network-scripts",cancel_case=True)
         utils_lib.run_cmd(self, "sudo /usr/lib/systemd/systemd-sysv-install enable network")
         # Remove ifcfg files other than eth0 and lo
         utils_lib.run_cmd(self, "sudo rm -f $(find /etc/sysconfig/network-scripts/ifcfg-*|grep -vE '(eth0|lo)')")
         utils_lib.run_cmd(self, "sudo systemctl start network", expect_ret=0, msg="Fail to start network.service")
         utils_lib.run_cmd(self, "systemctl status network")
-        utils_lib.run_cmd(self, "yum remove -y NetworkManager", timeout=300)
-        utils_lib.run_cmd(self, "rpm -q NetworkManager", expect_ret=0, msg="Fail to remove NetworkManager")
-        utils_lib.run_cmd(self, "rm -rf /var/lib/cloud/instance /var/lib/cloud/instances/* /var/log/cloud-init.log")
+        utils_lib.run_cmd(self, "sudo systemctl enable network")
+        utils_lib.run_cmd(self, "sudo yum remove -y NetworkManager", timeout=300)
+        utils_lib.run_cmd(self, "rpm -q NetworkManager", expect_ret=1, msg="Fail to remove NetworkManager")
+        # Need to delete /tmp/userdata_run_uuid created by userdata(not all platforms create this file)
+        # Or will cause cloud-final fail after reboot as failed to create same file
+        try:
+            utils_lib.run_cmd(self, "sudo rm -rf /var/lib/cloud/instance \
+                                             /var/lib/cloud/instances/* \
+                                             /var/log/cloud-init.log \
+                                             /tmp/userdata_{0}".format(self.vm.run_uuid))
+        except Exception as err:
+            utils_lib.run_cmd(self, "sudo rm -rf /var/lib/cloud/instance \
+                                             /var/lib/cloud/instances/* \
+                                             /var/log/cloud-init.log")
+            self.log.info(err)
         # Restart VM and verify connection
         self.vm.reboot(wait=True)
         time.sleep(30)
         utils_lib.init_connection(self, timeout=1200)
         res = utils_lib.run_cmd(self, "sudo systemctl status cloud-final")
-        self.assertIn("active (exited)", res, "cloud-final.service status is not active (exited)")
-        utils_lib.run_cmd(self, "sudo subscription-manager unregister")
+        self.assertIn("active (exited)", res, "cloud-final.service status is not active (exited)")        
 
     def tearDown(self):
         if 'test_cloudinit_sshd_keypair' in self.id():
@@ -2705,6 +2729,18 @@ chpasswd:
             utils_lib.run_cmd(self, cmd, msg='restore .ssh/authorized_keys')
             cmd= 'sudo systemctl restart  sshd'
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='restart sshd service')
+        if 'test_cloudinit_no_networkmanager' in self.id():
+            if float(self.rhel_x_version) < 9.0:
+                NM_check = utils_lib.run_cmd(self, "rpm -q NetworkManager", ret_status=True)
+                network_check = utils_lib.run_cmd(self, "rpm -q network-scripts", ret_status=True)
+                if self.NM_install == 0 and NM_check == 1:
+                    utils_lib.run_cmd(self, "sudo yum install -y NetworkManager", msg='Restore NM config')
+                    utils_lib.run_cmd(self, "sudo systemctl start NetworkManager")
+                    utils_lib.run_cmd(self, "sudo systemctl enable NetworkManager")
+                if self.network_install == 1 and network_check == 0:
+                    utils_lib.run_cmd(self, "sudo yum remove -y network-scripts", msg='Restore network-scripts config')
+                if self.vm.provider == 'openstack':
+                    utils_lib.run_cmd(self, "sudo subscription-manager unregister")
         #utils_lib.finish_case(self)
 
 if __name__ == '__main__':
