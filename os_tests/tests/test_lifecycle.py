@@ -264,9 +264,35 @@ class TestLifeCycle(unittest.TestCase):
 
     def test_kdump_no_specify_cpu(self):
         '''
-        bz: 1654962
-        polarion_id: RHEL7-58669
+        case_tag:
+            kdump
+        case_name:
+            test_kdump_no_specify_cpu
+        case_file:
+            os_tests.tests.test_lifecycle.test_kdump_no_specify_cpu
+        component:
+            kdump
+        bugzilla_id:
+            1654962
+        is_customer_case:
+            False
+        customer_case_id:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            Test kdump no specify cpu
+        key_steps: |
+            1. Triger crash on system
+            2. Check if kdump is working and dump file will be generated
+        expect_result:
+            kdump is working and dump file will be generated
+        debug_want:
+            N/A
         '''
+        utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
         product_id = utils_lib.get_product_id(self)
         if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self) and float(product_id) < 8.6:
             self.skipTest("Cancel as bug 1654962 in arm guest earlier than 8.6 2082405" )
@@ -321,6 +347,7 @@ class TestLifeCycle(unittest.TestCase):
         debug_want:
             N/A
         """
+        utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
         product_id = utils_lib.get_product_id(self)
         if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self) and float(product_id) < 8.6:
             self.skipTest("Cancel as bug 1654962 in arm guest earlier than 8.6 2082405" )
@@ -703,6 +730,83 @@ class TestLifeCycle(unittest.TestCase):
             self.assertIn(boot_param_required, cat_proc_cmdline, msg='Expect intel_iommu=on in /proc/cmdline')
             online_cpu_num = int(utils_lib.run_cmd(self, 'cat /proc/cpuinfo | grep processor | wc -l'))
             self.assertEqual(online_cpu_num, cpus, msg='Check online cpus numbers equal to nr_cpus in kernel command line. Expect: %s, Actual: %s' % (cpus, online_cpu_num))
+    
+    def test_kdump_nr_cpus(self):
+        """
+        case_tag:
+            Lifecycle,Lifecycle_tier2
+        case_name:
+            test_kdump_nr_cpus
+        case_file:
+            os_tests.tests.test_lifecycle.TestLifeCycle.test_kdump_nr_cpus
+        component:
+            kexec-tools
+        bugzilla_id:
+            2123230
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            libhe@redhat.com
+        description:
+            Check kdump can save core file when boot system with "nr_cpus=2".
+        key_steps:
+            1. Boot system with args "nr_cpus=2" and trigger crash manually.
+        expect_result:
+            1. System can save core successfully.
+        debug_want:
+            N/A
+        """
+        utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
+        cpu_num = int(utils_lib.run_cmd(self, 'cat /proc/cpuinfo | grep processor | wc -l'))
+        if cpu_num <= 2:
+            self.skipTest("Skip test case since cpu number is not greater than 2")
+        if cpu_num > 2:
+            cpus = 2
+        kernel_ver = utils_lib.run_cmd(self, 'uname -r', expect_ret=0)
+        cmd = 'sudo grubby --update-kernel=/boot/vmlinuz-%s --args="nr_cpus=%s"' %(kernel_ver.strip('\n'),cpus)
+        utils_lib.run_cmd(self,
+                            cmd,
+                            expect_ret=0,
+                            msg='set boot args nr_cpus=%s '%cpus)
+
+        self.vm.reboot()
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+
+        # Check /proc/cmdline for the nr_cpus args
+        boot_param_required = 'nr_cpus=%s'%cpus
+        cat_proc_cmdline = self._update_kernel_args(boot_param_required)
+        self.assertIn(boot_param_required, cat_proc_cmdline, msg='Expect nr_cpus in /proc/cmdline')
+        online_cpu_num = int(utils_lib.run_cmd(self, 'cat /proc/cpuinfo | grep processor | wc -l'))
+        self.assertEqual(online_cpu_num, cpus,
+                            msg='Check online cpus numbers equal to nr_cpus in kernel command line. Expect: %s, Actual: %s' % (
+                            cpus, online_cpu_num))
+
+        # Check kdump for the system booted with nr_cpus args
+        product_id = utils_lib.get_product_id(self)
+        if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self) and float(product_id) < 8.6:
+            self.skipTest("Cancel as bug 1654962 in arm guest earlier than 8.6 2082405" )
+        utils_lib.run_cmd(self,
+                    r'sudo rm -rf /var/crash/*',
+                    expect_ret=0,
+                    msg='clean /var/crash firstly')
+        utils_lib.run_cmd(self, r'sudo sync', expect_ret=0)
+        self.log.info("Before system crash")
+        utils_lib.run_cmd(self,
+                    r'find /var/crash',
+                    expect_ret=0,
+                    msg='list /var/crash')
+        utils_lib.run_cmd(self, "sudo bash -c \"echo c > /proc/sysrq-trigger\"", msg='trigger crash')
+
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        self.log.info("After system crash")
+        utils_lib.run_cmd(self,
+                    r'find /var/crash',
+                    expect_ret=0,
+                    msg='list /var/crash after crash')
+        cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50'
+        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='write_sysrq_trigger')
 
     def tearDown(self):
         reboot_require = False
