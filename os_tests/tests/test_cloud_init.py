@@ -1975,12 +1975,6 @@ ssh_pwauth: 1
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='0% packet loss')
         # check cloud-init status is done and services are active
         self._check_cloudinit_done_and_service_isactive()
-        #teardown        
-        self.vm.delete()
-        self.vm.second_nic_id = None
-        self.vm.create()
-        time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
 
     def test_cloudinit_create_vm_stateless_ipv6(self):
         """
@@ -2028,12 +2022,6 @@ ssh_pwauth: 1
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='0% packet loss')
         # check cloud-init status is done and services are active
         self._check_cloudinit_done_and_service_isactive()
-        #teardown        
-        self.vm.delete()
-        self.vm.second_nic_id = None
-        self.vm.create()
-        time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
 
     def test_cloudinit_create_vm_stateful_ipv6(self):
         """
@@ -2080,12 +2068,6 @@ ssh_pwauth: 1
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='0% packet loss')
         # check cloud-init status is done and services are active
         self._check_cloudinit_done_and_service_isactive()
-        #teardown        
-        self.vm.delete()
-        self.vm.second_nic_id = None
-        self.vm.create()
-        time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
 
     def test_cloudinit_auto_install_package_with_subscription_manager(self):
         """
@@ -2723,6 +2705,74 @@ chpasswd:
         res = utils_lib.run_cmd(self, "sudo systemctl status cloud-final")
         self.assertIn("active (exited)", res, "cloud-final.service status is not active (exited)")        
 
+    def test_cloudinit_puppet_in_correct_stage(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_name:
+            test_cloudinit_puppet_in_correct_module
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_puppet_in_correct_module
+        component:
+            cloudinit
+        bugzilla_id:
+            2081435
+        is_customer_case:
+            True
+        testplan:
+            VIRT-294934
+        maintainer:
+            huzhao@redhat.com
+        description:
+           Cloud-init should place the puppet module in cloud_final_modules
+        key_steps: |
+            1. Check /etc/cloud/cloud.cfg
+        expect_result:
+            The puppet, chef, salt-minion, mcollective, package-update-upgrade-install 
+            should be in cloud_final_modules
+        debug_want:
+            N/A
+        """
+        module_list = 'puppet,chef,salt-minion,mcollective,package-update-upgrade-install'
+        cmd = "sed -n '/cloud_final_modules:/,/system_info:/p' /etc/cloud/cloud.cfg"
+        utils_lib.run_cmd(self,
+                          cmd,
+                          expect_ret=0,
+                          expect_kw='%s' % module_list,
+                          msg='check if %s are in correct stage' % module_list)
+
+    def test_cloudinit_rules_location(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_name:
+            test_cloudinit_rules_location
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_rules_location
+        component:
+            cloudinit
+        bugzilla_id:
+            2096269
+        is_customer_case:
+            False
+        testplan:
+            VIRT-294949
+        maintainer:
+            huzhao@redhat.com
+        description:
+           Cloud-init should place the rules files in /usr/lib on rhel
+        key_steps: |
+            1. # ls /usr/lib/udev/rules.d/66-azure-ephemeral.rules
+        expect_result:
+            There should be rules file 66-azure-ephemeral.rules
+        debug_want:
+            N/A
+        """
+        utils_lib.run_cmd(self, 
+                          "ls /usr/lib/udev/rules.d/66-azure-ephemeral.rules", 
+                          expect_ret=0, 
+                          msg="Rules file location is not in /usr/lib")
+
     def tearDown(self):
         if 'test_cloudinit_sshd_keypair' in self.id():
             cmd = 'cp -f ~/.ssh/authorized_keys.bak ~/.ssh/authorized_keys'
@@ -2741,6 +2791,16 @@ chpasswd:
                     utils_lib.run_cmd(self, "sudo yum remove -y network-scripts", msg='Restore network-scripts config')
                 if self.vm.provider == 'openstack':
                     utils_lib.run_cmd(self, "sudo subscription-manager unregister")
+        case_list = ['test_cloudinit_create_vm_two_nics',
+                     'test_cloudinit_create_vm_stateless_ipv6',
+                     'test_cloudinit_create_vm_stateful_ipv6']
+        for case_name in case_list:
+            if case_name in self.id() and self.vm.provider == 'openstack':
+                self.vm.delete()
+                self.vm.second_nic_id = None
+                self.vm.create()
+                time.sleep(30)
+                utils_lib.init_connection(self, timeout=self.timeout)        
         #utils_lib.finish_case(self)
 
 if __name__ == '__main__':
