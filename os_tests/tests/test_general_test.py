@@ -890,12 +890,13 @@ if __name__ == "__main__":
         cmd = "lsblk | grep sr"
         all = utils_lib.run_cmd(self,cmd,cancel_kw="sr0",
                                 msg="check if machine mounted CDROM").rstrip().split("\n")
+        self.cursor = utils_lib.get_cmd_cursor(self, cmd='journalctl -b0', rmt_redirect_stdout=True)
         for i in all:
             part = i.split(" ")[0]
             cmd = "sudo wipefs -a /dev/"+part
             utils_lib.run_cmd(self,cmd,expect_ret=1,msg="erase signature")
             cmd = "dmesg -T | grep %s" % part
-            utils_lib.run_cmd(self,cmd,expect_not_kw="error",msg="check if there's error")
+            utils_lib.check_log(self, "error", log_cmd=cmd, cursor=self.cursor, rmt_redirect_stdout=True)
 
     def test_grub2_mkconfig(self):
         """
