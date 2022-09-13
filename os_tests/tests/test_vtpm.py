@@ -22,7 +22,6 @@ class TestVtpm(unittest.TestCase):
             self.skipTest("Only support to run for VM with UEFI boot configuration!")
         #get dmesg cursor
         self.cursor = utils_lib.get_cmd_cursor(self, cmd='dmesg -T')
-        self.timeout = 180
         #define sh script
         self.tpm_test_sh = '''tpm2_createprimary -c primary.ctx
 tpm2_create -C primary.ctx -Gaes128 -u key.pub -r key.priv
@@ -41,7 +40,7 @@ cat secret.dec'''
             msg="Cannot complete adding vtpm device, Expect: complete, real: %s" % cvm_cmd_res)
         self.vm.start(wait=True)
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
     def _check_vtpm_log_and_version(self, rmt_node=None):
         if rmt_node == None:
@@ -132,7 +131,7 @@ cat secret.dec'''
             self._add_vtpm_device()
         self.vm.reboot(wait=True)
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         self._check_vtpm_log_and_version()
         self._test_vtpm_encryption_decryption()
 
@@ -172,7 +171,7 @@ cat secret.dec'''
             if self.vm.is_stopped(): break
         self.vm.start(wait=True)
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         self._check_vtpm_log_and_version()
         self._test_vtpm_encryption_decryption()
 

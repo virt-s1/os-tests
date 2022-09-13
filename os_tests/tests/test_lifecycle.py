@@ -713,7 +713,7 @@ class TestLifeCycle(unittest.TestCase):
         "nr_cpus=1","nr_cpus=2", "intel_iommu=on", "fips=1"]
         cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline')
         for arg in addon_args:
-            if arg in cmdline:
+            if cmdline and arg in cmdline:
                 cmd = 'sudo grubby --update-kernel=ALL  --remove-args={}'.format(arg)
                 utils_lib.run_cmd(self, cmd, msg='Remove {}'.format(arg))
                 reboot_require = True
