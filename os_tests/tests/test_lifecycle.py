@@ -11,11 +11,9 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.init_case(self)
         if self.params['remote_node'] is None:
             self.skipTest("Only support to run in server-client mode!")
-        if utils_lib.is_metal(self) or utils_lib.is_ahv(self):
+        if utils_lib.is_ahv(self):
             self.ssh_timeout = 1200
             self.SSH.interval = 60
-        else:
-            self.ssh_timeout = 180
         self.log.info('set ssh connection timeout to {}'.format(self.ssh_timeout))
 
         if 'kdump' in self.id():

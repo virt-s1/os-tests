@@ -71,6 +71,10 @@ class VMResource(BaseResource):
         super().__init__(params)
         # mark the resource created, default is os_tests_vm
         self.tag = 'os_tests_vm'
+        # dead_count to monitor resource health status
+        # for example, if the vm cannot connect over X times, we can skip the follow cases
+        # no need to retry connection until timeout
+        self.dead_count = 0
 
     @property
     @abstractmethod
@@ -109,6 +113,13 @@ class VMResource(BaseResource):
         :return 22 by default or other dynamic value by overwrite this func.
         """
         return 22
+
+    @property
+    def is_metal(self):
+        """
+        return if vm is metal or not
+        """
+        return False
 
     @property
     @abstractmethod
