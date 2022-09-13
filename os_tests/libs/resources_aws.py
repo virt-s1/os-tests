@@ -27,7 +27,7 @@ class EC2VM(VMResource):
         self.session = boto3.session.Session(profile_name=self.profile_name, region_name=params.get('region'))
         self.resource = self.session.resource('ec2', config=config)
         self.client = self.session.client('ec2', config=config, region_name=params.get('region'))
-        super(EC2VM, self).__init__(params)
+        super().__init__(params)
         self.id = None
         self.ipv4 = None
         self.ssh_user = params.get('remote_user')
@@ -226,12 +226,17 @@ class EC2VM(VMResource):
 
     @property
     def disk_count(self):
-        volumes_list = []
-        self.ec2_instance.reload()
-        for i in self.ec2_instance.volumes.all():
-            volumes_list.append(i.id)
-        LOG.info(volumes_list)
-        return len(volumes_list)
+        default_disks = 1
+        instance_types_dict = self.client.describe_instance_types(InstanceTypes=[self.instance_type])
+        instance_types = instance_types_dict.get('InstanceTypes')
+        if not instance_types:
+            LOG.info("Cannot get instance type info, return {}".format(default_disks))
+            return default_disks
+        for instance_type in instance_types:
+            if instance_type['InstanceStorageSupported']:
+                default_disks = instance_type["InstanceStorageInfo"]["Disks"][0]["Count"] + 1
+        LOG.info("{} has {} disks".format(self.instance_type, default_disks))
+        return default_disks
 
     @property
     def is_secure_boot(self):
@@ -253,6 +258,13 @@ class EC2VM(VMResource):
         except Exception as error:
             LOG.info('Cannot determin boot mode, return False')
         return False
+
+    @property
+    def is_metal(self):
+        """
+        return if vm is metal or not
+        """
+        return 'metal' in self.instance_type
 
     def start(self, wait=True):
         start_ok = False

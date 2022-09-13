@@ -2771,7 +2771,40 @@ chpasswd:
         utils_lib.run_cmd(self, 
                           "ls /usr/lib/udev/rules.d/66-azure-ephemeral.rules", 
                           expect_ret=0, 
-                          msg="Rules file location is not in /usr/lib")
+                          msg="Check rules file location is /usr/lib/udev/rules.d/")
+
+    def test_cloudinit_generator_location(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_name:
+            test_cloudinit_generator_location
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_generator_location
+        component:
+            cloudinit
+        bugzilla_id:
+            1971480
+        is_customer_case:
+            False
+        testplan:
+            VIRT-294956
+        maintainer:
+            huzhao@redhat.com
+        description:
+           Check cloud-init-generator location
+        key_steps: |
+            1. # ls /usr/lib/systemd/system-generators/cloud-init-generator
+        expect_result:
+            cloud-init-generator should be located in /usr/lib/systemd/system-generators
+        debug_want:
+            N/A
+        """
+        generator_location = "/usr/lib/systemd/system-generators/"
+        utils_lib.run_cmd(self, 
+                          "ls {0}cloud-init-generator".format(generator_location), 
+                          expect_ret=0, 
+                          msg="Check cloud-init-generator location is {0}".format(generator_location))
 
     def tearDown(self):
         if 'test_cloudinit_sshd_keypair' in self.id():
@@ -2800,7 +2833,7 @@ chpasswd:
                 self.vm.second_nic_id = None
                 self.vm.create()
                 time.sleep(30)
-                utils_lib.init_connection(self, timeout=self.timeout)        
+                utils_lib.init_connection(self, timeout=self.ssh_timeout)        
         #utils_lib.finish_case(self)
 
 if __name__ == '__main__':

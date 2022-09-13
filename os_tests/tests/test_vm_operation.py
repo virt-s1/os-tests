@@ -14,12 +14,6 @@ class TestVMOperation(unittest.TestCase):
             self.skipTest("no vm found!")
         if self.params['remote_node'] is None:
             self.skipTest("Only support to run in server-client mode!")
-        if utils_lib.is_metal(self):
-            self.ssh_timeout = 1200
-            self.SSH.interval = 60
-        else:
-            self.ssh_timeout = 180
-        self.log.info('set ssh connection timeout to {}'.format(self.ssh_timeout))
 
     def test_cloud_init_config_ipv6(self):
         '''

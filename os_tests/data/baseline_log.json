@@ -1027,7 +1027,7 @@
     },
     "msg_116": {
         "content": ".*x86/split lock detection: disabled.*",
-	"analyze": "Debug kernel only. This https://elixir.bootlin.com/linux/latest/source/arch/x86/kernel/cpu/intel.c#L1273 is the function that does the reporting of the split lock detection feature. Linux's default setting for split lock detection is off, see https://elixir.bootlin.com/linux/latest/source/arch/x86/kernel/cpu/intel.c#L53. Hence, the message is expected. Also, this cannot appear on gen5 and gen4 (i3.metal) since the feature isn't available there.",
+        "analyze": "Debug kernel only. This https://elixir.bootlin.com/linux/latest/source/arch/x86/kernel/cpu/intel.c#L1273 is the function that does the reporting of the split lock detection feature. Linux's default setting for split lock detection is off, see https://elixir.bootlin.com/linux/latest/source/arch/x86/kernel/cpu/intel.c#L53. Hence, the message is expected. Also, this cannot appear on gen5 and gen4 (i3.metal) since the feature isn't available there.",
         "branch": "rhel",
         "status": "active",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2017161#c17",
@@ -1267,5 +1267,23 @@
         "link": "",
         "path": "dmesg",
         "trigger": "Hypervisor detected"
+    },
+    "msg_143": {
+        "content": "critical target error, dev sr0, sector 64 op 0x1:(WRITE) flags 0x800 phys_seg 1 prio class 0",
+        "analyze": "libblkid as well as wipefs do not check fsync() and close() return value. That's a mistake for O_NONBLOCK",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://github.com/util-linux/util-linux/commit/39f5af25982d8b0244000e92a9d0e0e6557d0e17",
+        "path": "dmesg",
+        "trigger": ""
+    },
+    "msg_144": {
+        "content": "Buffer I/O error on dev sr0, logical block 8, lost async page write",
+        "analyze": "libblkid as well as wipefs do not check fsync() and close() return value. That's a mistake for O_NONBLOCK",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://github.com/util-linux/util-linux/commit/39f5af25982d8b0244000e92a9d0e0e6557d0e17",
+        "path": "dmesg",
+        "trigger": ""
     }
 }

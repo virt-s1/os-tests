@@ -730,8 +730,6 @@ RUN touch /tmp/test.txt
         cmd = "sudo systemctl restart libvirtd"
         utils_lib.run_cmd(self, cmd, cancel_ret='0', msg = "restart libvirtd")
         utils_lib.is_cmd_exist(self, cmd='virsh')
-        self.ssh_timeout = 1200
-        self.log.info('set ssh connection timeout to {}'.format(self.ssh_timeout))
         if utils_lib.is_arch(self, arch='x86_64'):
             boot_param_required = 'intel_iommu=on'
             out = utils_lib.run_cmd(self, 'cat /proc/cmdline', msg='Check boot line')
@@ -890,12 +888,13 @@ if __name__ == "__main__":
         cmd = "lsblk | grep sr"
         all = utils_lib.run_cmd(self,cmd,cancel_kw="sr0",
                                 msg="check if machine mounted CDROM").rstrip().split("\n")
+        self.cursor = utils_lib.get_cmd_cursor(self, cmd='journalctl -b0', rmt_redirect_stdout=True)
         for i in all:
             part = i.split(" ")[0]
             cmd = "sudo wipefs -a /dev/"+part
             utils_lib.run_cmd(self,cmd,expect_ret=1,msg="erase signature")
             cmd = "dmesg -T | grep %s" % part
-            utils_lib.run_cmd(self,cmd,expect_not_kw="error",msg="check if there's error")
+            utils_lib.check_log(self, "error", log_cmd=cmd, cursor=self.cursor, rmt_redirect_stdout=True)
 
     def test_grub2_mkconfig(self):
         """
