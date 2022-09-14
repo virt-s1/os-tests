@@ -40,7 +40,7 @@ class TestLifeCycle(unittest.TestCase):
         '''
         if self.vm and self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
             self.skipTest('''Red Hat Insights error "sed: can't read /sys/kernel/debug/sched_features: Operation not permitted" When using secure boot''')
-        self.old_grub_index = utils_lib.run_cmd(self, 'sudo grubby --default-index', expect_ret=0)
+        self.default_boot_index  = utils_lib.run_cmd(self, 'sudo grubby --default-index', expect_ret=0)
         self.log.info("Check kernel-debug can boot up!")
         mini_mem = utils_lib.get_memsize(self)
         if int(mini_mem) < 2:
@@ -808,19 +808,20 @@ class TestLifeCycle(unittest.TestCase):
 
     def tearDown(self):
         reboot_require = False
-        if 'test_boot_debugkernel' in self.id():
-            cmd = "sudo grubby --set-default-index=%s" % self.old_grub_index
-            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="restore default boot index to {}".format(self.old_grub_index))
-            reboot_require = True
-
         addon_args = ["hpet_mmap=1", "mitigations=auto,nosmt", "usbcore.quirks=quirks=0781:5580:bk,0a5c:5834:gij",
         "nr_cpus=1","nr_cpus=2", "intel_iommu=on", "fips=1"]
         cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline')
-        for arg in addon_args:
-            if cmdline and arg in cmdline:
-                cmd = 'sudo grubby --update-kernel=ALL  --remove-args={}'.format(arg)
-                utils_lib.run_cmd(self, cmd, msg='Remove {}'.format(arg))
+        if cmdline:
+            current_boot_index  = utils_lib.run_cmd(self, 'sudo grubby --default-index', expect_ret=0)
+            if self.default_boot_index is not None and current_boot_index != self.default_boot_index:
+                cmd = "sudo grubby --set-default-index=%s" % self.default_boot_index
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg="restore default boot index to {}".format(self.default_boot_index))
                 reboot_require = True
+            for arg in addon_args:
+                if arg in cmdline:
+                    cmd = 'sudo grubby --update-kernel=ALL  --remove-args={}'.format(arg)
+                    utils_lib.run_cmd(self, cmd, msg='Remove {}'.format(arg))
+                    reboot_require = True
         if reboot_require:
             utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test to restore setting')
             time.sleep(10)

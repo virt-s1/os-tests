@@ -175,28 +175,48 @@ class TestNetworkTest(unittest.TestCase):
         utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', skip_words='ftrace', cursor=self.dmesg_cursor)
 
     def test_ethtool_P(self):
-        '''
+        """
+        case_tags:
+            network
+        title:
+            Test ethtool query nic's mac address
+        importance:
+            Low
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            Automated
+        linked_work_items:
+            N/A
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_network_test.py
+        setup_teardown:
+            N/A
+        environment:
+            N/A
         case_name:
             test_ethtool_P
-        case_priority:
-            1
         component:
             kernel
-        bugzilla_id:
-            1704435
-        polarion_id:
-            n/a
+        bug_id:
+            bugzilla_1704435
+        is_customer_case:
+            True
+        testplan:
+            N/A
         maintainer:
             xiliang@redhat.com
-        description:
-            Use ethtool to query the specified network device for permanent hardware address.
-        key_steps:
-            1. # ethtool -P $nic
-        expected_result:
+        description: |
+            Use ethtool to query the specific network device for permanent hardware address.
+        key_steps: |
+            # ethtool -P $nic
+        expected_result: |
             Mac address is not "00:00:00:00:00:00"
             eg. # ethtool -P eth0
                 Permanent address: 00:16:3d:fb:78:34
-        '''
+        debug_want: |
+            N/A
+        """
         cmd = "ethtool -P {}".format(self.active_nic )
         output = utils_lib.run_cmd(self,
                              cmd,

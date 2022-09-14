@@ -725,8 +725,7 @@ RUN touch /tmp/test.txt
                 Device pci_0000_2b_00_0 re-attached
         '''
         utils_lib.is_metal(self, action="cancel")
-        cmd = "sudo yum install -y libvirt"
-        utils_lib.run_cmd(self, cmd, msg = "install libvirt pkg")
+        utils_lib.is_pkg_installed(self, pkg_name="libvirt")
         cmd = "sudo systemctl restart libvirtd"
         utils_lib.run_cmd(self, cmd, cancel_ret='0', msg = "restart libvirtd")
         utils_lib.is_cmd_exist(self, cmd='virsh')
