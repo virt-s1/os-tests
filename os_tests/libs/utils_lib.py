@@ -281,7 +281,7 @@ def init_case(test_instance):
         else:
             test_instance.log.info("key:{}, val:{}".format(key, test_instance.params[key]))
     test_instance.log.info("-"*80)
-    test_instance.ssh_timeout = 120
+    test_instance.ssh_timeout = 180
     if test_instance.vm:
         if test_instance.vm.is_metal:
             test_instance.ssh_timeout = 1200

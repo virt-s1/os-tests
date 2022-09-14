@@ -76,7 +76,6 @@ class TestStorage(unittest.TestCase):
         if 'blktests' in self.id():
             utils_lib.pkg_install(self, pkg_name='blktests', pkg_url=blktests_rpm,force=True)
         self.cursor = utils_lib.get_cmd_cursor(self, timeout=120)
-        self.timeout = 180
 
     def test_storage_blktests_block(self):
         '''
@@ -270,7 +269,7 @@ class TestStorage(unittest.TestCase):
         except UnSupportedAction:
             self.skipTest('attach_disk func is not supported in {}'.format(self.vm.provider))
         self.vm.start(wait=True)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         new_disk_num = self._get_disk_num('rom')
         new_add_num = int(new_disk_num) - int(origin_disk_num)
         self.assertEqual(new_add_num, 1, msg="Number of new attached rom is not right, Expect: %s, real: %s" % (1, new_add_num))
@@ -284,7 +283,7 @@ class TestStorage(unittest.TestCase):
         except UnSupportedAction:
             self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
         self.vm.start(wait=True)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
     
     def test_add_sata_clone_cdrom_from_img_service(self):
         """
@@ -325,7 +324,7 @@ class TestStorage(unittest.TestCase):
         except UnSupportedAction:
             self.skipTest('attch disk func is not supported in {}'.format(self.vm.provider))
         self.vm.start(wait=True)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         new_disk_num = self._get_disk_num('rom')
         new_add_num = int(new_disk_num) - int(origin_disk_num)
         self.assertEqual(new_add_num, 1, "Number of new attached rom is not right Expect: %s, real: %s" % (1, new_add_num))
@@ -344,7 +343,7 @@ class TestStorage(unittest.TestCase):
         except UnSupportedAction:
             self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
         self.vm.start(wait=True)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
     def test_add_remove_multi_scsi(self):
         """
@@ -438,7 +437,7 @@ class TestStorage(unittest.TestCase):
         snapshot_uuid=vm_snpst_list['entities'][0]['uuid']
         if is_offline:
             self.vm.start(wait=True)
-            utils_lib.init_connection(self, timeout=self.timeout)
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
         self.log.info('delete the test file after taking snapshong and before restoring VM')
         cmd = "rm ~/snpst.txt \n ls ~/snpst.txt"
         check_file = utils_lib.run_cmd(self, cmd, expect_ret=2, msg='check No such file or directory')
@@ -450,7 +449,7 @@ class TestStorage(unittest.TestCase):
             self.skipTest("restore vm func is not supported in {}".format(self.vm.provider))
         time.sleep(90)
         self.vm.start(wait=True)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         check_file = utils_lib.run_cmd(self, "ls ~/snpst*", expect_ret=0)
         self.assertIn(
                     "/home/cloud-user/snpst.txt",
@@ -655,7 +654,7 @@ class TestStorage(unittest.TestCase):
                 self.skipTest('attach disk size func is not supported in {}'.format(self.vm.provider))
         self.vm.start(wait=True)
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         #check disk number
         num_fdisk=int(utils_lib.run_cmd(self, "sudo fdisk -l | grep 'Disk /dev' | wc -l", expect_ret=0))
         num_lsblk=int(utils_lib.run_cmd(self, "sudo lsblk -d | grep disk | wc -l", expect_ret=0))
@@ -719,10 +718,10 @@ class TestStorage(unittest.TestCase):
             if nic['network_uuid'] == self.vm.network_uuid:
                 VMBecloned_ip = nic['ip_address']
         self.params['remote_nodes'].append(VMBecloned_ip)
-        utils_lib.init_connection(self, timeout=self.timeout,rmt_node=self.params['remote_nodes'][1])
+        utils_lib.init_connection(self, timeout=self.ssh_timeout,rmt_node=self.params['remote_nodes'][1])
         self.vm.start(wait=True)
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         for device_type, device_name in zip(['scsi','pci','ide','sata'], [scsi_dev_name, pci_dev_name, ide_dev_name, sata_dev_name]):
             if device_type == 'ide':
                 if self.vm.provider == 'nutanix':
@@ -760,7 +759,7 @@ class TestStorage(unittest.TestCase):
                 self.skipTest('detach disk size func is not supported in {}'.format(self.vm.provider))
         self.vm.start(wait=True)
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         if self.vm.provider == 'nutanix':
             if not self.vm.prism.if_secure_boot and not self.vm.prism.machine_type == 'q35':
                 utils_lib.run_cmd(self, "ls " + ide_dev_name, expect_ret=2, expect_kw='No such file or directory')
@@ -810,7 +809,7 @@ class TestStorage(unittest.TestCase):
         #connect cloned vm
         self.log.info('init connetcion to VM be cloned, VM IP is %s' % VMBecloned_ip)
         self.params['remote_nodes'].append(VMBecloned_ip)
-        utils_lib.init_connection(self, timeout=self.timeout,rmt_node=self.params['remote_nodes'][1])
+        utils_lib.init_connection(self, timeout=self.ssh_timeout,rmt_node=self.params['remote_nodes'][1])
         dmidecode_cmd = '''sudo dmidecode -t memory | grep "Memory Device" -A5 | grep Size | awk '$3 ~ /GB/ {sum += $2} $3 ~ /MB/ {sum += $2/1024} END {printf sum}' '''
         cloneVM_actual_Memory = int(utils_lib.run_cmd(self, dmidecode_cmd, rmt_node=self.params['remote_nodes'][1]))
         self.assertEqual(cloneVM_set_Memory/1024, cloneVM_actual_Memory, msg="Value of memory is not right, Expect: %s, real: %s" % (cloneVM_set_Memory/1024, cloneVM_actual_Memory))
@@ -829,7 +828,7 @@ class TestStorage(unittest.TestCase):
         self.params['remote_nodes'].pop()
         self.vm.start(wait=True)
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout,rmt_node=self.params['remote_nodes'][0])
+        utils_lib.init_connection(self, timeout=self.ssh_timeout,rmt_node=self.params['remote_nodes'][0])
 
     def test_clone_from_vm(self):
         """
@@ -920,7 +919,7 @@ class TestStorage(unittest.TestCase):
                         self.skipTest('attch disk func is not supported in {}'.format(self.vm.provider))
                 total_num = 9
         self.vm.start(wait=True)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         new_disk_num = self._get_disk_num('rom')
         new_add_num = int(new_disk_num) - int(origin_disk_num)
         self.assertEqual(new_add_num, total_num, "Number of new attached total rom is not right Expect: %s, real: %s" % (total_num, new_add_num))
@@ -951,7 +950,7 @@ class TestStorage(unittest.TestCase):
                     except UnSupportedAction:
                         self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
         self.vm.start(wait=True)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
     def test_check_disk_count(self):
         '''

@@ -10,7 +10,6 @@ class TestCloudInit(unittest.TestCase):
         utils_lib.init_case(self)
         cmd = "sudo systemctl is-enabled cloud-init-local"
         utils_lib.run_cmd(self, cmd, cancel_ret='0', msg = "check cloud-init-local is enabled")
-        self.timeout = 180
         if 'test_cloudinit_no_networkmanager' in self.id():
             self.NM_install = utils_lib.run_cmd(self, "rpm -q NetworkManager", ret_status=True)
             self.network_install = utils_lib.run_cmd(self, "rpm -q network-scripts", ret_status=True)
@@ -656,7 +655,7 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         self.vm.create(wait=True)
         self.vm.start(wait=True)
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
     def test_cloudinit_verify_hostname(self):
         """
@@ -940,7 +939,7 @@ EOF""".format(device, size), expect_ret=0)
         self.vm.create(single_nic=False, wait=True)
         self.vm.start(wait=True)
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         ip_list_vm = utils_lib.run_cmd(self,
             "ip addr|grep -Po 'inet \\K.*(?=/)'|grep -v '127.0.0.1'").strip().split('\n')
         ip_list_vm.sort()
@@ -957,7 +956,7 @@ EOF""".format(device, size), expect_ret=0)
         self.vm.create(wait=True)
         self.vm.start(wait=True)
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
     def test_cloudinit_login_with_publickey(self):
         """
@@ -1604,7 +1603,7 @@ EOF""".format(device, size), expect_ret=0)
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
         self.assertEqual(
             self.vm.vm_username, output,
@@ -1630,7 +1629,7 @@ EOF""".format(device, size), expect_ret=0)
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
     def test_cloudinit_login_with_password_userdata(self):
         """
@@ -1687,13 +1686,13 @@ ssh_pwauth: 1
         self.vm.user_data = save_userdata
         self.vm.create()
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
     def _reboot_inside_vm(self):       
         before = utils_lib.run_cmd(self, 'last reboot --time-format full')
         utils_lib.run_cmd(self, 'sudo reboot')
         time.sleep(10)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         output = utils_lib.run_cmd(self, 'whoami')
         self.assertEqual(
             self.vm.vm_username, output.strip(),
@@ -1803,7 +1802,7 @@ ssh_pwauth: 1
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         boot_time_sec = utils_lib.getboottime(self)
         # check cloud-init status is done and services are active
         self._check_cloudinit_done_and_service_isactive()      
@@ -1928,7 +1927,7 @@ ssh_pwauth: 1
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
     def test_cloudinit_create_vm_two_nics(self):
         """
@@ -1960,7 +1959,7 @@ ssh_pwauth: 1
             time.sleep(30)
         self.vm.create()
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
         self.assertEqual(
             self.vm.vm_username, output,
@@ -2003,7 +2002,7 @@ ssh_pwauth: 1
             time.sleep(30)
         self.vm.create()
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
         self.assertEqual(
             self.vm.vm_username, output,
@@ -2050,7 +2049,7 @@ ssh_pwauth: 1
             time.sleep(30)
         self.vm.create()
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
         self.assertEqual(
             self.vm.vm_username, output,
@@ -2118,7 +2117,7 @@ packages:
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         # check login
         output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
         self.assertEqual(
@@ -2162,7 +2161,7 @@ packages:
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
     def test_cloudinit_verify_rh_subscription_enablerepo_disablerepo(self):
         """
@@ -2215,7 +2214,7 @@ rh_subscription:
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
         # check login
         output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
         self.assertEqual(
@@ -2263,7 +2262,7 @@ rh_subscription:
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
     def _verify_rh_subscription(self, config):
         utils_lib.run_cmd(self,"sudo subscription-manager unregister")
