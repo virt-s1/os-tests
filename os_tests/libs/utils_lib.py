@@ -139,6 +139,8 @@ def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=N
     if vm:
         if hasattr(vm, 'floating_ip'):
             rmt_node = vm.floating_ip
+        if vm.dead_count > 4:
+            test_instance.fail("cannot connect to vm over 4 times, skip retry to connect it")
     test_instance.log.info("remote_node found, init connection {}".format(rmt_node))
     ssh_exists = False
     is_active = False
@@ -188,8 +190,6 @@ def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=N
                 test_instance.log.info("vm cannot connect in {} times, restart it".format(vm.dead_count))
                 vm.stop()
                 vm.start()
-            if vm.dead_count > 4:
-                test_instance.fail("vm cannot recover over 4 times, cannot run")
         test_instance.fail("Cannot make ssh connection to remote, please check")
     else:
         vm = vm or test_instance.vm
@@ -282,7 +282,10 @@ def init_case(test_instance):
             test_instance.log.info("key:{}, val:{}".format(key, test_instance.params[key]))
     test_instance.log.info("-"*80)
     test_instance.ssh_timeout = 180
+    test_instance.default_boot_index = None
     if test_instance.vm:
+        if test_instance.vm.dead_count > 4:
+            test_instance.fail("cannot connect to vm over 4 times, skip retry")
         if test_instance.vm.is_metal:
             test_instance.ssh_timeout = 1200
         if not test_instance.vm.exists():
@@ -413,9 +416,10 @@ def filter_case_doc(case=None, patterns=None, skip_patterns=None, filter_field='
                     is_skip = True
                     break
     if verify_doc and is_select and not is_skip:
-        expect_fields = ['case_tag','case_name','case_file','component','bugzilla_id',
-                        'is_customer_case','testplan','maintainer','description','key_steps',
-                        'expect_result','debug_want']
+        expect_fields = ['case_tags', 'title', 'importance', 'subsystem_team', 'automation_drop_down', 
+                        'linked_work_items', 'automation_field', 'setup_teardown', 'environment', 'case_name', 
+                        'component', 'bug_id', 'is_customer_case', 'testplan', 'maintainer', 'description', 
+                        'key_steps', 'expected_result', 'debug_want']
         print("="*20)
         print(case.id())
         print(case._testMethodDoc)
@@ -876,6 +880,9 @@ def is_metal(test_instance, action=None):
         other: return False
     '''
     if test_instance.vm:
+        if action == "cancel":
+            if not test_instance.vm.is_metal:
+                test_instance.skipTest("Cancel it in non metal system.")
         return test_instance.vm.is_metal
     output_lscpu = run_cmd(test_instance, "lscpu", expect_ret=0)
     if "x86_64" in output_lscpu and "Hypervisor" not in output_lscpu:
