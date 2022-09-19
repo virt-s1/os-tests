@@ -514,7 +514,7 @@ runcmd:
                 if is_cdrom:
                     images = self.list_images()
                     for image in images['entities']:
-                        if self.image_name_kickstart_iso == image['name']:
+                        if image['name'] == 'seed_iso':
                             vmdisk_uuid = image['vm_disk_id']
                 else:
                     logging.info('OPPS.Clone disk form img_service has not yet support.')
@@ -529,6 +529,7 @@ runcmd:
                     }}]}
             else:
                 logging.info('OPPS.Clone disk form adsf file path has not yet support.')
+        logging.info('data to attach disk is \n'+str(data))
         return self.make_request(endpoint, 'post', data=data)
 
     def detach_disk(self, vm_uuid, device_bus, vmdisk_uuid, device_index):
@@ -681,6 +682,10 @@ class NutanixVM(VMResource):
         return self.prism.if_uefi_boot
 
     @property
+    def ipv6_address(self):
+        NotImplementedError
+
+    @property
     def data(self):
         if not self._data:
             self._data = {}
@@ -711,6 +716,7 @@ class NutanixVM(VMResource):
     @property
     def disk_count(self):
         # minus 1 for user data cd-rom disk
+        logging.info('vm_disk_info in vm self show: \n' + str(self.show()['vm_disk_info']))
         return len(self.show()['vm_disk_info'])-1
 
     @property
@@ -1118,7 +1124,7 @@ class NutanixVM(VMResource):
                 res['task_uuid'], 30,
                 "Timed out attaching disk.")
 
-    def detach_disk(self, device_bus, vmdisk_uuid, device_index, wait=False):
+    def detach_disk(self, device_bus, vmdisk_uuid, device_index, wait=True):
         '''
         Attach disk according to vmdisk_uuid
         '''

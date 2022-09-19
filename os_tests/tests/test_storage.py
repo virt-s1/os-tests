@@ -328,11 +328,11 @@ class TestStorage(unittest.TestCase):
         new_disk_num = self._get_disk_num('rom')
         new_add_num = int(new_disk_num) - int(origin_disk_num)
         self.assertEqual(new_add_num, 1, "Number of new attached rom is not right Expect: %s, real: %s" % (1, new_add_num))
-        new_add_device_name=utils_lib.run_cmd(self, 'blkid --label OEMDRV', expect_ret=0).split('\n')[0]
+        new_add_device_name=utils_lib.run_cmd(self, 'blkid --label cidata', expect_ret=0).split('\n')[0]
         cmd = "sudo mkdir /mnt/mnt_new_cdrom \n sudo mount {} /mnt/mnt_new_cdrom".format(new_add_device_name)
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         read_new_device = utils_lib.run_cmd(self, "sudo ls /mnt/mnt_new_cdrom", expect_ret=0)
-        self.assertIn("ks.cfg", read_new_device, msg="Read files from new added cdrom failed")
+        self.assertIn("meta-data\nuser-data\n", read_new_device, msg="Read files from new added cdrom failed")
         #tear down
         disk_uuid = self.vm.get_disk_uuid('sata', device_index=0)
         self.vm.stop(wait=True)
@@ -734,7 +734,7 @@ class TestStorage(unittest.TestCase):
             utils_lib.run_cmd(self, scp_cmd, timeout=600)
             file_size = int(utils_lib.run_cmd(self, "sudo ls -l /mnt/mnt_%s/5G.img | awk '{print $5}'" % (device_type), expect_ret=0, rmt_node=self.params['remote_nodes'][1]).strip())/(1024*1024*1024)
             self.assertEqual(5, file_size, msg="Value of created file is not right, Expect: 5, real: %s" % (file_size))
-        #hot detach scsi and pci disk
+        #hot detach scsi
         try:
             disk_uuid = self.vm.get_disk_uuid('scsi', device_index=2)
             self.vm.detach_disk('scsi', disk_uuid, device_index=2, wait=True)
@@ -743,7 +743,7 @@ class TestStorage(unittest.TestCase):
         except UnSupportedAction:
             self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
         utils_lib.run_cmd(self, "ls " + scsi_dev_name, expect_ret=2, expect_kw='No such file or directory')
-        #tear down - dettach ide and sata disk
+        #tear down - dettach ide, sata and pci disk
         self.vm.stop(wait=True)
         time.sleep(60)
         for device_type in ['ide','sata', 'pci']:
@@ -765,7 +765,8 @@ class TestStorage(unittest.TestCase):
                 utils_lib.run_cmd(self, "ls " + ide_dev_name, expect_ret=2, expect_kw='No such file or directory')
         utils_lib.run_cmd(self, "ls " + sata_dev_name, expect_ret=2, expect_kw='No such file or directory')
         utils_lib.run_cmd(self, "ls " + pci_dev_name, expect_ret=2, expect_kw='No such file or directory')
-        #tear down - delete cloned VM
+        #tear down
+        self.log.info('Delete cloned VM')
         self.vm.prism.delete_vm(VMBecloned['uuid'])
         self.params['remote_nodes'].pop()
 
@@ -788,7 +789,7 @@ class TestStorage(unittest.TestCase):
             self.skipTest('Related func is not supported in {}'.format(self.vm.provider))
         VMBecloned = self.vm.get_vm_by_filter("vm_name", vm_name)
         self.vm.prism.start_vm(VMBecloned['uuid'])
-        time.sleep(60)
+        time.sleep(120)
         return VMBecloned
 
     def _test_clone(self, clone_from_vm_or_snapshot, vm_name, cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus):
@@ -1014,6 +1015,8 @@ class TestStorage(unittest.TestCase):
         '''
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
+        if self.vm.provider == 'nutanix':
+            self.skipTest("Skip this test case as already covered in test_multi_disk")
         online_disk_1 = utils_lib.get_disk_online(self)
         if not self.disk:
             self.skipTest('Skip as lacking of storage provision support.')
