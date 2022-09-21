@@ -1511,15 +1511,13 @@ EOF""".format(device, size), expect_ret=0)
         maintainer:
             huzhao@redhat.com
         description:
-            RHEL-288482 - CLOUDINIT-TC: Check cloud-init dependency, openssl and gdisk
+            RHEL-288482 - CLOUDINIT-TC: Check cloud-init dependency, openssl, gdisk and python3-configobj
         key_steps:
             1. Launch instance with cloud-init installed
             2. Check the cloud-init denpendency
             # rpm -qR cloud-init 
-        """
-        self.log.info(
-            "RHEL-288482 - CLOUDINIT-TC: Check cloud-init dependency, openssl and gdisk")       
-        dep_list = 'openssl,gdisk'
+        """       
+        dep_list = 'openssl,gdisk,python3-configobj'
         cmd = 'sudo rpm -qR cloud-init'
         utils_lib.run_cmd(self,
                           cmd,
@@ -1540,14 +1538,17 @@ EOF""".format(device, size), expect_ret=0)
         description:
             RHEL-198795 - CLOUDINIT-TC: Check cloud-init removed dependency,
             net-tools, python3-mock, python3-nose, python3-tox
+            Note: For rhel-9.0, the python3-jsonschema is also removed
         key_steps:
             1. Launch instance with cloud-init installed
             2. Check the cloud-init denpendency
             # rpm -qR cloud-init
         """
-        self.log.info(
-            "RHEL-198795 - CLOUDINIT-TC: Check cloud-init removed dependency")
         rm_dep_list = 'net-tools,python3-mock,python3-nose,python3-tox'
+        rhel_ver = utils_lib.run_cmd(self, "sudo cat /etc/redhat-release").rstrip('\n')
+        rhel_ver = float(re.search('release\s+(\d+.\d+)\s+', rhel_ver).group(1))
+        if rhel_ver >= 9.0:
+            rm_dep_list = 'net-tools,python3-mock,python3-nose,python3-tox,python3-jsonschema'
         cmd = 'sudo rpm -qR cloud-init'
         utils_lib.run_cmd(self,
                           cmd,
@@ -2772,7 +2773,7 @@ chpasswd:
                           expect_ret=0, 
                           msg="Check rules file location is /usr/lib/udev/rules.d/")
 
-    def test_cloudinit_generator_location(self):
+    def test_cloudinit_generator_location_permission(self):
         """
         case_tag:
             cloudinit,cloudinit_tier2
@@ -2783,7 +2784,7 @@ chpasswd:
         component:
             cloudinit
         bugzilla_id:
-            1971480
+            1971480,1897528
         is_customer_case:
             False
         testplan:
@@ -2793,17 +2794,18 @@ chpasswd:
         description:
            Check cloud-init-generator location
         key_steps: |
-            1. # ls /usr/lib/systemd/system-generators/cloud-init-generator
+            1. # ls -al /usr/lib/systemd/system-generators/cloud-init-generator
         expect_result:
             cloud-init-generator should be located in /usr/lib/systemd/system-generators
+            The permission is 755
         debug_want:
             N/A
         """
-        generator_location = "/usr/lib/systemd/system-generators/"
-        utils_lib.run_cmd(self, 
-                          "ls {0}cloud-init-generator".format(generator_location), 
-                          expect_ret=0, 
-                          msg="Check cloud-init-generator location is {0}".format(generator_location))
+        cmd = "ls -l /usr/lib/systemd/system-generators/cloud-init-generator | awk '{print $1,$9}'"
+        output = utils_lib.run_cmd(self, cmd, msg='Check generator location and permission')
+        self.assertIn('-rwxr-xr-x. /usr/lib/systemd/system-generators/cloud-init-generator', 
+                      output,
+                      msg=" Unexpected location or permission -> {0}".format(output))
 
     def tearDown(self):
         if 'test_cloudinit_sshd_keypair' in self.id():
