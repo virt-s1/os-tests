@@ -529,16 +529,16 @@ class TestNetworkTest(unittest.TestCase):
 :INPUT ACCEPT [0:0]
 :OUTPUT ACCEPT [0:0]
 COMMIT
-*testfilter
+*mangle
 :FORWARD ACCEPT [0:0]
 :INPUT ACCEPT [0:0]
 :OUTPUT ACCEPT [0:0]
 :POSTROUTING ACCEPT [0:0]
 :PREROUTING ACCEPT [0:0]
 COMMIT
-        '''
-        utils_lib.run_cmd(self,"echo'%s'>/tmp/iptable.txt"%tablestr)
-        utils_lib.run_cmd(self,'iptable-restore --test /tmp/iptable.txt',timeout=20,msg="run restore test")
+'''
+        utils_lib.run_cmd(self,"echo '%s'>/tmp/iptable.txt" % tablestr)
+        utils_lib.run_cmd(self,'iptables-restore --test /tmp/iptable.txt',timeout=20,msg="run restore test")
         utils_lib.run_cmd(self,"rm -f /tmp/iptable.txt")
 
     def _test_add_remove_multi_nics(self, nic_num, network_uuid, ip_subnet, driver='virtio'):
