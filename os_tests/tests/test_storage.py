@@ -520,7 +520,7 @@ class TestStorage(unittest.TestCase):
             output from dmesg or journal
         """
         self._test_take_restore_snapshot(True)
-        cloneVM_set_Memory = 1024
+        cloneVM_set_Memory = 2048
         cloneVM_set_Cores_per_CPU = 1
         cloneVM_set_vcpus = 1
         self._test_clone("clone_from_snapshot", "ClonedByScriptFromSnapshot", cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus)
@@ -718,7 +718,9 @@ class TestStorage(unittest.TestCase):
             if nic['network_uuid'] == self.vm.network_uuid:
                 VMBecloned_ip = nic['ip_address']
         self.params['remote_nodes'].append(VMBecloned_ip)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout,rmt_node=self.params['remote_nodes'][1])
+        self.log.info('init connetcion to VM be cloned, VM IP is %s' % VMBecloned_ip)
+        self.params['remote_nodes'].append(VMBecloned_ip)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout,rmt_node=self.params['remote_nodes'][-1])
         self.vm.start(wait=True)
         time.sleep(30)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
@@ -729,7 +731,7 @@ class TestStorage(unittest.TestCase):
                         continue
             #mount disk on cloned VM
             cmd = 'sudo mount {} /mnt/mnt_{}'.format(device_name, device_type)
-            utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][1])
+            utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1])
             scp_cmd = 'sudo sshpass -p {} scp -o StrictHostKeyChecking=no 5G.img root@{}:/mnt/mnt_{}'.format(self.vm.vm_password, VMBecloned_ip,device_type)
             utils_lib.run_cmd(self, scp_cmd, timeout=600)
             file_size = int(utils_lib.run_cmd(self, "sudo ls -l /mnt/mnt_%s/5G.img | awk '{print $5}'" % (device_type), expect_ret=0, rmt_node=self.params['remote_nodes'][1]).strip())/(1024*1024*1024)
@@ -765,10 +767,6 @@ class TestStorage(unittest.TestCase):
                 utils_lib.run_cmd(self, "ls " + ide_dev_name, expect_ret=2, expect_kw='No such file or directory')
         utils_lib.run_cmd(self, "ls " + sata_dev_name, expect_ret=2, expect_kw='No such file or directory')
         utils_lib.run_cmd(self, "ls " + pci_dev_name, expect_ret=2, expect_kw='No such file or directory')
-        #tear down
-        self.log.info('Delete cloned VM')
-        self.vm.prism.delete_vm(VMBecloned['uuid'])
-        self.params['remote_nodes'].pop()
 
     def _clone_vm(self,clone_from_vm_or_snapshot, vm_name, cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus):
         utils_lib.check_attribute(self.vm, 'prism',test_instance=self, cancel_case=True)
@@ -788,8 +786,9 @@ class TestStorage(unittest.TestCase):
         except UnSupportedAction:
             self.skipTest('Related func is not supported in {}'.format(self.vm.provider))
         VMBecloned = self.vm.get_vm_by_filter("vm_name", vm_name)
+        self.vms.append(VMBecloned)
         self.vm.prism.start_vm(VMBecloned['uuid'])
-        time.sleep(120)
+        time.sleep(180)
         return VMBecloned
 
     def _test_clone(self, clone_from_vm_or_snapshot, vm_name, cloneVM_set_Memory, cloneVM_set_Cores_per_CPU, cloneVM_set_vcpus):
@@ -810,23 +809,25 @@ class TestStorage(unittest.TestCase):
         #connect cloned vm
         self.log.info('init connetcion to VM be cloned, VM IP is %s' % VMBecloned_ip)
         self.params['remote_nodes'].append(VMBecloned_ip)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout,rmt_node=self.params['remote_nodes'][1])
-        dmidecode_cmd = '''sudo dmidecode -t memory | grep "Memory Device" -A5 | grep Size | awk '$3 ~ /GB/ {sum += $2} $3 ~ /MB/ {sum += $2/1024} END {printf sum}' '''
-        cloneVM_actual_Memory = int(utils_lib.run_cmd(self, dmidecode_cmd, rmt_node=self.params['remote_nodes'][1]))
-        self.assertEqual(cloneVM_set_Memory/1024, cloneVM_actual_Memory, msg="Value of memory is not right, Expect: %s, real: %s" % (cloneVM_set_Memory/1024, cloneVM_actual_Memory))
-        cloneVM_actual_vcpus = int(utils_lib.run_cmd(self, "cat /proc/cpuinfo | grep processor | wc -l", rmt_node=self.params['remote_nodes'][1]))
+        utils_lib.init_connection(self, timeout=self.ssh_timeout,rmt_node=self.params['remote_nodes'][-1])
+        dmidecode_cmd = '''sudo dmidecode -t memory | grep "Memory Device" -A5 | grep Size \
+            | awk '$3 ~ /GB/ {sum += $2} $3 ~ /MB/ {sum += $2/1024} END {printf sum}' '''
+        cloneVM_actual_Memory = int(utils_lib.run_cmd(self, dmidecode_cmd, rmt_node=self.params['remote_nodes'][-1]))
+        self.assertEqual(cloneVM_set_Memory/1024, cloneVM_actual_Memory, msg="Value of memory is not right, \
+            Expect: %s, real: %s" % (cloneVM_set_Memory/1024, cloneVM_actual_Memory))
+        cloneVM_actual_vcpus = int(utils_lib.run_cmd(self, "cat /proc/cpuinfo | grep processor | wc -l", \
+            rmt_node=self.params['remote_nodes'][-1]))
         cloneVM_set_vcpus_num = cloneVM_set_Cores_per_CPU * cloneVM_set_vcpus
-        self.assertEqual(cloneVM_actual_vcpus, cloneVM_set_vcpus_num, msg="Number of vcpus is not right, Expect: %s, real: %s" % (cloneVM_set_vcpus_num, cloneVM_actual_vcpus))
+        self.assertEqual(cloneVM_actual_vcpus, cloneVM_set_vcpus_num, msg="Number of vcpus is not right, \
+            Expect: %s, real: %s" % (cloneVM_set_vcpus_num, cloneVM_actual_vcpus))
         #clone from snapshot not support to refresh install
         if clone_from_vm_or_snapshot == "clone_from_vm":
-            custome_data = utils_lib.run_cmd(self, "sudo chmod 755 /tmp/test.sh \n sudo /tmp/test.sh \n sudo cat /tmp/test.txt", expect_ret=0, rmt_node=self.params['remote_nodes'][1])
+            custome_data = utils_lib.run_cmd(self, "sudo chmod 755 /tmp/test.sh \n sudo /tmp/test.sh \n \
+                sudo cat /tmp/test.txt", expect_ret=0, rmt_node=self.params['remote_nodes'][1])
             expect_cusome_data = "Test files to copy"
             self.assertIn(expect_cusome_data,
                           custome_data,
                           msg="Custome data is not right, Expect: %s, real: %s" % (expect_cusome_data, custome_data))
-        #tear down
-        self.vm.prism.delete_vm(VMBecloned['uuid'])
-        self.params['remote_nodes'].pop()
         self.vm.start(wait=True)
         time.sleep(30)
         utils_lib.init_connection(self, timeout=self.ssh_timeout,rmt_node=self.params['remote_nodes'][0])
@@ -1161,6 +1162,13 @@ class TestStorage(unittest.TestCase):
             utils_lib.check_log(self, "trace", log_cmd='dmesg -T', cursor=self.cursor)
         else:
             utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', cursor=self.cursor)
+        if 'test_multi_disk' in self.id() or 'test_offline_take_restore_snapshot_clone_snapshot' in self.id() \
+            or 'test_clone_from_vm' in self.id():
+            self.log.info('Delete clone vm in tearDown.')
+            if self.vm.provider == 'nutanix':
+                self.vm.prism.delete_vm(self.vms[1]['uuid'])
+                self.vms.pop()
+                self.params['remote_nodes'].pop()
 
 if __name__ == '__main__':
     unittest.main()

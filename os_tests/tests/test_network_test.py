@@ -172,7 +172,8 @@ class TestNetworkTest(unittest.TestCase):
                 cmd = "sudo ethtool -G {} tx -1".format(self.active_nic )
                 utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg="Check tx cannot set to -1")
 
-        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', skip_words='ftrace', cursor=self.dmesg_cursor)
+        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', \
+            skip_words='ftrace,Adding Red Hat flag eBPF/rawtrace', cursor=self.dmesg_cursor)
 
     def test_ethtool_P(self):
         """
@@ -561,12 +562,13 @@ COMMIT
             if ip_subnet == None:
                 ip_address = None
             else:
+                ip_subnet = re.search(r'((\d+\.){2}\d+\.)', ip_subnet).groups()[0]
                 while True:
                     ip_address = ip_subnet + str(random.randint(10,100))
                     if ip_address not in set_ip_list and ip_address not in used_ip_list:
                         set_ip_list.append(ip_address)
                         break
-            self.log.info("Add nic for %s time(s)" % i)
+            self.log.info("Add nic for %s time(s)" % str(i+1))
             self.vm.attach_nic(network_uuid, ip_address, driver)
         time.sleep(10)
         set_ip_list.sort()
@@ -595,9 +597,12 @@ COMMIT
         time.sleep(5)
         #check nic ip
         if ip_subnet != None:
-            vm_ip_list = utils_lib.run_cmd(self, "ip a | grep 'inet ' | grep %s | awk '{print $2}' | sed 's/\/24//'" % self.vm.private_network_subnet).split()
+            ip_subnet = re.search(r'((\d+\.){2}\d+\.)', self.vm.private_network_subnet).groups()[0]
+            vm_ip_list = utils_lib.run_cmd(self, "ip a | grep 'inet ' | grep %s | awk '{print $2}' | sed 's/\/24//'" \
+                % ip_subnet).split()
             vm_ip_list.sort()
-            self.assertEqual(vm_ip_list, set_ip_list, msg="IP configure is not right, Expect: %s, real: %s" % (str(set_ip_list), str(vm_ip_list)))
+            self.assertEqual(vm_ip_list, set_ip_list, msg="IP configure is not right, \
+                Expect: %s, real: %s" % (str(set_ip_list), str(vm_ip_list)))
         if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
             self.vm.stop(wait=True)
         #delete nic by mac
@@ -642,7 +647,7 @@ COMMIT
             multi_num = 1
         else:
             multi_num = 2
-        self._test_add_remove_multi_nics(multi_num, None, None, 'virtio')
+        self._test_add_remove_multi_nics(multi_num, self.vm.private_network_uuid, None, 'virtio')
 
     def test_add_remove_multi_virtio_ip_spec(self):
         """
@@ -721,6 +726,7 @@ COMMIT
         self.vm.detach_nic(origin_nic_mac)
         if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
             self.vm.start(wait=True)
+            time.sleep(60)
         self.vm.refresh_data()
         utils_lib.init_connection(self, timeout=180)
         new_nic_mac = utils_lib.run_cmd(self, "cat /sys/class/net/%s/address" % origin_nic_name).strip()
@@ -828,7 +834,8 @@ COMMIT
         iperf_srv_cmd = 'sudo bash -c "iperf3 -s >/dev/null 2>&1 &"'
         utils_lib.run_cmd(self, iperf_srv_cmd, rmt_node=self.vm.vm1_ip)
         cmd = "ip addr show {}".format(self.active_nic )
-        output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to get {} ipv4 address'.format(self.active_nic ),rmt_node=self.params['remote_nodes'][-1])
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0, \
+            msg='try to get {} ipv4 address'.format(self.active_nic ),rmt_node=self.vm.vm1_ip)
         srv_ipv4 = re.findall('[\d.]{7,16}', output)[0]
         iperf_cli_cmd = 'iperf3 -c {} -t 60'.format(srv_ipv4)
         res = utils_lib.run_cmd(self, iperf_cli_cmd, expect_ret=0, timeout=120)
