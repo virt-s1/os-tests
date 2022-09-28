@@ -715,9 +715,12 @@ class NutanixVM(VMResource):
 
     @property
     def disk_count(self):
-        # minus 1 for user data cd-rom disk
         logging.info('vm_disk_info in vm self show: \n' + str(self.show()['vm_disk_info']))
-        return len(self.show()['vm_disk_info'])-1
+        disk_count = 0
+        for disk in self.show()['vm_disk_info']:
+            if not disk['is_cdrom']:
+                disk_count += 1
+        return disk_count
 
     @property
     def host_ip(self):
