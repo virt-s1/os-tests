@@ -261,7 +261,9 @@ runcmd:
         }
         return self.make_request(endpoint, 'post', data=data)
 
-    def create_vm_ISO_kickstart(self, single_nic=True):
+    def create_vm_ISO_kickstart(self, single_nic=True, vm_name=None):
+        if not vm_name:
+            vm_name = self.vm_name + vm_name
         logging.debug("Create VM by ISO kickstart")
         endpoint = urljoin(self.base_url, "vms")
 	# Attach image.
@@ -289,7 +291,7 @@ runcmd:
             'memory_mb':
             self.memory * 1024,
             'name':
-            self.vm_name,
+            vm_name,
             'num_cores_per_vcpu':
             1,
             'num_vcpus':
@@ -783,9 +785,9 @@ class NutanixVM(VMResource):
                 "Timed out waiting for server to get created.")
         self._data = None
         
-    def create_by_ISO_kickstart(self, wait=False, single_nic=True):
+    def create_by_ISO_kickstart(self, wait=False, single_nic=True, vm_name=None):
         logging.info("Create VM by ISO kickstart")
-        res = self.prism.create_vm_ISO_kickstart(single_nic)
+        res = self.prism.create_vm_ISO_kickstart(single_nic, vm_name)
         logging.debug("res is " + str(res))
         if wait:
             self.wait_for_status(
