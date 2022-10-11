@@ -54,10 +54,10 @@ if [ $? -ne 0 ]; then
 
     url_pre="http://download.eng.bos.redhat.com/brewroot/vol/rhel-$1/packages/kernel"
     ver=`uname -r | awk -F "-" {'print $1'}`
-    rel1=`uname -r | awk -F "-" {'print $2'} | awk -F "." {'print $1'}`
-    rel2=`uname -r | awk -F "-" {'print $2'} | awk -F "." {'print $2'}`
-    arch=`uname -r | awk -F "-" {'print $2'} | awk -F "." {'print $3'}`
-    url="${url_pre}/${ver}/${rel1}.${rel2}/x86_64/kernel-modules-internal-${ver}-${rel1}.${rel2}.${arch}.rpm"
+    rel=`uname -r | awk -F "-" {'print $2'}`
+    rel1=${rel%.*}
+    arch=${rel##*.}
+    url="${url_pre}/${ver}/${rel1}/${arch}/kernel-modules-internal-${ver}-${rel1}.${arch}.rpm"
     echo "DEBUG: url: $url"
     echo "DEBUG: url: $url"
 
