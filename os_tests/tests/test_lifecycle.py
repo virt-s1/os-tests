@@ -413,7 +413,7 @@ class TestLifeCycle(unittest.TestCase):
         pass_criteria: 
             System shutdown and reboot with the specified kernel version, kernel can be loaded via kexec.
         '''
-        utils_lib.run_cmd(self,'uname -r', cancel_not_kw='el7,el6', msg='Not full support earlier than el8, skip!')
+        utils_lib.run_cmd(self,'uname -r', cancel_not_kw='el7,el6', msg='check if run in prior el8 as it is not fully supoorted in el7 or el6')
         cmd = 'sudo rpm -qa|grep -e "kernel-[0-9]"'
         output = utils_lib.run_cmd(self, cmd, msg='Get kernel version')
         kernels_list = output.split('\n')
