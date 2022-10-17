@@ -406,9 +406,9 @@ available_clocksource'
             cmd = "sudo dmidecode --dump-bin {}".format(binfile)
             utils_lib.run_cmd(self, cmd, msg='save dmidecode_debug.bin for debug purpose, please attach it if file bug')
             self.log.info('retrive {} from remote'.format(binfile))
-            self.SSH.get_file(rmt_file=binfile,local_file='{}/debug/dmidecode_debug.bin'.format(self.log_dir))
+            self.SSH.get_file(rmt_file=binfile,local_file='{}/attachments/dmidecode_debug.bin'.format(self.log_dir))
         else:
-            cmd = "sudo dmidecode --dump-bin {}/debug/dmidecode_debug.bin".format(self.log_dir)
+            cmd = "sudo dmidecode --dump-bin {}/attachments/dmidecode_debug.bin".format(self.log_dir)
             utils_lib.run_cmd(self, cmd, msg='save dmidecode_debug.bin for debug purpose, please attach it if file bug')
         cmd = "sudo dmidecode --dump"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='Segmentation')
@@ -428,7 +428,7 @@ available_clocksource'
         description:
             dmidecode command prints "OUT OF SPEC" messages for empty NVMe and DIMM slots
         key_steps:
-            1.sudo dmidecode --dump-bin {log_dir}/debug/dmidecode_debug.bin
+            1.sudo dmidecode --dump-bin {log_dir}/attachments/dmidecode_debug.bin
             2.sudo dmidecode
         expect_result:
             It should not print "OUT OF SPEC" in output
@@ -436,7 +436,7 @@ available_clocksource'
             dmidecode_debug.bin
         """
         utils_lib.is_cmd_exist(self, cmd='dmidecode')
-        cmd = "sudo dmidecode --dump-bin {}/debug/dmidecode_debug.bin".format(self.log_dir)
+        cmd = "sudo dmidecode --dump-bin {}/attachments/dmidecode_debug.bin".format(self.log_dir)
         utils_lib.run_cmd(self, cmd, msg='save dmidecode_debug.bin for debug purpose, please attach it if file bug')
         utils_lib.run_cmd(self,
                     'sudo dmidecode',
@@ -790,9 +790,9 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
                 utils_lib.run_cmd(self, cmd, expect_ret=0)
                 if self.params['remote_node'] is not None:
                     self.log.info('retrive {} from remote to {}'.format(core_file, self.log_dir))
-                    self.SSH.get_file(rmt_file=core_file,local_file='{}/debug/{}'.format(self.log_dir,os.path.basename(core_file)))
+                    self.SSH.get_file(rmt_file=core_file,local_file='{}/attachments/{}'.format(self.log_dir,os.path.basename(core_file)))
                 else:
-                    cmd = "cp {} {}/debug/{}".format(core_file, self.log_dir,os.path.basename(core_file) )
+                    cmd = "cp {} {}/attachments/{}".format(core_file, self.log_dir,os.path.basename(core_file) )
                     utils_lib.run_cmd(self, cmd, msg='save {} to {}'.format(core_file, self.log_dir))
         utils_lib.check_log(self, 'dumped core', skip_words='test_check_journalctl_dumpedcore', rmt_redirect_stdout=True)
 
@@ -958,7 +958,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         component:
             systemd
         bugzilla_id:
-            1871139
+            1871139,2115230
         customer_case_id:
             yes
         testplan:
@@ -1993,7 +1993,7 @@ current_device"
         file_name = gz_file.split('/')[-1]
         if self.params.get('remote_node') is not None:
             self.log.info('retrive {} from remote'.format(file_name))
-            self.SSH.get_file(rmt_file='/tmp/{}'.format(file_name),local_file='{}/debug/{}'.format(self.log_dir,file_name))
+            self.SSH.get_file(rmt_file='/tmp/{}'.format(file_name),local_file='{}/attachments/{}'.format(self.log_dir,file_name))
         else:
             utils_lib.run_cmd(self, 'sudo cp {} {}'.format(gz_file, self.log_dir))
         try:
@@ -2036,9 +2036,9 @@ current_device"
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         if self.params['remote_node'] is not None:
             self.log.info('retrive {} from remote to {}'.format(sosfile, self.log_dir))
-            self.SSH.get_file(rmt_file=sosfile,local_file='{}/debug/{}'.format(self.log_dir,os.path.basename(sosfile)))
+            self.SSH.get_file(rmt_file=sosfile,local_file='{}/attachments/{}'.format(self.log_dir,os.path.basename(sosfile)))
         else:
-            cmd = "cp {} {}/debug/{}".format(sosfile, self.log_dir,os.path.basename(sosfile) )
+            cmd = "cp {} {}/attachments/{}".format(sosfile, self.log_dir,os.path.basename(sosfile) )
             utils_lib.run_cmd(self, cmd, msg='save {} to {}'.format(sosfile, self.log_dir))
 
     def test_check_dmesg_sev(self):

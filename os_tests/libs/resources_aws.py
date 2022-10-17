@@ -3,6 +3,7 @@ from os_tests.libs import utils_lib
 import logging
 import time
 import sys
+import re
 try:
     import boto3
     from botocore.exceptions import ClientError
@@ -237,6 +238,25 @@ class EC2VM(VMResource):
                 default_disks = instance_type["InstanceStorageInfo"]["Disks"][0]["Count"] + 1
         LOG.info("{} has {} disks".format(self.instance_type, default_disks))
         return default_disks
+
+    @property
+    def net_bandwidth(self):
+        default_bandwidth = 5
+        instance_types_dict = self.client.describe_instance_types(InstanceTypes=[self.instance_type])
+        instance_types = instance_types_dict.get('InstanceTypes')
+        if not instance_types:
+            LOG.info("Cannot get instance type info, return default bandwidth {}".format(default_bandwidth))
+            return default_bandwidth
+        for instance_type in instance_types:
+            if instance_type.get('NetworkInfo'):
+                net_bandwidth = instance_type["NetworkInfo"]["NetworkPerformance"]
+        if 'Gigabit' in net_bandwidth:
+            net_bandwidth = re.findall('[\d]+', net_bandwidth)[0]
+        else:
+            LOG.info("{} net setting spec {}, ret {}".format(self.instance_type, net_bandwidth, default_bandwidth))
+            return default_bandwidth
+        LOG.info("{} net setting spec {}".format(self.instance_type, net_bandwidth))
+        return int(net_bandwidth)
 
     @property
     def is_secure_boot(self):

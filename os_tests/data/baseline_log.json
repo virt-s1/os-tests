@@ -177,7 +177,7 @@
         "status": "active",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1538887",
         "path": "dmesg or journal",
-        "trigger": "amazon"
+        "trigger": "(amazon|ec2-user)"
     },
     "msg_22": {
         "content": "ena 0002:04:00.0: Adding to iommu group 53",
