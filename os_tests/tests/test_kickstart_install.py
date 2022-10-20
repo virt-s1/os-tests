@@ -1,6 +1,5 @@
 import unittest
 import time
-import subprocess
 from os_tests.libs import utils_lib
 from tipset.libs import rmt_ssh
 
@@ -10,15 +9,6 @@ class TestKickstartInstall(unittest.TestCase):
     '''
     def setUp(self):
         utils_lib.init_case(self)
-
-    def run_os_cmd(self, cmd):
-        self.log.info("Run cmd on localhost: %s" % cmd)
-        res = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT, universal_newlines=True,
-                             encoding="utf-8")
-        outs, errs = res.communicate()
-        code = res.returncode
-        return outs
 
     def test_kickstart_install_vm(self):
         """
@@ -61,7 +51,6 @@ class TestKickstartInstall(unittest.TestCase):
         for nic in KickstartVM.get('vm_nics'):
             if nic['network_uuid'] == self.vm.network_uuid:
                 KickstartVM_ip = nic['ip_address']
-        self.run_os_cmd("echo %s > KickstartVM_ip.txt" % KickstartVM_ip)
         for i in range(0,10):
             self.log.info("wait for more time in %s cycle(s)." % str(i))
             time.sleep(300)
@@ -83,7 +72,6 @@ class TestKickstartInstall(unittest.TestCase):
         self.assertEqual("root",
                          test_login[1].strip(),
                          "Fail to login with password: %s" % format(test_login[1].strip()))
-        self.run_os_cmd("echo %s > KickstartVM_uuid.txt" % KickstartVM['uuid'])
 
     def tearDown(self):
         if self.vm and self.vm.provider == 'nutanix':
