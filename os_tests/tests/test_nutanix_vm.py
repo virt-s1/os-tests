@@ -981,8 +981,6 @@ gpgcheck=0"""
             kdump is working and dump file will be generated
         debug_want:
             N/A
-        debug_want:
-            N/A
         """
         vcpu_num_current = self.vm.get_vcpu_num()
         vcpu_num_target = 1
@@ -1112,8 +1110,6 @@ gpgcheck=0"""
             2. No unexpected error
         debug_want:
             N/A
-        debug_want:
-            N/A
         """
         uefi_boot = self.vm.params['VM']['if_uefi_boot']
         if not uefi_boot:
@@ -1163,8 +1159,6 @@ gpgcheck=0"""
             2. No unexpected error
         debug_want:
             N/A
-        debug_want:
-            N/A
         """
         reboot_cycles = self.vm.params['Stress']['reboot_cycles']
         if not reboot_cycles or reboot_cycles < 1:
@@ -1204,8 +1198,6 @@ gpgcheck=0"""
             2. No unexpected error
         debug_want:
             N/A
-        debug_want:
-            N/A
         """
         secure_boot = self.vm.params['VM']['if_secure_boot']
         if secure_boot:
@@ -1224,7 +1216,7 @@ gpgcheck=0"""
         else:
             debug_kernel = "/boot/vmlinuz-" + kernel_version.strip('\n') + "+debug"
             debug_kernel_pkg = "kernel-debug-" + kernel_version
-            utils_lib.is_pkg_installed(self, pkg_name=debug_kernel_pkg, timeout=300)
+            utils_lib.is_pkg_installed(self, pkg_name=debug_kernel_pkg, timeout=600)
             utils_lib.run_cmd(self,
                               "sudo grubby --info=%s" % debug_kernel,
                               expect_ret=0,
@@ -1302,8 +1294,6 @@ gpgcheck=0"""
             2. No unexpected error
         debug_want:
             N/A
-        debug_want:
-            N/A
         """
         target_release = self.vm.params['Upgrade']['minor']
         if not target_release:
@@ -1365,8 +1355,6 @@ gpgcheck=0"""
         expect_result:
             1. VM working normally after in-place upgrade
             2. No unexpected error
-        debug_want:
-            N/A
         debug_want:
             N/A
         """
@@ -1464,8 +1452,6 @@ sudo wget --no-check-certificate -nv --directory-prefix=/etc/leapp/files/ %s/dev
             2. No unexpected error
         debug_want:
             N/A
-        debug_want:
-            N/A
         """
         device_name = self.vm.params['vGPU']['device_name']
         if self.vm.host_gpu_info():
@@ -1508,8 +1494,6 @@ sudo wget --no-check-certificate -nv --directory-prefix=/etc/leapp/files/ %s/dev
         expect_result:
             1. VM working normally after disabled nouveau driver
             2. No unexpected error
-        debug_want:
-            N/A
         debug_want:
             N/A
         """
@@ -1580,8 +1564,6 @@ sudo systemctl set-default multi-user.target"
         expect_result:
             1. VM working normally after installed vGPU driver
             2. No unexpected error
-        debug_want:
-            N/A
         debug_want:
             N/A
         """
