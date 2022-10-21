@@ -597,7 +597,7 @@ runcmd:
                 "spec_list": [
                 {
                     "memory_mb": memory,
-                    "name": vm_name,
+                    "name": self.vm_name+'_'+vm_name,
                     "num_cores_per_vcpu": cores_per_vcpu,
                     "num_vcpus": vcpus,
                     "override_network_config": override_network_config
