@@ -785,7 +785,7 @@ class TestStorage(unittest.TestCase):
             self.skipTest('Related func is not implemented in {}'.format(self.vm.provider))
         except UnSupportedAction:
             self.skipTest('Related func is not supported in {}'.format(self.vm.provider))
-        VMBecloned = self.vm.get_vm_by_filter("vm_name", vm_name)
+        VMBecloned = self.vm.get_vm_by_filter("vm_name", self.vm.vm_name+'_'+vm_name)
         self.vms.append(VMBecloned)
         self.vm.prism.start_vm(VMBecloned['uuid'])
         time.sleep(180)
