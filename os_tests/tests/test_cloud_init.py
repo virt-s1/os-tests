@@ -1689,10 +1689,10 @@ ssh_pwauth: 1
         time.sleep(30)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
-    def _reboot_inside_vm(self):       
+    def _reboot_inside_vm(self, sleeptime=10):       
         before = utils_lib.run_cmd(self, 'last reboot --time-format full')
         utils_lib.run_cmd(self, 'sudo reboot')
-        time.sleep(10)
+        time.sleep(sleeptime)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         output = utils_lib.run_cmd(self, 'whoami')
         self.assertEqual(

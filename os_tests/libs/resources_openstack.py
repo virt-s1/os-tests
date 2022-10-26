@@ -70,11 +70,10 @@ runcmd:
   - [ sh, -xc, "echo $(date) ': hello today!'" ]
   - [ sh, -xc, "mkdir /tmp/userdata_{0}" ]
 
-user: {1}
-password: {2}
+password: {1}
 chpasswd: {{ expire: False }}
 ssh_pwauth: 0
-""".format(self.run_uuid, self.vm_username, 'R')
+""".format(self.run_uuid, 'R')
     
         # VM creation parameter for rhsm subscription related cases
         self.subscription_username = params['Subscription'].get('username')
