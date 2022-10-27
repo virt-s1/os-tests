@@ -110,6 +110,7 @@ class GCPVM(VMResource):
         # VM creation parameters
         self.vm_name = params['VM'].get('vm_name')
         self.image_name = params['VM'].get('image_name')
+        self.rhel_ver = params['VM'].get('rhel_ver')
 
         self.flavor = params.get('Flavor').get('name')
         self.size = params.get('Flavor').get('size')

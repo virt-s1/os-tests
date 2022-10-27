@@ -24,6 +24,7 @@ class LibvirtVM(VMResource):
         # VM creation parameters
         self.vm_name = params['VM'].get('vm_name')
         self.image_name = params['VM'].get('image_name')
+        self.rhel_ver = params['VM'].get('rhel_ver')
         self.nocloud_iso_name = params['VM'].get('nocloud_iso_name')
         self.image_dir = params['VM'].get('image_dir')
         self.arch = params['VM'].get('arch')

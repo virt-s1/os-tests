@@ -32,6 +32,7 @@ class OpenShiftVM(VMResource):
         # VM creation parameters
         self.vm_name = params['VM'].get('vm_name')
         self.image_name = params['VM'].get('image_name')
+        self.rhel_ver = params['VM'].get('rhel_ver')
         self.arch = params['VM'].get('arch')
         self.flavor = params['Flavor'].get('name')
         self.size = params['Flavor'].get('size')

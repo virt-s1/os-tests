@@ -41,6 +41,7 @@ class OpenstackVM(VMResource):
         # VM creation parameters
         self.vm_name = params['VM'].get('vm_name')
         self.image_name = params['VM'].get('image_name')
+        self.rhel_ver = params['VM'].get('rhel_ver')
         self.network_name = params['VM'].get('network_name')
         self.network_id = params['VM'].get('network_id')
         self.floating_network_id = params['VM'].get('floating_network_id')

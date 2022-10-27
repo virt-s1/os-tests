@@ -823,6 +823,71 @@ class TestGuestImage(unittest.TestCase):
                 flag = True
         self.assertTrue(flag, "NOZEROCONF=yes not in /etc/sysconfig/network")
 
+        """
+        case_name:
+            test_check_redhat_release
+        case_tag:
+            Validation
+        case_file:
+            os_tests.tests.test_rhel_guest_image.py
+        component:
+            rhel-guest-image
+        bugzilla_id:
+            1028889
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            wshi@redhat.com
+        description:
+            check /etc/redhat-release content
+        key_steps:
+            1. cat /etc/redhat-release
+        expect_result:
+            NOZEROCONF=yes
+        debug_want:
+            N/A
+        """
+    def test_check_redhat_release(self):
+        cmd = "cat /etc/redhat-release"
+        output = utils_lib.run_cmd(self,
+                                   cmd,
+                                   expect_ret=0,
+                                   msg="cat /etc/redhat-release")
+        match = re.search(r"\d\.?\d+", output).group(0)
+        self.assertEqual(
+            self.vm.rhel_ver, match,
+            "Release version mismatch in /etc/redhat-release -> %s" % output)
+        if float(self.vm.rhel_ver) >= 8.0:
+            cmd = "rpm -q redhat-release"
+            output = utils_lib.run_cmd(self,
+                                       cmd,
+                                       expect_ret=0,
+                                       msg="rpm -q redhat-release")
+            match = re.search(r"redhat-release-(\d\.?\d+)", output).group(1)
+        if self.vm.rhel_ver.split('.')[0] == '7':
+            cmd = "rpm -q redhat-release-server"
+            output = utils_lib.run_cmd(self,
+                                       cmd,
+                                       expect_ret=0,
+                                       msg="rpm -q redhat-release-server")
+            match = re.search(r"redhat-release-server-(\d\.?\d+)",
+                              output).group(1)
+        if self.vm.rhel_ver.split('.')[0] == '6':
+            output = self.session.cmd_output("rpm -q redhat-release-server")
+            cmd = "rpm -q redhat-release-server"
+            output = utils_lib.run_cmd(self,
+                                       cmd,
+                                       expect_ret=0,
+                                       msg="rpm -q redhat-release-server")
+            match = re.search(r"redhat-release-server-6Server-(\d\.?\d+)",
+                              output).group(1)
+
+        self.assertEqual(
+            self.vm.rhel_ver, match,
+            "Release version mismatch on redhat-release-server -> %s" % output)
+
     def tearDown(self):
         pass
 
