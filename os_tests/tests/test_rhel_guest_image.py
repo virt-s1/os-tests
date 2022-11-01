@@ -845,7 +845,7 @@ class TestGuestImage(unittest.TestCase):
         key_steps:
             1. cat /etc/redhat-release
         expect_result:
-            NOZEROCONF=yes
+            release version is equal to image nvr
         debug_want:
             N/A
         """

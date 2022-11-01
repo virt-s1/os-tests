@@ -1,9 +1,15 @@
+/boot/dtb
+/boot/bootmap
+/boot/grub2/fonts/unicode.pf2
+/boot/grub2/grubenv
 /etc/.pwd.lock
 /etc/.updated
 /etc/alternatives/apropos
 /etc/alternatives/apropos.1.gz
 /etc/alternatives/cifs-idmap-plugin
+/etc/alternatives/libnssckbi.so
 /etc/alternatives/libnssckbi.so.x86_64
+/etc/alternatives/libnssckbi.so.ppc64le
 /etc/alternatives/man
 /etc/alternatives/man.1.gz
 /etc/alternatives/soelim
@@ -53,6 +59,11 @@
 /etc/systemd/system/multi-user.target.wants/sshd.service
 /etc/systemd/system/multi-user.target.wants/sssd.service
 /etc/systemd/system/multi-user.target.wants/tuned.service
+/etc/systemd/system/multi-user.target.wants/cpi.service
+/etc/systemd/system/sysinit.target.wants/device_cio_free.service
+/etc/systemd/system/NetworkManager.service.wants/hcn-init.service
+/etc/systemd/system/multi-user.target.wants/opal-prd.service
+/etc/systemd/system/multi-user.target.wants/rtas_errd.service
 /etc/systemd/system/network-online.target.wants/NetworkManager-wait-online.service
 /etc/systemd/system/remote-fs.target.wants/nfs-client.target
 /etc/systemd/system/sockets.target.wants/dbus.socket
@@ -71,6 +82,8 @@
 /usr/lib64/p11-kit-trust.so
 /usr/share/glib-2.0/schemas/gschemas.compiled
 /etc/yum.repos.d/eng.repo
+/etc/yum.repos.d/beaker-AppStream.repo
+/etc/yum.repos.d/beaker-BaseOS.repo
 /etc/nsswitch.conf.bak
 /etc/subgid-
 /etc/subuid-

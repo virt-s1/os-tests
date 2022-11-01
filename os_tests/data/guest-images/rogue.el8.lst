@@ -1,6 +1,9 @@
 /boot/grub2/fonts/unicode.pf2
+/boot/grub2/grubenv
 /etc/alternatives/cifs-idmap-plugin
+/etc/alternatives/libnssckbi.so
 /etc/alternatives/libnssckbi.so.x86_64
+/etc/alternatives/libnssckbi.so.ppc64le
 /etc/alternatives/python
 /etc/alternatives/unversioned-python-man
 /etc/crypto-policies/back-ends/.config
@@ -51,6 +54,10 @@
 /etc/systemd/system/multi-user.target.wants/sshd.service
 /etc/systemd/system/multi-user.target.wants/sssd.service
 /etc/systemd/system/multi-user.target.wants/tuned.service
+/etc/systemd/system/multi-user.target.wants/opal_errd.service
+/etc/systemd/system/multi-user.target.wants/opal-prd.service
+/etc/systemd/system/multi-user.target.wants/rtas_errd.service
+/etc/systemd/system/NetworkManager.service.wants/hcn-init.service
 /etc/systemd/system/network-online.target.wants/NetworkManager-wait-online.service
 /etc/systemd/system/remote-fs.target.wants/nfs-client.target
 /etc/systemd/system/sockets.target.wants/rpcbind.socket
@@ -65,6 +72,8 @@
 /etc/udev/rules.d/70-persistent-net.rules
 /etc/.updated
 /etc/yum.repos.d/eng.repo
+/etc/yum.repos.d/beaker-AppStream.repo
+/etc/yum.repos.d/beaker-BaseOS.repo
 /root/.ssh/authorized_keys
 /usr/lib64/p11-kit-trust.so
 /usr/lib/fontconfig/cache/CACHEDIR.TAG

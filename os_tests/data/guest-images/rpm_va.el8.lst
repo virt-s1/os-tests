@@ -10,3 +10,11 @@ S.5....T.  c /etc/NetworkManager/NetworkManager.conf
 S.5....T.  c /etc/ssh/sshd_config
 missing     /run/motd.d
 .......T.    /boot/efi/EFI/redhat/grubx64.efi
+.......T.    /boot/efi/EFI/BOOT/BOOTAA64.EFI
+.......T.    /boot/efi/EFI/BOOT/fbaa64.efi
+.......T.    /boot/efi/EFI/redhat/BOOTAA64.CSV
+.......T.    /boot/efi/EFI/redhat/mmaa64.efi
+.......T.    /boot/efi/EFI/redhat/shim.efi
+.......T.    /boot/efi/EFI/redhat/shimaa64-redhat.efi
+.......T.    /boot/efi/EFI/redhat/shimaa64.efi
+.......T.    /boot/efi/EFI/redhat/grubaa64.efi
