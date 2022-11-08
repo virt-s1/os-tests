@@ -919,12 +919,18 @@ if __name__ == "__main__":
         debug_want:
             grub.cfg
         """
-        cmd='rpm -qa "grub2*"'
+        cmd = 'rpm -qa "grub2*"'
         utils_lib.run_cmd(self,cmd,msg="show grub version")
-        cmd="sudo grub2-mkconfig -o /tmp/grub.cfg"
+        cmd = 'grub2-mkconfig -h'
+        out = utils_lib.run_cmd(self,cmd,msg="check if it has no-grubenv-update support")
+        if 'no-grubenv-update' in out:
+            cmd = "sudo grub2-mkconfig -o /tmp/grub.cfg --no-grubenv-update"
+        else:
+            cmd = "sudo grub2-mkconfig -o /tmp/grub.cfg"
         utils_lib.run_cmd(self,cmd,expect_kw="done",msg="generate file")
-        cmd='sudo cat /tmp/grub.cfg'
+        cmd = 'sudo cat /tmp/grub.cfg'
         utils_lib.run_cmd(self,cmd,msg="check if there is saved_entry",expect_kw="{saved_entry"+"}")
+
     def test_z_nitro_enclaves(self):
         '''
         case_name:
