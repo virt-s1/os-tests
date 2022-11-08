@@ -1,6 +1,7 @@
 import unittest
 import time
 import random
+import re
 from os_tests.libs import utils_lib
 
 class TestLifeCycle(unittest.TestCase):
@@ -30,7 +31,7 @@ class TestLifeCycle(unittest.TestCase):
                   break
                self.log.info('retry after {}s'.format(interval))
                time.sleep(interval)
-            for cmd in ['sudo kdumpctl showmem','cat /proc/cmdline','systemctl status kdump']:
+            for cmd in ['sudo kdumpctl showmem','cat /proc/cmdline','systemctl status kdump -l']:
                 utils_lib.run_cmd(self, cmd, expect_ret=0)
 
     def test_boot_debugkernel(self):
@@ -416,10 +417,10 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.run_cmd(self,'uname -r', cancel_not_kw='el7,el6', msg='check if run in prior el8 as it is not fully supoorted in el7 or el6')
         cmd = 'sudo rpm -qa|grep -e "kernel-[0-9]"'
         output = utils_lib.run_cmd(self, cmd, msg='Get kernel version')
-        kernels_list = output.split('\n')
+        kernels_list = re.findall('kernel.*',output)
+        if not kernels_list:
+            self.fail("No kernel found from {}".format(output))
         for kernel in kernels_list:
-            if kernel is None or kernel == '' or len(kernel) < 6:
-                continue
             self.log.info('try to swith {}'.format(kernel))
             kernel_vmlinuz = "/boot/" + kernel.replace('kernel','vmlinuz')
             kernel_initramfs = "/boot/" + kernel.replace('kernel','initramfs') + ".img"
@@ -460,10 +461,10 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.run_cmd(self,'uname -r', cancel_not_kw='el7,el6', msg='Not full support earlier than el8, skip!')
         cmd = 'sudo rpm -qa|grep -e "kernel-[0-9]"'
         output = utils_lib.run_cmd(self, cmd, msg='Get kernel version')
-        kernels_list = output.split('\n')
+        kernels_list = re.findall('kernel.*',output)
+        if not kernels_list:
+            self.fail("No kernel found from {}".format(output))
         for kernel in kernels_list:
-            if kernel is None or kernel == '' or len(kernel) < 6:
-                continue
             self.log.info('try to swith {}'.format(kernel))
             kernel_vmlinuz = "/boot/" + kernel.replace('kernel','vmlinuz')
             kernel_initramfs = "/boot/" + kernel.replace('kernel','initramfs') + ".img"
@@ -601,8 +602,68 @@ class TestLifeCycle(unittest.TestCase):
         self.assertNotEqual(
             before, after,
             "Reboot VM error: before -> %s; after -> %s" % (before, after))
-        time.sleep(30)
+
+    def test_reboot_simultaneous(self):
+        """
+        case_name:
+            os_tests.tests.test_lifecycle.TestLifeCycle.test_reboot_simultaneous
+        case_tags:
+            Lifecycle,Lifecycle_tier2
+        case_status:
+            Approved
+        title:
+            test system reboot with two simultaneous reboot operation
+        importance:
+            Low
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            Automated
+        linked_work_items:
+            TBD
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_lifecycle.py
+        setup_teardown:
+            Generic case without any specific setup.
+        environment:
+            Generic case without any specific setup.
+        component:
+            kernel
+        bug_id:
+            bugzilla_2033214
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        test_type:
+            Functional
+        test_level:
+            Component
+        maintainer:
+            xiliang@redhat.com
+        description: |
+            Trigger system simultaneous reboot, check whether system can reset normally.
+        key_steps: |
+            echo b > /proc/sysrq-trigger & echo b > /proc/sysrq-trigger
+        expected_result: |
+            system reset and boot up normally
+        debug_want: |
+            console output
+        """
+        # no new reboot record in run, so use uptime to check if system reboot
+        before = utils_lib.run_cmd(self, 'uptime -s')
+        utils_lib.run_cmd(self, 'sudo bash -c "echo b > /proc/sysrq-trigger & echo b > /proc/sysrq-trigger"')
+        time.sleep(10)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        output = utils_lib.run_cmd(self, 'whoami')
+        if self.vm:
+            self.assertEqual(
+                self.vm.vm_username, output.strip(),
+                "Reboot VM error: output of cmd `who` unexpected -> %s" % output)
+        after = utils_lib.run_cmd(self, 'uptime -s')
+        self.assertNotEqual(
+            before, after,
+            "Reboot VM error: before -> %s; after -> %s" % (before, after))
 
     def _start_vm_and_check(self):
         self.vm.start(wait=True)
@@ -648,7 +709,7 @@ class TestLifeCycle(unittest.TestCase):
         self._start_vm_and_check()
         utils_lib.run_cmd(self, 'sudo shutdown now')
         for count in utils_lib.iterate_timeout(
-                60, "Timed out waiting for getting server stopped."):
+                120, "Timed out waiting for getting server stopped."):
             if self.vm.is_stopped(): break
         self._start_vm_and_check()
 
