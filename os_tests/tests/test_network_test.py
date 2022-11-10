@@ -742,8 +742,9 @@ COMMIT
         self.assertEqual(origin_nic_name, new_nic_name, msg="Second nic name changed after unload/load nic driver three times, Expect: %s, real: %s" % (origin_nic_name, new_nic_name))
 
     def _create_vm1(self):
-        self.vm.create(vm_name='ScriptCreateVM1')
-        vm1 = self.vm.get_vm_by_filter('vm_name', 'ScriptCreateVM1')
+        create_vm_name = self.vm.vm_name+'_nework_script_create'
+        self.vm.create(vm_name=create_vm_name)
+        vm1 = self.vm.get_vm_by_filter('vm_name', create_vm_name)
         self.vms.append(vm1)
         self.vm.prism.start_vm(vm1['uuid'])
         time.sleep(60)
