@@ -47,8 +47,8 @@ Upgrade:
   leapp_repo_url: 
   leapp_data_url:
   image_site: 
-Other:
-  packages:
+Packages:
+  cloud-init: null
 Flavor:
   name: m1.medium
   cpu: 2

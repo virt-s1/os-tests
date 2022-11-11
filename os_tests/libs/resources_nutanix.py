@@ -131,6 +131,7 @@ class PrismApi(PrismSession):
         self.attach_disk_size = 5
         self.run_uuid = params.get('run_uuid')
         self.user_data = None
+        self.cloud_init =  params['Packages']['cloud-init']
 
         super(PrismApi, self).__init__(self.cvmIP, username, password)
 
@@ -178,14 +179,29 @@ class PrismApi(PrismSession):
         user_data_ssh_key = '''\
 disable_root: false
 lock_passwd: false%s%s
-runcmd:
+''' % (ssh_pwauth, ssh_key)
+        user_data += user_data_ssh_key
+        #Update runcmd in userdata about cloud-init gating or not
+        if self.cloud_init:
+            if re.search('growpart', self.cloud_init):
+                package_name = 'cloud-utils-growpart'
+            else:
+                package_name = 'cloud-init'
+            user_data_run_cmd_cloud_init = '''runcmd:
+- rpm -e %s --nodeps
+- rpm -ivh %s
 - grubby --update-kernel=ALL --args="console=tty0"
-- systemctl restart cloud-final
+- systemctl restart cloud-final''' % (package_name, self.cloud_init)
+        else:
+            user_data_run_cmd_cloud_init = '''runcmd:
+- grubby --update-kernel=ALL --args="console=tty0"
+- systemctl restart cloud-final'''
+        user_data_run_cmd = '''%s
 - sed -i "/PermitRootLogin prohibit/c\PermitRootLogin yes" /etc/ssh/sshd_config
-- systemctl restart sshd\n''' % (
-            ssh_pwauth, ssh_key)
-        user_data += user_data_ssh_key+'- mkdir /tmp/userdata_{}\n'.format(self.run_uuid)
-        user_data += '''- [ sh, -xc, "echo $(date) ': hello today!'" ]'''
+- systemctl restart sshd
+- mkdir /tmp/userdata_%s
+- [ sh, -xc, "echo $(date) ': hello today!'" ]''' % (user_data_run_cmd_cloud_init, self.run_uuid)
+        user_data += user_data_run_cmd
         user_data += '\ncloud_config_modules:\n - mounts\n - locale\n - set-passwords\n - yum-add-repo\n - disable-ec2-metadata\n - runcmd'
         if self.vm_user_data:
             user_data += self.vm_user_data
@@ -664,7 +680,6 @@ class NutanixVM(VMResource):
         self.host_password = params['Credential']['host_password']
         self.user_data = None
         self.vm1_ip = ''
-
         self.prism = PrismApi(params)
 
     @property
