@@ -5,6 +5,7 @@ import random
 
 from os_tests.libs import utils_lib
 from os_tests.libs.utils_lib import run_cmd
+from os_tests.libs.resources import UnSupportedAction,UnSupportedStatus
 
 class TestNetworkTest(unittest.TestCase):
     def setUp(self):
@@ -643,6 +644,9 @@ COMMIT
         debug_want:
             N/A
         """
+        if not self.vm:
+            self.skipTest('vm not init')
+        utils_lib.check_attribute(self.vm, 'private_network_uuid',test_instance=self, cancel_case=True)
         if self.vm.provider == 'nutanix' and self.vm.prism.machine_type == 'q35':
             multi_num = 1
         else:
@@ -676,6 +680,9 @@ COMMIT
         debug_want:
             N/A
         """
+        if not self.vm:
+            self.skipTest('vm not init')
+        utils_lib.check_attribute(self.vm, 'private_network_uuid,private_network_subnet',test_instance=self, cancel_case=True)
         if self.vm.provider == 'nutanix' and self.vm.prism.machine_type == 'q35':
             multi_num = 1
         else:
@@ -780,14 +787,27 @@ COMMIT
         debug_want:
             N/A
         """
-        nic_name = utils_lib.run_cmd(self, "ls /sys/class/net/ | grep -v lo").strip()
-        if len(self.vms) == 1:
+        if len(self.vms) == 1 and self.vm.provider == 'nutanix':
             self._create_vm1()
-        arp_result = utils_lib.run_cmd(self, 'arping -I %s %s -c 10' % (nic_name, self.vm.vm1_ip))
+            if self.vm.vm1_ip not in self.params['remote_nodes']:
+                self.params['remote_nodes'].append(self.vm.vm1_ip)
+        if len(self.vms) > 1 and self.vm.provider != 'nutanix':
+            if not self.vms[1].exists():
+                self.vms[1].create()
+            if self.vm.provider == 'aws':
+                if self.vms[1].private_ip not in self.params['remote_nodes']:
+                    self.params['remote_nodes'].append(self.vms[1].private_ip)
+            else:
+                if self.vms[1].floating_ip not in self.params['remote_nodes']:
+                    self.params['remote_nodes'].append(self.vms[1].floating_ip)
+        if len(self.params['remote_nodes']) < 2:
+            self.skipTest("2 nodes required, current IP bucket:{}".format(self.params['remote_nodes']))
+        self.log.info("Current IP bucket:{}".format(self.params['remote_nodes']))
+        arp_result = utils_lib.run_cmd(self, 'arping -I %s %s -c 10' % (self.active_nic, self.params['remote_nodes'][-1]))
         arp_response = int(re.search('Received\s+(\d+)\s+response', arp_result, re.I).groups()[0])
         self.assertAlmostEqual(first=int(arp_response), second=10, delta=1, msg='check arping response error, expect:%s, real:%s')
-        utils_lib.run_cmd(self, 'sudo ping -f %s -c 2' % (self.vm.vm1_ip), expect_ret=0)
-        utils_lib.run_cmd(self, 'sudo ping -f %s -c 600' % (self.vm.vm1_ip), expect_kw='0% packet loss')
+        utils_lib.run_cmd(self, 'sudo ping -f %s -c 2' % (self.params['remote_nodes'][-1]), expect_ret=0)
+        utils_lib.run_cmd(self, 'sudo ping -f %s -c 600' % (self.params['remote_nodes'][-1]), expect_kw='0% packet loss')
 
     def test_iperf(self):
         """
@@ -882,6 +902,8 @@ COMMIT
         debug_want:
             N/A
         """
+        if self.vm.provider in ['aws']:
+            self.skipTest("No need to test on {}".format(self.vm.provider))
         self._test_unload_load_nic_driver('virtio')
 
     def test_unload_load_e1000(self):
@@ -915,6 +937,8 @@ COMMIT
         """
         if self.vm.provider == 'nutanix' and self.vm.prism.machine_type == 'q35':
             self.skipTest('e1000 should not be supported by pcie-root-port')
+        if self.vm.provider in ['aws']:
+            self.skipTest("No need to test on {}".format(self.vm.provider))
         self._test_unload_load_nic_driver('e1000')
 
     def test_ethtool_K_offload(self):
@@ -1362,14 +1386,97 @@ COMMIT
         res = utils_lib.run_cmd(self,"sudo /tmp/nw_pktgen.sh %s" % self.rhel_x_version)
         self.assertIn("INFO: Case passed", res, "nw_pktgen.sh check failed.")
 
+    def test_network_device_hotplug(self):
+        """
+        case_tag:
+            network
+        case_name:
+            test_network_device_hotplug
+        case_file:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_vm_operation.py
+        component:
+            network
+        bugzilla_id:
+            2004072
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            Test hotplug network interface to RHEL.
+        key_steps: |
+            1. Launch an instance.
+            2. Attach a network interface to the instance, check the network appears in guest, e.g., "$ sudo lspci", "$ sudo ip addr show".
+            3. Detach the network interface from the instance, check the network disappears in guest again.
+            4. Check dmesg log of the instance.
+        expect_result: |
+            When the second network interface is attached in step 2, there are 2 Elastic Network Adapters displays in PCI devices, and the IP address are auto assigned to the device.
+            When the second network interface is detached in step 3, there are 1 Elastic Network Adapters displays in PCI devices, and only 1 NIC displays when showing ip information.
+            No crash or panic in system, no related error message or call trace in dmesg.
+        debug_want: |
+            network driver type and version
+            dmesg
+        """
+        if not self.nic:
+            self.skipTest('nic device not init')
+        try:
+            if not self.nic.create():
+                self.fail("network interface create failed")
+        except NotImplementedError:
+            self.skipTest('nic create func is not implemented in {}'.format(self.vm.provider))
+        except UnSupportedAction:
+            self.skipTest('nic create func is not supported in {}'.format(self.vm.provider))
+
+        netdev_index = 1
+        self.vm.attach_nic(self.nic,device_index=1, wait=True)
+        for i in range(1, 4):
+            time.sleep(5)
+            self.log.info('Check network in guest, loop {}'.format(i))
+            cmd = "lspci"
+            output1 = utils_lib.run_cmd(self, cmd)
+            cmd = "ip addr show"
+            output1 = utils_lib.run_cmd(self, cmd)
+            if 'eth%s' % netdev_index not in output1:
+                self.log.info("Added nic not found")
+        timeout = 120
+        interval = 5
+        time_start = int(time.time())
+        while True:
+           if self.vm.detach_nic(self.nic):
+               break
+           time_end = int(time.time())
+           if time_end - time_start > timeout:
+              self.log.info('timeout ended: {}'.format(timeout))
+              break
+           self.log.info('retry after {}s'.format(interval))
+           time.sleep(interval)
+        time.sleep(5)
+        cmd = "ip addr show"
+        utils_lib.run_cmd(self, cmd)
+        self.nic.delete()
+        self.assertIn('eth%d' % netdev_index,
+                      output1,
+                      msg='eth{} not found after attached nic'.format(netdev_index))
+        cmd = 'dmesg'
+        utils_lib.run_cmd(self, cmd, expect_not_kw='Call Trace')
+
     def tearDown(self):
         if 'test_mtu_min_max_set' in self.id():
             mtu_cmd = "sudo ip link set dev %s mtu %s" % (self.active_nic , self.mtu_old)
             utils_lib.run_cmd(self, mtu_cmd, expect_ret=0, msg='restore mtu')
         if 'test_ping_arp_ping' in self.id() or 'test_iperf' in self.id() or 'test_scp_mtu_9000' in self.id():
-            if self.vm.provider == 'nutanix':
+            if self.vm and self.vm.provider == 'aws':
+                if self.vms[1].private_ip in self.params['remote_nodes']:
+                    self.params['remote_nodes'].remove(self.vms[1].private_ip)
+            if self.vm and self.vm.provider == 'nutanix':
+                if self.vm.vm1_ip in self.params['remote_nodes']:
+                    self.params['remote_nodes'].remove(self.vm.vm1_ip)
                 self.vm.prism.delete_vm(self.vms[1]['uuid'])
                 self.vms.pop()
+        if self.nic and self.nic.is_exist():
+            self.nic.delete()
         utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', skip_words='ftrace', cursor=self.dmesg_cursor)
 
 if __name__ == '__main__':

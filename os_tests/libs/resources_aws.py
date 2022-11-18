@@ -212,10 +212,18 @@ class EC2VM(VMResource):
 
     @property
     @utils_lib.wait_for(not_ret=None, ck_not_ret=True, timeout=120)
+    def private_ip(self):
+        self.ec2_instance.reload()
+        LOG.info("private_ip_address is: {}".format(self.ec2_instance.private_ip_address))
+        return self.ec2_instance.private_ip_address
+
+    @property
+    @utils_lib.wait_for(not_ret=None, ck_not_ret=True, timeout=120)
     def vm_name(self):
         self.ec2_instance.reload()
         LOG.info("private_dns_name is: {}".format(self.ec2_instance.private_dns_name))
         return self.ec2_instance.private_dns_name
+
 
     @property
     @utils_lib.wait_for(not_ret=None, ck_not_ret=True, timeout=120)
