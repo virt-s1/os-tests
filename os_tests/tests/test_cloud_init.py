@@ -1794,7 +1794,10 @@ ssh_pwauth: 1
             # systemd-analyze blame
             4. The boot time should be less than 50s, cloud-init services startup time should less than 18s
         """
-        max_boot_time = 60
+        if self.vm.provider != 'nutanix':
+            max_boot_time = 60
+        else:
+            max_boot_time = 100
         cloud_init_startup_time = 20
         if self.vm.exists():
             self.vm.delete()

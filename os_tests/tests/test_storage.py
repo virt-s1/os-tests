@@ -734,7 +734,7 @@ class TestStorage(unittest.TestCase):
             utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1])
             scp_cmd = 'sudo sshpass -p {} scp -o StrictHostKeyChecking=no 5G.img root@{}:/mnt/mnt_{}'.format(self.vm.vm_password, VMBecloned_ip,device_type)
             utils_lib.run_cmd(self, scp_cmd, timeout=600)
-            file_size = int(utils_lib.run_cmd(self, "sudo ls -l /mnt/mnt_%s/5G.img | awk '{print $5}'" % (device_type), expect_ret=0, rmt_node=self.params['remote_nodes'][1]).strip())/(1024*1024*1024)
+            file_size = int(utils_lib.run_cmd(self, "sudo ls -l /mnt/mnt_%s/5G.img | awk '{print $5}'" % (device_type), expect_ret=0, rmt_node=VMBecloned_ip).strip())/(1024*1024*1024)
             self.assertEqual(5, file_size, msg="Value of created file is not right, Expect: 5, real: %s" % (file_size))
         #hot detach scsi
         try:
