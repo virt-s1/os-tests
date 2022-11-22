@@ -497,6 +497,7 @@ class TestNetworkTest(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, msg='get ip routes')
         cmd = "curl --connect-timeout 5 http://{}:8188/hello".format(self.ipv4)
         utils_lib.run_cmd(self, cmd, expect_kw='new site', msg='test site is available')
+
     def test_iptables_restore_hangs(self):
         """
         case_tag:
@@ -837,41 +838,70 @@ COMMIT
         debug_want:
             N/A
         """
-        if self.vm.provider == 'nutanix':
+        if self.vm and self.vm.provider == 'nutanix':
             if len(self.vm.prism.list_hosts_detail()["entities"])==1:
                 self.skipTest('Need to test between VMs on different hosts')
-        if len(self.vms) == 1:
-            self._create_vm1()
-        vm1_host_uuid = self.vm.prism.get_vm_by_uuid(self.vms[1]['uuid'])['host_uuid']
-        if self.vms[0].vm_host_uuid() == vm1_host_uuid:
-            self.log.info('vm1 host uuid %s is same with vm2: %s, do migration' % (self.vms[0].vm_host_uuid(), vm1_host_uuid))
-            self.vm.migrate()
+            if len(self.vms) == 1:
+                self._create_vm1()
+            vm1_host_uuid = self.vm.prism.get_vm_by_uuid(self.vms[1]['uuid'])['host_uuid']
+            if self.vms[0].vm_host_uuid() == vm1_host_uuid:
+                self.log.info('vm1 host uuid %s is same with vm2: %s, do migration' % (self.vms[0].vm_host_uuid(), vm1_host_uuid))
+                self.vm.migrate()
+            if self.vm.vm1_ip not in self.params['remote_nodes']:
+                self.params['remote_nodes'].append(self.vm.vm1_ip)
+        if len(self.vms) > 1 and self.vm.provider != 'nutanix':
+            if not self.vms[1].exists():
+                self.vms[1].create()
+            if self.vms[1].floating_ip not in self.params['remote_nodes']:
+                self.params['remote_nodes'].append(self.vms[1].floating_ip)
+        if len(self.params['remote_nodes']) < 2:
+            self.skipTest("2 nodes required, current IP bucket:{}".format(self.params['remote_nodes']))
+        self.log.info("Current IP bucket:{}".format(self.params['remote_nodes']))
         self.log.info('Install iperf3 on vm[0]')
         utils_lib.is_cmd_exist(self,"iperf3")
         self.log.info('Install iperf3 on vm[1]')
-        utils_lib.init_connection(self, timeout=180, rmt_node=self.vm.vm1_ip)
-        utils_lib.run_cmd(self, "sudo yum install -y iperf3", expect_ret=0, timeout=180, rmt_node=self.vm.vm1_ip)
+        utils_lib.init_connection(self, timeout=180, rmt_node=self.params['remote_nodes'][-1])
+        utils_lib.run_cmd(self, "rpm -q iperf3||sudo yum install -y iperf3", expect_ret=0, timeout=180, rmt_node=self.params['remote_nodes'][-1])
         self.log.info('Start iperf testing')
         iperf_srv_cmd = 'sudo bash -c "iperf3 -s >/dev/null 2>&1 &"'
-        utils_lib.run_cmd(self, iperf_srv_cmd, rmt_node=self.vm.vm1_ip)
+        utils_lib.run_cmd(self, iperf_srv_cmd, rmt_node=self.params['remote_nodes'][-1])
         cmd = "ip addr show {}".format(self.active_nic )
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, \
-            msg='try to get {} ipv4 address'.format(self.active_nic ),rmt_node=self.vm.vm1_ip)
+            msg='try to get {} ipv4 address'.format(self.active_nic ),rmt_node=self.params['remote_nodes'][-1])
         srv_ipv4 = re.findall('[\d.]{7,16}', output)[0]
-        iperf_cli_cmd = 'iperf3 -c {} -t 60'.format(srv_ipv4)
+        iperf_cli_cmd = 'iperf3 -P 10 -c {} -t 60'.format(srv_ipv4)
         res = utils_lib.run_cmd(self, iperf_cli_cmd, expect_ret=0, timeout=120)
         if not re.search('(\d+)\s+Mbits/sec.+sender', res):
             res = utils_lib.run_cmd(self, iperf_cli_cmd, expect_ret=0, timeout=120)
-        send_speed = re.search('(\d+)\s+Mbits/sec.+sender', res).group().split()[0]
-        receive_speed = re.search('(\d+)\s+Mbits/sec.+receiver', res).group().split()[0]
-        for speed in [send_speed, receive_speed]:
-            self.assertAlmostEqual(
-            first=int(speed),
-            second=1000,
-            delta=500,
-            msg="Gap is two much between actural speed and expect speed. Expect: %s, real: %s" %(1000, speed)
-        )
-
+        bandwidth_map = {'default':1000}
+        if self.vm and hasattr(self.vm, 'net_bandwidth'):
+            if self.vm.net_bandwidth>100:
+                self.log.info("Guess bandwidth in M: {}".format(self.vm.net_bandwidth))
+                bandwidth_map[self.vm.provider] = self.vm.net_bandwidth
+            else:
+                self.log.info("Guess bandwidth in G:{}".format(self.vm.net_bandwidth))
+                bandwidth_map[self.vm.provider] = self.vm.net_bandwidth*1000
+        if self.vm:
+            perf_spec = float(bandwidth_map.get(self.vm.provider) or bandwidth_map.get('default'))
+            if perf_spec > 40*1000:
+                # needs to start multiple iperf process to cover 40G+ network
+                self.log.info('do not check when bandwidth {} > 40G'.format(perf_spec))
+            else:
+                for line in res.split("\n"):
+                    if 'sender' in line and 'SUM' in line:
+                        sender_ipv4_unit = re.findall('[\d.]+ [GM]',line)[-1]
+                        sender_ipv4 = float(sender_ipv4_unit.split(' ')[0])
+                        if sender_ipv4_unit.endswith('G'):
+                            sender_ipv4 = sender_ipv4 * 1000
+                    elif 'receiver' in line and 'SUM' in line:
+                        receiver_ipv4_unit = re.findall('[\d.]+ [GM]',line)[-1]
+                        receiver_ipv4 = float(receiver_ipv4_unit.split(' ')[0])
+                        if receiver_ipv4_unit.endswith('G'):
+                            receiver_ipv4 = receiver_ipv4 * 1000
+                self.log.info("sender:{} receiver:{}".format(sender_ipv4_unit,receiver_ipv4_unit))
+                expect_ratio = 30
+                utils_lib.compare_nums(self, perf_spec, sender_ipv4, expect_ratio, msg="Sender")
+                utils_lib.compare_nums(self, perf_spec, receiver_ipv4, expect_ratio, msg="Receiver")
 
     def test_unload_load_virtio(self):
         """
@@ -1461,6 +1491,65 @@ COMMIT
                       msg='eth{} not found after attached nic'.format(netdev_index))
         cmd = 'dmesg'
         utils_lib.run_cmd(self, cmd, expect_not_kw='Call Trace')
+
+    def test_second_ip_hotplug(self):
+        '''
+        description:
+            [RHEL8.4] Test 2nd ip hotplug on primary nic, nm-cloud-setup can assign/remove it automatically
+        bugzilla_id: 
+            1623084,1642461
+        customer_case_id: 
+            BZ1623084,BZ1642461
+        maintainer: 
+            xiliang
+        case_priority: 
+            0
+        case_component: 
+            network
+        key_steps: |
+            1. Launch an instance on AWS EC2.
+            2. Check if package NetworkManager-cloud-setup is installed via command "$ sudo rpm -q NetworkManager-cloud-setup", if not, use yum install to install it.
+            3. Check the service status via command "$ sudo systemctl status nm-cloud-setup.timer".
+            4. Assign the second IP to the NIC of instance.
+            5. Check the ip address of the NIC for several times via command "$ sudo ip addr show eth0".
+            6. Remove the second IP from the NIC of instance.
+            7. Check if the second IP address is removed from the NIC.
+        pass_criteria: |
+            After the second IP is assigned to the NIC of instance in step 4, there will be 2 IP address shows in step5.
+            After the second IP is removed from the NIC of instance 6, there will be only 1 IP address shows in the step7.
+        '''
+        utils_lib.is_pkg_installed(self, pkg_name='NetworkManager-cloud-setup', is_install=False, cancel_case=True)
+        for attrname in ['assign_new_ip','remove_added_ip']:
+            if not hasattr(self.vm, attrname):
+                self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
+        cmd = 'sudo systemctl status nm-cloud-setup.timer'
+        utils_lib.run_cmd(self, cmd)
+        self.vm.assign_new_ip()
+        cmd = 'sudo ip addr show {}'.format(self.active_nic)
+        start_time = time.time()
+        while True:
+            out = utils_lib.run_cmd(self, cmd)
+            if self.vm.another_ip in out:
+                break
+            end_time = time.time()
+            if end_time - start_time > 330:
+                cmd = 'sudo systemctl status nm-cloud-setup.timer'
+                utils_lib.run_cmd(self, cmd)
+                self.fail("expected 2nd ip {} not found in guest".format(self.vm.another_ip))
+            time.sleep(25)
+        cmd = 'sudo ip addr show {}'.format(self.active_nic)
+        start_time = time.time()
+        self.vm.remove_added_ip()
+        while True:
+            out = utils_lib.run_cmd(self, cmd)
+            if self.vm.another_ip not in out:
+                break
+            end_time = time.time()
+            if end_time - start_time > 330:
+                cmd = 'sudo systemctl status nm-cloud-setup.timer'
+                utils_lib.run_cmd(self, cmd)
+                self.fail("expected 2nd ip {} not removed from guest".format(self.vm.another_ip))
+            time.sleep(25)
 
     def tearDown(self):
         if 'test_mtu_min_max_set' in self.id():

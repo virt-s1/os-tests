@@ -1285,5 +1285,23 @@
         "link": "https://github.com/util-linux/util-linux/commit/39f5af25982d8b0244000e92a9d0e0e6557d0e17",
         "path": "dmesg",
         "trigger": ""
+    },
+    "msg_145": {
+        "content": ".*available PCIe bandwidth, limited by Unknown.*",
+        "analyze": "known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2144383",
+        "path": "journal, dmesg",
+        "trigger": ""
+    },
+    "msg_146": {
+        "content": ".*Direct firmware load for amdgpu/navi12_cap.bin failed.*",
+        "analyze": "known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2133260",
+        "path": "journal, dmesg",
+        "trigger": ""
     }
 }
