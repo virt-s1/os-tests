@@ -2807,6 +2807,152 @@ chpasswd:
                       output,
                       msg=" Unexpected location or permission -> {0}".format(output))
 
+    def test_cloud_init_config_ipv6(self):
+        '''
+        case_tag:
+            cloudinit
+        description:
+            Check the IPv6 is configured by default for guests.
+        testplan:
+            N/A
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        maintainer: 
+            xiliang
+        case_priority: 
+            0
+        case_component: 
+            cloud-init
+        key_steps:
+            1. Launch an instance which support IPv6 with IPv6 auto assigned.
+            2. Check the IPv6 is configured and auto assigned for NIC and can be connected via IPv6 address after system boot up.
+        pass_criteria: 
+            The IPv6 address shows in NIC and can be connected.
+        '''
+        ipv6 = None
+        try:
+            ipv6 = self.vm.ipv6_address
+        except NotImplementedError:
+            self.skipTest("current {} not bring out this ipv6_address property".format(self.vm.provider))
+
+        if not ipv6:
+            self.skipTest("current instance setup might not support ipv6, skip checking.")
+        cmd = 'ip addr show eth0'
+        utils_lib.run_cmd(self, cmd, expect_kw=ipv6)
+        out = utils_lib.run_cmd(self, 'rpm -q cloud-init', expect_ret=0)
+        cloudinit_ver = re.findall('\d+.\d',out)[0]
+        if float(cloudinit_ver) < 22.1:
+            self.log.info('no ifcfg-eth0 from cloudinit 22.1, render profile was changed to networkmanager')
+            cmd = 'cat /etc/sysconfig/network-scripts/ifcfg-eth0'
+            utils_lib.run_cmd(self, cmd, expect_kw='IPV6INIT=yes')
+
+    def test_cloud_init_lineoverwrite(self):
+        '''
+        case_tag:
+            cloudinit
+        description:
+            This is a specific case of openstack, because the cloud guest images need to have "NOZEROCONF=yes" in /etc/sysconfig/network so that it works well as an openstack guest. (Bug 983611 - Cloud guest images needs to have "NOZEROCONF=yes" in /etc/sysconfig/network)
+            cloud-init removed user configuration in /etc/sysconfig/network and rewrite the default configuration in every prevision before cloud-init-18.2-4.el7, after this version, certain lines in network configuration isn't removed after re-provision. linked case RHEL-152730
+        testplan:
+            N/A
+        bugzilla_id:
+            1653131
+        is_customer_case:
+            True
+        maintainer:
+            xiliang
+        case_priority:
+            0
+        case_component:
+            cloud-init
+        key_steps:
+            1. Launch an instance on AWS EC2.
+            2. Add "NOZEROCONF=yes" to top of network config /etc/sysconfig/network.
+            3. Add "NETWORKING_IPV6=no" to top of network config /etc/sysconfig/network.
+            4. Clean cloud-init with command: "rm /run/cloud-init/ /var/lib/cloud/* -rf" and reboot instance.
+            5. Check the new network configuration /etc/sysconfig/network after boot.
+        pass_criteria:
+            "NETWORKING_IPV6=no" and "NOZEROCONF=yes" should be in the network configuration.
+        '''
+        if not self.vm:
+            self.skipTest('vm not init')
+        utils_lib.run_cmd(self,
+                    'uname -r',
+                     msg='Get instance kernel version')
+        out = utils_lib.run_cmd(self, 'rpm -q cloud-init', expect_ret=0)
+        cloudinit_ver = re.findall('\d+.\d',out)[0]
+        if float(cloudinit_ver) >= 22.1:
+            self.skipTest('not supported from cloudinit 22.1, render profile changed to networkmanager')
+        cmd = 'ifconfig eth0'
+        utils_lib.run_cmd(self, cmd, msg="Previous ifconfig status")
+        cmd = 'cat /etc/sysconfig/network'
+        output = utils_lib.run_cmd(self, cmd, msg="Previous network configuration.")
+        if "NOZEROCONF=yes" not in output:
+            cmd = r"sudo sed -i '1s/^/NOZEROCONF=yes\n/' \
+/etc/sysconfig/network"
+
+            utils_lib.run_cmd(self,
+                        cmd,
+                        msg='add NOZEROCONF=yes to top of network config')
+        if "NETWORKING_IPV6=no" not in output:
+            cmd = r"sudo sed -i '1s/^/NETWORKING_IPV6=no\n/' \
+/etc/sysconfig/network"
+
+            utils_lib.run_cmd(self,
+                        cmd,
+                        msg='add NETWORKING_IPV6=no top of network config')
+        cmd = 'cat /etc/sysconfig/network'
+        output = utils_lib.run_cmd(self, cmd, msg="Updated network configuration.")
+        cmd = 'sudo rm /run/cloud-init/ /var/lib/cloud/* -rf'
+        utils_lib.run_cmd(self, cmd, msg='clean cloud-init and redo it')
+        self.vm.reboot()
+        time.sleep(20)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        cmd = 'cat /etc/sysconfig/network'
+        output = utils_lib.run_cmd(self, cmd, msg="New network configuration.")
+        if "NETWORKING_IPV6=no" in output:
+            self.fail("NETWORKING_IPV6=no is not expected")
+        if "NOZEROCONF=yes" not in output:
+            self.fail("NOZEROCONF=yes is expected")
+
+    def test_cloud_init_userdata(self):
+        '''
+        case_tag:
+            cloudinit
+        description:
+            Check the userdata can be passed when creating instance. Linked case RHEL7-87120
+        testplan:
+            N/A
+        bugzilla_id:
+            n/a
+        is_customer_case:
+            False
+        maintainer: 
+            xiliang
+        case_priority: 
+            0
+        case_component: 
+            cloud-init
+        key_steps:
+            1. Launch an instance with custom scrtip, eg. passing an script to create a dir:
+                #!/bin/bash
+                mkdir /tmp/userdata_${uuid}
+            2. Connect the instance and check /tmp/userdata_${uuid} appears after system boot up.
+        pass_criteria: 
+            The passed userdata /tmp/userdata_${uuid} exists and can be edit and remove.
+        '''
+        if not self.vm:
+            self.skipTest('vm not init')
+        user_name = self.params.get('remote_user')
+        user_dir =  "/tmp/userdata_{}".format(self.run_uuid)
+        cmd = "ls -l %s" % user_dir
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        cmd = "sudo rm -rf %s" % user_dir
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        utils_lib.run_cmd(self, 'uname -r', msg='Get instance kernel version')
+
     def test_cloudinit_package_upgrade(self):
         '''
         case_tag:

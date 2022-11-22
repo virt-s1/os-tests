@@ -3,6 +3,7 @@ import time
 import random
 import re
 from os_tests.libs import utils_lib
+from os_tests.libs.resources import UnSupportedAction
 
 class TestLifeCycle(unittest.TestCase):
     '''
@@ -866,6 +867,214 @@ class TestLifeCycle(unittest.TestCase):
                     msg='list /var/crash after crash')
         cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='write_sysrq_trigger')
+
+    def test_kdump_unknown_nmi_panic_disabled(self):
+        '''
+        description:
+            Test Diagnostic Interrupt doesn't trigger the kdump when unknown_nmi_panic is disabled with RHEL on AWS. https://aws.amazon.com/blogs/aws/new-trigger-a-kernel-panic-to-diagnose-unresponsive-ec2-instances/
+        testplan:
+            N/A
+        bugzilla_id:
+            n/a
+        is_customer_case:
+            False
+        maintainer: 
+            xiliang
+        case_priority: 
+            0
+        case_component: 
+            Kdump
+        key_steps:
+            1. Launch an instance on AWS EC2.
+            2. Check the kdump status by command "systemctl status kdump.service".
+            3. Disable kernel to trigger a kernel panic upon receiving the interrupt by set /etc/sysctl.conf and add a line : kernel.unknown_nmi_panic=0 and reboot. Or by command "sudo sysctl kernel.unknown_nmi_panic=0".
+            4. Send Diagnostic Interrupt to the instance.
+        pass_criteria: 
+            Unknown NMI received and kernel panic isn't triggered, system is still running with no error message.
+        '''
+        if not self.vm:
+            self.skipTest('vm not init')
+        utils_lib.run_cmd(self, 'lscpu', cancel_not_kw='aarch64', msg='Not support in arm instance')
+        utils_lib.run_cmd(self, r'sudo rm -rf /var/crash/*', expect_ret=0, msg='clean /var/crash firstly')
+        utils_lib.run_cmd(self, r'sudo sysctl kernel.unknown_nmi_panic=0',expect_ret=0,msg='disable unknown_nmi_panic')
+        utils_lib.run_cmd(self, r'sudo sysctl -a|grep -i nmi', expect_ret=0, expect_kw='kernel.unknown_nmi_panic = 0')
+        try:
+            is_success = self.vm.send_nmi()
+        except UnSupportedAction as err:
+            self.skipTest("current {} not support nmi operation".format(self.vm.provider))
+        if not is_success:
+            self.fail("Cannot trigger panic via nmi!")
+        time.sleep(10)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        utils_lib.run_cmd(self, r'sudo cat /var/crash/*/vmcore-dmesg.txt', expect_not_ret=0, msg='list /var/crash after crash')
+        cmd = r'sudo dmesg|tail -10'
+        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='NMI received')
+
+    def test_kdump_unknown_nmi_panic_enabled(self):
+        '''
+        description:
+            Test Diagnostic Interrupt triggers the kdump when unknown_nmi_panic is enabled with RHEL on AWS. https://aws.amazon.com/blogs/aws/new-trigger-a-kernel-panic-to-diagnose-unresponsive-ec2-instances/
+        testplan:
+            N/A
+        bugzilla_id: 
+            n/a
+        customer_case_id: 
+            n/a
+        maintainer: 
+            xiliang
+        case_priority: 
+            0
+        case_component: 
+            Kdump
+        key_steps:
+            1. Launch an instance on AWS EC2.
+            2. Check the kdump status by command "systemctl status kdump.service".
+            3. Disable kernel to trigger a kernel panic upon receiving the interrupt by set /etc/sysctl.conf and add a line : kernel.unknown_nmi_panic=1 and reboot. Or by command "sudo sysctl kernel.unknown_nmi_panic=1".
+            4. Send Diagnostic Interrupt to the instance.
+        pass_criteria: 
+            Kernel panic is triggered, system reboot after panic, and vm core is gernerated in /var/crash after crash. 
+        '''
+        if not self.vm:
+            self.skipTest('vm not init')
+        timeout = 120
+        interval = 5
+        time_start = int(time.time())
+        while True:
+           cmd = 'sudo systemctl is-active kdump'
+           ret = utils_lib.run_cmd(self, cmd,ret_status=True, msg='check kdump is active')
+           if ret == 0: break
+           time_end = int(time.time())
+           if time_end - time_start > timeout:
+              self.log.info('timeout ended: {}'.format(timeout))
+              break
+           self.log.info('retry after {}s'.format(interval))
+           time.sleep(interval)
+        utils_lib.run_cmd(self, 'lscpu', cancel_not_kw='aarch64', msg='Not support in arm instance')
+        utils_lib.run_cmd(self, r'sudo rm -rf /var/crash/*', expect_ret=0, msg='clean /var/crash firstly')
+        utils_lib.run_cmd(self, r'sudo sysctl kernel.unknown_nmi_panic=1', expect_ret=0, msg='enable unknown_nmi_panic')
+        utils_lib.run_cmd(self, r'sudo sysctl -a|grep -i nmi', expect_ret=0, expect_kw='kernel.unknown_nmi_panic = 1')
+        try:
+            is_success = self.vm.send_nmi()
+        except UnSupportedAction as err:
+            self.skipTest("current {} not support nmi operation".format(self.vm.provider))
+        if not is_success:
+            self.fail("Cannot trigger panic via nmi!")
+        time.sleep(10)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        utils_lib.run_cmd(self,
+                    r'sudo ls /var/crash/',
+                    expect_ret=0,
+                    msg='list /var/crash after crash')
+        cmd = r'sudo cat /var/crash/1*/vmcore-dmesg.txt|tail -50'
+        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='nmi_panic')
+
+    def test_hibernate_resume(self):
+        """
+        case_tag:
+            lifecycle
+        case_name:
+            test_hibernate_resume
+        case_file:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_vm_operation.py
+        component:
+            kernel
+        bugzilla_id:
+            1898677
+        is_customer_case:
+            True
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description:
+            Test system hibernation and process is still running after resumed
+        key_steps: |
+            1. enable hibernation on system
+            2. start a test process, eg. sleep 1800
+            3. hibernate system
+            4. start system
+            5. the test process still running
+        expect_result:
+            test process resume successfully
+        debug_want:
+            dmesg or console output
+        """
+        if not self.vm:
+            self.skipTest('vm not init')
+        utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
+        utils_lib.is_cmd_exist(self,"acpid")
+        if self.vm.provider == 'aws':
+            product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
+            if float(product_id) >= 8.0 and float(product_id) < 9.0:
+                pkg_url='https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/e/ec2-hibinit-agent-1.0.4-1.el8.noarch.rpm'
+            elif float(product_id) < 8.0:
+                self.skipTest('not supported earlier than rhel8')
+            else:
+                pkg_url = "https://dl.fedoraproject.org/pub/fedora/linux/releases/34/Everything/x86_64/os/Packages/e/ec2-hibinit-agent-1.0.3-5.fc34.noarch.rpm"
+            utils_lib.pkg_install(self, pkg_name='ec2-hibinit-agent', pkg_url=pkg_url, force=True)
+            cmd = 'sudo systemctl is-enabled hibinit-agent.service'
+            output = utils_lib.run_cmd(self, cmd)
+            if 'enabled' not in output:
+                cmd = 'sudo systemctl enable --now hibinit-agent.service'
+                utils_lib.run_cmd(self, cmd)
+                utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
+                utils_lib.init_connection(self, timeout=self.ssh_timeout)
+                timeout = 180
+                interval = 5
+                time_start = int(time.time())
+                while True:
+                    cmd = 'sudo systemctl is-active hibinit-agent.service'
+                    out = utils_lib.run_cmd(self, cmd)
+                    if 'inactive' in out:
+                        break
+                    time_end = int(time.time())
+                    if time_end - time_start > timeout:
+                       self.log.info('timeout ended: {}'.format(timeout))
+                       break
+                    self.log.info('retry after {}s'.format(interval))
+                    time.sleep(interval)
+                cmd = 'sudo systemctl status hibinit-agent.service'
+                utils_lib.run_cmd(self, cmd)
+        else:
+            cmd = 'cat /proc/swaps'
+            output = utils_lib.run_cmd(self, cmd, msg='check whether system has swap on')
+            if '-2' not in output:
+                self.log.info("No swap found, creating new one")
+                cmd = """
+                    sudo dd if=/dev/zero of=/swap bs=1024 count=2000000;
+                    sudo chmod 0600 /swap;
+                    sudo mkswap /swap;
+                    sudo swapon /swap;
+                    offset=$(sudo filefrag -v /swap| awk '{if($1==\"0:\"){print $4}}');
+                    uuid=$(findmnt -no UUID -T /swap);
+                    sudo grubby --update-kernel=ALL  --args=\"resume_offset=${offset//.} resume=UUID=$uuid\";
+                    echo '/swap    swap    swap   defaults 0 0' | sudo tee -a /etc/fstab
+                    """
+                utils_lib.run_cmd(self, cmd, timeout=240)
+
+        cmd = "sleep 360 > /dev/null 2>&1 &"
+        utils_lib.run_cmd(self, cmd)
+        vm_hibernate_success = False
+        try:
+            if not self.vm.send_hibernation():
+                self.skipTest('send hibernate not succeed')
+            vm_hibernate_success = True
+        except NotImplementedError:
+            self.log.info('send_hibernation func is not implemented in {}'.format(self.vm.provider))
+        except UnSupportedAction:
+            self.log.info('send_hibernation func is not supported in {}'.format(self.vm.provider))
+        if not vm_hibernate_success:
+            cmd = "sudo systemctl hibernate"
+            utils_lib.run_cmd(self, cmd, msg="Try to hibernate inside system!")
+            time.sleep(20)
+
+        self.vm.start()
+        time.sleep(30)
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        utils_lib.run_cmd(self, 'dmesg', expect_kw="Restarting tasks", expect_not_kw="Call", msg="check the system is resumed")
+        cmd = 'pgrep -a sleep'
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check sleep process still exists')
 
     def tearDown(self):
         reboot_require = False
