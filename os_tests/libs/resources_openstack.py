@@ -61,6 +61,11 @@ class OpenstackVM(VMResource):
         self.vm_username = params['VM'].get('username')
         self.vm_password = params['VM'].get('password')
 
+        #package info
+        self.package_url = params['VM'].get('package_url')
+        self.package_name = params['VM'].get('package_name')
+        self.y_stream = params['VM'].get('y_stream')
+
         self.arch = 'x86_64'
         
         # VM creation parameter user_data
