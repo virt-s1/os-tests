@@ -1822,6 +1822,8 @@ ssh_pwauth: 1
                 float(service_time_sec), float(cloud_init_startup_time), 
                 "{0} startup time is greater than {1}".format(service, cloud_init_startup_time))
         # Check overal boot time
+        if float(boot_time_sec) > float(max_boot_time):
+            utils_lib.run_cmd(cmd='sudo journalctl -b0')
         self.assertLess(
             float(boot_time_sec), float(max_boot_time), 
             "First boot time is greater than {}".format(max_boot_time))  
