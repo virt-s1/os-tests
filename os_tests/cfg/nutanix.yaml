@@ -29,7 +29,8 @@ VM:
   custom_data: 
   if_uefi_boot: 
   if_secure_boot: 
-  machine_type: 
+  machine_type:
+  net_bandwidth: 1000
 vGPU:
   device_name: 
   software_version: 

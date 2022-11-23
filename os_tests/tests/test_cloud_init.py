@@ -1794,10 +1794,7 @@ ssh_pwauth: 1
             # systemd-analyze blame
             4. The boot time should be less than 50s, cloud-init services startup time should less than 18s
         """
-        if self.vm.provider != 'nutanix':
-            max_boot_time = 60
-        else:
-            max_boot_time = 100
+        max_boot_time = 60
         cloud_init_startup_time = 20
         if self.vm.exists():
             self.vm.delete()
@@ -1825,6 +1822,8 @@ ssh_pwauth: 1
                 float(service_time_sec), float(cloud_init_startup_time), 
                 "{0} startup time is greater than {1}".format(service, cloud_init_startup_time))
         # Check overal boot time
+        if float(boot_time_sec) > float(max_boot_time):
+            utils_lib.run_cmd(cmd='sudo journalctl -b0')
         self.assertLess(
             float(boot_time_sec), float(max_boot_time), 
             "First boot time is greater than {}".format(max_boot_time))  

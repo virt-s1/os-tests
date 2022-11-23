@@ -662,6 +662,7 @@ class NutanixVM(VMResource):
         self.subscription_baseurl = params['Subscription'].get('baseurl')
         self.host_username = params['Credential']['host_username']
         self.host_password = params['Credential']['host_password']
+        self.net_bandwidth = params['VM']['net_bandwidth']
         self.user_data = None
         self.vm1_ip = ''
 
