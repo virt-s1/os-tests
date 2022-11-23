@@ -367,8 +367,11 @@ int main(int argc, char *argv[])
             10.sudo insights-client --register
         expect_result:
             all registration successfully without timeout failure.
-        debug_want:
-            N/A
+        debug_want: |
+            If you linked the test account to customer portal bug auto-reg failed,
+            Please attach below log if there is new region added in aws.
+            $ curl -s http://169.254.169.254/latest/dynamic/instance-identity/rsa2048
+            $ curl -s http://169.254.169.254/latest/dynamic/instance-identity/document
         """
         product_name = utils_lib.get_os_release_info(self, field='NAME')
         if 'Red Hat Enterprise Linux' not in product_name:
@@ -379,6 +382,10 @@ int main(int argc, char *argv[])
         if float(product_id) < 8.4:
             self.skipTest('skip in earlier than el8.4')
 
+        if utils_lib.is_aws(self):
+            cmds = ['curl -s http://169.254.169.254/latest/dynamic/instance-identity/rsa2048','curl -s http://169.254.169.254/latest/dynamic/instance-identity/document']
+            for cmd in cmds:
+                utils_lib.run_cmd(self, cmd, msg='region identity data')
         cmd = "sudo subscription-manager config --rhsmcertd.auto_registration=1 --rhsm.manage_repos=0 --rhsmcertd.auto_registration_interval=1"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to enable auto_registration, disable managed_repos and change inverval from 60mins to 1min')
         cmd = "sudo systemctl restart rhsmcertd"

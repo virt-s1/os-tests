@@ -488,6 +488,41 @@ class EC2VM(VMResource):
     def detach_nic(self,nic,force=False):
         return nic.detach_from_instance(self.id, wait=True, force=force)
 
+    @property
+    def primary_nic_id(self):
+        for nic in self.ec2_instance.network_interfaces_attribute:
+            if nic['Attachment']['DeviceIndex'] == 0:
+                return nic['NetworkInterfaceId']
+        LOG.info("primary nic id not found")
+        return None
+
+    def assign_new_ip(self):
+        nic = self.resource.NetworkInterface(self.primary_nic_id)
+        ret = nic.assign_private_ip_addresses(
+                AllowReassignment=True,
+                SecondaryPrivateIpAddressCount=1
+            )
+        self.another_ip = ret['AssignedPrivateIpAddresses'][0]['PrivateIpAddress']
+        LOG.info("second nic ip{}".format(self.another_ip))
+        return self.another_ip
+    
+    def remove_added_ip(self):
+        nic = self.resource.NetworkInterface(self.primary_nic_id)
+        if self.another_ip is None:
+            LOG.info("second nic ip is {}".format(self.another_ip))
+            return False
+        try:
+            ret = nic.unassign_private_ip_addresses(
+                    PrivateIpAddresses=[
+                        self.another_ip,
+                    ]
+                )
+            LOG.info("removed second nic ip{}".format(self.another_ip))
+            return True
+        except Exception as err:
+            LOG.info(err)
+        return False
+
 class EC2Volume(StorageResource):
     '''
     Volume class
