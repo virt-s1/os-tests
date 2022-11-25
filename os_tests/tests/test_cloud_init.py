@@ -1545,9 +1545,8 @@ EOF""".format(device, size), expect_ret=0)
             # rpm -qR cloud-init
         """
         rm_dep_list = 'net-tools,python3-mock,python3-nose,python3-tox'
-        rhel_ver = utils_lib.run_cmd(self, "sudo cat /etc/redhat-release").rstrip('\n')
-        rhel_ver = float(re.search('release\s+(\d+.\d+)\s+', rhel_ver).group(1))
-        if rhel_ver >= 9.0:
+        product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
+        if float(product_id) >= 9.0:
             rm_dep_list = 'net-tools,python3-mock,python3-nose,python3-tox,python3-jsonschema'
         cmd = 'sudo rpm -qR cloud-init'
         utils_lib.run_cmd(self,

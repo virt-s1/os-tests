@@ -19,6 +19,27 @@ class TestLifeCycle(unittest.TestCase):
         self.log.info('set ssh connection timeout to {}'.format(self.ssh_timeout))
 
         if 'kdump' in self.id():
+            if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self) and utils_lib.is_aws(self):
+                self.log.info("aws aarch64 non-metal instance found, remove irqpoll if it is used following https://access.redhat.com/articles/6562431")
+                update_kdump_cfg = False
+                cmd = 'sudo grep irqpoll /etc/sysconfig/kdump |grep KDUMP_COMMANDLINE_REMOVE'
+                ret = utils_lib.run_cmd(self, cmd, ret_status=True)
+                if ret != 0:
+                    cmd = 'sudo bash -c " sed -i \'/KDUMP_COMMANDLINE_REMOVE=/s/quiet/quiet irqpoll/g\'  /etc/sysconfig/kdump"'
+                    utils_lib.run_cmd(self, cmd, msg='add irqpoll to KDUMP_COMMANDLINE_REMOVE')
+                    update_kdump_cfg = True
+                cmd = 'sudo grep irqpoll /etc/sysconfig/kdump |grep KDUMP_COMMANDLINE_APPEND'
+                ret = utils_lib.run_cmd(self, cmd, ret_status=True)
+                if ret == 0:
+                    cmd = 'sudo bash -c "sed -i \'/KDUMP_COMMANDLINE_APPEND=/s/irqpoll //g\'  /etc/sysconfig/kdump"'
+                    utils_lib.run_cmd(self, cmd, msg='remove irqpoll from KDUMP_COMMANDLINE_APPEND')
+                    update_kdump_cfg = True
+                if update_kdump_cfg:
+                    cmd = 'sudo cat /etc/sysconfig/kdump'
+                    utils_lib.run_cmd(self, cmd, msg='updated kdump')
+                    cmd = 'sudo systemctl restart kdump'
+                    utils_lib.run_cmd(self, cmd, msg='restart kdump')
+
             timeout = 120
             interval = 5
             time_start = int(time.time())

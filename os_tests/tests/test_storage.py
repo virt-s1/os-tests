@@ -1150,14 +1150,25 @@ class TestStorage(unittest.TestCase):
         cmd = 'sudo lsblk |grep -i part'
         output = utils_lib.run_cmd(self, cmd)
         if disk_discard not in output:
-            cmd = "sudo mkfs.xfs /dev/%s" % disk_discard
+            cmd = "sudo mkfs.xfs -f /dev/%s" % disk_discard
+            utils_lib.run_cmd(self, cmd, expect_ret=0)
+        cmd = 'mount'
+        output = utils_lib.run_cmd(self, cmd)
+        self.is_mounted = False
+        if disk_discard not in output:
+            cmd = "sudo mkfs.xfs -f /dev/%s" % disk_discard
             utils_lib.run_cmd(self, cmd, expect_ret=0)
             cmd = "sudo mount /dev/%s /mnt" % disk_discard
             utils_lib.run_cmd(self, cmd, expect_ret=0)
+            self.is_mounted = True
+
         cmd = "sudo fstrim -v /mnt"
         utils_lib.run_cmd(self, cmd, expect_ret=0)
 
     def tearDown(self):
+        if 'test_ssd_trim' in self.id():
+            if self.is_mounted:
+                utils_lib.run_cmd(self,'sudo umount /mnt')
         if 'blktests' in self.id():
             utils_lib.check_log(self, "trace", log_cmd='dmesg -T', cursor=self.cursor)
         else:

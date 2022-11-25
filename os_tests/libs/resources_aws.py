@@ -73,6 +73,9 @@ class EC2VM(VMResource):
         self.another_ip = None
         self.run_uuid = params.get('run_uuid')
         self.user_data = '#!/bin/bash\nmkdir -p /tmp/userdata_{}'.format(self.run_uuid)
+        self.hibernation_support = False
+        # efa_support default set to False, will query instance property next
+        self.efa_support = False
 
     def show(self):
         if self.is_exist():
@@ -82,9 +85,7 @@ class EC2VM(VMResource):
         # enable_efa is option to enable or disable efa when create vms
         # if vm does not support efa, it will be disabled
         self.is_created = False
-        # efa_support default set to False, will query instance property next
-        self.efa_support = False
-        self.hibernation_support = False
+
         try:
             self.efa_support = self.client.describe_instance_types(
                 InstanceTypes=[self.instance_type],
@@ -106,13 +107,14 @@ class EC2VM(VMResource):
         except Exception as error:
             LOG.info('Cannot determin root device name, use default {}'.format(self.root_device_name))
 
+        volume_size = 10
         vm_kwargs = {
             'BlockDeviceMappings':[
                 {
                     'DeviceName': self.root_device_name,
                     'Ebs': {
                         'DeleteOnTermination': True,
-                        'VolumeSize': 10,
+                        'VolumeSize': volume_size,
                         # root disk must be encrypted when hibernation enabled
                         'Encrypted': self.hibernation_support
                     },
@@ -155,9 +157,9 @@ class EC2VM(VMResource):
                 vm_kwargs["NetworkInterfaces"][0]["InterfaceType"] = 'efa'
             else:
                 LOG.info("efa is supported, but disable it as request")
-        #vm_kwargs["EnclaveOptions"]["Enabled"] = True
+        #vm_kwargs["EnclaveOptions"]["Enabled"] = True       
         if not self.additionalinfo:
-            for i in range(0,2):
+            for volume_size in [10,20,40,50]:
                 LOG.info("Create instance {}".format(vm_kwargs))
                 try:
                     self.ec2_instance = self.resource.create_instances(**vm_kwargs)[0]
@@ -166,26 +168,37 @@ class EC2VM(VMResource):
                 except Exception as err:
                     LOG.error("Failed to create instance with error:{}".format(err))
                     if 'UnsupportedHibernationConfiguration' in str(err):
-                        LOG.info("try to launch with hibernation disabled")
-                        self.hibernation_support = False
-                        vm_kwargs["HibernationOptions"]['Configured'] = self.hibernation_support
+                        vm_kwargs["BlockDeviceMappings"][0]['Ebs']['VolumeSize'] = volume_size
+                        LOG.info("Increase disk size {}".format(volume_size))
+                        if volume_size == 40:
+                            LOG.info("try to launch with hibernation disabled")
+                            self.hibernation_support = False
+                            vm_kwargs["HibernationOptions"]['Configured'] = self.hibernation_support
                         continue
-                    raise err
-            if not self.is_created:
-                raise Exception("Cannot create instance")
         if self.additionalinfo:
             for additionalinfo in self.additionalinfo.split(';'):
-                try:
-                    vm_kwargs['AdditionalInfo'] = additionalinfo
+                LOG.info("try addtionalinfo:{}".format(additionalinfo))
+                vm_kwargs['AdditionalInfo'] = additionalinfo
+                for volume_size in [10,20,40,50]:
                     LOG.info("Create instance {}".format(vm_kwargs))
-                    self.ec2_instance = self.resource.create_instances(**vm_kwargs)[0]
-                    self.is_created = True
-                except Exception as err:
-                    LOG.error("Failed to create instance, try another AdditionalInfo {}".format(err))
+                    try:
+                        self.ec2_instance = self.resource.create_instances(**vm_kwargs)[0]
+                        self.is_created = True
+                        break
+                    except Exception as err:
+                        LOG.error("Failed to create instance with error:{}".format(err))
+                        if 'UnsupportedHibernationConfiguration' in str(err):
+                            vm_kwargs["BlockDeviceMappings"][0]['Ebs']['VolumeSize'] = volume_size
+                            LOG.info("Increase disk size {}".format(volume_size))
+                            if volume_size == 40:
+                                LOG.info("try to launch with hibernation disabled")
+                                self.hibernation_support = False
+                                vm_kwargs["HibernationOptions"]['Configured'] = self.hibernation_support
+                            continue
                 if self.is_created:
                     break
-            if not self.is_created:
-                raise Exception("Cannot create instance")
+        if not self.is_created:
+            raise Exception("Cannot create instance")
         if wait:
             try:
                 self.ec2_instance.wait_until_running()
