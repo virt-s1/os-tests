@@ -1238,7 +1238,7 @@ COMMIT
                     self.vms[1].create(enable_efa=False)
                     if self.vms[1].is_stopped():
                         self.vms[1].start(wait=True)
-                    init_connection(self, timeout=self.ssh_timeout, vm=self.vms[1])
+                    utils_lib.init_connection(self, timeout=self.ssh_timeout, vm=self.vms[1])
                     run_cmd(self, 'lspci|grep EFA', expect_ret=1, vm=self.vms[1])
 
                     # Create EFA network interface and allocate elastic ip
@@ -1256,7 +1256,7 @@ COMMIT
                     # Check if EFA network interface is attached successfully
                     self.log.info('start vms[1]')
                     self.vms[1].start(wait=True)
-                    init_connection(self, timeout=self.ssh_timeout, vm=self.vms[1])
+                    utils_lib.init_connection(self, timeout=self.ssh_timeout, vm=self.vms[1])
                     run_cmd(self, 'lspci|grep EFA', expect_ret=0, vm=self.vms[1])
 
                     # Release elastic ip
@@ -1566,7 +1566,7 @@ COMMIT
                 self.vms.pop()
         if self.nic and self.nic.is_exist():
             self.nic.delete()
-        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', skip_words='ftrace', cursor=self.dmesg_cursor)
+        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', skip_words='ftrace,rawtrace', cursor=self.dmesg_cursor)
 
 if __name__ == '__main__':
     unittest.main()
