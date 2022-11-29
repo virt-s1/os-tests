@@ -186,7 +186,6 @@ runcmd:
             ssh_pwauth, ssh_key)
         user_data += user_data_ssh_key+'- mkdir /tmp/userdata_{}\n'.format(self.run_uuid)
         user_data += '''- [ sh, -xc, "echo $(date) ': hello today!'" ]'''
-        user_data += '\ncloud_config_modules:\n - mounts\n - locale\n - set-passwords\n - yum-add-repo\n - disable-ec2-metadata\n - runcmd'
         if self.vm_user_data:
             user_data += self.vm_user_data
         if self.user_data != None:

@@ -867,42 +867,6 @@ EOF""".format(device, size), expect_ret=0)
         res = utils_lib.run_cmd(self,"sudo /tmp/%s cloud-init" % self.vm.vm_custom_file)
         self.assertIn("13x OK", res, "man-page-day.sh check failed.")
 
-    def test_cloudinit_save_and_handle_customdata_cloudinit_config(self):
-        """
-        case_tag:
-            cloudinit,cloudinit_tier2
-        case_name:
-            test_cloudinit_save_and_handle_customdata_cloudinit_config
-        case_file:
-            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_save_and_handle_customdata_cloudinit_config
-        component:
-            cloudinit
-        bugzilla_id:
-            N/A
-        is_customer_case:
-            False
-        testplan:
-            N/A
-        maintainer:
-            minl@redhat.com
-        description:
-            Test if the new cloud-init configuration is handled correctly
-        key_steps: |
-            1. Create VM with custom data.
-            2. Check if the new cloud-init configuration is handled correctly.
-        expect_result:
-            The new cloud-init configuration is handled correctly.
-        debug_want:
-            N/A
-        """
-        if self.vm.provider != 'nutanix':
-            self.skipTest('skip run as this needs to configure userdata, configured on nutanix')
-        output = utils_lib.run_cmd(self,
-            "sudo grep 'running modules for config' "
-            "/var/log/cloud-init.log -B 10")
-        self.assertIn("Ran 6 modules", output,
-                      "The custom data is not handled correctly")
-
     def test_cloudinit_provision_vm_with_multiple_nics(self):
         """
         case_tag:
@@ -1822,7 +1786,7 @@ ssh_pwauth: 1
                 "{0} startup time is greater than {1}".format(service, cloud_init_startup_time))
         # Check overal boot time
         if float(boot_time_sec) > float(max_boot_time):
-            utils_lib.run_cmd(cmd='sudo journalctl -b0')
+            utils_lib.run_cmd(self, cmd='sudo journalctl -b0')
         self.assertLess(
             float(boot_time_sec), float(max_boot_time), 
             "First boot time is greater than {}".format(max_boot_time))  
