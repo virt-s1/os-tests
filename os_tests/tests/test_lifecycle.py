@@ -1073,7 +1073,7 @@ class TestLifeCycle(unittest.TestCase):
                     """
                 utils_lib.run_cmd(self, cmd, timeout=240)
 
-        cmd = "sleep 360 > /dev/null 2>&1 &"
+        cmd = "sleep 3600 > /dev/null 2>&1 &"
         utils_lib.run_cmd(self, cmd)
         vm_hibernate_success = False
         try:
