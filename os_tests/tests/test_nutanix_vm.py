@@ -1518,7 +1518,7 @@ sudo cat /etc/modprobe.d/blacklist-nouveau.conf"
         cmd = "[[ -f /etc/gdm/custom.conf ]] && \
 sudo grep WaylandEnable /etc/gdm/custom.conf && \
 sudo chmod 777 etc/gdm/custom.conf && \
-sudp sed -i '/WaylandEnable=false/s/^#//' /etc/gdm/custom.conf && \
+sudo sed -i '/WaylandEnable=false/s/^#//' /etc/gdm/custom.conf && \
 sudo chmod 644 etc/gdm/custom.conf && \
 sudo cat /etc/gdm/custom.conf"
         utils_lib.run_cmd(self, cmd,
