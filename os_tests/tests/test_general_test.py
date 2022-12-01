@@ -449,7 +449,7 @@ int main(int argc, char *argv[])
         des: "subscription-manager config" output should equal "subscription-manager config --list"
         '''
         utils_lib.is_cmd_exist(self, 'subscription-manager')
-        utils_lib.run_cmd(self, 'sudo subscription-manager config',
+        utils_lib.run_cmd(self, "sudo subscription-manager config",
                           expect_ret=0,
                           msg="Run 'subscription-manager config' first to skip the yum/dnf plugins warning, \
 the warning is only in qcow2 image as the plugins have been disabled by default, more info please refer to: \

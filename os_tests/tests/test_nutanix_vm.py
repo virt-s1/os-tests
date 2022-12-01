@@ -1571,7 +1571,7 @@ sudo systemctl set-default multi-user.target"
             N/A
         """
         TestNutanixVM.vm_vgpu_driver = False
-        supported_release = ["8.6", "8.7", "9.2"]
+        supported_release = ["8.6", "8.7", "8.8"]
         rhel_release = utils_lib.get_product_id(self).rstrip()
         if rhel_release not in supported_release:
             self.skipTest("Skip test as RHEL%s is not supported" % rhel_release)
