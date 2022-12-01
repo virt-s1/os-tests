@@ -8,6 +8,9 @@ import time
 class TestGeneralCheck(unittest.TestCase):
     def setUp(self):
         utils_lib.init_case(self)
+        cmd = "sudo virt-what | systemd-cat -p info"
+        utils_lib.run_cmd(self, cmd, msg="Gathering virt-what output info")
+
         if self.id().endswith(('test_check_rpm_V_differences', 'test_check_rpm_V_missing')):
             rpm_V_file = '/tmp/{}_rpm_V.log'.format(self.run_uuid)
             self.output = utils_lib.run_cmd(self, 'cat {}'.format(rpm_V_file), msg="check if output exists")
@@ -345,7 +348,11 @@ available_clocksource'
         debug_want:
             # dmesg
         """
-        utils_lib.check_log(self, 'Unknown symbol,Unknown command line,Unknown,unknown', log_cmd='dmesg')
+        if utils_lib.is_ahv(self):
+            cmd = "sudo virt-what && dmesg"
+        else:
+            cmd = "dmesg"
+        utils_lib.check_log(self, 'Unknown symbol,Unknown command line,Unknown,unknown', log_cmd=cmd)
 
     def test_check_dmesg_nmi(self):
         '''
@@ -975,7 +982,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
             - service unit file content
             - output from 'systemd-analyze verify $service'
         """
-        utils_lib.run_cmd(self, 'cat {}'.format(self.systemd_analyze_verify_file),expect_ret=0, expect_not_kw='Unknown lvalue', msg='Check there is no "Unknown lvalue" keyword')
+        utils_lib.check_log(self, 'Unknown lvalue', skip_words="test_check_journalctl_service_unknown_lvalue", rmt_redirect_stdout=True)
 
     def test_check_locale(self):
         '''
@@ -1047,6 +1054,9 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
                     "size" : 4286578688, <-- 4GiB is correct
                         "size" : 4286578688,
         '''
+        if utils_lib.is_ahv(self):
+            self.skipTest("Skip test as already covered in test_nutanix_vm.test_check_memory_size")
+
         utils_lib.is_cmd_exist(self, cmd='lshw')
         base_memory = utils_lib.get_memsize(self)
         cmd = 'sudo lshw -json'

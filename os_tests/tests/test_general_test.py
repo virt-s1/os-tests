@@ -449,6 +449,12 @@ int main(int argc, char *argv[])
         des: "subscription-manager config" output should equal "subscription-manager config --list"
         '''
         utils_lib.is_cmd_exist(self, 'subscription-manager')
+        utils_lib.run_cmd(self, 'sudo subscription-manager config',
+                          expect_ret=0,
+                          msg="Run 'subscription-manager config' first to skip the yum/dnf plugins warning, \
+the warning is only in qcow2 image as the plugins have been disabled by default, more info please refer to: \
+https://bugzilla.redhat.com/show_bug.cgi?id=2107502")
+        
         cmd1 = "sudo subscription-manager config > /tmp/sm_config.log"
         out1 = utils_lib.run_cmd(self, cmd1, expect_ret=0, msg='get {} output'.format(cmd1))
         cmd2 = "sudo subscription-manager config --list > /tmp/sm_config_list.log"
