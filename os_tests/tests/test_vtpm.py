@@ -203,7 +203,7 @@ cat secret.dec'''
         debug_want:
             output from dmesg or journal
         """
-        new_vm = self.vm.create_vm_by_acli('scriptCreateVtpmVM', str(self.vm.memory)+'G', '2', self.vm.cpu, 'true', 'true')
+        new_vm = self.vm.create_vm_by_acli(self.vm.vm_name+'_'+'scriptCreateVtpmVM', str(self.vm.memory)+'G', '2', self.vm.cpu, 'true', 'true')
         self.vms.append(new_vm)
         new_vm_ip = self.vms[1]['vm_nics'][0]['ip_address']
         for cmd, key_word_list, msg in zip(['ls /dev/tpm*','dmesg | grep TPM',\
@@ -222,11 +222,12 @@ cat secret.dec'''
         tpm_test_expect = 'This is some secret text'
         self.assertIn(tpm_test_expect, tpm_test_res,
             msg="Test encryption/decryption with TPM2 failed, Expect: %s, real: %s" % (tpm_test_expect,tpm_test_res))
-        vm1 = self.vm.get_vm_by_filter('vm_name', 'scriptCreateVtpmVM')
-        self.vm.prism.delete_vm(vm1['uuid'])
 
     def tearDown(self):
         utils_lib.check_log(self, "error,warn,fail,Call trace,Call Trace", log_cmd='dmesg -T', cursor=self.cursor)
+        if 'test_deploy_vm_with_vtpm' in self.id():
+            vm1 = self.vm.get_vm_by_filter('vm_name', self.vm.vm_name+'_'+'scriptCreateVtpmVM')
+            self.vm.delete(uuid=vm1['uuid'])
 
 if __name__ == '__main__':
     unittest.main()

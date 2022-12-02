@@ -258,6 +258,9 @@ runcmd:
             'vm_nics': network_uuids,
             'machine_type': self.machine_type
         }
+        logging.info("==============vm data================>")
+        logging.info(data)
+        logging.info("<==============vm data================")
         return self.make_request(endpoint, 'post', data=data)
 
     def create_vm_ISO_kickstart(self, single_nic=True, vm_name=None):
@@ -823,9 +826,12 @@ class NutanixVM(VMResource):
         vm = self.get_vm_by_filter('vm_name', vm_name)
         return vm
 
-    def delete(self, wait=True):
-        logging.info("Delete VM")
-        res = self.prism.delete_vm(self.data.get('uuid'))
+    def delete(self, wait=True, uuid='default'):
+        logging.info("Delete VM for %s" % uuid)
+        if uuid == 'default':
+            res = self.prism.delete_vm(self.data.get('uuid'))
+        else:
+            res = self.prism.delete_vm(uuid)
         if wait:
             self.wait_for_status(
                 res['task_uuid'], 30,
