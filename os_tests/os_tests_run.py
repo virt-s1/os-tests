@@ -9,6 +9,7 @@ import os_tests
 from os_tests.libs.html_runner import HTMLTestRunner
 import uuid
 import logging
+import re
 from itertools import chain
 LOG_FORMAT = '%(asctime)s:%(levelname)s:%(message)s'
 log = logging.getLogger(__name__)
@@ -82,16 +83,6 @@ def main():
             if not args.verifydoc:
                 skip_patterns = 'test_azure_image,test_gcp_image,test_rhel_guest_image'
 
-    if not is_rmt and not args.platform_profile:
-        log.info("skip lifecycle tests as no remote node found")
-        if skip_patterns and not args.verifydoc:
-            skip_patterns = skip_patterns + ',test_lifecycle'
-        else:
-            skip_patterns = 'test_lifecycle' 
-
-    if not args.platform_profile and not args.verifydoc:
-        skip_patterns = skip_patterns + ',test_vm_operation' if skip_patterns else 'test_vm_operation'
-
     log.info("{}Stage: Run Test{}".format('='*20,'='*20))
     log.info("Run in mode: is_listcase:{} test_patterns:{} skip_patterns:{}".format(args.is_listcase, test_patterns, skip_patterns))
 
@@ -102,6 +93,7 @@ def main():
     ts = unittest.defaultTestLoader.discover(start_dir=os_tests_dir,pattern='test_*.py', top_level_dir=os.path.dirname(os_tests_dir))
     tmp_ts = copy.deepcopy(ts)
     final_ts = unittest.TestSuite()
+    tests_list = []
     for ts1 in tmp_ts:
         if len(ts1._tests) > 0:
             for ts2 in ts1._tests:
@@ -122,10 +114,19 @@ def main():
                         case.nic = case.nics and nics[0] or None
                         if filter_case_doc(case=case, patterns=test_patterns, skip_patterns=skip_patterns,
                                            filter_field=args.filter_by, strict=args.is_strict, verify_doc=args.verifydoc):
-                            final_ts.addTest(case)
+                            tests_list.append(case)
                 except Exception as err:
                     log.info("Cannot handle ts discovered:{}".format(ts2))
                     log.info(err)
+    # sort cases following the patterns specified order
+    if test_patterns:
+        sorted_tests = []
+        for pattern in test_patterns.split(','):
+            for case in tests_list:
+                if re.match(".*{}.*".format(pattern),case.id(),re.IGNORECASE) and case not in sorted_tests:
+                    sorted_tests.append(case)
+        tests_list = sorted_tests
+    final_ts.addTests(tests_list)
     if final_ts.countTestCases() == 0:
         log.info("No case found!")
         sys.exit(1)
