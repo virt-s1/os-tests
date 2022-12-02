@@ -16,7 +16,7 @@ class TestNutanixVM(unittest.TestCase):
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         utils_lib.init_case(self)        
-        self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='journalctl')
+        self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='dmesg -T')
 
     def _verify_live_migration(self, host_list):
         if len(host_list) < 2:
@@ -1620,11 +1620,10 @@ sudo /tmp/%s --no-opengl-files --accept-license --install-compat32-libs --silent
         if "upgrade" in self.id():
             pass
         else:
-            cmd = "sudo virt-what | systemd-cat -p info"
-            utils_lib.run_cmd(self, cmd, msg="Gathering virt-what output info")
+            utils_lib.msg_to_syslog(self)
             utils_lib.check_log(self, 
                                 "error,warn,fail,unable,unknown,Unknown,Call trace,Call Trace",
-                                log_cmd='journalctl', cursor=self.dmesg_cursor)
+                                log_cmd='dmesg -T', cursor=self.dmesg_cursor)
 
 if __name__ == '__main__':
     unittest.main()

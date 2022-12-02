@@ -8,9 +8,7 @@ import time
 class TestGeneralCheck(unittest.TestCase):
     def setUp(self):
         utils_lib.init_case(self)
-        cmd = "sudo virt-what | systemd-cat -p info"
-        utils_lib.run_cmd(self, cmd, msg="Gathering virt-what output info")
-
+        utils_lib.msg_to_syslog(self)
         if self.id().endswith(('test_check_rpm_V_differences', 'test_check_rpm_V_missing')):
             rpm_V_file = '/tmp/{}_rpm_V.log'.format(self.run_uuid)
             self.output = utils_lib.run_cmd(self, 'cat {}'.format(rpm_V_file), msg="check if output exists")
@@ -348,11 +346,7 @@ available_clocksource'
         debug_want:
             # dmesg
         """
-        if utils_lib.is_ahv(self):
-            cmd = "sudo virt-what && dmesg"
-        else:
-            cmd = "dmesg"
-        utils_lib.check_log(self, 'Unknown symbol,Unknown command line,Unknown,unknown', log_cmd=cmd)
+        utils_lib.check_log(self, 'Unknown symbol,Unknown command line,Unknown,unknown', log_cmd='dmesg')
 
     def test_check_dmesg_nmi(self):
         '''
@@ -658,7 +652,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         debug_want:
             journalctl log
         """
-        utils_lib.check_log(self, 'Traceback,Backtrace', skip_words='test_check_journal_calltrace', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, 'Traceback,Backtrace', rmt_redirect_stdout=True)
 
     def test_check_journalctl_cannot(self):
         '''
@@ -683,7 +677,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         expected_result:
             No new unknown 'Could not' log found.
         '''
-        utils_lib.check_log(self, 'Could not,can not', skip_words='test_check_journalctl_cannot', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, 'Could not,can not', rmt_redirect_stdout=True)
 
     def test_check_journalctl_conflict(self):
         '''
@@ -708,7 +702,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         expected_result:
             No conflict log found.
         '''
-        utils_lib.check_log(self, 'conflict', skip_words='test_check_journalctl_conflict', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, 'conflict', rmt_redirect_stdout=True)
 
     def test_check_journalctl_denied(self):
         '''
@@ -733,7 +727,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         expected_result:
             No new unknown denied log found.
         '''
-        utils_lib.check_log(self, 'denied', skip_words='test_check_journalctl_denied', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, 'denied', rmt_redirect_stdout=True)
 
     def test_check_journalctl_disabled(self):
         """
@@ -761,7 +755,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
             # journalctl
         """
         expect_not_kws = 'KASLR disabled'
-        utils_lib.check_log(self, expect_not_kws, skip_words='test_check_journalctl_disabled', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, expect_not_kws, rmt_redirect_stdout=True)
 
     def test_check_journalctl_dumpedcore(self):
         """
@@ -801,7 +795,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
                 else:
                     cmd = "cp {} {}/attachments/{}".format(core_file, self.log_dir,os.path.basename(core_file) )
                     utils_lib.run_cmd(self, cmd, msg='save {} to {}'.format(core_file, self.log_dir))
-        utils_lib.check_log(self, 'dumped core', skip_words='test_check_journalctl_dumpedcore', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, 'dumped core', rmt_redirect_stdout=True)
 
     def test_check_journalctl_error(self):
         """
@@ -827,7 +821,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         debug_want:
             dmesg
         """
-        utils_lib.check_log(self, 'error', skip_words='test_check,UpdateGSErrors', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, 'error', skip_words='UpdateGSErrors', rmt_redirect_stdout=True)
 
     def test_check_journalctl_fail(self):
         '''
@@ -850,7 +844,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         expected_result:
             No new unknown fail log found.
         '''
-        utils_lib.check_log(self, 'fail', skip_words='test_check,nofail', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, 'fail', skip_words='nofail', rmt_redirect_stdout=True)
 
     def test_check_journalctl_not_found(self):
         '''
@@ -876,7 +870,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         expected_result:
             No new unknown not file found log found.
         '''
-        utils_lib.check_log(self, 'not found,no such', skip_words='test_check_journalctl_not_found', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, 'not found,no such', rmt_redirect_stdout=True)
 
     def test_check_journalctl_unexpected(self):
         '''
@@ -901,7 +895,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         expected_result:
             No new unknown unexpected log found.
         '''
-        utils_lib.check_log(self, 'unexpected', skip_words='test_check_journalctl_unexpected', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, 'unexpected', rmt_redirect_stdout=True)
 
     def test_check_journalctl_warn(self):
         """
@@ -927,7 +921,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         debug_want:
             dmesg
         """
-        utils_lib.check_log(self, 'warn', skip_words='test_check',rmt_redirect_stdout=True)
+        utils_lib.check_log(self, 'warn', rmt_redirect_stdout=True)
 
     def test_check_journalctl_invalid(self):
         """
@@ -954,7 +948,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         polarion_id:
         bz:1750417
         '''
-        utils_lib.check_log(self, 'invalid', skip_words="Invalid user,invalid user,test_check", rmt_redirect_stdout=True)
+        utils_lib.check_log(self, 'invalid', skip_words="Invalid user,invalid user", rmt_redirect_stdout=True)
 
     def test_check_journalctl_service_unknown_lvalue(self):
         """
@@ -982,7 +976,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
             - service unit file content
             - output from 'systemd-analyze verify $service'
         """
-        utils_lib.check_log(self, 'Unknown lvalue', skip_words="test_check_journalctl_service_unknown_lvalue", rmt_redirect_stdout=True)
+        utils_lib.check_log(self, 'Unknown lvalue', rmt_redirect_stdout=True)
 
     def test_check_locale(self):
         '''
