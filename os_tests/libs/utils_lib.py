@@ -432,21 +432,22 @@ def filter_case_doc(case=None, patterns=None, skip_patterns=None, filter_field='
                 print('missing {}'.format(i))
     return is_select and not is_skip
 
-def msg_to_syslog(test_instance, msg=None):
+def msg_to_syslog(test_instance, cmd='sudo virt-what', msg=None):
     '''
     Save msg to journal log and dmesg.
     Arguments:
         test_instance {Test instance} -- unittest.TestCase instance
+        cmd {string} -- append cmd output to journal and dmesg
         msg {string} -- msg want to save, default is casename
-    Return:
-        arm: return True
-        other: return False
     '''
     if msg is None:
         msg = test_instance.id()
-    cmd = "sudo echo os-tests:{} | systemd-cat -p info".format(msg)
+    output = ''
+    if cmd:
+        output = run_cmd(test_instance, cmd)
+    cmd = 'sudo echo os-tests:"{} {}" | systemd-cat -p info'.format(msg, output)
     run_cmd(test_instance, cmd, expect_ret=0)
-    cmd = "sudo bash -c 'echo \"{}\" > /dev/kmsg'".format(msg)
+    cmd = "sudo bash -c 'echo \"{} {}\" > /dev/kmsg'".format(msg,output)
     run_cmd(test_instance, cmd, expect_ret=0)
 
 def run_cmd(test_instance,
