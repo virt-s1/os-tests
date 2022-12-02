@@ -30,7 +30,7 @@ def init_args():
     parser.add_argument('-l', dest='is_listcase', action='store_true',
                     help='list supported cases without run', required=False)
     parser.add_argument('-p', dest='pattern', default=None, action='store',
-                    help='filter case by name, add --strict for matching exactly', required=False)
+                    help='filter case by name and run it in specified order, add --strict for matching exactly', required=False)
     parser.add_argument('--strict', dest='is_strict', action='store_true',
                     help='match exactly if -p or -s specified', required=False)
     parser.add_argument('-s', dest='skip_pattern', default=None, action='store',
