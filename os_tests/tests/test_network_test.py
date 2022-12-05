@@ -482,7 +482,7 @@ class TestNetworkTest(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, msg='create /tmp/test/hello')
         registries = ['docker.io/library/httpd:2.4','docker.mirrors.ustc.edu.cn/library/httpd:2.4']
         for registry in registries:
-            cmd = 'podman run -dit --name httpd_site -p 8188:80 -v "/tmp/test":/usr/local/apache2/htdocs/:Z {}'.format(registry)
+            cmd = 'sudo podman run -dit --name httpd_site -p 8188:80 -v "/tmp/test":/usr/local/apache2/htdocs/:z {}'.format(registry)
             ret = utils_lib.run_cmd(self, cmd, timeout=600, msg='start container httpd_site', ret_status=True)
             if ret == 0:
                 break
