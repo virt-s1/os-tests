@@ -1330,5 +1330,14 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2115230",
         "path": "journalctl",
         "trigger": "irqbalance.service:6"
+    },
+    "msg_150": {
+        "content": "nft_compat will not be maintained in a future major release and may be disabled",
+        "analyze": "",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1945151",
+        "path": "dmesg",
+        "trigger": "podman"
     }
 }
