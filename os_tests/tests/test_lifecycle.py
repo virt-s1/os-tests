@@ -805,6 +805,9 @@ class TestLifeCycle(unittest.TestCase):
         debug_want:
             N/A
         """
+        cpu_num = int(utils_lib.run_cmd(self, 'cat /proc/cpuinfo | grep processor | wc -l'))
+        if cpu_num < 2:
+            self.skipTest("Skip test case since need at least 2 cpus for test")
         for cpus in [1,2]:
             boot_param_required = 'nr_cpus='+str(cpus)
             cat_proc_cmdline = self._update_kernel_args(boot_param_required)
@@ -845,15 +848,6 @@ class TestLifeCycle(unittest.TestCase):
             self.skipTest("Skip test case since cpu number is not greater than 2")
         if cpu_num > 2:
             cpus = 2
-        kernel_ver = utils_lib.run_cmd(self, 'uname -r', expect_ret=0)
-        cmd = 'sudo grubby --update-kernel=/boot/vmlinuz-%s --args="nr_cpus=%s"' %(kernel_ver.strip('\n'),cpus)
-        utils_lib.run_cmd(self,
-                            cmd,
-                            expect_ret=0,
-                            msg='set boot args nr_cpus=%s '%cpus)
-
-        self.vm.reboot()
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
         # Check /proc/cmdline for the nr_cpus args
         boot_param_required = 'nr_cpus=%s'%cpus

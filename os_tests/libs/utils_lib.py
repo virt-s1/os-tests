@@ -30,7 +30,7 @@ def init_args():
     parser.add_argument('-l', dest='is_listcase', action='store_true',
                     help='list supported cases without run', required=False)
     parser.add_argument('-p', dest='pattern', default=None, action='store',
-                    help='filter case by name, add --strict for matching exactly', required=False)
+                    help='filter case by name and run it in specified order, add --strict for matching exactly', required=False)
     parser.add_argument('--strict', dest='is_strict', action='store_true',
                     help='match exactly if -p or -s specified', required=False)
     parser.add_argument('-s', dest='skip_pattern', default=None, action='store',
@@ -432,21 +432,22 @@ def filter_case_doc(case=None, patterns=None, skip_patterns=None, filter_field='
                 print('missing {}'.format(i))
     return is_select and not is_skip
 
-def msg_to_syslog(test_instance, msg=None):
+def msg_to_syslog(test_instance, cmd='sudo virt-what', msg=None):
     '''
     Save msg to journal log and dmesg.
     Arguments:
         test_instance {Test instance} -- unittest.TestCase instance
+        cmd {string} -- append cmd output to journal and dmesg
         msg {string} -- msg want to save, default is casename
-    Return:
-        arm: return True
-        other: return False
     '''
     if msg is None:
         msg = test_instance.id()
-    cmd = "sudo echo os-tests:{} | systemd-cat -p info".format(msg)
+    output = ''
+    if cmd:
+        output = run_cmd(test_instance, cmd)
+    cmd = 'sudo echo os-tests:"{} \n{}" | systemd-cat -p info'.format(msg, output)
     run_cmd(test_instance, cmd, expect_ret=0)
-    cmd = "sudo bash -c 'echo \"{}\" > /dev/kmsg'".format(msg)
+    cmd = "sudo bash -c 'echo \"{} \n{}\" > /dev/kmsg'".format(msg, output)
     run_cmd(test_instance, cmd, expect_ret=0)
 
 def run_cmd(test_instance,
@@ -1072,12 +1073,15 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl -b 0", match_word_
         test_instance.log.info("Loading baseline data file from {}".format(baseline_file))
         baseline_dict = json.load(fh)
     run_cmd(test_instance, '\n')
-    check_cmd = log_cmd
 
+    check_cmd = log_cmd + '|grep -Ev "{}"'.format(test_instance.id())
+    if 'test_check' in test_instance.id():
+        check_cmd = check_cmd + '|grep -Ev test_check'
     if match_word_exact:
-        check_cmd = check_cmd + '|grep -iw %s' % log_keyword
+        check_cmd = check_cmd + '|grep -iw "{}"'.format(log_keyword)
     if skip_words:
-        check_cmd = check_cmd + '|grep -Ev "{}"'.format(skip_words.replace(',','|'))
+        check_cmd = check_cmd + '|grep -Ev "{}"'.format(skip_words.replace(',', '|'))
+
     ret = False
     if cursor is not None:
         out = run_cmd(test_instance,

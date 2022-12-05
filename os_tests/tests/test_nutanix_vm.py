@@ -15,7 +15,7 @@ class TestNutanixVM(unittest.TestCase):
             self.skipTest("Skip as not Nutanix AHV platform")
         if self.vm.is_stopped():
             self.vm.start(wait=True)
-        utils_lib.init_case(self)
+        utils_lib.init_case(self)        
         self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='dmesg -T')
 
     def _verify_live_migration(self, host_list):
@@ -154,7 +154,7 @@ sudo setsid ~/stressapptest/src/stressapptest -M %s -s %s > %s" % \
 
     def _verify_stress_memory_stressapptest(self):
         '''
-        Verify memory memory stressapptest test is passed
+        Verify memory stressapptest test is passed
         '''
         cmd = "cat /tmp/stressapptest_memory.log"
         for count in utils_lib.iterate_timeout(
@@ -1453,12 +1453,14 @@ sudo wget --no-check-certificate -nv --directory-prefix=/etc/leapp/files/ %s/dev
         debug_want:
             N/A
         """
+        TestNutanixVM.vm_vgpu_device = False
         device_name = self.vm.params['vGPU']['device_name']
-        if self.vm.host_gpu_info():
-            if not device_name:
-                self.skipTest("Skip test as no vGPU device specified in nutanix.yaml")
-            self.vm.assign_vgpu(device_name)
+        if not device_name:
+            self.skipTest("Skip test as no vGPU device specified in nutanix.yaml")
+        if not self.vm.host_gpu_info():
+            self.skipTest("Skip test as no GPU device in AHV host")
 
+        self.vm.assign_vgpu(device_name)
         utils_lib.init_connection(self)
         utils_lib.run_cmd(self, "lspci",
                           expect_ret=0, expect_kw="Tesla T4",
@@ -1497,6 +1499,7 @@ sudo wget --no-check-certificate -nv --directory-prefix=/etc/leapp/files/ %s/dev
         debug_want:
             N/A
         """
+        TestNutanixVM.vm_vgpu_disable_nouveau = False
         if not self.vm_vgpu_device:
             self.skipTest("Skip test as must run 'test_vgpu_add_device' first")
 
@@ -1567,7 +1570,8 @@ sudo systemctl set-default multi-user.target"
         debug_want:
             N/A
         """
-        supported_release = ["8.6", "8.7"]
+        TestNutanixVM.vm_vgpu_driver = False
+        supported_release = ["8.6", "8.7", "8.8"]
         rhel_release = utils_lib.get_product_id(self).rstrip()
         if rhel_release not in supported_release:
             self.skipTest("Skip test as RHEL%s is not supported" % rhel_release)
@@ -1616,6 +1620,7 @@ sudo /tmp/%s --no-opengl-files --accept-license --install-compat32-libs --silent
         if "upgrade" in self.id():
             pass
         else:
+            utils_lib.msg_to_syslog(self)
             utils_lib.check_log(self, 
                                 "error,warn,fail,unable,unknown,Unknown,Call trace,Call Trace",
                                 log_cmd='dmesg -T', cursor=self.dmesg_cursor)
