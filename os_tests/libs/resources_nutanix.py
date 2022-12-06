@@ -191,6 +191,7 @@ runcmd:
         if self.user_data != None:
             user_data = self.user_data
             user_data += user_data_ssh_key
+            self.user_data = None
         logging.info('userdata for creating vm is \n %s' % user_data)
         # Attach user script.
         user_script=[]
