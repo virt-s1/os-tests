@@ -303,7 +303,7 @@ int main(int argc, char *argv[])
         utils_lib.is_cmd_exist(self, cmd='wget', cancel_case=True)
         redis_src = self.utils_dir + '/redis_8124.c'
         redis_src_tmp = '/tmp/redis_8124.c'
-        if self.params['remote_node'] is not None:
+        if self.params.get('remote_node') is not None:
             self.log.info('Copy {} to remote'.format(redis_src))
             self.SSH.put_file(local_file=redis_src, rmt_file=redis_src_tmp)
         else:

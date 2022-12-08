@@ -2,6 +2,7 @@ import re
 import unittest
 import time
 import random
+import os
 
 from os_tests.libs import utils_lib
 from os_tests.libs.utils_lib import run_cmd
@@ -339,7 +340,7 @@ class TestNetworkTest(unittest.TestCase):
             mtu_max = 65535
         elif 'vmxnet3' in output:
             self.log.info('vmxnet3 found!')
-            if self.params['remote_node'] is not None:
+            if self.params.get('remote_node') is not None:
                 self.skipTest("Skip mtu test while running remotely with vmxnet3")
             self.log.info("vmxnet3 min mtu is 60, because of bz1503193, skip test lower value than 68")
             mtu_range = [68, 4500, 9190, 9192]
@@ -1066,6 +1067,7 @@ COMMIT
             cmd = 'sudo ethtool -k eth0'
             utils_lib.run_cmd(self, cmd, expect_kw="%s: on" % option_dict[option])
 
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') == 'aws', 'aws dedicated feature')
     def test_check_efa_device_driver(self):
         """
         case_tag:
@@ -1104,6 +1106,7 @@ COMMIT
             run_cmd(self, cmd, expect_ret=0, msg='check if EFA device exist and efa module is loaded')
             self.log.info('EFA device is found and efa driver is loaded on the instance ' + instance_type)
             
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') == 'aws', 'aws dedicated feature')
     def test_install_libfabric_check_efa_provider(self):
         """
         case_tag:
@@ -1141,7 +1144,8 @@ COMMIT
             if utils_lib.is_pkg_installed(self,'libfabric'):
                 cmd = 'fi_info -p efa'
                 utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw="provider: efa", msg='Check the Libfabric EFA interfaces')
-            
+
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') == 'aws', 'aws dedicated feature')        
     def test_load_unload_efa_driver(self):
         """
         case_tag:
@@ -1192,6 +1196,7 @@ COMMIT
             if ret == 0:
                 self.log.info('efa driver is loaded successfully')
 
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') == 'aws', 'aws dedicated feature')
     def test_attach_detach_efa_device(self):
         """
         case_tag:
@@ -1227,8 +1232,8 @@ COMMIT
         debug_want:
             N/A
     	"""
-        if not self.vm or self.vm.provider != "aws":
-            self.skipTest("Skip test case since instance is not vm or aws")
+        if not self.vm:
+            self.skipTest("Skip test case since instance is not vm")
         else:
             instance_type = self.vm.instance_type
             if not self.vm.efa_support:
@@ -1327,6 +1332,7 @@ COMMIT
         file_size = int(utils_lib.run_cmd(self, "ls -l ~/5G.img | awk '{print $5}'", expect_ret=0).strip())/(1024*1024*1024)
         self.assertAlmostEqual(first=5, second=file_size, delta=0.1, msg="Value of copied file is not right, Expect: 5, real: %s" % (file_size))
 
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') == 'aws', 'aws dedicated feature')
     def test_mpi_app_via_efa_provider(self):
         """
         case_tag:
@@ -1359,8 +1365,8 @@ COMMIT
         debug_want:
             efa,libfabric
         """
-        if not self.vm or self.vm.provider != "aws":
-            self.skipTest("Skip test case since instance is not vm or aws")
+        if not self.vm:
+            self.skipTest("Skip test case since instance is not vm")
 
         instance_type = self.vm.instance_type
         if not self.vm.efa_support:
@@ -1403,7 +1409,7 @@ COMMIT
         """
         check_file = self.utils_dir + '/nw_pktgen.sh'
         check_file_tmp = '/tmp/nw_pktgen.sh'
-        if self.params['remote_node'] is not None:
+        if self.params.get('remote_node') is not None:
             cmd = 'ls -l {}'.format(check_file_tmp)
             ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='check if {} exists'.format(check_file))
             if ret != 0:

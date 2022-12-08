@@ -4,6 +4,7 @@ from os_tests.libs.resources import UnSupportedAction
 import time
 import re
 import json
+import os
 
 class TestCloudInit(unittest.TestCase):
     def setUp(self):
@@ -117,6 +118,7 @@ class TestCloudInit(unittest.TestCase):
         if out.count('BEGIN') != out.count('SHA256')/3:
             self.fail('fingerprints count {} does not match expected {}'.format(out.count('SHA256')/3,out.count('BEGIN')))
 
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') == 'aws', 'aws dedicated feature')
     def test_check_cloudinit_log_imdsv2(self):
         """
         case_tag:
@@ -339,7 +341,7 @@ class TestCloudInit(unittest.TestCase):
             cloud-init log file
         """
         #workaround nutanix dev console issue
-        if self.vm.provider == 'nutanix':
+        if self.vm and self.vm.provider == 'nutanix':
             cmd = '''cat /var/log/cloud-init.log | grep -Pzo "Traceback.*\\n\s+File.*" | \
 grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         else:
@@ -356,6 +358,7 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
                         expect_not_kw='Traceback',
                         msg='check /var/log/cloud-init-output.log')
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') == 'nutanix', 'nutanix platform on which use config drive to fetch metadata but not http service')
     def test_check_metadata(self):
         '''
         case_tag:
@@ -364,9 +367,7 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         description:
             https://cloudinit.readthedocs.io/en/latest/topics/datasources/ec2.html
         '''
-        if self.vm.provider == 'nutanix':
-            self.skipTest('skip run for nutanix platform on which use config drive to fetch metadata but not http service')
-        if self.vm.provider == 'ali':
+        if utils_lib.is_ali(self):
             cmd = r"curl http://100.100.100.200/latest/meta-data"
         else:
             cmd = r"curl http://169.254.169.254/latest/meta-data/instance-type"
@@ -832,6 +833,7 @@ EOF""".format(device, size), expect_ret=0)
         self.assertEqual(start.strip(), size + 's', "Start size is not correct")
         self.assertEqual(end.strip(), '4194270s', "End size is not correct")
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') != 'nutanix', 'needs to configure vm_custom_file which is configured on nutanix')
     def test_cloudinit_save_and_handle_customdata_script(self):
         """
         case_tag:
@@ -861,12 +863,11 @@ EOF""".format(device, size), expect_ret=0)
         debug_want:
             N/A
         """
-        if self.vm.provider != 'nutanix':
-            self.skipTest('skip run as this needs to configure vm_custom_file, configured on nutanix')
         utils_lib.run_cmd(self,"sudo chmod 777 /tmp/%s" % self.vm.vm_custom_file)
         res = utils_lib.run_cmd(self,"sudo /tmp/%s cloud-init" % self.vm.vm_custom_file)
         self.assertIn("13x OK", res, "man-page-day.sh check failed.")
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') != 'nutanix', 'needs to configure single_nic which is configured on nutanix')
     def test_cloudinit_provision_vm_with_multiple_nics(self):
         """
         case_tag:
@@ -897,8 +898,6 @@ EOF""".format(device, size), expect_ret=0)
         """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
-        if self.vm.provider != 'nutanix':
-            self.skipTest('skip run as this needs to configure single_nic, configured on nutanix')
         self.vm.delete(wait=True)
         self.vm.create(single_nic=False, wait=True)
         self.vm.start(wait=True)
@@ -1407,6 +1406,7 @@ EOF""".format(device, size), expect_ret=0)
                           expect_kw='NOZEROCONF=yes',
                           msg='check if NOZEROCONF=yes in /etc/sysconfig/network')
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') == 'nutanix', 'skip run for nutanix platform on which authorized_keys be modified.')
     def test_cloudinit_root_exit_code(self):
         """
         case_tag:
@@ -1425,8 +1425,6 @@ EOF""".format(device, size), expect_ret=0)
             2. Check the /root/.ssh/authorized_keys, the exit code is 142
             # cat /root/.ssh/authorized_keys" 
         """
-        if self.vm.provider == 'nutanix':
-            self.skipTest('skip run for nutanix platform on which authorized_keys be modified.')
         self.log.info(
             "RHEL-287348 - CLOUDINIT-TC: Using root user error should cause a non-zero exit code")
         cmd = 'sudo cat /root/.ssh/authorized_keys'
@@ -1436,6 +1434,7 @@ EOF""".format(device, size), expect_ret=0)
                           expect_kw='echo;sleep 10;exit 142',
                           msg='check if the exit code correct')
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') in ['nutanix','aws'], 'skip run on {} platform which there is no ip route append command used'.format(os.getenv('INFRA_PROVIDER')))
     def test_cloudinit_ip_route_append(self):        
         """
         case_tag:
@@ -1454,8 +1453,6 @@ EOF""".format(device, size), expect_ret=0)
             2. Check /var/log/cloud-init.log
             cloud-init should config static ip route via "ip route append" 
         """
-        if self.vm.provider in ['nutanix','aws']:
-            self.skipTest('skip run on {} platform which there is no ip route append command used'.format(self.vm.provider))
         cmd = 'cat /var/log/cloud-init.log | grep append'
 
         utils_lib.run_cmd(self,
