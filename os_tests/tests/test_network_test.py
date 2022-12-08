@@ -31,7 +31,8 @@ class TestNetworkTest(unittest.TestCase):
                 if net.startswith(('eth','en')):
                     self.active_nic  = net
                     break
-        self.log.info("Pick up nic {}".format(self.active_nic ))
+        self.active_nic = self.active_nic.strip()
+        self.log.info("Pick up nic {}".format(self.active_nic))
         cmd = "ip addr show {}".format(self.active_nic )
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to get {} ipv4 address'.format(self.active_nic ))
         self.ipv4 = re.findall('[\d.]{7,16}', output)[0]
@@ -550,10 +551,9 @@ COMMIT
         '''
         self.log.info("Enter _test_add_remove_multi_nics procedure")
         #record origin nic's mac and name
-        origin_nic_name = utils_lib.run_cmd(self, "ls /sys/class/net/ | grep -v lo").strip()
-        origin_nic_mac = utils_lib.run_cmd(self, "cat /sys/class/net/%s/address" % origin_nic_name).strip()
+        origin_nic_mac = utils_lib.run_cmd(self, "cat /sys/class/net/%s/address" % self.active_nic).strip()
         #stop vm to add nic if vm is secure boot and record the set ip list
-        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+        if self.vm.provider == 'nutanix' and self.vm.if_secure_boot:
             self.vm.stop(wait=True)
         try:
             used_ip_list = self.vm.list_networks_address(self.vm.private_network_uuid)
@@ -574,7 +574,7 @@ COMMIT
             self.vm.attach_nic(network_uuid, ip_address, driver)
         time.sleep(10)
         set_ip_list.sort()
-        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+        if self.vm.provider == 'nutanix' and self.vm.if_secure_boot:
             #start vm
             self.vm.start(wait=True)
             time.sleep(30)
@@ -586,7 +586,7 @@ COMMIT
         nic_name_list = (utils_lib.run_cmd(self, "ls /sys/class/net | grep e")).split()
         for nic_name in nic_name_list:
             nic_driver = utils_lib.run_cmd(self, "ethtool -i %s | grep driver | awk '{print $2}'" % nic_name).strip()
-            if nic_name == origin_nic_name:
+            if nic_name == self.active_nic:
                 self.assertEqual(nic_driver, 'virtio_net', msg="Default nic dirver is not virtio_net, real: %s" % nic_driver)
             else:
                 if driver == 'virtio':
@@ -605,13 +605,13 @@ COMMIT
             vm_ip_list.sort()
             self.assertEqual(vm_ip_list, set_ip_list, msg="IP configure is not right, \
                 Expect: %s, real: %s" % (str(set_ip_list), str(vm_ip_list)))
-        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+        if self.vm.provider == 'nutanix' and self.vm.if_secure_boot:
             self.vm.stop(wait=True)
         #delete nic by mac
         for mac in nic_mac_list:
             if mac != origin_nic_mac:
                 self.vm.detach_nic(mac)
-        if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+        if self.vm.provider == 'nutanix' and self.vm.if_secure_boot:
             self.vm.start(wait=True)
             time.sleep(30)
             utils_lib.init_connection(self, timeout=180)
@@ -684,7 +684,7 @@ COMMIT
         if not self.vm:
             self.skipTest('vm not init')
         utils_lib.check_attribute(self.vm, 'private_network_uuid,private_network_subnet',test_instance=self, cancel_case=True)
-        if self.vm.provider == 'nutanix' and self.vm.prism.machine_type == 'q35':
+        if self.vm.provider == 'nutanix' and self.vm.machine_type == 'q35':
             multi_num = 1
         else:
             multi_num = 2
@@ -725,8 +725,7 @@ COMMIT
     def _test_unload_load_nic_driver(self, driver):
         self.log.info("Enter _test_unload_load_nic_driver procedure")
         #record the first nic
-        origin_nic_name = utils_lib.run_cmd(self, "ls /sys/class/net/ | grep -v lo").strip()
-        origin_nic_mac = utils_lib.run_cmd(self, "cat /sys/class/net/%s/address" % origin_nic_name).strip()
+        origin_nic_mac = utils_lib.run_cmd(self, "cat /sys/class/net/%s/address" % self.active_nic).strip()
         #atach the second nic
         if self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
             self.vm.stop(wait=True)
@@ -737,7 +736,7 @@ COMMIT
             time.sleep(60)
         self.vm.refresh_data()
         utils_lib.init_connection(self, timeout=180)
-        new_nic_mac = utils_lib.run_cmd(self, "cat /sys/class/net/%s/address" % origin_nic_name).strip()
+        new_nic_mac = utils_lib.run_cmd(self, "cat /sys/class/net/%s/address" % self.active_nic).strip()
         self.assertNotEqual(origin_nic_mac, new_nic_mac, msg="Second nic name changed after detaching the first nic, Expect not: %s, real: %s" % (origin_nic_mac, new_nic_mac))
         if driver == 'virtio':
             driver_check = 'virtio_net'
@@ -746,8 +745,8 @@ COMMIT
         for i in range (2):
             self.log.info("Unload and load nic driver for %s time(s)." % i)
             utils_lib.run_cmd(self, "sudo modprobe -r %s && sudo modprobe %s" % (driver_check, driver_check), expect_ret=0)
-        new_nic_name = utils_lib.run_cmd(self, "ls /sys/class/net/ | grep -v lo").strip()
-        self.assertEqual(origin_nic_name, new_nic_name, msg="Second nic name changed after unload/load nic driver three times, Expect: %s, real: %s" % (origin_nic_name, new_nic_name))
+        new_nic_name = utils_lib.run_cmd(self, "ls /sys/class/net/ | grep -Ev 'lo|podman|veth'").strip()
+        self.assertEqual(self.active_nic, new_nic_name, msg="Second nic name changed after unload/load nic driver three times, Expect: %s, real: %s" % (self.active_nic, new_nic_name))
 
     def _create_vm1(self):
         create_vm_name = self.vm.vm_name+'_nework_script_create'
@@ -1302,8 +1301,7 @@ COMMIT
         if 'mtu 9000' not in host_mtu_check[1]:
             self.skipTest("MTU of the vm host is not 9000")
         utils_lib.is_pkg_installed(self,"net-tools")
-        nic_name = utils_lib.run_cmd(self, "ls /sys/class/net/ | grep -v lo").strip()
-        utils_lib.run_cmd(self, 'sudo ifconfig %s mtu 9000' % nic_name, expect_ret=0)
+        utils_lib.run_cmd(self, 'sudo ifconfig %s mtu 9000' % self.active_nic, expect_ret=0)
         if len(self.vms) == 1:
             self._create_vm1()
         vm1_host_uuid = self.vm.prism.get_vm_by_uuid(self.vms[1]['uuid'])['host_uuid']
@@ -1312,9 +1310,7 @@ COMMIT
             self.vm.migrate(host_uuid=vm1_host_uuid, wait=True)
         utils_lib.init_connection(self, timeout=180, rmt_node=self.vm.vm1_ip)
         utils_lib.run_cmd(self, 'sudo yum install -y net-tools', rmt_node=self.vm.vm1_ip, timeout=180)
-        cmd="ls /sys/class/net/ | grep -v lo"
-        vm1_nic_name = utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.vm.vm1_ip).strip()
-        utils_lib.run_cmd(self, 'sudo ifconfig %s mtu 9000' % vm1_nic_name, expect_ret=0, rmt_node=self.vm.vm1_ip)
+        utils_lib.run_cmd(self, 'sudo ifconfig %s mtu 9000' % self.active_nic, expect_ret=0, rmt_node=self.vm.vm1_ip)
         #create key
         key_file_check = utils_lib.run_cmd(self, "ls ~/.ssh/id_rsa.pub")
         if 'No such file or directory' in key_file_check:
