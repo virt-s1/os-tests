@@ -1086,7 +1086,7 @@ class TestLifeCycle(unittest.TestCase):
         self.vm.start()
         time.sleep(30)
         self.params['remote_node'] = self.vm.floating_ip
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        utils_lib.init_connection(self, timeout=1800)
         utils_lib.run_cmd(self, 'dmesg', expect_kw="Restarting tasks", expect_not_kw="Call", msg="check the system is resumed")
         cmd = 'pgrep -a sleep'
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check sleep process still exists')

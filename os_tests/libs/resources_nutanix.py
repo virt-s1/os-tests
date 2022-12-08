@@ -666,6 +666,8 @@ class NutanixVM(VMResource):
         self.host_username = params['Credential']['host_username']
         self.host_password = params['Credential']['host_password']
         self.net_bandwidth = params['VM']['net_bandwidth']
+        self.machine_type = params['VM']['machine_type']
+        self.if_secure_boot = params['VM']['if_secure_boot']
         self.user_data = None
         self.vm1_ip = ''
 
