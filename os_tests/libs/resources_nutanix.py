@@ -519,7 +519,7 @@ runcmd:
                 if is_cdrom:
                     images = self.list_images()
                     for image in images['entities']:
-                        if image['name'] == 'seed_iso':
+                        if image['name'] == 'seed.iso':
                             vmdisk_uuid = image['vm_disk_id']
                 else:
                     logging.info('OPPS.Clone disk form img_service has not yet support.')
@@ -533,7 +533,15 @@ runcmd:
                     'storage_container_uuid': self.storage_container_uuid
                     }}]}
             else:
-                logging.info('OPPS.Clone disk form adsf file path has not yet support.')
+                data = {"vm_disks": [{"disk_address":{"device_bus":device_bus, "device_index":device_index},
+                    "is_cdrom": "true",
+                    "is_empty": "false",
+                    'vm_disk_clone': {
+                    'disk_address': {
+                        'ndfs_filepath': 'seed.iso'
+                    },
+                    'storage_container_uuid': self.storage_container_uuid
+                    }}]}
         logging.info('data to attach disk is \n'+str(data))
         return self.make_request(endpoint, 'post', data=data)
 

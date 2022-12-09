@@ -257,7 +257,7 @@ class TestStorage(unittest.TestCase):
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
         if self.vm.provider == 'nutanix':
-            if self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
+            if self.vm.if_secure_boot or self.vm.machine_type == 'q35':
                 self.skipTest("Cannot attach an IDE Disk when secure boot is enabled or when vm machine type is q35")
         origin_disk_num = self._get_disk_num('rom')
         utils_lib.check_attribute(self.vm, 'attach_disk',test_instance=self, cancel_case=True)
@@ -278,6 +278,39 @@ class TestStorage(unittest.TestCase):
         disk_uuid = self.vm.get_disk_uuid('ide', device_index=1)
         try:
             self.vm.detach_disk('ide', disk_uuid, device_index=1, wait=True)
+        except NotImplementedError:
+            self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
+        except UnSupportedAction:
+            self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
+        self.vm.start(wait=True)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+
+    def _test_add_clone_cdrom(self, cdrom_type, clone_type):
+        origin_disk_num = self._get_disk_num('rom')
+        utils_lib.check_attribute(self.vm, 'attach_disk',test_instance=self, cancel_case=True)
+        self.vm.stop(wait=True)
+        try:
+            self.vm.attach_disk(cdrom_type, disk_size=0, is_cdrom=True, device_index=0, wait=True, \
+                is_empty=False, clone=clone_type)
+        except NotImplementedError:
+            self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
+        except UnSupportedAction:
+            self.skipTest('attch disk func is not supported in {}'.format(self.vm.provider))
+        self.vm.start(wait=True)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        new_disk_num = self._get_disk_num('rom')
+        new_add_num = int(new_disk_num) - int(origin_disk_num)
+        self.assertEqual(new_add_num, 1, "Number of new attached rom is not right Expect: %s, real: %s" % (1, new_add_num))
+        new_add_device_name=utils_lib.run_cmd(self, 'blkid --label cidata', expect_ret=0).split('\n')[0]
+        cmd = "sudo mkdir /mnt/mnt_new_cdrom \n sudo mount {} /mnt/mnt_new_cdrom".format(new_add_device_name)
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        read_new_device = utils_lib.run_cmd(self, "sudo ls /mnt/mnt_new_cdrom", expect_ret=0)
+        self.assertIn("meta-data\nuser-data\n", read_new_device, msg="Read files from new added cdrom failed")
+        #tear down
+        disk_uuid = self.vm.get_disk_uuid(cdrom_type, device_index=0)
+        self.vm.stop(wait=True)
+        try:
+            self.vm.detach_disk(cdrom_type, disk_uuid, device_index=0, wait=True)
         except NotImplementedError:
             self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
         except UnSupportedAction:
@@ -314,36 +347,38 @@ class TestStorage(unittest.TestCase):
         """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
-        origin_disk_num = self._get_disk_num('rom')
-        utils_lib.check_attribute(self.vm, 'attach_disk',test_instance=self, cancel_case=True)
-        self.vm.stop(wait=True)
-        try:
-            self.vm.attach_disk('sata', disk_size=0, is_cdrom=True, device_index=0, wait=True, is_empty=False, clone='clone_from_img_service')
-        except NotImplementedError:
-            self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
-        except UnSupportedAction:
-            self.skipTest('attch disk func is not supported in {}'.format(self.vm.provider))
-        self.vm.start(wait=True)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
-        new_disk_num = self._get_disk_num('rom')
-        new_add_num = int(new_disk_num) - int(origin_disk_num)
-        self.assertEqual(new_add_num, 1, "Number of new attached rom is not right Expect: %s, real: %s" % (1, new_add_num))
-        new_add_device_name=utils_lib.run_cmd(self, 'blkid --label cidata', expect_ret=0).split('\n')[0]
-        cmd = "sudo mkdir /mnt/mnt_new_cdrom \n sudo mount {} /mnt/mnt_new_cdrom".format(new_add_device_name)
-        utils_lib.run_cmd(self, cmd, expect_ret=0)
-        read_new_device = utils_lib.run_cmd(self, "sudo ls /mnt/mnt_new_cdrom", expect_ret=0)
-        self.assertIn("meta-data\nuser-data\n", read_new_device, msg="Read files from new added cdrom failed")
-        #tear down
-        disk_uuid = self.vm.get_disk_uuid('sata', device_index=0)
-        self.vm.stop(wait=True)
-        try:
-            self.vm.detach_disk('sata', disk_uuid, device_index=0, wait=True)
-        except NotImplementedError:
-            self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
-        except UnSupportedAction:
-            self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
-        self.vm.start(wait=True)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        self._test_add_clone_cdrom('sata', 'clone_from_img_service')
+
+    def test_add_ide_clone_cdrom_from_adsf_file(self):
+        """
+        case_tag:
+            Storage,Storage_tier2
+        case_name:
+            test_add_ide_clone_cdrom_from_adsf_file
+        case_file:
+            os_tests.tests.test_storage.TestStorage.test_add_ide_clone_cdrom_from_adsf_file
+        component:
+            storage
+         bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Test attach ide cdrom clone from asdf file and then read the content in VM.
+        key_steps:
+            Attach ide cdrom and then read it's content
+        expect_result:
+            No error threw and cdrom content right.
+        debug_want:
+            output from dmesg or journal
+        """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
+        self._test_add_clone_cdrom('ide', 'clone_from_adsf_file')
 
     def test_add_remove_multi_scsi(self):
         """
@@ -644,7 +679,7 @@ class TestStorage(unittest.TestCase):
         for disk_type, disk_size in zip(['ide','sata'],[ide_set_size, sata_set_size]):
             if disk_type == 'ide':
                 if self.vm.provider == 'nutanix':
-                    if self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
+                    if self.vm.if_secure_boot or self.vm.machine_type == 'q35':
                         continue
             try:
                 self.vm.attach_disk(disk_type, disk_size, is_cdrom=False, device_index=2, wait=True, is_empty=True)
@@ -660,7 +695,7 @@ class TestStorage(unittest.TestCase):
         num_lsblk=int(utils_lib.run_cmd(self, "sudo lsblk -d | grep disk | wc -l", expect_ret=0))
         total_num=6
         if self.vm.provider == 'nutanix':
-            if self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
+            if self.vm.if_secure_boot or self.vm.machine_type == 'q35':
                 total_num=5
         self.assertEqual(num_fdisk, total_num, msg='Disk number get from fdisk is not right')
         self.assertEqual(num_lsblk, total_num, msg='Disk number get from lsblk is not right')
@@ -673,7 +708,7 @@ class TestStorage(unittest.TestCase):
         pci_dev_size = int(utils_lib.run_cmd(self, "sudo fdisk -s "+pci_dev_name, expect_ret=0))/(1024*1024)
         sata_dev_size = int(utils_lib.run_cmd(self, "sudo fdisk -s "+sata_dev_name, expect_ret=0))/(1024*1024)
         if self.vm.provider == 'nutanix':
-            if self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
+            if self.vm.if_secure_boot or self.vm.machine_type == 'q35':
                 ide_dev_name = None
                 ide_dev_size = 0
             else:
@@ -685,7 +720,7 @@ class TestStorage(unittest.TestCase):
         for bus_type, set_size, real_size in zip(['scsi', 'pci', 'ide','sata'], [scsi_set_size, pci_set_size, ide_set_size, sata_set_size],[scsi_dev_size, pci_dev_size, ide_dev_size, sata_dev_size]):
             if bus_type == 'ide':
                 if self.vm.provider == 'nutanix':
-                    if self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
+                    if self.vm.if_secure_boot or self.vm.machine_type == 'q35':
                         continue
             self.assertEqual(set_size, real_size, msg="Size of %s disk is not right, Expect: %s, real: %s" % (bus_type, set_size, real_size))
         #check disk can be read and write, and test cp big file between different disk in on VM
@@ -693,7 +728,7 @@ class TestStorage(unittest.TestCase):
         for device_type, device_name in zip(['scsi','pci','ide','sata'], [scsi_dev_name, pci_dev_name, ide_dev_name, sata_dev_name]):
             if device_type == 'ide':
                 if self.vm.provider == 'nutanix':
-                    if self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
+                    if self.vm.if_secure_boot or self.vm.machine_type == 'q35':
                         continue
             create_file = '/mnt/mnt_{}/{}_touch_test.txt'.format(device_type, device_type)
             cmd = 'sudo mkfs.xfs {}\n sudo mkdir /mnt/mnt_{}\nsudo mount {} /mnt/mnt_{}\n sudo touch {}'.format(device_name, device_type, device_name, device_type, create_file)
@@ -704,7 +739,7 @@ class TestStorage(unittest.TestCase):
         for device_type in ('scsi','pci','ide','sata'):
             if device_type == 'ide':
                 if self.vm.provider == 'nutanix':
-                    if self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
+                    if self.vm.if_secure_boot or self.vm.machine_type == 'q35':
                         continue
             utils_lib.run_cmd(self, 'sudo cp 5G.img /mnt/mnt_{}'.format(device_type))
             file_size = int(utils_lib.run_cmd(self, "sudo ls -l /mnt/mnt_%s/5G.img | awk '{print $5}'" % (device_type), expect_ret=0).strip())/(1024*1024*1024)
@@ -727,7 +762,7 @@ class TestStorage(unittest.TestCase):
         for device_type, device_name in zip(['scsi','pci','ide','sata'], [scsi_dev_name, pci_dev_name, ide_dev_name, sata_dev_name]):
             if device_type == 'ide':
                 if self.vm.provider == 'nutanix':
-                    if self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
+                    if self.vm.if_secure_boot or self.vm.machine_type == 'q35':
                         continue
             #mount disk on cloned VM
             cmd = 'sudo mount {} /mnt/mnt_{}'.format(device_name, device_type)
@@ -750,7 +785,7 @@ class TestStorage(unittest.TestCase):
         time.sleep(60)
         for device_type in ['ide','sata', 'pci']:
             if device_type == 'ide' and self.vm.provider == 'nutanix':
-                if self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35':
+                if self.vm.if_secure_boot or self.vm.machine_type == 'q35':
                    continue
             try:
                 disk_uuid = self.vm.get_disk_uuid(device_type, device_index=2)
@@ -763,7 +798,7 @@ class TestStorage(unittest.TestCase):
         time.sleep(30)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         if self.vm.provider == 'nutanix':
-            if not self.vm.prism.if_secure_boot and not self.vm.prism.machine_type == 'q35':
+            if not self.vm.if_secure_boot and not self.vm.machine_type == 'q35':
                 utils_lib.run_cmd(self, "ls " + ide_dev_name, expect_ret=2, expect_kw='No such file or directory')
         utils_lib.run_cmd(self, "ls " + sata_dev_name, expect_ret=2, expect_kw='No such file or directory')
         utils_lib.run_cmd(self, "ls " + pci_dev_name, expect_ret=2, expect_kw='No such file or directory')
@@ -774,7 +809,7 @@ class TestStorage(unittest.TestCase):
             self.log.info('Delete ide.3 for refresh user data')
             self.vm.stop(wait=True)
             time.sleep(60)
-            if self.vm.prism.machine_type == 'pc':
+            if self.vm.machine_type == 'pc':
                 disk_uuid = self.vm.get_disk_uuid('ide', device_index=3)
                 self.vm.detach_disk('ide', disk_uuid, device_index=3, wait=True)
             else:
@@ -909,7 +944,7 @@ class TestStorage(unittest.TestCase):
                 self.skipTest('attch disk func is not implemented in {}'.format(self.vm.provider))
             except UnSupportedAction:
                 self.skipTest('attch disk func is not supported in {}'.format(self.vm.provider))
-            if  self.vm.provider == 'nutanix' and (self.vm.prism.if_secure_boot or self.vm.prism.machine_type == 'q35'):
+            if  self.vm.provider == 'nutanix' and (self.vm.if_secure_boot or self.vm.machine_type == 'q35'):
                     total_num = 5
             else:
                 for i in range(0,3):
@@ -928,7 +963,7 @@ class TestStorage(unittest.TestCase):
         sata_dev_num = int(utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-sata' -A 80 | grep '*-cdrom' | wc -l", expect_ret=0).strip())
         self.assertEqual(sata_dev_num, 6, "Number of new attached sata rom is not right Expect: %s, real: %s" % (6, sata_dev_num))
         if self.vm.provider == 'nutanix':
-            if not self.vm.prism.if_secure_boot and not self.vm.prism.machine_type == 'q35':
+            if not self.vm.if_secure_boot and not self.vm.machine_type == 'q35':
                 ide_dev_num = int(utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-ide' -A 56 | grep '*-cdrom' | wc -l", expect_ret=0).strip())
                 self.assertEqual(ide_dev_num, 4, "Number of new attached sata rom is not right Expect: %s, real: %s" % (3, ide_dev_num))
         #tear down
@@ -942,7 +977,7 @@ class TestStorage(unittest.TestCase):
             except UnSupportedAction:
                 self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
         if self.vm.provider == 'nutanix':
-            if not self.vm.prism.if_secure_boot and not self.vm.prism.machine_type == 'q35':
+            if not self.vm.if_secure_boot and not self.vm.machine_type == 'q35':
                 for i in range(0,3):
                     disk_uuid = self.vm.get_disk_uuid('ide', device_index=i)
                     try:
