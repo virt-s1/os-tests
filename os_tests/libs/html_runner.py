@@ -129,10 +129,10 @@ class HTMLTestRunner(object):
             for ts in test:
                 logdir = ts.params['results_dir']
                 if not os.path.exists(logdir):
-                    os.mkdir(logdir)
+                    os.makedirs(logdir,exist_ok=True)
                 results_dir = logdir + '/results'
                 if not os.path.exists(results_dir):
-                    os.mkdir(results_dir)
+                    os.makedirs(results_dir,exist_ok=True)
                 sum_txt = results_dir + '/sum.log'
                 case_status = None
                 case_reason = None
@@ -152,7 +152,7 @@ class HTMLTestRunner(object):
                 case_dir = '.'.join([test_class_name, ts.id()])
                 debug_dir = logdir + "/attachments/" + case_dir
                 if not os.path.exists(debug_dir):
-                    os.mkdir(debug_dir)
+                    os.makedirs(debug_dir,exist_ok=True)
                 debug_log = "../attachments/" + case_dir + '/' + ts.id() + '.debug'
                 with pushd(results_dir):
                     mapped_result = {'FAIL':result.failures, 'ERROR':result.errors, 'SKIP':result.skipped}

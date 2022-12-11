@@ -28,7 +28,7 @@ class TestGeneralCheck(unittest.TestCase):
         if self.id().endswith(('test_check_systemd_analyze_verify_missing', 'test_check_systemd_analyze_verify_deprecated_unsafe', 'test_check_systemd_analyze_verify_obsolete', 'test_check_systemd_analyze_verify_ordering_cycle', 'test_check_journalctl_service_unknown_lvalue')):
             check_file = self.utils_dir + '/systemd_analyze_services.sh'
             check_file_tmp = '/tmp/systemd_analyze_services.sh'
-            if self.params['remote_node'] is not None:
+            if self.params.get('remote_node') is not None:
                 cmd = 'ls -l {}'.format(check_file_tmp)
                 ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='check if {} exists'.format(check_file))
                 if ret != 0:
@@ -402,7 +402,7 @@ available_clocksource'
             No segmentation fault found.
         '''
         utils_lib.is_cmd_exist(self, cmd='dmidecode')
-        if self.params['remote_node'] is not None:
+        if self.params.get('remote_node') is not None:
             binfile = '/tmp/dmidecode_debug.bin'
             cmd = "sudo dmidecode --dump-bin {}".format(binfile)
             utils_lib.run_cmd(self, cmd, msg='save dmidecode_debug.bin for debug purpose, please attach it if file bug')
@@ -789,7 +789,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
                     continue
                 cmd = 'sudo chmod 766 {}'.format(core_file)
                 utils_lib.run_cmd(self, cmd, expect_ret=0)
-                if self.params['remote_node'] is not None:
+                if self.params.get('remote_node') is not None:
                     self.log.info('retrive {} from remote to {}'.format(core_file, self.log_dir))
                     self.SSH.get_file(rmt_file=core_file,local_file='{}/attachments/{}'.format(self.log_dir,os.path.basename(core_file)))
                 else:
@@ -2038,7 +2038,7 @@ current_device"
         sosfile = sosfile.strip('\n')
         cmd = 'sudo chmod 766 {}'.format(sosfile)
         utils_lib.run_cmd(self, cmd, expect_ret=0)
-        if self.params['remote_node'] is not None:
+        if self.params.get('remote_node') is not None:
             self.log.info('retrive {} from remote to {}'.format(sosfile, self.log_dir))
             self.SSH.get_file(rmt_file=sosfile,local_file='{}/attachments/{}'.format(self.log_dir,os.path.basename(sosfile)))
         else:

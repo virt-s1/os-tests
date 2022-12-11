@@ -63,11 +63,13 @@ def init_args():
     return args
 
 def init_provider(params=None):
+    # this init provider from cfg
     vms = []
     disks = []
     nics = []
     supported_platforms = ['aws', 'openstack', 'ali', 'nutanix', 'google', 'libvirt', 'openshift']
     provider = params['Cloud']['provider']
+    os.environ['INFRA_PROVIDER'] = provider
     if not provider:
         LOG.info("no provider found in profile".format(provider, supported_platforms))
         sys.exit(1)
@@ -102,6 +104,24 @@ def init_provider(params=None):
         vms.append(OpenShiftVM(params))
 
     return vms, disks, nics
+
+def init_provider_from_guest(test_instance):
+    # this init provider from system itself
+    if os.getenv('INFRA_PROVIDER'):
+        test_instance.log.info("already set provider to {}".format(os.getenv('INFRA_PROVIDER')))
+        return True
+    provider = 'UNKNOW'
+    if is_aws(test_instance):
+        provider = 'aws'
+    if is_openstack(test_instance):
+        provider = 'openstack'
+    if is_ali(test_instance):
+        provider = 'ali'
+    if is_ahv(test_instance):
+        provider = 'nutanix'
+    if is_gcp(test_instance):
+        provider = 'google'
+    os.environ['INFRA_PROVIDER'] = provider
 
 def init_ssh(params=None, timeout=600, interval=10, log=None, rmt_node=None):
     if log is None:
@@ -319,6 +339,7 @@ def init_case(test_instance):
         test_instance.node_info = node_info_data
     else:
         _, test_instance.node_info = get_cfg(cfg_file=node_info)
+    init_provider_from_guest(test_instance)
 
 def finish_case(test_instance):
     """finish case

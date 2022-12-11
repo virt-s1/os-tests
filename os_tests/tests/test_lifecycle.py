@@ -11,7 +11,7 @@ class TestLifeCycle(unittest.TestCase):
     '''
     def setUp(self):
         utils_lib.init_case(self)
-        if self.params['remote_node'] is None:
+        if self.params.get('remote_node') is None:
             self.skipTest("Only support to run in server-client mode!")
         if utils_lib.is_ahv(self):
             self.ssh_timeout = 1200

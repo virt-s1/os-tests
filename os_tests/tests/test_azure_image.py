@@ -69,7 +69,7 @@ class TestAzureImage(unittest.TestCase):
                     src_file = src_file.replace("_rhel{}".format(project), "_rhel8")
             # Get the base file path
             # If remote node, copy the basefile to the remote node /tmp/
-            if self.params['remote_node'] is not None:
+            if self.params.get('remote_node') is not None:
                 base_file = "/tmp/"+basefile
                 self.log.info('Copy {} to remote'.format(basefile))
                 self.SSH.put_file(local_file=src_file, rmt_file=base_file)
