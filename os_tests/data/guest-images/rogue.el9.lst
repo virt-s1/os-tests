@@ -92,3 +92,4 @@
 /etc/udev/rules.d/70-persistent-net.rules
 /etc/NetworkManager/conf.d/99-cloud-init.conf
 /etc/NetworkManager/system-connections/cloud-init-eth0.nmconnection
+/etc/systemd/system/sysinit.target.wants/systemd-boot-update.service
