@@ -29,3 +29,8 @@ ubuntu_ssh_user : ubuntu
 boottime_max_ratio : 70
 net_max_ratio : 10
 instance_type: is4gen.large
+# specify below items if cannot retrive instance spec automatically
+cpus: None
+memory: None
+disks: None
+net_bandwidth: None

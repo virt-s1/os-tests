@@ -173,10 +173,15 @@ def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=N
             if ssh.rmt_node == rmt_node:
                 ssh_exists = True
                 ssh_num = i
-                ret, _, _ = ssh.cli_run(cmd='uname -r')
-                if ret == 0:
-                    test_instance.log.info("connection is live")
-                    is_active = True
+                if hasattr(ssh, 'is_active'):
+                    # this is avaiable in tipset >= 0.2.0
+                    is_active = ssh.is_active()
+                else:
+                    #can remove below when all use ssh.is_active()
+                    ret, _, _ = ssh.cli_run(cmd='uname -r')
+                    if ret == 0:
+                        test_instance.log.info("connection is live")
+                        is_active = True
                 break
         for tmp_ssh in test_instance.SSHs:
             if tmp_ssh.rmt_node == test_instance.params['remote_node']:
@@ -530,6 +535,8 @@ def run_cmd(test_instance,
     status = None
     output = None
     exception_hit = False
+    run_err = ''
+    ssh_index = 0
 
     try:
         if test_instance.is_rmt:
@@ -544,6 +551,7 @@ def run_cmd(test_instance,
                 ssh.log = test_instance.log
                 if ssh.rmt_node == rmt_node:
                     SSH = ssh
+                    ssh_index = i
                     break
             test_instance.log.info("CMD: {} on {}".format(cmd, rmt_node))
             status, output = SSH.remote_excute(cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty)
@@ -561,12 +569,17 @@ def run_cmd(test_instance,
         test_instance.log.error("Run cmd failed: {}".format(err))
         status = None
         exception_hit = True
+        run_err = str(err)
 
     if exception_hit:
         test_cmd = 'uname -a'
         test_instance.log.info("Test system is alive via cmd:{}. If still fail, check no hang or panic happens.".format(test_cmd))
         try:
             if test_instance.is_rmt:
+                if 'Key-exchange timed out' in run_err:
+                    test_instance.log.info('reconnect to remote because it acheived certain number of packets or bytes sent or received using this session')
+                    test_instance.SSHs[ssh_index].create_connection()
+                    SSH = test_instance.SSHs[ssh_index]
                 status, output = SSH.remote_excute(test_cmd, timeout)
                 status, output = SSH.remote_excute(cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty)
             else:
@@ -611,27 +624,21 @@ def run_cmd(test_instance,
             (status, expect_not_ret))
     if expect_kw is not None:
         for key_word in expect_kw.split(','):
-            if output.count('\n') > 5:
-                find_list = re.findall('.*{}.*'.format(key_word), output)
-            else:
-                find_list = re.findall('.*{}.*'.format(key_word), output)
-            if len(find_list) > 0:
+            find_list = re.findall('.*{}.*'.format(key_word), output)
+            if find_list:
                 test_instance.log.info('expected "{}" found in "{}"'.format(key_word, ''.join(find_list)))
             else:
-                if output.count('\n') > 5:
+                if output is not None and output.count('\n') > 5:
                     test_instance.fail('expected "{}" not found in output(check debug log as too many lines)'.format(key_word))
                 else:
                     test_instance.fail('expected "{}" not found in "{}"'.format(key_word,output))
     if expect_not_kw is not None:
         for key_word in expect_not_kw.split(','):
-            if output.count('\n') > 5:
-                find_list = re.findall('\n.*{}.*\n'.format(key_word), output)
-            else:
-                find_list = re.findall('.*{}.*'.format(key_word), output)
-            if len(find_list) == 0:
+            find_list = re.findall('.*{}.*'.format(key_word), output)
+            if not find_list:
                 test_instance.log.info('Unexpected "{}" not found in output'.format(key_word))
             else:
-                if output.count('\n') > 5:
+                if output is not None and output.count('\n') > 5:
                     test_instance.fail('Unexpected "{}" found in {}'.format(key_word, ''.join(find_list)))
                 else:
                     test_instance.fail('Unexpected "{}" found in "{}"'.format(key_word,output))

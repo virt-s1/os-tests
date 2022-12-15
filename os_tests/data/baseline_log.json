@@ -132,7 +132,7 @@
         "status": "active",
         "link": "",
         "path": "journal, dmesg",
-        "trigger": "HYP mode not available"
+        "trigger": "aarch64"
     },
     "msg_17": {
         "content": "ena 0000:00:05.0: irq 45 for MSI/MSI-X",
@@ -1333,11 +1333,47 @@
     },
     "msg_150": {
         "content": "nft_compat will not be maintained in a future major release and may be disabled",
-        "analyze": "",
+        "analyze": "deprecated information only",
         "branch": "rhel",
         "status": "active",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1945151",
         "path": "dmesg",
-        "trigger": "podman"
+        "trigger": ""
+    },
+    "msg_151": {
+        "content": ".*kernel: ITS: Using DirectLPI for VPE invalidation.*",
+        "analyze": "feature enablement information only",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "dmesg",
+        "trigger": ""
+    },
+    "msg_152": {
+        "content": ".*arm-cmn ARMHC600:00: invalid device node type: 0x9.*",
+        "analyze": "known issue, might handle this log properly in RHEL-9.2",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2127417",
+        "path": "dmesg",
+        "trigger": ""
+    },
+    "msg_153": {
+        "content": ".*dispatcher.*90-nm-cloud-setup.sh.*failed.*",
+        "analyze": "known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2149231",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_154": {
+        "content": ".*sys-module-fuse.device: Failed to enqueue SYSTEMD_WANTS= job, ignoring: Unit sys-fs-fuse-connections.mount not found.*",
+        "analyze": "known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2154732",
+        "path": "journal",
+        "trigger": ""
     }
 }

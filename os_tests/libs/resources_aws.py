@@ -69,6 +69,11 @@ class EC2VM(VMResource):
         self.vm_password = None
         self.ssh_conn = None
         self.volume_id = None
+        # load instance spec while cannot retrive it automatically
+        self.cpus_cfg = params.get('cpus')
+        self.memory_cfg = params.get('memory')
+        self.disks_cfg = params.get('disks')
+        self.net_bandwidth_cfg = params.get('net_bandwidth')
         self.is_created = False
         self.another_ip = None
         self.run_uuid = params.get('run_uuid')
@@ -248,6 +253,9 @@ class EC2VM(VMResource):
 
     @property
     def disk_count(self):
+        if self.disks_cfg:
+            LOG.info("Setting in cfg {}".format(self.disks_cfg))
+            return self.disks_cfg
         default_disks = 1
         instance_types_dict = self.client.describe_instance_types(InstanceTypes=[self.instance_type])
         instance_types = instance_types_dict.get('InstanceTypes')
@@ -262,6 +270,9 @@ class EC2VM(VMResource):
 
     @property
     def net_bandwidth(self):
+        if self.net_bandwidth_cfg:
+            LOG.info("Setting in cfg {}".format(self.net_bandwidth_cfg))
+            return self.net_bandwidth_cfg
         default_bandwidth = 5
         instance_types_dict = self.client.describe_instance_types(InstanceTypes=[self.instance_type])
         instance_types = instance_types_dict.get('InstanceTypes')
