@@ -291,8 +291,8 @@ int main(int argc, char *argv[])
         key_steps:
             1. # wget https://github.com/redis/redis/files/5717040/redis_8124.c.txt
             2. # mv redis_8124.c.txt redis_8124.c
-            3. # gcc -o reproduce redis_8124.c
-            4. # systemd-run --scope -p MemoryLimit=550M ./reproduce
+            3. # gcc -o os_tests_redis redis_8124.c
+            4. # systemd-run --scope -p MemoryLimit=550M ./os_tests_redis
         expected_result:
             Your kernel looks fine.
         '''
@@ -309,8 +309,8 @@ int main(int argc, char *argv[])
         else:
             cmd = "sudo cp -f {} {}".format(redis_src, redis_src_tmp)
             utils_lib.run_cmd(self, cmd, expect_ret=0, timeout=120)
-        cmd_list = ['gcc -o /tmp/reproduce /tmp/redis_8124.c',
-                    'sudo systemd-run --scope -p MemoryLimit=550M /tmp/reproduce']
+        cmd_list = ['gcc -o /tmp/os_tests_redis /tmp/redis_8124.c',
+                    'sudo systemd-run --scope -p MemoryLimit=550M /tmp/os_tests_redis']
         for cmd in cmd_list:
             out = utils_lib.run_cmd(self, cmd, expect_ret=0, timeout=120)
         if 'Your kernel looks fine' not in out:
@@ -493,10 +493,10 @@ https://bugzilla.redhat.com/show_bug.cgi?id=2107502")
                int x;
                free(&x);
                }
-            3. # gcc -g -o pp test.c
+            3. # gcc -g -o os_tests_coretest test.c
             4. # ./pp
         expect_result:
-            pp crashed and new core file is generated under /var/lib/systemd/coredump
+            os_tests_coretest crashed and new core file is generated under /var/lib/systemd/coredump
         debug_want:
             - journal log
         """
@@ -520,10 +520,10 @@ https://bugzilla.redhat.com/show_bug.cgi?id=2107502")
         utils_lib.is_cmd_exist(self, 'gcc')
         cmd = "echo '{}' > {}".format(test_str, test_file)
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='generate {}'.format(test_file))
-        cmd = "gcc -g -o /tmp/pp {}".format(test_file)
+        cmd = "gcc -g -o /tmp/os_tests_coretest {}".format(test_file)
         utils_lib.run_cmd(self, cmd, expect_ret=0)
-        utils_lib.run_cmd(self, 'ulimit -c unlimited;/tmp/pp', msg='run it to trigger core dump')
-        utils_lib.run_cmd(self, 'sudo ls /var/lib/systemd/coredump/core.pp*', expect_ret=0, msg='check core file generated')
+        utils_lib.run_cmd(self, 'ulimit -c unlimited;/tmp/os_tests_coretest', msg='run it to trigger core dump')
+        utils_lib.run_cmd(self, 'sudo ls /var/lib/systemd/coredump/core.os_tests_core*', expect_ret=0, msg='check core file generated')
         utils_lib.check_log(self, "warn,fail", log_cmd='journalctl -b0', cursor=self.cursor, rmt_redirect_stdout=True)
 
     def test_podman_build_image(self):
