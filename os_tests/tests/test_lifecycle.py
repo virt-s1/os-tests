@@ -61,16 +61,18 @@ class TestLifeCycle(unittest.TestCase):
         polarion_id:
         bz: 1703366
         '''
-        if self.vm and self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
+        if self.vm and self.vm.provider == 'nutanix' and self.vm.is_secure_boot:
             self.skipTest('''Red Hat Insights error "sed: can't read /sys/kernel/debug/sched_features: Operation not permitted" When using secure boot''')
-        self.default_boot_index  = utils_lib.run_cmd(self, 'sudo grubby --default-index', expect_ret=0)
         self.log.info("Check kernel-debug can boot up!")
         mini_mem = utils_lib.get_memsize(self)
         if int(mini_mem) < 2:
             self.skipTest('minimal 2G memory required for debug kernel')
         if utils_lib.is_arch(self, 'aarch64') and int(mini_mem) < 4:
             self.skipTest('minimal 4G memory required in aarch64')
+        
         need_reboot = False
+        self.default_boot_kernel  = utils_lib.run_cmd(self, "sudo grubby --default-kernel", expect_ret=0)
+        self.default_cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline')
         kernel_ver = utils_lib.run_cmd(self, 'uname -r', expect_ret=0)
         if 'debug' in kernel_ver:
             self.log.info('already in debug kernel')
@@ -127,7 +129,7 @@ class TestLifeCycle(unittest.TestCase):
             self.log.info("Wait for bootup finish......")
             time.sleep(1)
         utils_lib.run_cmd(self, "dmesg", expect_not_kw="Call trace,Call Trace")
-        if int(mini_mem) < 17:
+        if int(mini_mem) <= 16:
             cmd = 'sudo bash -c "echo scan > /sys/kernel/debug/kmemleak"'
             utils_lib.run_cmd(self, cmd, expect_ret=0, timeout=1800)
 
@@ -1097,20 +1099,30 @@ class TestLifeCycle(unittest.TestCase):
         "nr_cpus=1","nr_cpus=2", "intel_iommu=on", "fips=1"]
         cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline')
         if cmdline:
-            current_boot_index  = utils_lib.run_cmd(self, 'sudo grubby --default-index', expect_ret=0)
-            if self.default_boot_index is not None and current_boot_index != self.default_boot_index:
-                cmd = "sudo grubby --set-default-index=%s" % self.default_boot_index
-                utils_lib.run_cmd(self, cmd, expect_ret=0, msg="restore default boot index to {}".format(self.default_boot_index))
-                reboot_require = True
             for arg in addon_args:
                 if arg in cmdline:
                     cmd = 'sudo grubby --update-kernel=ALL  --remove-args={}'.format(arg)
                     utils_lib.run_cmd(self, cmd, msg='Remove {}'.format(arg))
                     reboot_require = True
+        
+        if "boot_debugkernel" in self.id():
+            current_boot_kernel = utils_lib.run_cmd(self, "sudo grubby --default-kernel", expect_ret=0)
+            current_cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline')
+            if current_boot_kernel != self.default_boot_kernel:
+                cmd = "sudo grubby --set-default %s" % self.default_boot_kernel
+                utils_lib.run_cmd(self, cmd, expect_ret=0,
+                                  msg="Restore default boot kernel to {}".format(self.default_boot_kernel))
+                reboot_require = True
+            if "kmemleak=on" not in self.default_cmdline and "kmemleak=on" in current_cmdline:
+                cmd = 'sudo grubby --update-kernel=ALL --remove-args="kmemleak=on"'
+                utils_lib.run_cmd(self, cmd, msg='Remove "kmemleak=on" from /proc/cmdline')
+                reboot_require = True
+
         if reboot_require:
             utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test to restore setting')
             time.sleep(10)
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
+            utils_lib.run_cmd(self, 'cat /proc/cmdline', msg='Check /proc/cmdline')
 
 if __name__ == '__main__':
     unittest.main()
