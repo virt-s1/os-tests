@@ -129,7 +129,7 @@ class TestLifeCycle(unittest.TestCase):
             self.log.info("Wait for bootup finish......")
             time.sleep(1)
         utils_lib.run_cmd(self, "dmesg", expect_not_kw="Call trace,Call Trace")
-        if int(mini_mem) <= 16:
+        if int(mini_mem) <= 32:
             cmd = 'sudo bash -c "echo scan > /sys/kernel/debug/kmemleak"'
             utils_lib.run_cmd(self, cmd, expect_ret=0, timeout=1800)
 
