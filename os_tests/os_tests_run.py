@@ -11,6 +11,11 @@ import uuid
 import logging
 import re
 from itertools import chain
+from yaml import load, dump
+try:
+    from yaml import CLoader as Loader, CDumper as Dumper
+except ImportError:
+    from yaml import Loader, Dumper
 LOG_FORMAT = '%(asctime)s:%(levelname)s:%(message)s'
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
@@ -130,12 +135,24 @@ def main():
     if final_ts.countTestCases() == 0:
         log.info("No case found!")
         sys.exit(1)
-    if args.is_listcase or args.verifydoc or args.uploaddoc:
-        if args.uploaddoc:    
-            cfg_file, cfg_data = get_cfg(cfg_file=args.uploaddoc)
+    if args.is_listcase or args.verifydoc or args.dumpdoc:
+        if args.dumpdoc:
+            tmp_yaml_data = {}
             for case in final_ts:
-                if 'polarion' in cfg_data.get('provider'):
-                    utils_lib.case_to_polarion(case=case, cfg=cfg_data)
+                yaml_data = {}
+                try:
+                    yaml_data = load(case._testMethodDoc, Loader=Loader)
+                    if not hasattr(yaml_data,'get'):
+                        yaml_data['case_name'] = case.id()
+                    else:
+                        yaml_data['case_name'] = case.id()
+                except Exception as err:
+                    yaml_fail = err
+                    yaml_data['case_name'] = case.id()
+                tmp_yaml_data[case.id()] = yaml_data
+            with open(args.dumpdoc,'w') as fh:
+                dump(tmp_yaml_data,fh)
+                log.info("Saved casesdoc to {}".format(args.dumpdoc))
         log.info('\n'.join([case.id() for case in final_ts]))
         log.info("Total case num: %s"%final_ts.countTestCases())
     else:

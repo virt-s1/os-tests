@@ -98,10 +98,6 @@ class TestLTP(unittest.TestCase):
         debug_want:
             dmesg
         """
-        '''
-        bz: 1464095,1908550
-        polarion_id: RHEL7-98752
-        '''
         # ltp will considering fail if more than 1 cpus cannot be offline
         # in bare metal instance
         # but in large metal instances, it is expected. So do not do it in

@@ -916,7 +916,7 @@ class TestLifeCycle(unittest.TestCase):
         try:
             is_success = self.vm.send_nmi()
         except UnSupportedAction as err:
-            self.skipTest("current {} not support nmi operation".format(self.vm.provider))
+            self.skipTest("provider:{} {}".format(self.vm.provider, err))
         if not is_success:
             self.fail("Cannot trigger panic via nmi!")
         time.sleep(10)
@@ -971,7 +971,7 @@ class TestLifeCycle(unittest.TestCase):
         try:
             is_success = self.vm.send_nmi()
         except UnSupportedAction as err:
-            self.skipTest("current {} not support nmi operation".format(self.vm.provider))
+            self.skipTest("provider:{} {}".format(self.vm.provider, err))
         if not is_success:
             self.fail("Cannot trigger panic via nmi!")
         time.sleep(10)
