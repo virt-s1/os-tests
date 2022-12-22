@@ -134,7 +134,7 @@ class TestNutanixVM(unittest.TestCase):
         '''
         rpm_pkgs = ["git", "make", "gcc", "gcc-c++"]
         for rpm_pkg in rpm_pkgs:
-            utils_lib.is_pkg_installed(self, pkg_name=rpm_pkg, cancel_case=True)
+            utils_lib.is_pkg_installed(self, pkg_name=rpm_pkg, cancel_case=True, timeout=600)
 
         git_url = "https://github.com/stressapptest/stressapptest.git"
         cmd = "sudo git clone %s && cd stressapptest/ && \
@@ -936,6 +936,9 @@ gpgcheck=0"""
         vnuma_num_target = self.vm.host_cpu_num()
         if vnuma_num_target < 2:
             self.skipTest("Skip as AHV host only has 1 physical CPU")
+        cores_in_ahv = self.vm.get_core_total()
+        if cores_in_ahv < 2 or cores_in_ahv % 2 == 1:
+            self.skipTest("Skip as total number of cores must be multiple number of vnuma nodes")
 
         if vnuma_num_target != vnuma_num_current:
             self.vm.set_memory_vnuma(vnuma_num_target)

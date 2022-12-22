@@ -927,11 +927,11 @@
         "trigger": ""
     },
     "msg_105": {
-        "content": ".*Unknown command line parameters: BOOT_IMAGE.*64$;.*Unknown kernel.* \"BOOT_IMAGE=.*64\", will be passed to user space.$;.*dracut-cmdline.*: Invalid command.*",
-        "analyze": "BOOT_IMAGE is a know unknow command line parameters",
+        "content": ".*Unknown command line parameters: BOOT_IMAGE.*64$;.*Unknown kernel.* \"*BOOT_IMAGE=.*64\", will be passed to user space.$;.*dracut-cmdline.*: Invalid command.*",
+        "analyze": "BOOT_IMAGE is a know unknow command line parameters, this is not an error. It's new a notice. See https://gitlab.com/redhat/rhel/src/kernel/rhel-9/-/commit/86d1919a4fb0d9c115dd1d3b969f5d1650e45408",
         "branch": "rhel",
         "status": "active",
-        "link": "https://lore.kernel.org/all/20210511211009.42259-1-ahalaney@redhat.com/T/#u",
+        "link": "https://lore.kernel.org/all/20210511211009.42259-1-ahalaney@redhat.com/T/#u; https://bugzilla.redhat.com/show_bug.cgi?id=2018886",
         "path": "journal, dmesg",
         "trigger": "BOOT_IMAGE"
     },
@@ -1373,6 +1373,24 @@
         "branch": "rhel",
         "status": "active",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2154732",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_155": {
+        "content": "systemd-hibernate-resume*: Could not resume from '/dev/*",
+        "analyze": "That's because previous versions of dracut did not include the resume module in initrd, which means hibernation didn't work (well, hibernation did work, resume did not), this message is info level",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1999015",
+        "path": "journal",
+        "trigger": "systemd-hibernate-resume"
+    },
+    "msg_156": {
+        "content": "PM: Image not found (code -22)",
+        "analyze": "",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1789738",
         "path": "journal",
         "trigger": ""
     }

@@ -714,6 +714,8 @@ def is_sev_enabled(test_instance):
         enabled: return True
         N/A: return False
     '''
+    if not test_instance.vm:
+        test_instance.skipTest("Skip as no VM provisioned.")
     if test_instance.vm.provider == 'google':
         audience = 'aud'
         cmd = "curl -s -H 'Metadata-Flavor: Google' \
