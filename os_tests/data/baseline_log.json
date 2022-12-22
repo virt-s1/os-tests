@@ -325,18 +325,18 @@
     },
     "msg_38": {
         "content": "systemd[1]: /usr/lib/systemd/system/systemd-resolved.service:33: Unknown lvalue 'ProtectSystems' in section 'Service'",
-        "analyze": "Known bug",
+        "analyze": "Known bug fixed by errata",
         "branch": "rhel8.3",
-        "status": "active",
+        "status": "closed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1871139",
         "path": "journal",
         "trigger": ""
     },
     "msg_39": {
         "content": "crond[1100]: (root) FAILED (loading cron table)",
-        "analyze": "Known bug",
+        "analyze": "Known bug fixed by errata",
         "branch": "rhel8.3",
-        "status": "active",
+        "status": "closed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1879368",
         "path": "journal",
         "trigger": ""
@@ -577,9 +577,9 @@
     },
     "msg_66": {
         "content": "insights-client[1133]: Error: Could not submit event: Could not find the TLS certificate file, invalid path: /etc/pki/consumer/cert.pem",
-        "analyze": "known issue",
+        "analyze": "known issue fixed by errata",
         "branch": "rhel",
-        "status": "active",
+        "status": "closed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1907266",
         "path": "journal, dmesg",
         "trigger": ""
@@ -631,36 +631,36 @@
     },
     "msg_72": {
         "content": "lvm[761]:   Failed to get primary device for 259:1.",
-        "analyze": "known issue",
+        "analyze": "known issue fixed by errata",
         "branch": "rhel8",
-        "status": "active",
+        "status": "closed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1925871",
         "path": "journal, dmesg",
         "trigger": "blob data"
     },
     "msg_73": {
         "content": "lvm[761]:   readlink failed: Invalid argument",
-        "analyze": "known issue",
+        "analyze": "known issue fixed by errata",
         "branch": "rhel8",
-        "status": "active",
+        "status": "closed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1925871",
         "path": "journal, dmesg",
         "trigger": "blob data"
     },
     "msg_74": {
         "content": "insights-client[1876]: Error: failed to download advisor report.",
-        "analyze": "known issue",
+        "analyze": "known issue fixed by errata",
         "branch": "rhel",
-        "status": "active",
+        "status": "closed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1907266",
         "path": "journal, dmesg",
         "trigger": "Could not find the TLS certificate file"
     },
     "msg_75": {
         "content": "smpboot: do_boot_cpu failed(-1) to wakeup CPU#0",
-        "analyze": "known issue",
+        "analyze": "known issue fixed by errata",
         "branch": "rhel",
-        "status": "active",
+        "status": "closed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1929266",
         "path": "journal, dmesg",
         "trigger": "starting cpuhotplug"
@@ -820,9 +820,9 @@
     },
     "msg_93": {
         "content": "/usr/sbin/irqbalance[756]: libcap-ng used by \"/usr/sbin/irqbalance\" failed due to not having CAP_SETPCAP in capng_apply",
-        "analyze": "Known issue",
+        "analyze": "Known issue fixed by errata",
         "branch": "rhel",
-        "status": "active",
+        "status": "closed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1963152",
         "path": "journal, dmesg",
         "trigger": ""
@@ -1056,7 +1056,7 @@
         "content": ".*rh-cloud-firstboot.*action: command not found.*",
         "analyze": "missing initscripts pkg",
         "branch": "rhel",
-        "status": "active",
+        "status": "closed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2027233",
         "path": "journal, dmesg",
         "trigger": ""

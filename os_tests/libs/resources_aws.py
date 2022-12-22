@@ -416,9 +416,10 @@ class EC2VM(VMResource):
                 InstanceId=self.ec2_instance.id, DryRun=False)
             return True
         except ClientError as err:
-            LOG.error("Failed to send_diagnostic_interrupt to %s" %
-                      self.ec2_instance.id)
-            return False
+            LOG.error("Failed to send_diagnostic_interrupt to {}:{}".format(self.ec2_instance.id, err))
+            if 'UnsupportedOperation' not in str(err):
+                return False
+        raise UnSupportedAction('This instance does not support send nmi')
 
     def send_hibernation(self):
         if not self.hibernation_support:

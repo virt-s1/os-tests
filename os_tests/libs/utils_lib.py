@@ -37,8 +37,8 @@ def init_args():
                     help='skip cases, add --strict for skipping exactly', required=False)
     parser.add_argument('--verifydoc', dest='verifydoc', action='store_true',
                     help='verify or show case doc only', required=False)
-    parser.add_argument('--uploaddoc', dest='uploaddoc', default=None, action='store',
-                    help='upload doc to specific test case management system, eg. polarion', required=False)
+    parser.add_argument('--dumpdoc', dest='dumpdoc', default=None, action='store',
+                    help='dump doc to yaml file', required=False)
     parser.add_argument('--filter_by', dest='filter_by', default='case_name', action='store',
                     help="filter by 'case_name'(default),'case_tag','case_file','component','bugzilla_id',\
                         'is_customer_case','testplan','maintainer','description','key_steps',\
@@ -353,30 +353,6 @@ def finish_case(test_instance):
     """
     pass
 
-def case_to_polarion(case=None,cfg=None):
-    from os_tests.libs.polarion import PolarionCase
-    polarion_case = PolarionCase(cfg=cfg)
-    LOG.info("upload {}".format(case.id()))
-    yaml_data = {}
-    try:
-        yaml_data = load(case._testMethodDoc, Loader=Loader)
-        if not hasattr(yaml_data,'get'):
-            yaml_data = {}
-            yaml_data['case_name'] = case.id()
-        else:
-            yaml_data['case_name'] = case.id()
-    except Exception as err:
-        yaml_fail = err
-        yaml_data['case_name'] = case.id()
-        LOG.info("please verify its docstring before uploading")
-        return False
-    polarion_case.casedoc = yaml_data
-    if polarion_case.query_case():
-        polarion_case.update_case()
-    else:
-        polarion_case.add_new()
-    return True
-
 def filter_case_doc(case=None, patterns=None, skip_patterns=None, filter_field='case_name', strict=False, verify_doc=False ):
     if patterns is None and skip_patterns is None and not verify_doc:
         return True
@@ -442,10 +418,7 @@ def filter_case_doc(case=None, patterns=None, skip_patterns=None, filter_field='
                     is_skip = True
                     break
     if verify_doc and is_select and not is_skip:
-        expect_fields = ['case_tags', 'title', 'importance', 'subsystem_team', 'automation_drop_down', 
-                        'linked_work_items', 'automation_field', 'setup_teardown', 'environment', 'case_name', 
-                        'component', 'bug_id', 'is_customer_case', 'testplan', 'maintainer', 'description', 
-                        'key_steps', 'expected_result', 'debug_want']
+        from tipset.libs import polarion_adm
         print("="*20)
         print(case.id())
         print(case._testMethodDoc)
@@ -453,9 +426,7 @@ def filter_case_doc(case=None, patterns=None, skip_patterns=None, filter_field='
         if  yaml_fail:
             print(yaml_fail)
             return is_select and not is_skip
-        for i in expect_fields:
-            if yaml_data.get(i) == None:
-                print('missing {}'.format(i))
+        polarion_adm.verify_doc(casedoc = yaml_data)
     return is_select and not is_skip
 
 def msg_to_syslog(test_instance, cmd='sudo virt-what', msg=None):
