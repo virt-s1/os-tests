@@ -760,8 +760,11 @@ def is_aws(test_instance, action=None):
         aws: return True
         other: return False
     '''
-    output = run_cmd(test_instance, "sudo cat /sys/devices/virtual/dmi/id/bios_*", expect_ret=0)
-    if 'amazon' in output.lower():
+    if is_pkg_installed(test_instance, pkg_name='virt-what', cancel_case=False, is_install=False):
+        output = run_cmd(test_instance, "sudo virt-what", expect_ret=0)
+    else:
+        output = run_cmd(test_instance, "sudo cat /sys/devices/virtual/dmi/id/bios_*", expect_ret=0)
+    if any(x in output.lower() for x in ['aws', 'amazon']):
         test_instance.log.info("AWS system.")
         return True
     else:
@@ -802,7 +805,10 @@ def is_ali(test_instance, action=None):
         aws: return True
         other: return False
     '''
-    output = run_cmd(test_instance, "sudo cat /sys/devices/virtual/dmi/id/product_*", expect_ret=0)
+    if is_pkg_installed(test_instance, pkg_name='virt-what', cancel_case=False, is_install=False):
+        output = run_cmd(test_instance, "sudo virt-what", expect_ret=0)
+    else:
+        output = run_cmd(test_instance, "sudo cat /sys/devices/virtual/dmi/id/product_*", expect_ret=0)
     if 'alibaba' in output.lower():
         test_instance.log.info("Ali system.")
         return True
@@ -841,7 +847,10 @@ def is_ahv(test_instance, action=None):
         ahv: return True
         other: return False
     '''
-    output = run_cmd(test_instance, "sudo cat /sys/devices/virtual/dmi/id/product_*", expect_ret=0)
+    if is_pkg_installed(test_instance, pkg_name='virt-what', cancel_case=False, is_install=False):
+        output = run_cmd(test_instance, "sudo virt-what", expect_ret=0)
+    else:
+        output = run_cmd(test_instance, "sudo cat /sys/devices/virtual/dmi/id/product_*", expect_ret=0)
     if 'ahv' in output.lower():
         test_instance.log.info("Nutanix AHV system.")
         return True
@@ -861,7 +870,10 @@ def is_gcp(test_instance, action=None):
         aws: return True
         other: return False
     '''
-    output = run_cmd(test_instance, "sudo cat /sys/devices/virtual/dmi/id/bios_*", expect_ret=0)
+    if is_pkg_installed(test_instance, pkg_name='virt-what', cancel_case=False, is_install=False):
+        output = run_cmd(test_instance, "sudo virt-what", expect_ret=0)
+    else:
+        output = run_cmd(test_instance, "sudo cat /sys/devices/virtual/dmi/id/bios_*", expect_ret=0)
     if 'google' in output.lower():
         test_instance.log.info("gcp system.")
         return True
