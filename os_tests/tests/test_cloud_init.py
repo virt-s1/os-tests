@@ -1472,13 +1472,14 @@ EOF""".format(device, size), expect_ret=0)
         maintainer:
             huzhao@redhat.com
         description:
-            RHEL-288482 - CLOUDINIT-TC: Check cloud-init dependency, openssl, gdisk and python3-configobj
+            RHEL-288482 - CLOUDINIT-TC: Check cloud-init dependency: openssl, gdisk,
+            python3-configobj, python3-jinja2, python3-pyserial
         key_steps:
             1. Launch instance with cloud-init installed
             2. Check the cloud-init denpendency
             # rpm -qR cloud-init 
         """       
-        dep_list = 'openssl,gdisk,python3-configobj'
+        dep_list = 'openssl,gdisk,python3-configobj,python3-jinja2,python3-pyserial'
         cmd = 'sudo rpm -qR cloud-init'
         utils_lib.run_cmd(self,
                           cmd,
@@ -2686,16 +2687,16 @@ chpasswd:
         maintainer:
             huzhao@redhat.com
         description:
-           Cloud-init should place the puppet module in cloud_final_modules
+           Cloud-init should place the puppet, power-state-change modules in cloud_final_modules
         key_steps: |
             1. Check /etc/cloud/cloud.cfg
         expect_result:
-            The puppet, chef, salt-minion, mcollective, package-update-upgrade-install 
+            The puppet, chef, salt-minion, mcollective, package-update-upgrade-install, power-state-change 
             should be in cloud_final_modules
         debug_want:
             N/A
         """
-        module_list = 'puppet,chef,salt-minion,mcollective,package-update-upgrade-install'
+        module_list = 'puppet,chef,salt-minion,mcollective,package-update-upgrade-install,power-state-change'
         cmd = "sed -n '/cloud_final_modules:/,/system_info:/p' /etc/cloud/cloud.cfg"
         utils_lib.run_cmd(self,
                           cmd,
@@ -3121,6 +3122,53 @@ EOF
         #check cloud-init status again, and no 'Traceback' in log
         self._check_cloudinit_done_and_service_isactive()
         self.log.info("Reboot successfully after upgrade cloud-init for rhel " + self.base_version)
+
+    def test_cloudinit_network_ready(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        title:
+            CLOUDINIT-TC: Ensure network ready before cloud-init runs
+        bug_id:
+            bugzilla_2151861        
+        testplan:
+            https://polarion.engineering.redhat.com/polarion/#/project/RHELVIRT/wiki/Cloud-init/        
+        maintainer:
+            huzhao@redhat.com
+        description: |
+            Check the /usr/lib/systemd/system/cloud-init.service
+        key_steps: |
+            1. cat /usr/lib/systemd/system/cloud-init.service
+        expected_result: |
+            1. There should be After=NetworkManager-wait-online.service
+        """
+        cmd = "cat /usr/lib/systemd/system/cloud-init.service | grep -i 'After=NetworkManager-wait-online.service'"
+        utils_lib.run_cmd(self, 
+                          cmd, 
+                          expect_ret=0,
+                          msg='There should be After=NetworkManager-wait-online.service')
+
+    def test_cloudinit_check_no_change(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        title:
+            CLOUDINIT-TC: Check no change for the path /run/cloud-init permission
+        bug_id:
+            bugzilla_1728625        
+        testplan:
+            https://polarion.engineering.redhat.com/polarion/#/project/RHELVIRT/wiki/Cloud-init/        
+        maintainer:
+            huzhao@redhat.com
+        description: |
+            Check the path /run/cloud-init/ permission is not changed
+        key_steps: |
+            1. rpm -V cloud-init
+        expected_result: |
+            No /run/cloud-init/ in the output
+        """
+        utils_lib.run_cmd(self, 'ls -dl /run/cloud-init/')
+        utils_lib.run_cmd(self, 'sudo rpm -V cloud-init', expect_not_kw='/run/cloud-init')
 
     def tearDown(self):
         if 'test_cloudinit_sshd_keypair' in self.id():
