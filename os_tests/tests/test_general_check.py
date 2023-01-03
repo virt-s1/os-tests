@@ -144,6 +144,7 @@ class TestGeneralCheck(unittest.TestCase):
             Xen - xen,tsc,hpet,acpi_pm,
             aarch64 - arch_sys_counter,
             ppc64le - timebase,
+            s390x - tod,
             Microsoft - hyperv_clocksource_tsc_page,acpi_pm,
             AuthenticAMD - kvm-clock,tsc,acpi_pm,
             GenuineIntel - kvm-clock,tsc,acpi_pm
@@ -157,6 +158,8 @@ class TestGeneralCheck(unittest.TestCase):
             expect_clocks = 'arch_sys_counter'
         elif 'ppc64le' in output and 'KVM' in output and not utils_lib.is_metal(self):
             expect_clocks = 'timebase'
+        elif 's390x' in output and 'KVM' in output and not utils_lib.is_metal(self):
+            expect_clocks = 'tod'
         elif 'Microsoft' in output:
             expect_clocks = 'hyperv_clocksource_tsc_page,acpi_pm'
         elif 'AuthenticAMD' in output and 'KVM' in output and not utils_lib.is_metal(self):
