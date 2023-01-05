@@ -1393,5 +1393,41 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1789738",
         "path": "journal",
         "trigger": ""
+    },
+    "msg_157": {
+        "content": ".*SEV: failed to INIT error 0x13.*",
+        "analyze": "Depends on bios setting or bios version, not controlled by RHEL",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2072822,https://github.com/AMDESE/AMDSEV#faq-7",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_158": {
+        "content": ".*rngd.service.*loaded failed.*;.*rngd.service: Main process exited, code=exited, status=1/FAILURE.*;.*rngd.service: Failed with result 'exit-code'.*",
+        "analyze": "rng-tools is optional in default pkg installation list.",
+        "branch": "rhel9",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/6984027",
+        "path": "journal,systemctl",
+        "trigger": ""
+    },
+    "msg_159": {
+        "content": ".*insights-client-boot.service.*Unit uses MemoryLimit=.* please use MemoryMax= instead. Support for MemoryLimit= will be removed soon.*",
+        "analyze": "known issue",
+        "branch": "rhel9",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2155468",
+        "path": "journal,systemctl",
+        "trigger": ""
+    },
+    "msg_160": {
+        "content": ".*tsc: Fast TSC calibration failed.*",
+        "analyze": "can ignore this if refine TSC clocksource successfully",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/260603,https://access.redhat.com/solutions/4423371",
+        "path": "journal,dmesg",
+        "trigger": "Refined TSC clocksource calibration"
     }
 }

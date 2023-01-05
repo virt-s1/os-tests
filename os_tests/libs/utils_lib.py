@@ -315,6 +315,10 @@ def init_case(test_instance):
             test_instance.ssh_timeout = 1200
         if not test_instance.vm.exists():
             test_instance.vm.create()
+        if hasattr(test_instance.vm, 'get_state') and 'stopping' in test_instance.vm.get_state():
+            for count in iterate_timeout(
+                600, "Timed out waiting for getting server stopped."):
+                if test_instance.vm.is_stopped(): break
         if test_instance.vm.is_stopped():
             test_instance.vm.start(wait=True)
         test_instance.params['remote_port'] = test_instance.vm.port or 22
@@ -345,6 +349,7 @@ def init_case(test_instance):
     else:
         _, test_instance.node_info = get_cfg(cfg_file=node_info)
     init_provider_from_guest(test_instance)
+    core_file_check(test_instance)
 
 def finish_case(test_instance):
     """finish case
@@ -1454,3 +1459,27 @@ def check_attribute(target, attributes, test_instance=None, cancel_case=True):
                 func_write(msg)
             return False
     return True
+
+def core_file_check(test_instance=None):
+    '''
+    when there is core file exists, collect it to test result dir for further debugging
+    '''
+    cmd = 'sudo ls /var/lib/systemd/coredump/core*'
+    core_files = run_cmd(test_instance, cmd, msg='check if core file exists')
+    if 'No such file or directory' not in core_files:
+        test_instance.log.info('Please attached core files when report bugs')
+        for core_file in core_files.split('\n'):
+            core_file = core_file.strip('\n')
+            if not core_file:
+                continue
+            cmd = 'sudo chmod 766 {}'.format(core_file)
+            run_cmd(test_instance, cmd, expect_ret=0)
+            if test_instance.params.get('remote_node') is not None:
+                test_instance.log.info('retrive {} from remote to {}'.format(core_file, test_instance.log_dir))
+                test_instance.SSH.get_file(rmt_file=core_file,local_file='{}/attachments/{}'.format(test_instance.log_dir,os.path.basename(core_file)))
+            else:
+                cmd = "cp {} {}/attachments/{}".format(core_file, test_instance.log_dir,os.path.basename(core_file) )
+                run_cmd(test_instance, cmd, msg='save {} to {}'.format(core_file, test_instance.log_dir))
+        run_cmd(test_instance, 'sudo rm -rf /var/lib/systemd/coredump/core*', msg='clean up core files')
+        cmd = 'sudo journalctl -b0'
+        run_cmd(test_instance, cmd, msg='get traceback from journal')
