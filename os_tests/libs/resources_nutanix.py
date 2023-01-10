@@ -1186,7 +1186,8 @@ class NutanixVM(VMResource):
         raise UnSupportedAction('No such operation in nutanix')
     
     def get_state(self):
-        raise NotImplementedError
+        self._data = None
+        return self.data.get('power_state')
 
     def is_exist(self):
         raise NotImplementedError
