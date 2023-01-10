@@ -185,7 +185,7 @@ class TestNetworkTest(unittest.TestCase):
         title:
             Test ethtool query nic's mac address
         importance:
-            Low
+            low
         subsystem_team:
             sst_virtualization_cloud
         automation_drop_down:
