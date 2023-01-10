@@ -25,7 +25,7 @@ class TestGeneralCheck(unittest.TestCase):
                 cmd = 'sudo rpm -V {} > {} 2>&1'.format(' '.join(check_list), rpm_V_file)
                 utils_lib.run_cmd(self, cmd, msg="verify pkgs", timeout=600)
                 self.output = utils_lib.run_cmd(self, 'cat {}'.format(rpm_V_file), expect_ret=0, msg="check if output exists again")
-        if self.id().endswith(('test_check_systemd_analyze_verify_missing', 'test_check_systemd_analyze_verify_deprecated_unsafe', 'test_check_systemd_analyze_verify_obsolete', 'test_check_systemd_analyze_verify_ordering_cycle', 'test_check_journalctl_service_unknown_lvalue')):
+        if any(x in self.id().lower() for x in ['systemd_analyze_verify', 'journalctl_service_unknown']):    
             check_file = self.utils_dir + '/systemd_analyze_services.sh'
             check_file_tmp = '/tmp/systemd_analyze_services.sh'
             if self.params.get('remote_node') is not None:
@@ -785,22 +785,6 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         debug_want:
             attach core files under '/var/lib/systemd/coredump/' if report bz
         """
-        cmd = 'sudo ls  /var/lib/systemd/coredump/core*'
-        core_files = utils_lib.run_cmd(self, cmd, msg='check if core file generated')
-        if 'No such file or directory' not in core_files:
-            self.log.info('Please attached core files when repor bugs')
-            for core_file in core_files.split('\n'):
-                core_file = core_file.strip('\n')
-                if not core_file:
-                    continue
-                cmd = 'sudo chmod 766 {}'.format(core_file)
-                utils_lib.run_cmd(self, cmd, expect_ret=0)
-                if self.params.get('remote_node') is not None:
-                    self.log.info('retrive {} from remote to {}'.format(core_file, self.log_dir))
-                    self.SSH.get_file(rmt_file=core_file,local_file='{}/attachments/{}'.format(self.log_dir,os.path.basename(core_file)))
-                else:
-                    cmd = "cp {} {}/attachments/{}".format(core_file, self.log_dir,os.path.basename(core_file) )
-                    utils_lib.run_cmd(self, cmd, msg='save {} to {}'.format(core_file, self.log_dir))
         utils_lib.check_log(self, 'dumped core', rmt_redirect_stdout=True)
 
     def test_check_journalctl_error(self):
@@ -982,7 +966,8 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
             - service unit file content
             - output from 'systemd-analyze verify $service'
         """
-        utils_lib.check_log(self, 'Unknown lvalue', rmt_redirect_stdout=True)
+        cmd = 'cat {}'.format(self.systemd_analyze_verify_file)
+        utils_lib.check_log(self,'Unknown lvalue',log_cmd=cmd,rmt_redirect_stdout=True)
 
     def test_check_locale(self):
         '''
@@ -1690,6 +1675,57 @@ in cmdline as bug1859088")
         cmd = 'sudo journalctl -b0'
         utils_lib.run_cmd(self, cmd, expect_not_kw='ordering cycle', msg='Check there is no ordering cycle in journal log')
         utils_lib.run_cmd(self, 'cat {}'.format(self.systemd_analyze_verify_file),expect_ret=0, expect_not_kw='ordering cycle', msg='Check there is no ordering cycle which may block boot up')
+
+    def test_check_systemd_analyze_verify_instead(self):
+        """
+        case_name:
+            test_check_systemd_analyze_verify_instead
+        case_tags:
+            systemd
+        case_status:
+            Approved
+        title:
+            check service has no option which will be removed soon in unit file 
+        importance:
+            low
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            Automated
+        linked_work_items:
+            N/A
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_general_check.py
+        setup_teardown:
+            N/A
+        environment:
+            N/A
+        component:
+            systemd
+        bug_id:
+            bugzilla_2155468
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        test_type:
+            Functional
+        test_level:
+            Component
+        maintainer:
+            xiliang@redhat.com
+        description: |
+            check service has no option which will be removed soon in unit file 
+        key_steps: |
+            # systemd-analyze verify $service
+        expected_result: |
+            no instead option found
+        debug_want: |
+            - output from 'systemd-analyze verify $service'
+            - output from 'systemctl cat $failservice'
+        """
+        cmd = 'cat {}'.format(self.systemd_analyze_verify_file)
+        utils_lib.check_log(self,'instead',log_cmd=cmd,rmt_redirect_stdout=True)
 
     def test_check_tsc_deadline_timer(self):
         """
