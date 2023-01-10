@@ -1175,7 +1175,7 @@ class NutanixVM(VMResource):
         res = self.prism.detach_nic(self.data.get('uuid'), nic_mac)
         if wait:
             self.wait_for_status(
-                res['task_uuid'], 60,
+                res['task_uuid'], 120,      ##"Timed out waiting for detaching NIC" in CI log, cannot reproduce, change to 120.
                 "Timed out waiting for detaching NIC.")
 
     def get_nic(self):
@@ -1186,7 +1186,8 @@ class NutanixVM(VMResource):
         raise UnSupportedAction('No such operation in nutanix')
     
     def get_state(self):
-        raise NotImplementedError
+        self._data = None
+        return self.data.get('power_state')
 
     def is_exist(self):
         raise NotImplementedError

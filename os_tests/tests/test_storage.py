@@ -378,6 +378,9 @@ class TestStorage(unittest.TestCase):
         """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
+        if self.vm.provider == 'nutanix':
+            if self.vm.if_secure_boot or self.vm.machine_type == 'q35':
+                self.skipTest("Skip this test case as q35 machine type or secure boot not support IDE")
         self._test_add_clone_cdrom('ide', 'clone_from_adsf_file')
 
     def test_add_remove_multi_scsi(self):
@@ -409,9 +412,6 @@ class TestStorage(unittest.TestCase):
         """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
-        if self.vm.provider == 'nutanix':
-            if self.vm.if_secure_boot or self.vm.machine_type == 'q35':
-                self.skipTest("Skip this test case as q35 machine type or secure boot not support IDE")
 
         utils_lib.check_attribute(self.vm, 'attach_disk',test_instance=self, cancel_case=True)
         for i in range(10):
