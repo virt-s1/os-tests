@@ -296,6 +296,9 @@ class GCPVM(VMResource):
         self.data = self.vm_name
         return self.data['status']
 
+    def get_state(self):
+        return self._get_status()
+
     def is_started(self):
         return self._get_status() == 'RUNNING'
 
@@ -325,9 +328,6 @@ class GCPVM(VMResource):
         return response['contents']
 
     def disk_count(self):
-        raise NotImplementedError
-
-    def get_state(self):
         raise NotImplementedError
 
     def send_nmi(self):

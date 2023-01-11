@@ -833,6 +833,9 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         self._data = None
         return self.data.get('Status')
 
+    def get_state(self):
+        return self._get_status()
+
     def is_started(self):
         """Return True if VM is running."""
         return self._get_status() == 'Running'
@@ -862,9 +865,6 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
             return False, err
 
     def disk_count(self):
-        raise NotImplementedError
-
-    def get_state(self):
         raise NotImplementedError
 
     def send_nmi(self):

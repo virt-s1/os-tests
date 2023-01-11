@@ -244,6 +244,9 @@ class OpenShiftVM(VMResource):
                 return "Running"
         return "Unknown"
 
+    def get_state(self):
+        return self._get_status()
+
     def is_started(self):
         return self._get_status() == "Running"
 
@@ -260,9 +263,6 @@ class OpenShiftVM(VMResource):
         raise NotImplementedError
 
     def disk_count(self):
-        raise NotImplementedError
-
-    def get_state(self):
         raise NotImplementedError
 
     def send_nmi(self):

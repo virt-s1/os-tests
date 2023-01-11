@@ -315,7 +315,7 @@ def init_case(test_instance):
             test_instance.ssh_timeout = 1200
         if not test_instance.vm.exists():
             test_instance.vm.create()
-        if hasattr(test_instance.vm, 'get_state') and 'stopping' in test_instance.vm.get_state():
+        if hasattr(test_instance.vm, 'get_state') and 'stopping' in str(test_instance.vm.get_state()):
             for count in iterate_timeout(
                 600, "Timed out waiting for getting server stopped."):
                 if test_instance.vm.is_stopped(): break

@@ -157,7 +157,7 @@ class PrismApi(PrismSession):
         endpoint = urljoin(self.base_url, "vms")
         if vm_name == None:
             vm_name = self.vm_name
-	# Attach image.
+  # Attach image.
         images = self.list_images()
         vmdisk_uuid = ""
         for image in images['entities']:
@@ -212,7 +212,7 @@ runcmd:
                 'boot_device_type': 'disk',
                 'uefi_boot': self.if_uefi_boot,
                 'secure_boot': self.if_secure_boot
-	        },
+          },
             'memory_mb':
             self.memory * 1024,
             'name':
@@ -269,7 +269,7 @@ runcmd:
             vm_name = self.vm_name + vm_name
         logging.debug("Create VM by ISO kickstart")
         endpoint = urljoin(self.base_url, "vms")
-	# Attach image.
+  # Attach image.
         images = self.list_images()
         vmdisk_uuid = []
         for image in images['entities']:
@@ -909,6 +909,9 @@ class NutanixVM(VMResource):
         self._data = None
         return self.data.get('power_state')
 
+    def get_state(self):
+        return self._get_status()
+
     def is_started(self):
         return self._get_status() == 'on'
 
@@ -1185,10 +1188,6 @@ class NutanixVM(VMResource):
     def get_console_log(self):
         raise UnSupportedAction('No such operation in nutanix')
     
-    def get_state(self):
-        self._data = None
-        return self.data.get('power_state')
-
     def is_exist(self):
         raise NotImplementedError
 
@@ -1291,6 +1290,7 @@ class NutanixVolume(StorageResource):
 
     def get_state(self):
         raise NotImplementedError
+
     def is_exist(self):
         if self.vm.show():
             logging.info("Instance disk: {}".format(self.vm.show()['vm_disk_info']))

@@ -187,6 +187,9 @@ class LibvirtVM(VMResource):
         state, reason = dom.state()
         return state
 
+    def get_state(self):
+        return self._get_status()
+
     def is_started(self):
         return self._get_status() == libvirt.VIR_DOMAIN_RUNNING
 
@@ -203,9 +206,6 @@ class LibvirtVM(VMResource):
         raise NotImplementedError
 
     def disk_count(self):
-        raise NotImplementedError
-
-    def get_state(self):
         raise NotImplementedError
 
     def send_nmi(self):
