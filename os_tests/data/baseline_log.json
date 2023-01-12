@@ -1173,7 +1173,7 @@
         "content": ".*Failed to find module 'ipmi-devintf'.*",
         "analyze": "fwupd contains modules-load.d which include this module but not exists in initramfs",
         "branch": "rhel9",
-        "status": "active",
+        "status": "closed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2092888",
         "path": "journal",
         "trigger": ""
