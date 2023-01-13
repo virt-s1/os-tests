@@ -150,6 +150,9 @@ class EC2VM(VMResource):
             'HibernationOptions':{
                 'Configured': self.hibernation_support
             },
+            'MetadataOptions':{
+                'InstanceMetadataTags': 'enabled'
+            },
             "UserData":self.user_data
         }
         if self.efa_support:
