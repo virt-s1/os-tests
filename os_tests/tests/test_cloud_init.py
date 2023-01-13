@@ -2916,6 +2916,53 @@ chpasswd:
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         utils_lib.run_cmd(self, 'uname -r', msg='Get instance kernel version')
 
+    def test_cloudinit_query_instancemetadatatags(self):
+        '''
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_name:
+            test_cloudinit_query_instancemetadatatags
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_query_instancemetadatatags
+        component:
+            cloudinit
+        bugzilla_id:
+            2082686, 2091640
+        is_customer_case:
+            True
+        testplan:
+            VIRT-296699
+        maintainer:
+            xiachen@redhat.com
+        description:
+           test cloud-init package upgrade, this auto case only works for openstack now
+        key_steps:
+            1. Enable tags on metadata when launch the EC2 instance
+            2. verify that tags are available: cloud-init query ds.meta_data.tags
+        debug_want:
+            N/A
+        '''
+        #support version is 22.1-3
+        if not utils_lib.is_aws(self):
+            self.skipTest('skip run as this case is aws specific.')
+        out = utils_lib.run_cmd(self, 'rpm -q cloud-init', expect_ret=0)
+        cloudinit_ver = re.findall('\d+.\d',out)[0]
+        if float(cloudinit_ver) < 22.1:
+            self.skipTest('This feature is not supported before cloud-init 22.1')
+        self.log.info("check if cloud-init code contains metadata_version 2021-03-23")
+        # cloud-init code contains metadata_version 2021-03-23 which can support quering EC2 tags
+        cmd = "sudo rpm -ql cloud-init |grep -w DataSourceEc2.py"
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Get DataSourceEc2.py')
+        # checking code changes is almost same as verifying function
+        cmd = "sudo grep extended_metadata_versions " + output
+        utils_lib.run_cmd(self, cmd,
+                    expect_kw="2021-03-23",
+                    msg='Check if metadata versions contains 2021-03-23')
+        self.log.info("check if cloud-init can query EC2 tags in instance metadata")
+        # verifying function
+        cmd = "cloud-init query ds.meta_data.tags"
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+
     def test_cloudinit_package_upgrade(self):
         '''
         case_tag:
