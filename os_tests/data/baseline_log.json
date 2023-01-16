@@ -1429,5 +1429,23 @@
         "link": "https://access.redhat.com/solutions/260603,https://access.redhat.com/solutions/4423371",
         "path": "journal,dmesg",
         "trigger": "Refined TSC clocksource calibration"
+    },
+    "msg_161": {
+        "content": ".*acpid.socket:.*ListenStream= references a path below legacy directory.*",
+        "analyze": "known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2159568",
+        "path": "journal,systemctl",
+        "trigger": ""
+    },
+    "msg_162": {
+        "content": "rc-local.service.* not executable: Permission denied.*",
+        "analyze": "This is expected, hence we only want to run it if the user actually uses it for something",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2159586",
+        "path": "journal,systemctl",
+        "trigger": ""
     }
 }

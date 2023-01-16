@@ -1,3 +1,4 @@
+from multiprocessing import cpu_count
 import unittest
 import re
 from os_tests.libs import utils_lib
@@ -144,6 +145,70 @@ current_clocksource'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='core dumped')
         cmd = "sudo cpupower frequency-info"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='core dumped')
+
+    def test_cpu_hotplug_no_workload(self):
+        """
+        case_name:
+            test_cpu_hotplug_no_workload
+        case_tags:
+            kernel
+        case_status:
+            Approved
+        title:
+            simple case to offline, online cpu without workload
+        importance:
+            low
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            Automated
+        linked_work_items:
+            N/A
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_general_test.py
+        setup_teardown:
+            N/A
+        environment:
+            N/A
+        component:
+            kernel
+        bug_id:
+            bugzilla_2160354
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        test_type:
+            Functional
+        test_level:
+            Component
+        maintainer:
+            xiliang@redhat.com
+        description: |
+            simple case to offline, online cpu without workload
+        key_steps: |
+            # echo 0 > /sys/devices/system/cpu/cpu1/online
+            # lscpu|grep Off-line
+            # echo 1 > /sys/devices/system/cpu/cpu1/online
+        expected_result: |
+            - can offline, online cpu1 without any error, no panic, no call trace
+        debug_want: |
+            - dmesg
+        """
+        cmd = "grep processor /proc/cpuinfo | wc -l"
+        cpu_counts = int(utils_lib.run_cmd(self, cmd, expect_ret=0,
+                                           msg = "Get cpu counts"))
+        if int(cpu_counts) < 2:
+            self.skipTest("only run when cpu count >= 2")
+        cmd = "sudo bash -c 'echo 0 > /sys/devices/system/cpu/cpu1/online'"
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        cmd = 'lscpu'
+        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='Off-line')
+        cmd = "sudo bash -c 'echo 1 > /sys/devices/system/cpu/cpu1/online'"
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        cmd = 'lscpu'
+        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='Off-line')
+        utils_lib.run_cmd(self, 'dmesg', expect_ret=0)
 
     def test_dracut_f_v(self):
         '''
