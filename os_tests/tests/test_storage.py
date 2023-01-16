@@ -101,6 +101,11 @@ class TestStorage(unittest.TestCase):
             No failure case found
 
         '''
+        utils_lib.run_cmd(self,
+                    'lscpu',
+                    expect_ret=0,
+                    cancel_not_kw="Xen",
+                    msg="Not run in xen instance(cpuhotplug) as bug 1641510 which is very low priority")
         self._blktests_run(case_name="block")
 
     def test_storage_blktests_nvme(self):

@@ -1715,17 +1715,19 @@ in cmdline as bug1859088")
         maintainer:
             xiliang@redhat.com
         description: |
-            check service has no option which will be removed soon in unit file 
+            check service unit file has no option which will be removed soon or has "legacy directory" and permission denied settings.
         key_steps: |
             # systemd-analyze verify $service
         expected_result: |
-            no instead option found
+            - no instead option found
+            - no "legacy directory" used
+            - no "Permission denied" found
         debug_want: |
             - output from 'systemd-analyze verify $service'
             - output from 'systemctl cat $failservice'
         """
         cmd = 'cat {}'.format(self.systemd_analyze_verify_file)
-        utils_lib.check_log(self,'instead',log_cmd=cmd,rmt_redirect_stdout=True)
+        utils_lib.check_log(self,'instead,legacy directory,Permission denied',log_cmd=cmd,rmt_redirect_stdout=True)
 
     def test_check_tsc_deadline_timer(self):
         """
