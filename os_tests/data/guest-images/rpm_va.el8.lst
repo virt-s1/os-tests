@@ -18,3 +18,6 @@ missing     /run/motd.d
 .......T.    /boot/efi/EFI/redhat/shimaa64-redhat.efi
 .......T.    /boot/efi/EFI/redhat/shimaa64.efi
 .......T.    /boot/efi/EFI/redhat/grubaa64.efi
+S.5....T.  c /var/lib/nfs/etab
+.......T.  c /etc/dnf/plugins/product-id.conf
+.......T.  c /etc/dnf/plugins/subscription-manager.conf

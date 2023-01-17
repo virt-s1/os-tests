@@ -84,3 +84,11 @@
 /etc/NetworkManager/system-connections/cloud-init-eth0.nmconnection
 /etc/NetworkManager/conf.d/99-cloud-init.conf
 /etc/nsswitch.conf.save_by_rpm
+/etc/insights-client/.cache.json
+/etc/insights-client/.cache.json.asc
+/etc/insights-client/.insights-core.etag
+/etc/insights-client/.insights-core-gpg-sig.etag
+/etc/insights-client/machine-id
+/etc/rhsm/syspurpose/syspurpose.json
+/root/.gnupg/pubring.kbx
+/root/.gnupg/trustdb.gpg
