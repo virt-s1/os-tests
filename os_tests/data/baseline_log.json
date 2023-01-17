@@ -1447,5 +1447,14 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2159586",
         "path": "journal,systemctl",
         "trigger": ""
+    },
+    "msg_163": {
+        "content": "DMI: QEMU KVM Virtual Machine, BIOS edk2-.* unknown.*",
+        "analyze": "This is expected, it means the package release date is empty.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-75",
+        "path": "journal,dmesg",
+        "trigger": ""
     }
 }
