@@ -669,9 +669,9 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         component:
             journal
         bugzilla_id:
-            
-        customer_case_id:
-            
+            1975897,2026544
+        is_customer_case:
+            True 
         polarion_id:
             n/a
         maintainer:
