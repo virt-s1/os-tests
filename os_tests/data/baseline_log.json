@@ -1449,6 +1449,15 @@
         "trigger": ""
     },
     "msg_163": {
+        "content": "DMI: QEMU KVM Virtual Machine, BIOS edk2-.* unknown.*",
+        "analyze": "This is expected, it means the package release date is empty.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-75",
+        "path": "journal,systemctl",
+        "trigger": ""
+    },
+    "msg_164": {
         "content": ".*NOHZ tick-stop error: Non-RCU local softirq work is pending, handler.*",
         "analyze": "konwn error and engineering team is working on the issue.",
         "branch": "rhel",
@@ -1457,7 +1466,7 @@
         "path": "journal,dmesg",
         "trigger": ""
     },
-    "msg_164": {
+    "msg_165": {
         "content": ".*Failed to destroy io sq error.*",
         "analyze": "konwn error when deteach ena devices from aws metal instances.",
         "branch": "rhel",
