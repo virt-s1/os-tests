@@ -61,6 +61,8 @@ class TestLifeCycle(unittest.TestCase):
         polarion_id:
         bz: 1703366
         '''
+        self.default_boot_kernel  = utils_lib.run_cmd(self, "sudo grubby --default-kernel", expect_ret=0)
+        self.default_cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline')
         if self.vm and self.vm.provider == 'nutanix' and self.vm.is_secure_boot:
             self.skipTest('''Red Hat Insights error "sed: can't read /sys/kernel/debug/sched_features: Operation not permitted" When using secure boot''')
         self.log.info("Check kernel-debug can boot up!")
@@ -69,10 +71,8 @@ class TestLifeCycle(unittest.TestCase):
             self.skipTest('minimal 2G memory required for debug kernel')
         if utils_lib.is_arch(self, 'aarch64') and int(mini_mem) < 4:
             self.skipTest('minimal 4G memory required in aarch64')
-        
+
         need_reboot = False
-        self.default_boot_kernel  = utils_lib.run_cmd(self, "sudo grubby --default-kernel", expect_ret=0)
-        self.default_cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline')
         kernel_ver = utils_lib.run_cmd(self, 'uname -r', expect_ret=0)
         if 'debug' in kernel_ver:
             self.log.info('already in debug kernel')

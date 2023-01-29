@@ -1039,7 +1039,7 @@
         "analyze": "known issue in rhel8 about veth interface",
         "branch": "rhel",
         "status": "active",
-        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2026544",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2026544,1975897",
         "path": "journal, dmesg",
         "trigger": ""
     },
@@ -1454,6 +1454,24 @@
         "branch": "rhel",
         "status": "active",
         "link": "https://issues.redhat.com/browse/RHEL-75",
+        "path": "journal,systemctl",
+        "trigger": ""
+    },
+    "msg_164": {
+        "content": ".*NOHZ tick-stop error: Non-RCU local softirq work is pending, handler.*",
+        "analyze": "konwn error and engineering team is working on the issue.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/6653181",
+        "path": "journal,dmesg",
+        "trigger": ""
+    },
+    "msg_165": {
+        "content": ".*Failed to destroy io sq error.*",
+        "analyze": "konwn error when deteach ena devices from aws metal instances.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2162244",
         "path": "journal,dmesg",
         "trigger": ""
     }

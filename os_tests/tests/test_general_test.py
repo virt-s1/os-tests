@@ -1130,7 +1130,12 @@ if __name__ == "__main__":
                           expect_kw='"Terminated": true', msg='terminate enclave')
 
     def tearDown(self):
-        pass
+        if "test_cpu_hotplug_no_workload" in self.id():
+            cmd = "cat /sys/devices/system/cpu/cpu1/online"
+            out = utils_lib.run_cmd(self, cmd)
+            if '0' in out:
+                cmd = "sudo bash -c 'echo 1 > /sys/devices/system/cpu/cpu1/online'"
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg="enable cpu1")
 
 if __name__ == '__main__':
     unittest.main()
