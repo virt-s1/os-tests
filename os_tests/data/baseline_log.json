@@ -1454,7 +1454,7 @@
         "branch": "rhel",
         "status": "active",
         "link": "https://issues.redhat.com/browse/RHEL-75",
-        "path": "journal,systemctl",
+        "path": "journal,dmesg",
         "trigger": ""
     },
     "msg_164": {
@@ -1472,6 +1472,24 @@
         "branch": "rhel",
         "status": "active",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2162244",
+        "path": "journal,dmesg",
+        "trigger": ""
+    },
+    "msg_166": {
+        "content": ".*systemd-udevd.*could not read from.*acpi_cpufreq/initstate.*",
+        "analyze": "The message can be ignored since it is harmless.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/5281931",
+        "path": "journal,dmesg",
+        "trigger": ""
+    },
+    "msg_167": {
+        "content": ".*Expanded resource Reserved due to conflict with.*",
+        "analyze": "Not RHEL specific and seems it is information only and harmless.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://www.lkml.org/lkml/2019/7/15/603",
         "path": "journal,dmesg",
         "trigger": ""
     }
