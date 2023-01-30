@@ -867,9 +867,9 @@ class NutanixVM(VMResource):
         if wait:
             self.wait_for_status(
                 res['task_uuid'], 60,
-                "Timed out waiting for server to get stopped.")
+                "Timed out waiting for task status of stopping vm.")
             for count in utils_lib.iterate_timeout(
-                    30, "Timed out waiting for server to get stopped."):
+                    120, "Timed out waiting for server to get stopped."): #Timed out in CI log, change to 120
                 if self.is_stopped():
                     break
 
@@ -1146,18 +1146,18 @@ class NutanixVM(VMResource):
 
         if wait:
             self.wait_for_status(
-                res['task_uuid'], 30,
+                res['task_uuid'], 120,  #Timed out in CI log, change to 120
                 "Timed out attaching disk.")
 
     def detach_disk(self, device_bus, vmdisk_uuid, device_index, wait=True):
         '''
-        Attach disk according to vmdisk_uuid
+        Detach disk according to vmdisk_uuid
         '''
         res = self.prism.detach_disk(self.data.get('uuid'), device_bus, vmdisk_uuid, device_index)
         if wait:
             self.wait_for_status(
-                res['task_uuid'], 30,
-                "Timed out attaching disk.")
+                res['task_uuid'], 120,  #Timed out in CI log, change to 120
+                "Timed out detaching disk.")
     
     def attach_block(self, disk, target, wait=True, timeout=120):
         raise NotImplementedError
