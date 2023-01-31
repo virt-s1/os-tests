@@ -139,6 +139,16 @@ class GCPVM(VMResource):
         f_ip = self.data['networkInterfaces'][0]['accessConfigs'][0]['natIP']
         return f_ip
 
+    @property
+    def is_secure_boot(self):
+        if self.arch == "x86_64":
+            return True
+        return False
+
+    @property
+    def is_uefi_boot(self):
+        return True
+
     def create(self, sev=False, wait=False):
         # Get image.
         source_disk_image = get_image(self.service_v1, self.project,
@@ -192,6 +202,10 @@ class GCPVM(VMResource):
                 'provisioningModel': 'SPOT',
                 'instanceTerminationAction': 'DELETE'
             },
+            'shieldedInstanceConfig': {
+                'enableIntegrityMonitoring': True,
+                'enableVtpm': True
+            },
         }
 
         if sev:
@@ -200,6 +214,9 @@ class GCPVM(VMResource):
             }
             config['disks'][0]['interface'] = 'NVME'
             config['networkInterfaces'][0]['nicType'] = 'GVNIC'
+
+        if self.is_secure_boot:
+            config['shieldedInstanceConfig']['enableSecureBoot'] = True
 
         operation = self.service_v1.instances().insert(project=self.project,
                                                        zone=self.zone,
