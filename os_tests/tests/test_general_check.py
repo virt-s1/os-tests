@@ -2117,14 +2117,15 @@ current_device"
         try:
             if utils_lib.is_sev_enabled(self):
                 # https://gitlab.com/redhat/centos-stream/src/kernel/centos-stream-9/-/merge_requests/875/diffs?commit_id=ea66ccfe756058c054f6c32b30f79e69e2b77c08#1314bf7c9c25b9572d0a973f6be52499f0478e85
-                if float(utils_lib.get_product_id(self)) < 9.2:
-                    utils_lib.run_cmd(self, 'dmesg', expect_ret=0,
-                                      expect_kw='AMD Memory Encryption Features active: SEV',
-                                      msg="Check there is 'AMD Memory Encryption Features active: SEV' in dmesg before run 'perf top'")
-                else:
+                v = float(utils_lib.get_product_id(self))
+                if if 8.8 <= v < 9.0 or v >=9.2:
                     utils_lib.run_cmd(self, 'dmesg', expect_ret=0,
                                       expect_kw='Memory Encryption Features active: AMD SEV',
                                       msg="Check there is 'Memory Encryption Features active: AMD SEV' in dmesg before run 'perf top'")
+                else:
+                    utils_lib.run_cmd(self, 'dmesg', expect_ret=0,
+                                      expect_kw='AMD Memory Encryption Features active: SEV',
+                                      msg="Check there is 'AMD Memory Encryption Features active: SEV' in dmesg before run 'perf top'")
             else:
                 self.skipTest('SEV is not enabled')
         except NotImplementedError:
