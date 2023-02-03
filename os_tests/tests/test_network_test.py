@@ -1403,6 +1403,8 @@ COMMIT
         debug_want:
             N/A
         """
+        if utils_lib.is_aws(self):
+            self.skipTest("Unable to download pkg from internal site now")
         check_file = self.utils_dir + '/nw_pktgen.sh'
         check_file_tmp = '/tmp/nw_pktgen.sh'
         if self.params.get('remote_node') is not None:

@@ -2629,7 +2629,7 @@ chpasswd:
             N/A
         """
         if float(self.rhel_x_version) >= 9.0:
-            self.skipTest('skip run this case, network-script is not be supported by rhel 9 any more')        
+            self.skipTest('skip run this case, network-script is not be supported by rhel 9 any more')
         pkg_install_check = utils_lib.is_pkg_installed(self,"network-scripts")
         if not pkg_install_check and self.vm.provider == 'openstack':
             # Register to rhsm stage
@@ -2640,7 +2640,7 @@ chpasswd:
                 self.vm.subscription_baseurl)
             utils_lib.run_cmd(self, reg_cmd)
             utils_lib.run_cmd(self, "sudo subscription-manager attach --auto")
-            pkg_install_check = utils_lib.is_pkg_installed(self,"network-scripts",cancel_case=True)
+        utils_lib.is_pkg_installed(self,"network-scripts",cancel_case=True)
         utils_lib.run_cmd(self, "sudo /usr/lib/systemd/systemd-sysv-install enable network")
         # Remove ifcfg files other than eth0 and lo
         utils_lib.run_cmd(self, "sudo rm -f $(find /etc/sysconfig/network-scripts/ifcfg-*|grep -vE '(eth0|lo)')")

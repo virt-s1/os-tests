@@ -1492,5 +1492,14 @@
         "link": "https://www.lkml.org/lkml/2019/7/15/603",
         "path": "journal,dmesg",
         "trigger": ""
+    },
+    "msg_168": {
+        "content": ".*podman-system-generator failed with exit status 1.*",
+        "analyze": "New added binary and told ypu already, will add ks or bz link in future.",
+        "branch": "rhel-9.2",
+        "status": "active",
+        "link": "",
+        "path": "journal,dmesg",
+        "trigger": ""
     }
 }

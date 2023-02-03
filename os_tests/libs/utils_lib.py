@@ -59,6 +59,8 @@ def init_args():
                     help='specify azure to run azure image check only', required=False)
     parser.add_argument('--platform_profile', dest='platform_profile', default=None, action='store',
                     help='specify platform profile if enable os-tests provison vms self, only supports aws for now', required=False)
+    parser.add_argument('--no-cleanup', dest='no_cleanup', action='store_true',
+                    help='debug purpose, skip cleanup phase at exit, do not use it in normal test', required=False)
     args = parser.parse_args()
     return args
 
