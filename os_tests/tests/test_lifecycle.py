@@ -634,15 +634,15 @@ class TestLifeCycle(unittest.TestCase):
         case_tags:
             Lifecycle,Lifecycle_tier2
         case_status:
-            Approved
+            approved
         title:
             test system reboot with two simultaneous reboot operation
         importance:
-            Low
+            low
         subsystem_team:
             sst_virtualization_cloud
         automation_drop_down:
-            Automated
+            automated
         linked_work_items:
             TBD
         automation_field:
@@ -660,9 +660,9 @@ class TestLifeCycle(unittest.TestCase):
         testplan:
             N/A
         test_type:
-            Functional
+            functional
         test_level:
-            Component
+            component
         maintainer:
             xiliang@redhat.com
         description: |

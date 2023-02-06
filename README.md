@@ -98,16 +98,16 @@ os_tests
 os-tests will try to install required pkgs from default repo during run, but it would be better to have them if no repo provided.
 List RHEL only because CentOS Stream and Fedora usually have public repo available.
 
-**RHEL-7**: install,automake,autoconf,sysstat,gcc,unzip,wget,quota,bzip2,iperf3,pciutils,fio,psmisc,expect,ntpdate,perf,nvme-cli,pciutils,fio,git,tar,nfs-utils,libvirt,qemu-kvm,kernel-debug,python3,dracut-fips,podman,strace,sos  
+**RHEL-7**: install,automake,autoconf,sysstat,gcc,unzip,wget,quota,bzip2,iperf3,pciutils,fio,psmisc,expect,ntpdate,perf,nvme-cli,pciutils,fio,git,tar,nfs-utils,libvirt,qemu-kvm,kernel-debug,python3,dracut-fips,podman,strace,sos
 
-**RHEL-8**: make,automake,autoconf,sysstat,gcc,unzip,wget,quota,bzip2,iperf3,pciutils,fio,psmisc,expect,perf,nvme-cli,pciutils,fio,php-cli,php-xml,php-json,libaio-devel,blktrace,fio,nvme-cli,git,tar,nfs-utils,libvirt,qemu-kvm,kernel-debug,python3,dracut-fips,podman,xdp-tools,openssl-devel,strace,sos  
+**RHEL-8**: make,automake,autoconf,sysstat,gcc,unzip,wget,quota,bzip2,iperf3,pciutils,fio,psmisc,expect,perf,nvme-cli,pciutils,fio,php-cli,php-xml,php-json,libaio-devel,blktrace,fio,nvme-cli,git,tar,nfs-utils,libvirt,qemu-kvm,kernel-debug,python3,dracut-fips,podman,xdp-tools,openssl-devel,strace,sos,acpid,mokutil
 
-**RHEL-9**: make,automake,autoconf,sysstat,gcc,unzip,wget,quota,bzip2,iperf3,pciutils,fio,psmisc,expect,perf,nvme-cli,pciutils,fio,libaio-devel,blktrace,fio,nvme-cli,git,tar,nfs-utils,libvirt,qemu-kvm,python3,dracut-fips,kernel-debug,python3-pip,hostname,podman,xdp-tools,openssl-devel,glibc-all-langpacks,strace,sos
+**RHEL-9**: make,automake,autoconf,sysstat,gcc,unzip,wget,quota,bzip2,iperf3,pciutils,fio,psmisc,expect,perf,nvme-cli,pciutils,fio,libaio-devel,blktrace,fio,nvme-cli,git,tar,nfs-utils,libvirt,qemu-kvm,python3,dracut-fips,kernel-debug,python3-pip,hostname,podman,xdp-tools,openssl-devel,glibc-all-langpacks,strace,sos,acpid,mokutil
 
 ### The log file
 
 The suite saves summary to sum.html and sum.log under "/tmp/os_tests_result/" by default.
-The test debug log files are saved in "/tmp/os_tests_result/debug" following case name by default.
+The test debug log files are saved in "/tmp/os_tests_result/attachments" following case name by default.
 You can change "results_dir" in "cfg/os-tests.yaml" to save log to other place or passing as command option.
 
 Below is an example:

@@ -159,6 +159,12 @@ def main():
         HTMLTestRunner(verbosity=2).run(final_ts)
 
     for res in chain(vms, disks, nics):
+        if args.no_cleanup:
+            log.info("skipped resource cleanup because --no-cleanup found, please release resources manually")
+            for i in chain(vms, disks, nics):
+                if i.id:
+                    log.info(i.id)
+            break
         if hasattr(res, 'exists') and res.exists():
             res.delete()
         elif hasattr(res, 'is_exist') and res.is_exist():
