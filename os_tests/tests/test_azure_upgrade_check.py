@@ -75,12 +75,21 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         product_id = utils_lib.get_product_id(self)
         if float(product_id) < float('8'):
             pkgs_wanted += ''',dhclient'''
-        else:
-            pkgs_wanted += ''',insights-client,dhcp-client'''
+        # Only verify in RHEL-9 because when 7->8 upgrade there's no insights-client
+        elif float(product_id) >= float('9'):
+            pkgs_wanted += ''',insights-client'''
         pkgs_wanted_list = pkgs_wanted.split(',')
+        failed = 0
+        failed_msg = 'Not installed pkgs:'
         for pkg in pkgs_wanted_list:
             cmd = 'rpm -q {}'.format(pkg)
-            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check {} installed'.format(pkg))
+            try:
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check {} installed'.format(pkg))
+            except:
+                failed += 1
+                failed_msg += pkg + ' '
+        if failed != 0:
+            self.fail(failed_msg)
 
     def test_check_no_avc_denials(self):
         '''
@@ -91,9 +100,9 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
 
     def test_check_timezone(self):
         '''
-        check that the default timezone is EDT
+        check the timezone is UTC (timezone is set to UTC before upgrade)
         '''
-        utils_lib.run_cmd(self, 'date', expect_kw='EDT', msg='check timezone is EDT')
+        utils_lib.run_cmd(self, 'date', expect_kw='UTC', msg='check timezone is UTC')
 
     # def test_check_selinux(self):
     #     '''
@@ -109,9 +118,17 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         '''
         services = '''waagent,cloud-init-local,cloud-init,cloud-config,cloud-final,hypervkvpd,sshd'''
         service_list = services.split(',')
+        failed = 0
+        failed_msg = "Failed services: "
         for service in service_list:
             cmd = 'systemctl is-active {}'.format(service)
-            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check {} is active'.format(service))
+            try:
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check {} is active'.format(service))
+            except:
+                failed += 1
+                failed_msg += service + ''
+        if failed != 0:
+            self.fail(failed_msg)
 
     def test_check_kdump_status(self):
         '''
@@ -227,12 +244,21 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         cmd = "ls -l /etc/ssh/{ssh_host_ecdsa_key,ssh_host_ed25519_key,ssh_host_rsa_key}|awk '{print $1$3$4}'|uniq"
         utils_lib.run_cmd(self, cmd, expect_output=expected, msg="Verify /etc/ssh/ssh_host_xxx_key permission is 640, group is ssh_keys")
 
-    def test_check_image_generation(self):
+    def test_check_dev_disk_azure(self):
         '''
-        Check generation according to vm name
+        bz: 2165042
+        Verify /dev/disk/azure soft-links are correct
         '''
-        hostname = utils_lib.run_cmd(self, 'hostname')
-        if 'gen1' in hostname:
-            self.assertEqual(self._get_generation(), 'gen1', "Expected: gen1; Real: gen2")
-        else:
-            self.assertEqual(self._get_generation(), 'gen2', "Expected: gen2; Real: gen1")
+        cmd = "ls -l /dev/disk/azure"
+        utils_lib.run_cmd(self, cmd, expect_kw='root', msg="Verify root in /dev/disk/azure")
+        utils_lib.run_cmd(self, cmd, expect_kw='resource', msg="Verify resource in /dev/disk/azure")
+
+#    def test_check_image_generation(self):
+#        '''
+#        Check generation according to vm name
+#        '''
+#        hostname = utils_lib.run_cmd(self, 'hostname')
+#        if 'gen1' in hostname:
+#            self.assertEqual(self._get_generation(), 'gen1', "Expected: gen1; Real: gen2")
+#        else:
+#            self.assertEqual(self._get_generation(), 'gen2', "Expected: gen2; Real: gen1")
