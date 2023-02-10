@@ -301,6 +301,7 @@ sudo setsid ~/stressapptest/src/stressapptest -M %s -s %s > %s" % \
         1. Prepare repo file for the target release
         2. Get the compose ID of target release        
         '''
+        utils_lib.is_cmd_exist(self, cmd="wget", cancel_case=True)
         release_id = target_release.split('.')[0]
         image_url = "%s/rhel-%s/nightly/RHEL-%s/latest-RHEL-%s.0" % \
             (image_site, release_id, release_id, target_release)
@@ -341,31 +342,20 @@ gpgcheck=0"""
         utils_lib.run_cmd(self, cmd, expect_ret=0,
                           msg="Create new repo file with target release")
 
-        utils_lib.is_cmd_exist(self, cmd="wget", cancel_case=True)
         cmd = "sudo wget -nv --directory-prefix=/tmp %s" % image_compose
         utils_lib.run_cmd(self, cmd, expect_ret=0,
                           msg="Download compose ID file from %s" % image_compose)
-        ret = utils_lib.run_cmd(self, "sudo cat /tmp/COMPOSE_ID", expect_ret=0,
+        res = utils_lib.run_cmd(self, "sudo cat /tmp/COMPOSE_ID", expect_ret=0,
                           msg="Get compose ID")
-        self.log.info("RHEL compose ID: %s" % ret)
+        self.log.info("Target RHEL compose ID: %s" % res)
 
-    def _sanity_test(self, target_release, dmesg_cursor):
-        '''
-        1. Network works normally
-        2. Check dmesg log and make sure no unexpected log
-        '''
-        utils_lib.run_cmd(self, "cat /etc/redhat-release",
-                          expect_ret=0,
-                          expect_kw=target_release,
-                          msg="Check OS release")
-
-        utils_lib.check_log(self, 
-                            "error,warn,fail,unable,unknown,Unknown,Call trace,Call Trace",
-                            log_cmd='dmesg -T', cursor=dmesg_cursor)
-
+    def _clear_os_log(self):
         cmd = "sudo dmesg -c && sudo rm -rf /run/log/journal/* && sudo systemctl restart systemd-journald"
         utils_lib.run_cmd(self, cmd, expect_ret=0,
-                          msg="Clear dmesg and journalctl log for further test")
+                        msg="Clear dmesg and journalctl log for sanity test")
+        utils_lib.run_cmd(self, "sudo reboot", msg="Reboot OS to re-detect OS log")
+        time.sleep(120)
+        utils_lib.init_connection(self)
 
     def test_live_migration(self):
         '''
@@ -1266,14 +1256,14 @@ gpgcheck=0"""
                           expect_ret=0, expect_not_kw="debug",
                           msg="Verifying default kernel has recovered")
 
-    def test_upgrade_minor_path(self):
+    def test_upgrade_minor(self):
         """
         case_tag:
             Upgrade
         case_name:
-            test_upgrade_minor_path
+            test_upgrade_minor
         case_file:
-            os_tests.tests.test_nutanix_vm.test_upgrade_minor_path
+            os_tests.tests.test_nutanix_vm.test_upgrade_minor
         component:
             GeneralVerification
         bugzilla_id:
@@ -1319,24 +1309,23 @@ gpgcheck=0"""
         utils_lib.run_cmd(self, cmd, expect_ret=0,
                           msg="Run yum update",
                           timeout=1800)
-        utils_lib.run_cmd(self, "sudo reboot",
-                          msg="Reboot OS")
-        time.sleep(60)
+        utils_lib.run_cmd(self, "sudo reboot", msg="Reboot OS to take effects of upgrade")
+        time.sleep(120)
         utils_lib.init_connection(self)
+        utils_lib.run_cmd(self, "cat /etc/redhat-release",
+                          expect_ret=0,
+                          expect_kw=target_release,
+                          msg="Check RHEL release")
+        self._clear_os_log()
 
-        dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='dmesg -T')
-        utils_lib.run_cmd(self, "sudo reboot", msg="Reboot OS to re-scan dmesg log")
-        utils_lib.init_connection(self)
-        self._sanity_test(target_release, dmesg_cursor)
-
-    def test_upgrade_in_place(self):
+    def test_upgrade_leapp(self):
         """
         case_tag:
             Upgrade
         case_name:
-            test_upgrade_in_place
+            test_upgrade_leapp
         case_file:
-            os_tests.tests.test_nutanix_vm.test_upgrade_in_place
+            os_tests.tests.test_nutanix_vm.test_upgrade_leapp
         component:
             GeneralVerification
         bugzilla_id:
@@ -1350,80 +1339,77 @@ gpgcheck=0"""
         maintainer:
             shshang@redhat.com
         description:
-            In-place upgrade RHEL 8 to latest RHEL 9
+            Upgrade RHEL 7 to latest RHEL 8 or RHEL 8 to latest RHEL 9 via leapp
         key_steps: |
-            1. In-place upgrade RHEL 8 to latest RHEL 9
+            1. For RHEL 7: https://gitlab.cee.redhat.com/oamg/rhel-major-upgrade/-/blob/main/Upgrade_7_to_8_howto.md
+            2. For RHEL 8: https://gitlab.cee.redhat.com/oamg/rhel-major-upgrade/-/blob/main/Upgrade_8_to_9_howto.md
             2. Check VM status
             3. Check OS status
         expect_result:
-            1. VM working normally after in-place upgrade
+            1. VM working normally after leapp upgrade
             2. No unexpected error
         debug_want:
             N/A
         """
         rhel_release = utils_lib.get_product_id(self).rstrip()
-        target_release = self.vm.params['Upgrade']['in_place']
+        target_release = self.vm.params['Upgrade']['leapp']
         if not target_release:
             self.skipTest("Skip test as in-place upgrade is not defined in nutanix.yaml")
         if rhel_release == target_release:
             self.skipTest("Skip test as target release: %s is the same as current release: %s" % (target_release, rhel_release))
         if rhel_release.split('.')[0] >= target_release.split('.')[0]:
-            self.skipTest("Skip test as in-place upgrade path from %s to %s is not supported" % (rhel_release, target_release))
+            self.skipTest("Skip test as leapp upgrade path from %s to %s is not supported" % (rhel_release, target_release))
 
-        leapp_repo_url = self.vm.params['Upgrade']['leapp_repo_url']
-        if not leapp_repo_url:
-            self.skipTest("Skip test as leapp_repo_url is not defined in nutanix.yaml")
         leapp_data_url = self.vm.params['Upgrade']['leapp_data_url']
         if not leapp_data_url:
             self.skipTest("Skip test as leapp_data_url is not defined in nutanix.yaml")
-
-        utils_lib.is_cmd_exist(self, cmd="wget", cancel_case=True)
-        cmd = "sudo wget --no-check-certificate -nv --directory-prefix=/etc/yum.repos.d/ %s && \
-sudo dnf install leapp-upgrade-el8toel9 -y" % leapp_repo_url
-        utils_lib.run_cmd(self, cmd, expect_ret=0,
-                          msg="Install Leapp upgrade package")
-
-        cmd = "sudo wget --no-check-certificate -nv --directory-prefix=/etc/leapp/files/ %s/unsupported_pci_ids.json && \
-sudo wget --no-check-certificate -nv --directory-prefix=/etc/leapp/files/ %s/unsupported_driver_names.json && \
-sudo wget --no-check-certificate -nv --directory-prefix=/etc/leapp/files/ %s/pes-events.json && \
-sudo wget --no-check-certificate -nv --directory-prefix=/etc/leapp/files/ %s/repomap.json && \
-sudo wget --no-check-certificate -nv --directory-prefix=/etc/leapp/files/ %s/device_driver_deprecation_data.json" % \
-            (leapp_data_url, leapp_data_url, leapp_data_url, leapp_data_url, leapp_data_url)
-        utils_lib.run_cmd(self, cmd, expect_ret=0,
-                          msg="Get Leapp data files and saved to /etc/leapp/files/")
-
         image_site = self.vm.params['Upgrade']['image_site']
         if not image_site:
             self.skipTest("Skip test as image site is not defined in nutanix.yaml")
+
+        cmd = "sudo yum install leapp-upgrade -y"
+        utils_lib.run_cmd(self, cmd,
+                          expect_ret=0,
+                          timeout=600,
+                          msg="Install Leapp tool")
+
+        cmd = 'sudo curl -k "%s/{repomap.json,pes-events.json,device_driver_deprecation_data.json}" \
+-o "/etc/leapp/files/#1"' % leapp_data_url
+        utils_lib.run_cmd(self, cmd, expect_ret=0,
+                          msg="Download Leapp data files and saved to /etc/leapp/files/")
         self._prepare_repo(image_site, target_release)
+        
+        if rhel_release.split('.')[0] == "7":
+            cmd = "sudo lsmod | grep -q floppy && sudo rmmod floppy"
+            utils_lib.run_cmd(self, cmd, expect_ret=0,
+                              msg="Remove floppy kernel driver, refer https://access.redhat.com/solutions/6971716")
+            cmd = "sudo lsmod | grep -q pata_acpi && sudo rmmod pata_acpi"
+            utils_lib.run_cmd(self, cmd, expect_ret=0,
+                              msg="Remove pata_acpi kernel driver, refer https://access.redhat.com/solutions/6971716")
+            answerfile = "/var/log/leapp/answerfile"
+            answerfile_content = """[remove_pam_pkcs11_module_check]
+confirm=True"""
+            cmd = "sudo touch answerfile && sudo chmod 777 answerfile && sudo echo '%s' > answerfile && \
+sudo chmod 644 answerfile && sudo mv answerfile %s" % (answerfile_content, answerfile)
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Generate the answerfile")
+            utils_lib.run_cmd(self, "sudo leapp answer --section remove_pam_pkcs11_module_check.confirm=True",
+                              expect_ret=0, msg="Update the required answers in the answer file")
 
-        leapp_upgrade_repo = "/etc/leapp/files/leapp_upgrade_repositories.repo"
-        utils_lib.run_cmd(self, "sudo mv /etc/yum.repos.d/rhel.repo %s" % leapp_upgrade_repo, 
-                          expect_ret=0,
-                          msg="Prepare the leapp upgrade repository")
-
-        cmd = "sudo LEAPP_UNSUPPORTED=1 LEAPP_DEVEL_DATABASE_SYNC_OFF=1 leapp preupgrade --debug --no-rhsm"
+        cmd = "export LEAPP_UNSUPPORTED=1 && export LEAPP_DEVEL_SKIP_CHECK_OS_RELEASE=1 && \
+sudo leapp upgrade --no-rhsm --enablerepo AppStream --enablerepo BaseOS"
         utils_lib.run_cmd(self, cmd,
                           expect_ret=0,
-                          msg="Run leapp preupgrade",
+                          msg="Run leapp upgrade, may take up to 1 hour",
                           timeout=3600)
-        cmd = "sudo LEAPP_UNSUPPORTED=1 LEAPP_DEVEL_DATABASE_SYNC_OFF=1 leapp upgrade --debug --no-rhsm"
-        utils_lib.run_cmd(self, cmd,
-                          expect_ret=0,
-                          msg="Run leapp upgrade",
-                          timeout=3600)
-        utils_lib.run_cmd(self, "sudo cp %s /etc/yum.repos.d/rhel.repo" % leapp_upgrade_repo, 
-                          expect_ret=0,
-                          msg="Recover the repo file")
 
         utils_lib.run_cmd(self, "sudo reboot", msg="Reboot OS to take effects of upgrade")
-        time.sleep(180)
+        time.sleep(600)
         utils_lib.init_connection(self)
-
-        dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='dmesg -T')
-        utils_lib.run_cmd(self, "sudo reboot", msg="Reboot OS to re-scan dmesg log")
-        utils_lib.init_connection(self)
-        self._sanity_test(target_release, dmesg_cursor)
+        utils_lib.run_cmd(self, "cat /etc/redhat-release",
+                          expect_ret=0,
+                          expect_kw=target_release,
+                          msg="Check RHEL release")
+        self._clear_os_log()
 
     def test_vgpu_add_device(self):
         """
