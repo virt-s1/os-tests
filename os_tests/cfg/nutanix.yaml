@@ -44,15 +44,14 @@ Stress:
   reboot_cycles: 
 Upgrade:
   minor: 
-  in_place: 
-  leapp_repo_url: 
-  leapp_data_url:
+  leapp: 
+  leapp_data_url: 
   image_site: 
 Other:
   packages:
 Flavor:
-  name: m1.medium
-  cpu: 2
-  memory: 4
-  size: 10
-  virt: kvm
+  name: 
+  cpu: 
+  memory: 
+  size: 
+  virt: 
