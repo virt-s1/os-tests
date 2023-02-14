@@ -2098,12 +2098,12 @@ packages:
                     cmd,
                     expect_ret=0,
                     expect_kw='Registered successfully',
-                    msg='No Registered successfully log in cloud-init.log')
+                    msg='Check Registered successfully log in cloud-init.log')
         cmd = "sudo subscription-manager identity"
         utils_lib.run_cmd(self,
                     cmd,
                     expect_ret=0,
-                    msg='Fail to register with subscription-manager')
+                    msg='Register with subscription-manager')
         # check auto-attach
         output = utils_lib.run_cmd(self, "sudo subscription-manager list --consumed --pool-only").rstrip('\n')
         self.assertNotEqual("", output, "Cannot auto-attach pools")
@@ -2196,12 +2196,12 @@ rh_subscription:
                     cmd,
                     expect_ret=0,
                     expect_kw='Registered successfully',
-                    msg='No Registered successfully log in cloud-init.log')
+                    msg='Check registered successfully log in cloud-init.log')
         cmd = "sudo subscription-manager identity"
         utils_lib.run_cmd(self,
                     cmd,
                     expect_ret=0,
-                    msg='Fail to register with subscription-manager')
+                    msg='Register with subscription-manager')
         # check auto-attach
         output = utils_lib.run_cmd(self, "sudo subscription-manager list --consumed --pool-only").rstrip('\n')
         self.assertNotEqual("", output, "Cannot auto-attach pools")
