@@ -178,6 +178,83 @@ class TestNetworkTest(unittest.TestCase):
         utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', \
             skip_words='ftrace,Adding Red Hat flag eBPF/rawtrace', cursor=self.dmesg_cursor)
 
+    def test_ethtool_L(self):
+        """
+        case_tags:
+            network
+        title:
+            Test change the numbers of channels of the specified network device.
+        importance:
+            low
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            automated
+        linked_work_items:
+            N/A
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_network_test.py
+        setup_teardown:
+            N/A
+        environment:
+            N/A
+        case_name:
+            test_ethtool_L
+        component:
+            kernel
+        bug_id:
+            N/A
+        is_customer_case:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            xiliang@redhat.com
+        description: |
+            Use ethtool to query and change the numbers of channels of the specified network device.
+        key_steps: |
+            # ethtool -l $nic
+            # ethtool -L $nic rx|tx|other|combined N
+        expected_result: |
+            Can change the numbers of channels of the specified network device successfully.
+        debug_want: |
+            # ethtool -i $nic
+            # ethtool -l $nic
+            # dmesg
+        """
+        utils_lib.is_cmd_exist(self, 'ethtool')
+        cmd = "ethtool -i {}".format(self.active_nic)
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        query_cmd = "ethtool -l {}".format(self.active_nic)
+        utils_lib.run_cmd(self, query_cmd, cancel_not_kw='not supported')
+
+        for i in ['rx', 'tx', 'other','combined']:
+            cmd = "ethtool -l {}|grep -i {}|head -1".format(self.active_nic,i)
+            out = utils_lib.run_cmd(self, cmd)
+            max_val = re.findall('[\d]+',out)
+            cmd = "ethtool -l {}|grep -i {}|tail -1".format(self.active_nic,i)
+            out = utils_lib.run_cmd(self, cmd)
+            init_val = re.findall('[\d]+',out)
+            if not max_val or not init_val:
+                self.log.info("Not specified in max or current:{}".format(i))
+                continue
+            max_val = int(max_val[0])
+            init_val = int(init_val[0])
+            if max_val <= 1:
+                self.log.info("do not change any thing when value is less or equal 1:{}".format(i))
+                continue
+            set_val = random.randint(1,max_val)
+            cmd = "sudo ethtool -L {} {} {}".format(self.active_nic, i, set_val)
+            out = utils_lib.run_cmd(self, cmd)
+            if out and "supported" in out:
+                self.log.info("continue next option as cannot change this option")
+                continue
+            utils_lib.run_cmd(self, query_cmd, expect_kw=str(set_val))
+            cmd = "sudo ethtool -L {} {} {}".format(self.active_nic, i, init_val)
+            utils_lib.run_cmd(self, cmd,msg='restore it to default setting')
+            utils_lib.run_cmd(self, query_cmd, expect_kw=str(init_val))
+        utils_lib.run_cmd(self, 'dmesg')
+
     def test_ethtool_P(self):
         """
         case_tags:
@@ -236,6 +313,7 @@ class TestNetworkTest(unittest.TestCase):
                              cmd,
                              expect_kw=mac,
                              msg='compare with ip showed mac')
+
     def test_ethtool_S_xdp(self):
         '''
         case_name:
