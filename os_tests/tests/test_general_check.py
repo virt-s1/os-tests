@@ -199,6 +199,8 @@ available_clocksource'
         debug_want:
             journal log
         """
+        if utils_lib.is_ahv(self):
+            self.skipTest("Skip test as already covered in test_nutanix_vm.test_check_firstlaunch_time and test_check_reboot_time")
         max_boot_time = self.params.get('max_boot_time')
         boot_time_sec = utils_lib.getboottime(self)
         utils_lib.compare_nums(self, num1=boot_time_sec, num2=max_boot_time, ratio=0, msg="Compare with cfg specified max_boot_time")
