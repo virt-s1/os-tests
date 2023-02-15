@@ -1501,5 +1501,14 @@
         "link": "",
         "path": "journal,dmesg",
         "trigger": ""
+    },
+    "msg_169": {
+        "content": "MMIO Stale Data: Unknown: No mitigations",
+        "analyze": "known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2107499",
+        "path": "dmesg",
+        "trigger": "nutanix_ahv"
     }
 }

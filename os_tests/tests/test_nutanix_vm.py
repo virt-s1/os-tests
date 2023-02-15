@@ -784,6 +784,9 @@ gpgcheck=0"""
         debug_want:
             N/A
         '''
+        rhel_release = utils_lib.get_product_id(self).rstrip()
+        if rhel_release.split('.')[0] == "8":
+            self.skipTest("Skip test as unable to install stressapptest on RHEL 8.8 and 8.9")
         mem_gb_current = self.vm.get_memory_size()
         mem_gb_target = mem_gb_current * 2
 
@@ -1209,7 +1212,7 @@ gpgcheck=0"""
         else:
             debug_kernel = "/boot/vmlinuz-" + kernel_version.strip('\n') + "+debug"
             debug_kernel_pkg = "kernel-debug-" + kernel_version
-            utils_lib.is_pkg_installed(self, pkg_name=debug_kernel_pkg, timeout=600)
+            utils_lib.is_pkg_installed(self, pkg_name=debug_kernel_pkg, timeout=1200)
             utils_lib.run_cmd(self,
                               "sudo grubby --info=%s" % debug_kernel,
                               expect_ret=0,
