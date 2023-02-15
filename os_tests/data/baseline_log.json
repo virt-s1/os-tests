@@ -855,7 +855,7 @@
         "trigger": ""
     },
     "msg_97": {
-        "content": ".*kernel: system .*: [mem .*] could not be reserved.*",
+        "content": ".*kernel.*system .*mem.* could not be reserved.*",
         "analyze": "this is information level message and harmless if no functional impaction",
         "branch": "rhel",
         "status": "active",
@@ -1495,10 +1495,10 @@
     },
     "msg_168": {
         "content": ".*podman-system-generator failed with exit status 1.*",
-        "analyze": "New added binary and told ypu already, will add ks or bz link in future.",
+        "analyze": "New added binary and told ypu already, known issue in upstream.",
         "branch": "rhel-9.2",
         "status": "active",
-        "link": "",
+        "link": "https://github.com/containers/podman/pull/17398",
         "path": "journal,dmesg",
         "trigger": ""
     }
