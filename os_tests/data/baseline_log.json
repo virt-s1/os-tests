@@ -1507,7 +1507,7 @@
         "analyze": "known issue",
         "branch": "rhel",
         "status": "active",
-        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2107499",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2159700",
         "path": "dmesg",
         "trigger": "nutanix_ahv"
     }
