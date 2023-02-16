@@ -113,6 +113,9 @@ class EC2VM(VMResource):
             LOG.info('Cannot determin root device name, use default {}'.format(self.root_device_name))
 
         volume_size = 10
+        if self.hibernation_support:
+            # extend disk size to 20 in case no space to create swap
+            volume_size = 20
         vm_kwargs = {
             'BlockDeviceMappings':[
                 {
@@ -428,7 +431,12 @@ class EC2VM(VMResource):
         if not self.hibernation_support:
             LOG.info("this instance not support hibernation")
             return False
-        return self.stop(hibernate=True)
+        # wait system is ready for hiberation
+        for i in range(10):
+            time.sleep(20)
+            if self.stop(hibernate=True):
+                return True
+        return False
 
     def get_console_log(self, silient=False):
         ret = None
