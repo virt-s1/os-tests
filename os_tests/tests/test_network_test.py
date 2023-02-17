@@ -1541,7 +1541,11 @@ COMMIT
         except UnSupportedAction:
             self.skipTest('nic create func is not supported in {}'.format(self.vm.provider))
 
-        netdev_index = 1
+        cmd = "ip link|awk '/state UP/ {print $2}'|cut -d ':' -f 1"
+        nic_name = utils_lib.run_cmd(self, cmd).strip()
+        nic_name_str = nic_name[:-1]
+        nic_index = int(nic_name[-1])
+        netdev_index = nic_index + 1
         self.vm.attach_nic(self.nic,device_index=1, wait=True)
         for i in range(1, 4):
             time.sleep(5)
@@ -1550,7 +1554,7 @@ COMMIT
             output1 = utils_lib.run_cmd(self, cmd)
             cmd = "ip addr show"
             output1 = utils_lib.run_cmd(self, cmd)
-            if 'eth%s' % netdev_index not in output1:
+            if '%s%s' % (nic_name_str,netdev_index) not in output1:
                 self.log.info("Added nic not found")
         timeout = 120
         interval = 5
@@ -1568,9 +1572,9 @@ COMMIT
         cmd = "ip addr show"
         utils_lib.run_cmd(self, cmd)
         self.nic.delete()
-        self.assertIn('eth%d' % netdev_index,
+        self.assertIn('%s%d' % (nic_name_str,netdev_index),
                       output1,
-                      msg='eth{} not found after attached nic'.format(netdev_index))
+                      msg='{0}{1} not found after attached nic'.format(nic_name_str,netdev_index))
         cmd = 'dmesg'
         utils_lib.run_cmd(self, cmd, expect_not_kw='Call Trace')
 
