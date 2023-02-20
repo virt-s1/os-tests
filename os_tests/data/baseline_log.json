@@ -1467,11 +1467,11 @@
         "trigger": ""
     },
     "msg_165": {
-        "content": ".*Failed to destroy io sq error.*",
-        "analyze": "konwn error when deteach ena devices from aws metal instances.",
+        "content": ".*Failed to destroy io sq error.*;.*ena.*Reading reg failed for timeout.*",
+        "analyze": "These messages are a known issue in certain scenarios on the aws metal platforms. There should be no impact to instance functionality.",
         "branch": "rhel",
         "status": "active",
-        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2162244",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2162244,2152020",
         "path": "journal,dmesg",
         "trigger": ""
     },
