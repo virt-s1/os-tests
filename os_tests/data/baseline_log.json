@@ -1510,5 +1510,14 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2159700",
         "path": "dmesg",
         "trigger": "nutanix_ahv"
+    },
+    "msg_170": {
+        "content": ".*core perfctr but no constraints.*unknown hardware.*",
+        "analyze": "AMD 3rd Gen EPYCs are not fully supported by RHEL7.",
+        "branch": "rhel7",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2072184，https://access.redhat.com/articles/5899941",
+        "path": "dmesg",
+        "trigger": "el7"
     }
 }
