@@ -1156,7 +1156,7 @@ class NutanixVM(VMResource):
         res = self.prism.detach_disk(self.data.get('uuid'), device_bus, vmdisk_uuid, device_index)
         if wait:
             self.wait_for_status(
-                res['task_uuid'], 120,  #Timed out in CI log, change to 120
+                res['task_uuid'], 180,  #Timed out in CI log, change to 180
                 "Timed out detaching disk.")
     
     def attach_block(self, disk, target, wait=True, timeout=120):
