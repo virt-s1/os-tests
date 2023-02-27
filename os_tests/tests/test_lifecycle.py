@@ -1069,6 +1069,12 @@ class TestLifeCycle(unittest.TestCase):
                     """
                 utils_lib.run_cmd(self, cmd, timeout=240)
 
+                utils_lib.run_cmd(self, 'sudo dracut -f', msg='Regenerate initramfs')
+                utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system to make updating kernel take effect')
+                time.sleep(10)
+                utils_lib.init_connection(self, timeout=self.ssh_timeout)
+                utils_lib.run_cmd(self, 'cat /proc/cmdline', msg='Check /proc/cmdline')
+
         cmd = "sleep 3600 > /dev/null 2>&1 &"
         utils_lib.run_cmd(self, cmd)
         vm_hibernate_success = False
@@ -1084,12 +1090,15 @@ class TestLifeCycle(unittest.TestCase):
             cmd = "sudo systemctl hibernate"
             utils_lib.run_cmd(self, cmd, msg="Try to hibernate inside system!")
             time.sleep(20)
+            for count in utils_lib.iterate_timeout(
+                180, "Timed out waiting for getting server stopped."):
+                if self.vm.is_stopped(): break
 
         self.vm.start()
         time.sleep(30)
         self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=1800)
-        utils_lib.run_cmd(self, 'dmesg|tail -20')
+        utils_lib.run_cmd(self, 'dmesg')
         cmd = 'pgrep -a sleep'
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check sleep process still exists')
         utils_lib.run_cmd(self, 'dmesg', expect_kw="Restarting tasks", expect_not_kw='Call trace,Call Trace', msg="check the system is resumed")
@@ -1117,6 +1126,15 @@ class TestLifeCycle(unittest.TestCase):
             if "kmemleak=on" not in self.default_cmdline and "kmemleak=on" in current_cmdline:
                 cmd = 'sudo grubby --update-kernel=ALL --remove-args="kmemleak=on"'
                 utils_lib.run_cmd(self, cmd, msg='Remove "kmemleak=on" from /proc/cmdline')
+                reboot_require = True
+
+        if "test_hibernate_resume" in self.id():
+            proc_cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline', msg='Cat /proc/cmdline')
+            resume_offset_arg = re.search('(resume_offset=.+)\s', proc_cmdline)
+            resume_uuid_arg = re.search('(resume=UUID=.+)$', proc_cmdline)
+            for arg in [resume_offset_arg.groups()[0], resume_uuid_arg.groups()[0]]:
+                cmd = 'sudo grubby --update-kernel=ALL  --remove-args={}'.format(arg)
+                utils_lib.run_cmd(self, cmd, msg='Remove {}'.format(arg))
                 reboot_require = True
 
         if reboot_require:
