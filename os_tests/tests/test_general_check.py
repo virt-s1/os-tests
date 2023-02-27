@@ -1117,13 +1117,14 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         '''
         case_name:
             test_check_lspci_nvme
-
         case_priority:
             1
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_general_check.py
         component:
             kernel
-        bugzilla_id:
-            1656862
+        bug_id:
+            bugzilla_1656862,bugzilla_2173504
         polarion_id:
             n/a
         maintainer:
@@ -1135,8 +1136,14 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
             2. # lsblk -d|grep nvme|wc -l
         expected_result:
             The nums are equal.
+        debug_want: |
+            If the test fail, please attch the test log which includes below commands output.
+            cmds: dmesg, sudo lspci -vvv, lsblk
         '''
         utils_lib.is_cmd_exist(self, cmd='lspci')
+        cmds = ["dmesg", "sudo lspci -vvv", "lsblk"]
+        for cmd in cmds:
+            utils_lib.run_cmd(self, cmd, msg='retrive debug info')
         lspci_cmd = "lspci|grep 'Non-Volatile memory'|wc -l"
         lsblk_cmd = "lsblk -d|grep nvme|wc -l"
         lspci_out = utils_lib.run_cmd(self, lspci_cmd,cancel_not_kw='0', msg="Check nvme pci device")
