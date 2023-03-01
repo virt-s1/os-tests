@@ -1541,7 +1541,7 @@ COMMIT
         except UnSupportedAction:
             self.skipTest('nic create func is not supported in {}'.format(self.vm.provider))
 
-        cmd = "ip link|awk '/state UP/ {print $2}'|cut -d ':' -f 1"
+        cmd = "ip link|awk '/state UP/ {print $2}'|cut -d ':' -f 1|head -n 1"
         nic_name = utils_lib.run_cmd(self, cmd).strip()
         nic_name_str = nic_name[:-1]
         nic_index = int(nic_name[-1])
