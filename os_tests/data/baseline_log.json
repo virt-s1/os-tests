@@ -1188,11 +1188,11 @@
         "trigger": ""
     },
     "msg_134": {
-        "content": "Warning: Unmaintained hardware is detected:  e1000",
-        "analyze": "e1000 is legacy",
+        "content": ".*Warning: Unmaintained hardware is detected:.*",
+        "analyze": "This device will no longer be tested or updated on a routine basis.",
         "branch": "rhel",
         "status": "active",
-        "link": "",
+        "link": "https://access.redhat.com/solutions/6663421",
         "path": "dmesg",
         "trigger": ""
     },
@@ -1324,9 +1324,9 @@
     },
     "msg_149": {
         "content": "Unknown lvalue 'ConditionCPUs' in section 'Unit'",
-        "analyze": "",
+        "analyze": "known issue is fixed already",
         "branch": "rhel",
-        "status": "active",
+        "status": "fixed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2115230",
         "path": "journalctl",
         "trigger": "irqbalance.service:6"
@@ -1519,5 +1519,14 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2072184，https://access.redhat.com/articles/5899941",
         "path": "dmesg",
         "trigger": "el7"
+    },
+    "msg_171": {
+        "content": ".*Failed to start Flush Journal to Persistent Storage.*;.*systemd-journal-flush.service: Failed with result.*",
+        "analyze": "It is a known issue",
+        "branch": "rhel8.8",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2174645",
+        "path": "journal",
+        "trigger": "el8"
     }
 }
