@@ -768,7 +768,7 @@ def is_aws(test_instance, action=None):
         other: return False
     '''
     if is_pkg_installed(test_instance, pkg_name='virt-what', cancel_case=False, is_install=False):
-        output = run_cmd(test_instance, "sudo virt-what", expect_ret=0)
+        output = run_cmd(test_instance, "sudo bash -c 'cat /sys/devices/virtual/dmi/id/bios_*; virt-what'", expect_ret=0)
     else:
         output = run_cmd(test_instance, "sudo cat /sys/devices/virtual/dmi/id/bios_*", expect_ret=0)
     if any(x in output.lower() for x in ['aws', 'amazon']):
@@ -813,7 +813,7 @@ def is_ali(test_instance, action=None):
         other: return False
     '''
     if is_pkg_installed(test_instance, pkg_name='virt-what', cancel_case=False, is_install=False):
-        output = run_cmd(test_instance, "sudo virt-what", expect_ret=0)
+        output = run_cmd(test_instance, "sudo bash -c 'cat /sys/devices/virtual/dmi/id/bios_*; virt-what'", expect_ret=0)
     else:
         output = run_cmd(test_instance, "sudo cat /sys/devices/virtual/dmi/id/product_*", expect_ret=0)
     if 'alibaba' in output.lower():
