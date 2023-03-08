@@ -53,7 +53,7 @@ class TestNutanixVM(unittest.TestCase):
         test_log = "/tmp/live_migrate_fio_test.log"
         cmd = "setsid fio --group_reporting=1 --name=nutanix-fio-test \
 --numjobs=4 --iodepth=4 --size=500m --bs=4k --rw=randrw -rwmixread=70 \
---ioengine=psync --time_based=1 --runtime=300 \
+--ioengine=psync --time_based=1 --runtime=900 \
 --directory=/tmp/fio_test --filename=test01:test02:test03:test04:test05 > %s" % test_log
         utils_lib.run_cmd(self, cmd, msg="Start fio test", timeout=2)
 
@@ -1117,7 +1117,8 @@ gpgcheck=0"""
         self.vm.update_memory_size(mem_gb_target)
         self.assertEqual(self.vm.get_memory_size(), mem_gb_target,
                          "Test failed as add VM memory failed")
-        time.sleep(10)
+        time.sleep(60)
+        utils_lib.init_connection(self)
         self._verify_memory_size()
                
         reboot_cycles = 3
