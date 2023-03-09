@@ -1192,91 +1192,53 @@ def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_wo
     if len(tmp_list) == 0:
         test_instance.log.info("No {} found after skipped {}!".format(log_keyword, skip_words))
         return True, []
-    unknow_log = deepcopy(tmp_list)
-    # compare 2 string, if similary over fail_rate, consider it as same.
-    fail_rate = 70
+    unknow_log = list(set(deepcopy(tmp_list)))
+
     no_fail = True
-    check_done = False
-    for line1 in tmp_list:
-        # this round go through with regex
-        find_it = False
+    for line1 in set(tmp_list):
+        test_instance.log.info("Checking:{}".format(line1))
+        found_it = False
         if baseline_dict:
             for basekey in baseline_dict:
+                # this round go through with regex
                 for sub_basekey_content in baseline_dict[basekey]["content"].split(';'):
-                    check_done = False
                     if sub_basekey_content and re.search(sub_basekey_content, line1):
-                        if baseline_dict[basekey]["status"] == 'active':
-                            test_instance.log.info("Found a similar log matched in baseline.")
-                            find_it = True
-                        else:
-                            test_instance.log.info("Found a similar log matched in baseline. But it is not active, please check manually")
-                            find_it = False
-                            no_fail = False
-                            check_done = True
-                            break
-                        trigger = baseline_dict[basekey]["trigger"]
-                        if trigger and re.search(trigger,check_str,flags=re.I):
-                            test_instance.log.info("Guess it is expected because trigger keywords found '{}'".format(trigger))
-                            find_it = True
-                        elif trigger:
-                            test_instance.log.info("Guess it is unexpected because trigger keywords not found '{}'".format(trigger))
-                            find_it = False
-                        test_instance.log.info("log:{}, base:{}".format(line1, sub_basekey_content))
-                        test_instance.log.info("ID:%s Baseline analyze:%s Branch:%s Status:%s Link:%s Path:%s" %
-                             (basekey,
-                              baseline_dict[basekey]["analyze"],
-                              baseline_dict[basekey]["branch"],
-                              baseline_dict[basekey]["status"],
-                              baseline_dict[basekey]["link"],
-                              baseline_dict[basekey]["path"]))
-                        check_done = True
+                        found_it = True
+                        matched_msg = basekey
+                        test_instance.log.info("regex found in baseline:{}".format(basekey))
                         break
-                if find_it:
+            if not found_it:
+                # this round compare the content
+                # compare 2 strings, if similary over pass_rate, consider it as same.
+                pass_rate = 70
+                for basekey in baseline_dict:
+                    line1_tmp = line1
+                    line2_tmp = baseline_dict[basekey]["content"]
+                    line1_tmp, line2_tmp = clean_sentence(test_instance, line1_tmp, line2_tmp)
+                    seq = difflib.SequenceMatcher(
+                        None, a=line1_tmp, b=line2_tmp)
+                    same_rate = seq.ratio() * 100
+                    if same_rate > pass_rate:
+                        test_instance.log.info("content similar rate:{} over {} baseline:{}".format(same_rate,pass_rate,basekey))
+                        matched_msg = basekey
+                        found_it = True
+                        break
+            if found_it:
+                basekey = matched_msg
+                if baseline_dict[basekey]["status"] != 'active':
+                    test_instance.log.info("Found a similar log {} matched in baseline. But it is not active, please check manually".format(basekey))
+                    no_fail = False
+                trigger = baseline_dict[basekey]["trigger"]
+                if trigger and re.search(trigger,check_str,flags=re.I):
+                    test_instance.log.info("Guess it is expected because trigger keywords found '{}'".format(trigger))
                     unknow_log.remove(line1)
-                    break
-                if check_done:
-                    break
-    tmp_list = deepcopy(unknow_log)
-    for line1 in tmp_list:
-        # this round go through with content compare
-        find_it = False
-        if baseline_dict:
-            for basekey in baseline_dict:
-                line1_tmp = line1
-                line2_tmp = baseline_dict[basekey]["content"]
-                line1_tmp, line2_tmp = clean_sentence(test_instance, line1_tmp, line2_tmp)
-                seq = difflib.SequenceMatcher(
-                    None, a=line1_tmp, b=line2_tmp)
-                same_rate = seq.ratio() * 100
-                if same_rate > fail_rate:
-                    test_instance.log.info(
-                        "Compare result rate: %d same, maybe it is not a new one", same_rate)
-                    test_instance.log.info("Guest: %s Baseline: %s", line1,
-                             baseline_dict[basekey]["content"])
-                    test_instance.log.info("ID:%s Baseline analyze:%s Branch:%s Status:%s Link:%s Path:%s" %
-                             (basekey,
-                              baseline_dict[basekey]["analyze"],
-                              baseline_dict[basekey]["branch"],
-                              baseline_dict[basekey]["status"],
-                              baseline_dict[basekey]["link"],
-                              baseline_dict[basekey]["path"]))
-                    trigger = baseline_dict[basekey]["trigger"]
-                    if trigger and re.search(trigger,check_str,flags=re.I):
-                        test_instance.log.info("Guess it is expected because trigger keywords found '{}'".format(trigger))
-                        find_it = True
-                    elif trigger:
-                        test_instance.log.info("Guess it is unexpected because trigger keywords not found '{}'".format(trigger))
-                        find_it = False
-                        break
-                    if baseline_dict[basekey]["status"] == 'active':
-                        find_it = True
-                    else:
-                        test_instance.log.info("Find a similar issue which should be already fixed, please check manually.")
-                        find_it = False
-                        no_fail = False
-                    break
-            if find_it:
-                unknow_log.remove(line1)
+                elif trigger:
+                    test_instance.log.info("Guess it is unexpected because trigger keywords not found '{}'".format(trigger))
+                    no_fail = False
+                elif not trigger and no_fail:
+                    unknow_log.remove(line1)
+                test_instance.log.info(baseline_dict[basekey])
+                continue
     if unknow_log:
         test_instance.log.info("Below items are unknow!\n{}".format(unknow_log))
         no_fail = False
