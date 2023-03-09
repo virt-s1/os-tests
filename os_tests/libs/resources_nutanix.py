@@ -845,7 +845,7 @@ class NutanixVM(VMResource):
             res = self.prism.delete_vm(uuid)
         if wait:
             self.wait_for_status(
-                res['task_uuid'], 30,
+                res['task_uuid'], 60,
                 "Timed out waiting for server to get deleted.")
 
     def start(self, wait=True):
@@ -893,7 +893,7 @@ class NutanixVM(VMResource):
             res = self.prism.migrate_vm(self.data.get('uuid'))
         if wait:
             self.wait_for_status(
-                res['taskUuid'], 120,
+                res['taskUuid'], 600,
                 "Timed out waiting for VM to complete migration.")
         self._data = None
 
@@ -974,7 +974,7 @@ class NutanixVM(VMResource):
                 self.stop(wait=True)
             res = self.prism.update_vcpu(self.data.get('uuid'), vcpu_num_target)
         self.wait_for_status(
-            res['task_uuid'], 60,
+            res['task_uuid'], 120,
             "Timed out waiting for VM to complete vCPU number updating.")
         if self.is_stopped():
             self.start(wait=True)
@@ -996,7 +996,7 @@ class NutanixVM(VMResource):
             self.stop(wait=True)
         res = self.prism.update_core(self.data.get('uuid'), core_num_target)
         self.wait_for_status(
-            res['task_uuid'], 60,
+            res['task_uuid'], 120,
             "Timed out waiting for VM to complete core number per vCPU updating.")
         self.start(wait=True)
         for count in utils_lib.iterate_timeout(
@@ -1020,12 +1020,12 @@ class NutanixVM(VMResource):
                 self.stop(wait=True)
             res = self.prism.update_memory(self.data.get('uuid'), mem_gb_target)
         self.wait_for_status(
-            res['task_uuid'], 60,
+            res['task_uuid'], 120,
             "Timed out waiting for VM to complete memory capacity (GB) updating.")
         if self.is_stopped():
             self.start(wait=True)
         for count in utils_lib.iterate_timeout(
-                60, "Timed out waiting for verify memory capacity (GB) updating."):
+                120, "Timed out waiting for verify memory capacity (GB) updating."):
             if self.exists() and self.get_memory_size() == mem_gb_target:
                 break
 
@@ -1061,7 +1061,7 @@ class NutanixVM(VMResource):
             logging.info("VM cpu passthrough has changed successfully.")
             self.start(wait=True)
             for count in utils_lib.iterate_timeout(
-                    60, "Timed out waiting for verify cpu passthrough changing."):
+                    120, "Timed out waiting for verify cpu passthrough changing."):
                 if enabled:
                     if self.get_cpu_passthrough(enabled=True):
                         break
@@ -1112,7 +1112,7 @@ class NutanixVM(VMResource):
             logging.info("vGPU has assigned to VM successfully.")
             self.start(wait=True)
             for count in utils_lib.iterate_timeout(
-                    10, "Timed out waiting for verify vGPU assignment."):
+                    60, "Timed out waiting for verify vGPU assignment."):
                 if self.get_vgpu_info():
                     break
 
@@ -1133,7 +1133,7 @@ class NutanixVM(VMResource):
             logging.info("vGPU has deassigned from VM successfully.")
             self.start(wait=True)
             for count in utils_lib.iterate_timeout(
-                    10, "Timed out waiting for verify vGPU deassignment."):
+                    60, "Timed out waiting for verify vGPU deassignment."):
                 if not self.get_vgpu_info():
                     break
 

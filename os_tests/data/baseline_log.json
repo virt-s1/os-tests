@@ -1528,5 +1528,14 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2174645",
         "path": "journal",
         "trigger": "el8"
+    },
+    "msg_172": {
+        "content": "WARNING: AllowZoneDrifting is enabled. This is considered an insecure configuration option. It will be removed in a future release. Please consider disabling it now.",
+        "analyze": "Its a message to remind you about zone drifting getting removed in the future.",
+        "branch": "rhel-8",
+        "status": "active",
+        "link": "https://forums.centos.org/viewtopic.php?t=75335",
+        "path": "journalctl",
+        "trigger": "nutanix_ahv"
     }
 }
