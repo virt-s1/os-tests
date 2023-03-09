@@ -1323,13 +1323,13 @@
         "trigger": "nutanix_ahv"
     },
     "msg_149": {
-        "content": "Unknown lvalue 'ConditionCPUs' in section 'Unit'",
+        "content": ".*irqbalance.*Unknown lvalue 'ConditionCPUs'.*",
         "analyze": "known issue is fixed already",
         "branch": "rhel",
         "status": "fixed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2115230",
         "path": "journalctl",
-        "trigger": "irqbalance.service:6"
+        "trigger": ""
     },
     "msg_150": {
         "content": "nft_compat will not be maintained in a future major release and may be disabled",
