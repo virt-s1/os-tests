@@ -845,15 +845,14 @@ class NutanixVM(VMResource):
     def delete(self, wait=True, uuid='default'):
         logging.info("Delete VM for %s" % uuid)
         if uuid == 'default':
-            res = self.prism.delete_vm(self.data.get('uuid'))
-        else:
-            res = self.prism.delete_vm(uuid)
+            uuid = self.data.get('uuid')
+        res = self.prism.delete_vm(uuid)
         if wait:
             self.wait_for_status(
                 res['task_uuid'], 60,
                 "Timed out waiting for server to get deleted.")
 
-        vm_snapshots = self.list_snapshots()["entities"]
+        vm_snapshots = self.list_snapshots(uuid=uuid)["entities"]
         if vm_snapshots:
             for snapshot in vm_snapshots:
                 res = self.prism.delete_snapshot(snapshot["uuid"])
@@ -1238,9 +1237,11 @@ class NutanixVM(VMResource):
                 res['task_uuid'], 60,
                 "Timed out waiting for taking snapshot.")
 
-    def list_snapshots(self):
+    def list_snapshots(self, uuid='default'):
         logging.info("list snapshot for VM")
-        res = self.prism.list_snapshots(self.data.get('uuid'))
+        if uuid == 'default':
+            uuid = self.data.get('uuid')
+        res = self.prism.list_snapshots(uuid)
         logging.info("snapshot list for VM is: \n {}".format(res))
         return res
 
