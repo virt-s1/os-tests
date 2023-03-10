@@ -4,6 +4,7 @@ import re
 from os_tests.libs import utils_lib
 import time
 import os
+from datetime import datetime
 
 class TestGeneralTest(unittest.TestCase):
     def setUp(self):
@@ -1129,6 +1130,221 @@ if __name__ == "__main__":
         utils_lib.run_cmd(self, f'sudo nitro-cli terminate-enclave --enclave-id {EnclaveID}',
                           expect_kw='"Terminated": true', msg='terminate enclave')
 
+    def test_able_to_sync_chrony_server(self):
+        """
+        case_name:
+            test_able_to_sync_chrony_server
+        case_tags:
+            time keeping
+        case_status:
+            approved
+        title:
+            Check guest able to sync time to chrony server
+        importance:
+            medium
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            Automated
+        linked_work_items:
+            N/A
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_general_test.py
+        setup_teardown:
+            Recover chrony default configure in tear down.
+        environment:
+            N/A
+        component:
+            time keeping
+        bug_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        test_type:
+            Functional
+        test_level:
+            Component
+        maintainer:
+            minl@redhat.com
+        description: |
+            Check guest able to sync time to chrony server
+        key_steps: |
+            # Change guest time through date command
+            # edit config file: /etc/chrony.conf, then restart chrony service
+                - Add "server clock.redhat.com"
+                - Comment "makestep 1.0 3" line
+                - Add "makestep 1 -1"
+                - Restart chronyd service
+            #Check guest time sync to chrony server
+        expected_result: |
+            - guest time can sync to chrony server.
+        debug_want: |
+            - N/A
+        """
+        utils_lib.check_log(self, 'clock wrong', log_cmd="journalctl -u chronyd", rmt_redirect_stdout=True)
+        #Check if VM has chronyc command
+        utils_lib.is_cmd_exist(self, 'chronyc')
+        #Read VM time
+        date = utils_lib.run_cmd(self, "date", expect_ret=0)
+        date_now1=re.search('((\d{2}:){2}\d{2})', date).groups()[0]
+        #Change VM time
+        utils_lib.run_cmd(self, 'sudo date -s 00:00:00', expect_ret=0)
+        utils_lib.run_cmd(self, 'date', expect_kw="00:00:")
+        #Check if chrony source available, if not, add available source.
+        chrony_source = utils_lib.run_cmd(self, "chronyc sources -v", expect_ret=0)
+        if not re.search('\^\*', chrony_source):
+            utils_lib.run_cmd(self, 'sudo cp /etc/chrony.conf /etc/chrony.conf.backup')
+            cmd1 = 'sudo sed -i "/Please consider joining the pool/a\server clock.redhat.com" \
+                /etc/chrony.conf'
+            cmd2 = 'sudo sed -i "/makestep 1.0 3/c\makestep 1 -1" /etc/chrony.conf'
+            for cmd in [cmd1, cmd2]:
+                utils_lib.run_cmd(self, cmd, expect_ret=0)
+            utils_lib.run_cmd(self, 'sudo systemctl restart chronyd.service', expect_ret=0)
+            for count in utils_lib.iterate_timeout(
+                180, "check chrony server is in use", wait=10):
+                chrony_source = utils_lib.run_cmd(self, "chronyc sources -v", expect_ret=0)
+                if re.search('\^\*', chrony_source): break
+        for count in utils_lib.iterate_timeout(
+            120, "check date be synced by chrony"):
+            date=utils_lib.run_cmd(self, 'date')
+            if not re.search("00:0", date): break
+        date_now2=re.search('((\d{2}:){2}\d{2})', date).groups()[0]
+        delta = (datetime.strptime(date_now2, "%H:%M:%S") - \
+            datetime.strptime(date_now1, "%H:%M:%S")).seconds
+        self.log.info("The delta between two date show is %s" % delta)
+        self.assertLess(delta, 180, "delta shoud less than 180 seconds")
+
+    def _test_vm_time_sync_host(self, action):
+        #check chronyd service, if enabled, disable it.
+        utils_lib.run_cmd(self, 'sudo systemctl stop chronyd.service')
+        chrony_check = utils_lib.run_cmd(self, 'sudo systemctl list-unit-files | grep chronyd.service')
+        if re.search('enabled', chrony_check):
+            utils_lib.run_cmd(self, 'sudo chkconfig chronyd off')
+        if action == 'reboot':
+            utils_lib.run_cmd(self, 'sudo date -s 00:00:00', expect_ret=0)
+            utils_lib.run_cmd(self, 'date', expect_kw="00:00:")
+            self.vm.reboot(wait=True)
+            utils_lib.init_connection(self, timeout=180)
+        elif action == 'migration':
+            self.vm.migrate()
+        cmd = 'date +%s'
+        vm_date = utils_lib.run_cmd(self, cmd)
+        host_date = utils_lib.send_ssh_cmd(self.vm.host_ip, self.vm.host_username, \
+            self.vm.host_password, cmd)[1]
+        delta = int(host_date) - int(vm_date)
+        self.assertLess(delta, 3, "delta shoud less than 3 seconds")
+
+    def test_vm_time_sync_host_after_boot(self):
+        """
+        case_name:
+            test_vm_time_sync_host_after_boot
+        case_tags:
+            time keeping
+        case_status:
+            approved
+        title:
+            Check guest vm time synced with host after reboot
+        importance:
+            medium
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            Automated
+        linked_work_items:
+            N/A
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_general_test.py
+        setup_teardown:
+            Recover chrony default configure in tear down.
+        environment:
+            N/A
+        component:
+            time keeping
+        bug_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        test_type:
+            Functional
+        test_level:
+            Component
+        maintainer:
+            minl@redhat.com
+        description: |
+            Check guest vm time synced with host after reboot.
+        key_steps: |
+            # Stop chrony service.
+            # Check if chronyd.service in systemctl list-unit-files, if yes, chkconfig off it.
+            # Change VM's date.
+            # Check time between guest vm and host after reboot VM.
+        expected_result: |
+            - guest time same as the host time.
+        debug_want: |
+            - N/A
+        """
+        for attrname in ['host_ip']:
+            if not hasattr(self.vm, attrname):
+                self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
+        self._test_vm_time_sync_host('reboot')
+
+    def test_vm_time_sync_host_after_migration(self):
+        """
+        case_name:
+            test_vm_time_sync_host_after_migration
+        case_tags:
+            time keeping
+        case_status:
+            approved
+        title:
+            Check guest vm time synced with host after migration.
+        importance:
+            medium
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            Automated
+        linked_work_items:
+            N/A
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_general_test.py
+        setup_teardown:
+            Recover chrony default configure in tear down.
+        environment:
+            N/A
+        component:
+            time keeping
+        bug_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        test_type:
+            Functional
+        test_level:
+            Component
+        maintainer:
+            minl@redhat.com
+        description: |
+            Check guest vm time synced with host
+        key_steps: |
+            # Check chrony source, if there has available server, stop chrony service.
+            # Stop chrony service.
+            # Check if chronyd.service in systemctl list-unit-files, if yes, chkconfig off it.
+        expected_result: |
+            - guest time same as the host time.
+        debug_want: |
+            - N/A
+        """
+        for attrname in ['host_ip']:
+            if not hasattr(self.vm, attrname):
+                self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
+        self._test_vm_time_sync_host('migration')
+
     def tearDown(self):
         if "test_cpu_hotplug_no_workload" in self.id():
             cmd = "cat /sys/devices/system/cpu/cpu1/online"
@@ -1136,6 +1352,14 @@ if __name__ == "__main__":
             if '0' in out:
                 cmd = "sudo bash -c 'echo 1 > /sys/devices/system/cpu/cpu1/online'"
                 utils_lib.run_cmd(self, cmd, expect_ret=0, msg="enable cpu1")
+        if "test_able_to_sync_chrony_server" in self.id():
+            cmd1 = 'sudo cp /etc/chrony.conf.backup /etc/chrony.conf'
+            cmd2 = 'sudo systemctl restart chronyd.service'
+            for cmd in [cmd1, cmd2]:
+                utils_lib.run_cmd(self, cmd, expect_ret=0)
+        if "test_vm_time_sync_host" in self.id():
+            utils_lib.run_cmd(self, 'sudo chkconfig chronyd on')
+            utils_lib.run_cmd(self, 'sudo systemctl start chronyd.service')
 
 if __name__ == '__main__':
     unittest.main()
