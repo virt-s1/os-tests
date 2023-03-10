@@ -347,6 +347,11 @@ runcmd:
         endpoint = urljoin(self.base_url, "vms/%s" % vm_uuid)
         return self.make_request(endpoint, 'delete')
 
+    def delete_snapshot(self, snapshot_uuid):
+        logging.debug("Delete VM snapshot")
+        endpoint = urljoin(self.base_url, "snapshots/%s" % snapshot_uuid)
+        return self.make_request(endpoint, 'delete')
+
     def restart_vm(self, vm_uuid):
         logging.debug("Restart VM")
         endpoint = urljoin(self.base_url, "vms/%s/set_power_state" % vm_uuid)
@@ -847,6 +852,15 @@ class NutanixVM(VMResource):
             self.wait_for_status(
                 res['task_uuid'], 60,
                 "Timed out waiting for server to get deleted.")
+
+        vm_snapshots = self.list_snapshots()["entities"]
+        if vm_snapshots:
+            for snapshot in vm_snapshots:
+                res = self.prism.delete_snapshot(snapshot["uuid"])
+                if wait:
+                    self.wait_for_status(
+                        res['task_uuid'], 60,
+                        "Timed out waiting for VM snapshot to get deleted.")
 
     def start(self, wait=True):
         logging.info("start vm")
