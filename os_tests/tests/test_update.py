@@ -17,6 +17,41 @@ class TestUpgrade(unittest.TestCase):
         product_id = utils_lib.get_product_id(self)
         return int(product_id.split('.')[0])
 
+    def _confirm_answer_file(self):
+        self.log.info("Find sections need to be confirmed in answer file")
+        cmd = "sudo cat /var/log/leapp/answerfile"
+        answer_file = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='cat /var/log/leapp/answerfile')
+        p = re.compile(r'[[](.*?)[]]', re.S)
+        confirm_sections = re.findall(p,answer_file)
+        for confirm_section in confirm_sections:
+            cmd = "sudo leapp answer --section %s.confirm=True" % confirm_section
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Provide answers to each question required by Leapp')
+
+    def _config_PermitRootLogin(self):
+        sshd_config = "/etc/ssh/sshd_config"
+        cmd = "sudo cat %s" % sshd_config
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="cat %s" % sshd_config)
+        for line in output.splitlines():
+            li = line.strip()
+            match = re.match(r"PermitRootLogin", li)
+            if match != None:
+                break
+        if match == None:
+            if utils_lib.is_aws(self):
+                cmd = "echo 'PermitRootLogin no' >>  %s" % sshd_config
+            else:
+                cmd = "echo 'PermitRootLogin yes' >> %s" % sshd_config
+            utils_lib.run_cmd(self, "sudo bash -c \"{}\"".format(cmd), expect_ret=0, msg='Configure PermitRootLogin')
+        cmd = "sudo systemctl restart sshd"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Restart sshd service to make the configuration take effect')
+        
+    def _remove_driver(self):
+        output = utils_lib.run_cmd(self, 'sudo lsmod', expect_ret=0, msg="check loaded drivers")
+        for line in output.splitlines():
+            mod_list = line.split()[0]
+            if mod_list in ('floppy','pata_acpi'):
+                utils_lib.run_cmd(self, "sudo rmmod '{}'".format(mod_list), expect_ret=0, msg="Remove driver")
+
     def test_leapp_upgrade_rhui(self):
         """
         case_name:
@@ -26,9 +61,7 @@ class TestUpgrade(unittest.TestCase):
         case_status:
             Approved
         title:
-            [os-tests]TestUpgrade.test_leapp_upgrade_rhui
-        polarion_id:
-            https://polarion.engineering.redhat.com/polarion/#/project/RHELVIRT/workitems?query=title:"[os-tests]TestUpgrade.test_leapp_upgrade_rhui"        
+            [os-tests]TestUpgrade.test_leapp_upgrade_rhui        
         importance:
             High
         subsystem_team:
@@ -61,24 +94,29 @@ class TestUpgrade(unittest.TestCase):
             Test leapp upgrade via RHUI.
         key_steps:
             1. Start an instance on public cloud (e.g., AWS) with rhui client installed and enabled.
-            2. Update current to the latest version and reboot: $ sudo yum update -y; $sudo reboot.
-            3. Install leapp related packages,
-               For RHEL7.9 system on AWS, need to enable rhui-client-config and extra repos to install leapp related packages,
+            2. Upgrade according to docs,
+               https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/upgrading_from_rhel_7_to_rhel_8/
+               Or https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/9/html/upgrading_from_rhel_8_to_rhel_9
+            3. Update current to system the latest version and reboot: $ sudo yum update -y; $sudo reboot.
+            4. Install leapp related packages,
+               For RHEL7.9 system, need to enable rhui-client-config and extra repos to install leapp related packages,
                    $ sudo yum-config-manager --enable rhui-client-config-server-7
                    $ sudo yum-config-manager --enable rhel-7-server-rhui-extras-rpms
                $ sudo yum install -y leapp-rhui-aws
-            4. Prepare for upgrade,
-               For RHEL7.9 system,
-                   $ sudo bash -c 'echo confirm=True >> /var/log/leapp/answerfile'
-                   $ sudo sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
-                   $ sudo systemctl restart sshd
+            5. Prepare for upgrade,
+               Configure PermitRootLogin if it's not configured,
+               $ sudo sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
+               $ sudo systemctl restart sshd
+               Configure the auto_registration,
                $ sudo subscription-manager config --rhsmcertd.auto_registration=1 --rhsm.manage_repos=0 --rhsmcertd.auto_registration_interval=1
                $ sudo systemctl restart rhsmcertd
-               Check auto registration status (Content Access Mode display) via below command.
+               Make sure system is in Content Access Mode display to get the leapp data file via below command.
                $ sudo subscription-manager status
-            5. Check preupgrade report via command "$ sudo leapp preupgrade --debug --no-rhsm"
-            6. Do upgrade via command "sudo leapp upgrade --debug --no-rhsm".
-            7. Reboot system after upgrade.
+            6. Do preupgrade and review preupgrade report via command "$ sudo leapp preupgrade --debug --no-rhsm"
+               Provide answers for each section in answer file if preupgrade fails,
+               $ sudo leapp answer --section <question_section>.confirm=True"
+            7. Do upgrade via command "sudo leapp upgrade --debug --no-rhsm".
+            8. Reboot system after upgrade.
         expected_result:
             System boot successfully to the next RHEL major version according to supported upgrade path after upgrade. No issues with the upgraded system.
         debug_want:
@@ -97,27 +135,29 @@ class TestUpgrade(unittest.TestCase):
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         utils_lib.run_cmd(self, "sudo uname -r", expect_ret=0, msg='Check kernel version after updated')
         utils_lib.run_cmd(self, "sudo cat /etc/redhat-release", expect_ret=0, msg='check rhel release after updated')
+        #Install leapp packages:
+        platform = os.getenv('INFRA_PROVIDER')
         if x_version == 7:
             cmd = "sudo yum-config-manager --enable rhui-client-config-server-7"
-            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Enable repos for leapp-rhui-aws package installation')
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Enable repos for leapp-rhui-{} package installation'.format(platform))
             cmd = "sudo yum-config-manager --enable rhel-7-server-rhui-extras-rpms"
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Enable repos for leapp packages installation')
-        utils_lib.run_cmd(self, "sudo yum install -y leapp-rhui-aws", expect_ret=0, msg='Install leapp-rhui-aws packages for upgrade testing')
-#       Prepare for upgrade
+        cmd = "sudo yum install -y leapp-rhui-{}".format(platform)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Install leapp-rhui-{} packages for upgrade testing'.format(platform))
+        #Prepare for upgrade
+        self._remove_driver()
         cmd = "sudo subscription-manager config --rhsmcertd.auto_registration=1 --rhsm.manage_repos=0 --rhsmcertd.auto_registration_interval=1"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Configure auto registration to get leapp utility metadata')
         utils_lib.run_cmd(self, "sudo systemctl restart rhsmcertd", expect_ret=0, msg='Restart rhsmcertd service')
         time.sleep(300)
         utils_lib.run_cmd(self, "sudo subscription-manager status", expect_kw='Content Access Mode', msg='Check auto registration is enabled')
-        cmd = "sudo sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config"
-        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Configure PermitRootLogin for RHEL7.9')
-        utils_lib.run_cmd(self, "sudo systemctl restart sshd", expect_ret=0, msg='Restart sshd service to make the configuration take effect')
+        self._config_PermitRootLogin()
+        #Do preupgrade
         ret = utils_lib.run_cmd(self, "sudo leapp preupgrade --debug --no-rhsm", ret_status=True, timeout=600, msg='Preupgrade test for leapp upgrade')
         if ret != 0:
-#           cmd = "sudo bash -c 'echo confirm=True >> /var/log/leapp/answerfile'"
-            cmd = "sudo leapp answer --section remove_pam_pkcs11_module_check.confirm=True"
-            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Provide answers to each question required by Leapp')
-            utils_lib.run_cmd(self, "sudo leapp preupgrade --debug --no-rhsm", ret_status=True, timeout=600, msg='Retry preupgrade')
+            self._confirm_answer_file()
+            utils_lib.run_cmd(self, "sudo cat /var/log/leapp/leapp-report.txt", expect_ret=0, msg='Check leapp report')
+            utils_lib.run_cmd(self, "sudo leapp preupgrade --debug --no-rhsm", expect_ret=0, timeout=600, msg='Retry preupgrade')
         utils_lib.run_cmd(self, "sudo leapp upgrade --debug --no-rhsm", expect_ret=0, timeout=600, msg='Do leapp upgrade via RHUI')
         utils_lib.run_cmd(self, "sudo reboot", msg='Reboot system after leapp upgrade')
         time.sleep(600)
@@ -128,7 +168,7 @@ class TestUpgrade(unittest.TestCase):
         x_version_upgrade = self.rhel_x_version
         if x_version_upgrade != x_version + 1:
             self.FailTest('Leapp upgrade failed since did not upgrade to target release')
-            
+
     def tearDown(self):
         pass
 
