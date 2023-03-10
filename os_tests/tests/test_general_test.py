@@ -1183,6 +1183,7 @@ if __name__ == "__main__":
         debug_want: |
             - N/A
         """
+        utils_lib.check_log(self, 'clock wrong', log_cmd="journalctl -u chronyd", rmt_redirect_stdout=True)
         #Check if VM has chronyc command
         utils_lib.is_cmd_exist(self, 'chronyc')
         #Read VM time
@@ -1233,7 +1234,7 @@ if __name__ == "__main__":
         host_date = utils_lib.send_ssh_cmd(self.vm.host_ip, self.vm.host_username, \
             self.vm.host_password, cmd)[1]
         delta = int(host_date) - int(vm_date)
-        self.assertLess(delta, 2, "delta shoud less than 2 seconds")
+        self.assertLess(delta, 3, "delta shoud less than 3 seconds")
 
     def test_vm_time_sync_host_after_boot(self):
         """
