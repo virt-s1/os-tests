@@ -1191,21 +1191,21 @@ if __name__ == "__main__":
         date_now1=re.search('((\d{2}:){2}\d{2})', date).groups()[0]
         #Change VM time
         utils_lib.run_cmd(self, 'sudo date -s 00:00:00', expect_ret=0)
-        utils_lib.run_cmd(self, 'date', expect_kw="00:00:")
+        utils_lib.run_cmd(self, 'date "+%H:%M:%S"', expect_kw="00:00:")
         #Check if chrony source available, if not, add available source.
         chrony_source = utils_lib.run_cmd(self, "chronyc sources -v", expect_ret=0)
+        utils_lib.run_cmd(self, 'sudo cp /etc/chrony.conf /etc/chrony.conf.backup')
         if not re.search('\^\*', chrony_source):
-            utils_lib.run_cmd(self, 'sudo cp /etc/chrony.conf /etc/chrony.conf.backup')
             cmd1 = 'sudo sed -i "/Please consider joining the pool/a\server clock.redhat.com" \
                 /etc/chrony.conf'
-            cmd2 = 'sudo sed -i "/makestep 1.0 3/c\makestep 1 -1" /etc/chrony.conf'
-            for cmd in [cmd1, cmd2]:
-                utils_lib.run_cmd(self, cmd, expect_ret=0)
-            utils_lib.run_cmd(self, 'sudo systemctl restart chronyd.service', expect_ret=0)
-            for count in utils_lib.iterate_timeout(
-                180, "check chrony server is in use", wait=10):
-                chrony_source = utils_lib.run_cmd(self, "chronyc sources -v", expect_ret=0)
-                if re.search('\^\*', chrony_source): break
+            utils_lib.run_cmd(self, cmd1, expect_ret=0)
+        cmd2 = 'sudo sed -i "/makestep 1.0 3/c\makestep 1 -1" /etc/chrony.conf'
+        utils_lib.run_cmd(self, cmd2, expect_ret=0)
+        utils_lib.run_cmd(self, 'sudo systemctl restart chronyd.service', expect_ret=0)
+        for count in utils_lib.iterate_timeout(
+            180, "check chrony server is in use", wait=10):
+            chrony_source = utils_lib.run_cmd(self, "chronyc sources -v", expect_ret=0)
+            if re.search('\^\*', chrony_source): break
         for count in utils_lib.iterate_timeout(
             120, "check date be synced by chrony"):
             date=utils_lib.run_cmd(self, 'date')
