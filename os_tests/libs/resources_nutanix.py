@@ -344,12 +344,7 @@ runcmd:
         
     def delete_vm(self, vm_uuid):
         logging.debug("Delete VM")
-        endpoint = urljoin(self.base_url, "vms/%s" % vm_uuid)
-        return self.make_request(endpoint, 'delete')
-
-    def delete_snapshot(self, snapshot_uuid):
-        logging.debug("Delete VM snapshot")
-        endpoint = urljoin(self.base_url, "snapshots/%s" % snapshot_uuid)
+        endpoint = urljoin(self.base_url, "vms/%s/?delete_snapshots=true" % vm_uuid)
         return self.make_request(endpoint, 'delete')
 
     def restart_vm(self, vm_uuid):
@@ -845,21 +840,13 @@ class NutanixVM(VMResource):
     def delete(self, wait=True, uuid='default'):
         logging.info("Delete VM for %s" % uuid)
         if uuid == 'default':
-            uuid = self.data.get('uuid')
-        res = self.prism.delete_vm(uuid)
+            res = self.prism.delete_vm(self.data.get('uuid'))
+        else:
+            res = self.prism.delete_vm(uuid)
         if wait:
             self.wait_for_status(
                 res['task_uuid'], 60,
                 "Timed out waiting for server to get deleted.")
-
-        vm_snapshots = self.list_snapshots(uuid=uuid)["entities"]
-        if vm_snapshots:
-            for snapshot in vm_snapshots:
-                res = self.prism.delete_snapshot(snapshot["uuid"])
-                if wait:
-                    self.wait_for_status(
-                        res['task_uuid'], 60,
-                        "Timed out waiting for VM snapshot to get deleted.")
 
     def start(self, wait=True):
         logging.info("start vm")
@@ -1237,11 +1224,9 @@ class NutanixVM(VMResource):
                 res['task_uuid'], 60,
                 "Timed out waiting for taking snapshot.")
 
-    def list_snapshots(self, uuid='default'):
+    def list_snapshots(self):
         logging.info("list snapshot for VM")
-        if uuid == 'default':
-            uuid = self.data.get('uuid')
-        res = self.prism.list_snapshots(uuid)
+        res = self.prism.list_snapshots(self.data.get('uuid'))
         logging.info("snapshot list for VM is: \n {}".format(res))
         return res
 
