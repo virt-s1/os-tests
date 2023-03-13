@@ -344,7 +344,7 @@ runcmd:
         
     def delete_vm(self, vm_uuid):
         logging.debug("Delete VM")
-        endpoint = urljoin(self.base_url, "vms/%s" % vm_uuid)
+        endpoint = urljoin(self.base_url, "vms/%s/?delete_snapshots=true" % vm_uuid)
         return self.make_request(endpoint, 'delete')
 
     def restart_vm(self, vm_uuid):
