@@ -2665,8 +2665,11 @@ chpasswd:
         self.vm.reboot(wait=True)
         time.sleep(30)
         utils_lib.init_connection(self, timeout=1200)
-        res = utils_lib.run_cmd(self, "sudo systemctl status cloud-final")
-        self.assertIn("active (exited)", res, "cloud-final.service status is not active (exited)")        
+        #saw activating (start) in CI log, change to loop check.
+        for count in utils_lib.iterate_timeout(
+            60, "check cloud-final status", wait=10):
+            res = utils_lib.run_cmd(self, "sudo systemctl status cloud-final")
+            if re.search('active \(exited\)', res): break
 
     def test_cloudinit_puppet_in_correct_stage(self):
         """
