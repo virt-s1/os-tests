@@ -882,11 +882,22 @@ COMMIT
         if len(self.params['remote_nodes']) < 2:
             self.skipTest("2 nodes required, current IP bucket:{}".format(self.params['remote_nodes']))
         self.log.info("Current IP bucket:{}".format(self.params['remote_nodes']))
-        arp_result = utils_lib.run_cmd(self, 'arping -I %s %s -c 10' % (self.active_nic, self.params['remote_nodes'][-1]))
-        arp_response = int(re.search('Received\s+(\d+)\s+response', arp_result, re.I).groups()[0])
-        self.assertAlmostEqual(first=int(arp_response), second=10, delta=1, msg='check arping response error, expect:%s, real:%s')
-        utils_lib.run_cmd(self, 'sudo ping -f %s -c 2' % (self.params['remote_nodes'][-1]), expect_ret=0)
-        utils_lib.run_cmd(self, 'sudo ping -f %s -c 600' % (self.params['remote_nodes'][-1]), expect_kw='0% packet loss')
+        #Found case will fail after vm boot time became more long, change to loop check
+        for count in utils_lib.iterate_timeout(
+            60, "Check VM1 has started and can arping", wait=10):
+            res = utils_lib.run_cmd(self, \
+                'arping -I %s %s -c 2' % (self.active_nic, self.params['remote_nodes'][-1]))
+            if not re.search('Received\s+0\s+response', res): break
+        arp_result = utils_lib.run_cmd(self, \
+            'arping -I %s %s -c 10' % (self.active_nic, self.params['remote_nodes'][-1]))
+        arp_response = int(re.search('Received\s+(\d+)\s+response', \
+            arp_result, re.I).groups()[0])
+        self.assertEqual(first=int(arp_response), second=10, \
+            msg='check arping response error, expect:%s, real:%s')
+        utils_lib.run_cmd(self, 'sudo ping -f %s -c 2' % (self.params['remote_nodes'][-1]), \
+            expect_ret=0)
+        utils_lib.run_cmd(self, 'sudo ping -f %s -c 600' % (self.params['remote_nodes'][-1]), \
+            expect_kw='0% packet loss')
 
     def test_iperf(self):
         """
