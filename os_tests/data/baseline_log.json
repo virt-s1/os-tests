@@ -1537,5 +1537,14 @@
         "link": "https://forums.centos.org/viewtopic.php?t=75335",
         "path": "journalctl",
         "trigger": "nutanix_ahv"
-    }
+    },
+    "msg_173": {
+        "content": "lscpu: cannot read /sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_max_freq: Device or resource busy.",
+        "analyze": "It is a known issue.",
+        "branch": "rhel-8",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2160354",
+        "path": "journal,dmesg",
+        "trigger": "cpuhotplug"
+    } 
 }
