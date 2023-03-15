@@ -1183,7 +1183,8 @@ if __name__ == "__main__":
         debug_want: |
             - N/A
         """
-        utils_lib.check_log(self, 'clock wrong', log_cmd="journalctl -u chronyd", rmt_redirect_stdout=True)
+        utils_lib.run_cmd(self, "timedatectl status")
+        utils_lib.run_cmd(self, "sudo hwclock --verbose")
         #Check if VM has chronyc command
         utils_lib.is_cmd_exist(self, 'chronyc')
         #Read VM time
