@@ -1593,10 +1593,10 @@ COMMIT
         '''
         description:
             [RHEL8.4] Test 2nd ip hotplug on primary nic, nm-cloud-setup can assign/remove it automatically
-        bugzilla_id: 
-            1623084,1642461
-        customer_case_id: 
-            BZ1623084,BZ1642461
+        bug_id:
+            bugzilla_1623084,bugzilla_1642461,bugzilla_2179718
+        is_customer_case:
+            True
         maintainer: 
             xiliang
         case_priority: 
@@ -1604,7 +1604,7 @@ COMMIT
         case_component: 
             network
         key_steps: |
-            1. Launch an instance on AWS EC2.
+            1. Launch an instance on AWS EC2/Alicloud/Azure/GCP.
             2. Check if package NetworkManager-cloud-setup is installed via command "$ sudo rpm -q NetworkManager-cloud-setup", if not, use yum install to install it.
             3. Check the service status via command "$ sudo systemctl status nm-cloud-setup.timer".
             4. Assign the second IP to the NIC of instance.
@@ -1614,6 +1614,13 @@ COMMIT
         pass_criteria: |
             After the second IP is assigned to the NIC of instance in step 4, there will be 2 IP address shows in step5.
             After the second IP is removed from the NIC of instance 6, there will be only 1 IP address shows in the step7.
+        debug_want: |
+            Attach trace log from nm-cloud-setup when case fail.
+            - Run "systemctl edit nm-cloud-setup" uncomment "Environment=NM_CLOUD_SETUP_LOG=TRACE"
+            - "systemctl daemon-reload"
+            - systemctl restart nm-cloud-setup.service
+            - journalctl -u nm-cloud-setup.service
+            - AWS only(ensure infra assign it): curl 169.254.169.254/latest/meta-data/network/interfaces/macs/$MAC/local-ipv4s
         '''
         utils_lib.is_pkg_installed(self, pkg_name='NetworkManager-cloud-setup', is_install=False, cancel_case=True)
         for attrname in ['assign_new_ip','remove_added_ip']:
