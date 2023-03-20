@@ -28,6 +28,7 @@ def main():
         cfg_file, cfg_data = get_cfg(cfg_file=args.platform_profile)
         cfg_data['remote_user'] = args.remote_user
         cfg_data['run_uuid'] = run_uuid
+        cfg_data['proxy_url'] = args.proxy_url
         vms, disks, nics = init_provider(params=cfg_data)
     cfg_file, cfg_data = get_cfg()
     is_rmt = False
@@ -41,6 +42,7 @@ def main():
         cfg_data['remote_user'] = args.remote_user
         cfg_data['remote_password'] = args.remote_password
         cfg_data['remote_keyfile'] = args.remote_keyfile
+        cfg_data['proxy_url'] = args.proxy_url
 
     if vms:
         is_rmt = True
@@ -49,6 +51,7 @@ def main():
         cfg_data['remote_user'] = args.remote_user
         cfg_data['remote_password'] = args.remote_password
         cfg_data['remote_keyfile'] = args.remote_keyfile
+        cfg_data['proxy_url'] = args.proxy_url
 
     results_dir = cfg_data['results_dir']
     results_dir_suffix = None

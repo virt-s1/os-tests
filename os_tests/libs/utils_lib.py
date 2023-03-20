@@ -61,6 +61,8 @@ def init_args():
                     help='specify platform profile if enable os-tests provison vms self, only supports aws for now', required=False)
     parser.add_argument('--no-cleanup', dest='no_cleanup', action='store_true',
                     help='debug purpose, skip cleanup phase at exit, do not use it in normal test', required=False)
+    parser.add_argument('--proxy_url', dest='proxy_url', default=None, action='store',
+                    help='specify it if pkg/repo url is internal only, format IP:PORT', required=False)
     args = parser.parse_args()
     return args
 
@@ -136,6 +138,7 @@ def init_ssh(params=None, timeout=600, interval=10, log=None, rmt_node=None):
     ssh.rmt_user = params['remote_user']
     ssh.rmt_password = params['remote_password']
     ssh.rmt_keyfile = params['remote_keyfile']
+    ssh.rmt_proxy = params['proxy_url']
     ssh.log = log
     ssh.timeout = timeout
     ssh.interval = interval
