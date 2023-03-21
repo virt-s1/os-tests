@@ -1521,7 +1521,7 @@
         "trigger": "el7"
     },
     "msg_171": {
-        "content": ".*Failed to start Flush Journal to Persistent Storage.*;.*systemd-journal-flush.service: Failed with result.*",
+        "content": ".*Failed to start Flush Journal to Persistent Storage.*;.*systemd-journal-flush.service: Failed with result.*;.*systemd-journal-flush.service.*failed.*",
         "analyze": "It is a known issue",
         "branch": "rhel8.8",
         "status": "active",
