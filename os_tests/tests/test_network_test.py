@@ -1552,20 +1552,16 @@ COMMIT
         except UnSupportedAction:
             self.skipTest('nic create func is not supported in {}'.format(self.vm.provider))
 
-        cmd = "ip link|awk '/state UP/ {print $2}'|cut -d ':' -f 1|head -n 1"
-        nic_name = utils_lib.run_cmd(self, cmd).strip()
-        nic_name_str = nic_name[:-1]
-        nic_index = int(nic_name[-1])
-        netdev_index = nic_index + 1
+        cmd = "ip -o link show|wc -l"
+        nic_num_1 = utils_lib.run_cmd(self,cmd)
         self.vm.attach_nic(self.nic,device_index=1, wait=True)
         for i in range(1, 4):
             time.sleep(5)
             self.log.info('Check network in guest, loop {}'.format(i))
-            cmd = "lspci"
-            output1 = utils_lib.run_cmd(self, cmd)
-            cmd = "ip addr show"
-            output1 = utils_lib.run_cmd(self, cmd)
-            if '%s%s' % (nic_name_str,netdev_index) not in output1:
+            utils_lib.run_cmd(self, 'lspci')
+            utils_lib.run_cmd(self, 'ip addr show')
+            nic_num_2 = utils_lib.run_cmd(self,cmd)
+            if nic_num_2 == nic_num_1:
                 self.log.info("Added nic not found")
         timeout = 120
         interval = 5
@@ -1581,11 +1577,9 @@ COMMIT
            time.sleep(interval)
         time.sleep(5)
         cmd = "ip addr show"
-        utils_lib.run_cmd(self, cmd)
+        utils_lib.run_cmd(self,cmd)
         self.nic.delete()
-        self.assertIn('%s%d' % (nic_name_str,netdev_index),
-                      output1,
-                      msg='{0}{1} not found after attached nic'.format(nic_name_str,netdev_index))
+        self.assertGreater(nic_num_2,nic_num_1,msg='New added network device not found after attached nic')
         cmd = 'dmesg'
         utils_lib.run_cmd(self, cmd, expect_not_kw='Call Trace')
 
