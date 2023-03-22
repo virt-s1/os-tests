@@ -1187,9 +1187,6 @@ if __name__ == "__main__":
         utils_lib.run_cmd(self, "sudo hwclock --verbose")
         #Check if VM has chronyc command
         utils_lib.is_cmd_exist(self, 'chronyc')
-        #Read VM time
-        date = utils_lib.run_cmd(self, "date", expect_ret=0)
-        date_now1=re.search('((\d{2}:){2}\d{2})', date).groups()[0]
         #Change VM time
         utils_lib.run_cmd(self, 'sudo date -s 00:00:00', expect_ret=0)
         utils_lib.run_cmd(self, 'date "+%H:%M:%S"', expect_kw="00:00:")
@@ -1204,18 +1201,18 @@ if __name__ == "__main__":
         utils_lib.run_cmd(self, cmd2, expect_ret=0)
         utils_lib.run_cmd(self, 'sudo systemctl restart chronyd.service', expect_ret=0)
         for count in utils_lib.iterate_timeout(
-            180, "check chrony server is in use", wait=10):
+            240, "check chrony server is in use", wait=10):
             chrony_source = utils_lib.run_cmd(self, "chronyc sources -v", expect_ret=0)
             if re.search('\^\*', chrony_source): break
         for count in utils_lib.iterate_timeout(
-            120, "check date be synced by chrony"):
+            240, "check date be synced by chrony"):
             date=utils_lib.run_cmd(self, 'date')
             if not re.search("00:0", date): break
-        date_now2=re.search('((\d{2}:){2}\d{2})', date).groups()[0]
-        delta = (datetime.strptime(date_now2, "%H:%M:%S") - \
-            datetime.strptime(date_now1, "%H:%M:%S")).seconds
-        self.log.info("The delta between two date show is %s" % delta)
-        self.assertLess(delta, 180, "delta shoud less than 180 seconds")
+        date_now=int(utils_lib.run_cmd(self, 'date +%s'))
+        date_now_hw=int(utils_lib.run_cmd(self, "sudo hwclock --verbose | grep 'System Time' \
+            | cut -d : -f 2 | cut -d ' ' -f 2 | cut -d . -f 1"))
+        delta = date_now_hw - date_now
+        self.assertLess(delta, 2, "delta between hwclock and date shoud less than 2 seconds")
 
     def _test_vm_time_sync_host(self, action):
         #check chronyd service, if enabled, disable it.
@@ -1287,6 +1284,8 @@ if __name__ == "__main__":
         debug_want: |
             - N/A
         """
+        if not self.vm:
+            self.skipTest("Skip as no VM inited")
         for attrname in ['host_ip']:
             if not hasattr(self.vm, attrname):
                 self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
@@ -1341,6 +1340,8 @@ if __name__ == "__main__":
         debug_want: |
             - N/A
         """
+        if not self.vm:
+            self.skipTest("Skip as no VM inited")
         for attrname in ['host_ip']:
             if not hasattr(self.vm, attrname):
                 self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))

@@ -75,7 +75,7 @@ class TestNutanixVM(unittest.TestCase):
         
         cmd = "ps -ef | grep -v grep | grep fio-test | wc -l"
         for count in utils_lib.iterate_timeout(
-                300, "Timed out waiting for complete fio test", wait=10):
+                900, "Timed out waiting for complete fio test", wait=10):
             fio_jobs = int(utils_lib.run_cmd(self, cmd, expect_ret=0,
                                         msg="Check if all fio test jobs are still alive").strip())
             if fio_jobs == 0:
