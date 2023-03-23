@@ -8,41 +8,6 @@ import re
 
 class TestRHELCert(unittest.TestCase):
 
-    def _get_test_disk(self):
-        '''
-        Look for non-boot disk to do test
-        '''
-        test_disk = None
-        cmd = "lsblk -r --output NAME,MOUNTPOINT|awk -F' ' '{if($2) printf\"%s \",$1}'"
-        output = utils_lib.run_cmd(self, cmd, expect_ret=0)
-        mount_disks = output.split(' ')
-        cmd = 'lsblk -d --output NAME|grep -v NAME'
-        output = utils_lib.run_cmd(self, cmd, expect_ret=0)
-        disk_list = output.split('\n')
-        for disk in disk_list:
-            disk_in_use = False
-            if not disk:
-                continue
-            for mount_disk in mount_disks:
-                if disk in mount_disk:
-                    self.log.info('Disk is mounted: {}'.format(disk))
-                    disk_in_use = True
-                    break
-            if not disk_in_use:
-                #cmd = 'sudo wipefs -a /dev/{}'.format(disk) #comment this line for bz2074486
-                cmd = 'sudo mkfs.ext3 /dev/{} -F'.format(disk)
-                ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='test can clean fs on {}'.format(disk))
-                if ret == 0:
-                    test_disk = disk
-                    break
-                else:
-                    self.log.info('Cannot clean fs on {} - skip'.format(disk))
-                    continue
-        if test_disk:
-            self.log.info('Test disk is found: {}'.format(test_disk))
-        else:
-             self.skipTest("No free disk for testing.")
-        return test_disk
 
     def _wait_cert_done(self, timeout=600, interval=30):
         timeout = timeout
@@ -254,11 +219,36 @@ class TestRHELCert(unittest.TestCase):
         self.is_cert_done = True
 
     def test_rhcert_pcie_nvme(self):
-        
+        cmd = 'sudo lsblk -d|wc -l'
+        out = utils_lib.run_cmd(self,cmd, msg='check disk count')
+        if int(out) <= 2:
+            if not self.vm:
+                self.skipTest("Skip this test case as no vm inited to attach disk")
+            online_disk_1 = utils_lib.get_disk_online(self)
+            if not self.disk:
+                self.skipTest('Skip as lacking of storage provision support.')
+            if not self.disk.is_exist():
+                self.disk.create()
+            time.sleep(20)
+            if not self.vm.attach_block(self.disk, '/dev/sdz'):
+                self.fail('attach failed')
+            timeout = 60
+            interval = 2
+            time_start = int(time.time())
+            while True:
+               if not self.disk.is_free():
+                   break
+               time_end = int(time.time())
+               if time_end - time_start > timeout:
+                  self.log.info('timeout ended: {}'.format(timeout))
+                  break
+               self.log.info('retry after {}s'.format(interval))
+               time.sleep(interval)
+            time.sleep(5)
         cmd = 'sudo bash -c "yes|rhcert-cli plan"'
         utils_lib.run_cmd(self,cmd, timeout=1800, msg='create test plan')
         test_disk = 'nvme1n1'
-        test_disk = self._get_test_disk() or test_disk
+        test_disk = utils_lib.get_test_disk(self) or test_disk
         if 'nvme' in test_disk:
             cmd = 'sudo bash -c "yes|rhcert-cli run --test PCIE_NVMe --device {}"'.format(test_disk)
             utils_lib.run_cmd(self,cmd, timeout=1800, msg='run ethernet test')

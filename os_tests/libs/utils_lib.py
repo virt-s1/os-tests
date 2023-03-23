@@ -1462,3 +1462,38 @@ def core_file_check(test_instance=None):
         run_cmd(test_instance, 'sudo rm -rf /var/lib/systemd/coredump/core*', msg='clean up core files')
         cmd = 'sudo journalctl -b0'
         run_cmd(test_instance, cmd, msg='get traceback from journal')
+
+def get_test_disk(test_instance=None):
+        '''
+        Look for non-boot disk to do test
+        '''
+        test_disk = None
+        cmd = "lsblk -r --output NAME,MOUNTPOINT|awk -F' ' '{if($2) printf\"%s \",$1}'"
+        output = run_cmd(test_instance, cmd, expect_ret=0)
+        mount_disks = output.split(' ')
+        cmd = 'lsblk -d --output NAME|grep -v NAME'
+        output = run_cmd(test_instance, cmd, expect_ret=0)
+        disk_list = output.split('\n')
+        for disk in disk_list:
+            disk_in_use = False
+            if not disk:
+                continue
+            for mount_disk in mount_disks:
+                if disk in mount_disk:
+                    test_instance.log.info('Disk is mounted: {}'.format(disk))
+                    disk_in_use = True
+                    break
+            if not disk_in_use:
+                cmd = 'sudo wipefs -a /dev/{}'.format(disk) #comment this line for bz2074486
+                ret = run_cmd(test_instance, cmd, ret_status=True, timeout=1800,msg='test can clean fs on {}'.format(disk))
+                if ret == 0:
+                    test_disk = disk
+                    break
+                else:
+                    test_instance.log.info('Cannot clean fs on {} - skip'.format(disk))
+                    continue
+        if test_disk:
+            test_instance.log.info('Test disk is found: {}'.format(test_disk))
+        else:
+             test_instance.skipTest("No free disk for testing.")
+        return test_disk

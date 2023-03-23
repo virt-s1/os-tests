@@ -16,47 +16,11 @@ class TestStorage(unittest.TestCase):
         Arguments:
             test_instance {avocado Test instance} -- avocado test instance
         '''
-        test_disk = self._get_test_disk()
+        test_disk = "/dev/{}".format(utils_lib.get_test_disk(self))
         cmd = "sudo bash -c \"echo 'TEST_DEVS=({})' > /usr/local/blktests/config\"".format(test_disk)
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         cmd = "cd /usr/local/blktests/; sudo ./check {}".format(case_name)
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw="failed", timeout=2400)
-
-    def _get_test_disk(self):
-        '''
-        Look for non-boot disk to do test
-        '''
-        test_disk = None
-        cmd = "lsblk -r --output NAME,MOUNTPOINT|awk -F' ' '{if($2) printf\"%s \",$1}'"
-        output = utils_lib.run_cmd(self, cmd, expect_ret=0)
-        mount_disks = output.split(' ')
-        cmd = 'lsblk -d --output NAME|grep -v NAME'
-        output = utils_lib.run_cmd(self, cmd, expect_ret=0)
-        disk_list = output.split('\n')
-        for disk in disk_list:
-            disk_in_use = False
-            if not disk:
-                continue
-            for mount_disk in mount_disks:
-                if disk in mount_disk:
-                    self.log.info('Disk is mounted: {}'.format(disk))
-                    disk_in_use = True
-                    break
-            if not disk_in_use:
-                #cmd = 'sudo wipefs -a /dev/{}'.format(disk) #comment this line for bz2074486
-                cmd = 'sudo mkfs.ext3 /dev/{} -F'.format(disk)
-                ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='test can clean fs on {}'.format(disk))
-                if ret == 0:
-                    test_disk = disk
-                    break
-                else:
-                    self.log.info('Cannot clean fs on {} - skip'.format(disk))
-                    continue
-        if test_disk:
-            self.log.info('Test disk is found: {}'.format(test_disk))
-        else:
-             self.skipTest("No free disk for testing.")
-        return '/dev/' + test_disk
 
     def setUp(self):
         utils_lib.init_case(self)
@@ -160,10 +124,7 @@ class TestStorage(unittest.TestCase):
         debug_want:
             N/A
         """
-        if(not self._get_test_disk()):
-            self.skipTest("test disk not found")
-        else:
-            test_disk = self._get_test_disk()
+        test_disk = "/dev/{}".format(utils_lib.get_test_disk(self))
         utils_lib.is_cmd_exist(self,"growpart")
         utils_lib.is_pkg_installed(self,"lvm2")
 
@@ -219,7 +180,7 @@ class TestStorage(unittest.TestCase):
             - output from dmesg or journal
             - test debug log
         """
-        test_disk = self._get_test_disk()
+        test_disk = "/dev/{}".format(utils_lib.get_test_disk(self))
         cmd = 'sudo wipefs -a {}'.format(test_disk)
         utils_lib.run_cmd(self, cmd, msg="try to wipe all fs from {}".format(test_disk))
         cmd = "sudo parted -s {} mklabel gpt mkpart primary 1Mib 6Mib mkpart primary 6Mib 11Mib mkpart primary 11Mib 16Mib mkpart primary 16Mib 21Mib mkpart primary 21Mib 26Mib mkpart primary 26Mib 31Mib mkpart primary 31Mib 36Mib mkpart primary 36Mib 41Mib mkpart primary 41Mib 46Mib mkpart primary 46Mib 51Mib mkpart primary 51Mib 56Mib mkpart primary 56Mib 61Mib mkpart primary 61Mib 66Mib mkpart primary 66Mib 71Mib mkpart primary 71Mib 76Mib mkpart primary 76Mib 81Mib mkpart primary 81Mib 86Mib mkpart primary 86Mib 91Mib mkpart primary 91Mib 96Mib mkpart primary 96Mib 101Mib".format(test_disk)
@@ -602,10 +563,7 @@ class TestStorage(unittest.TestCase):
         """
         if not self.vm:
             self.skipTest("Skip this test case as no vm inited")
-        if(not self._get_test_disk()):
-            self.skipTest("test disk not found, provision VM should has at least 1 scsi disk")
-        else:
-            test_disk = self._get_test_disk()
+        test_disk = "/dev/{}".format(utils_lib.get_test_disk(self))
         #Get init size of test disk
         cmd='sudo fdisk -s {}'.format(test_disk)
         test_disk_origin_size = int(utils_lib.run_cmd(self, cmd, expect_ret=0))/(1024*1024)
