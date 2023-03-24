@@ -1128,7 +1128,7 @@ class TestLifeCycle(unittest.TestCase):
                 utils_lib.run_cmd(self, cmd, msg='Remove "kmemleak=on" from /proc/cmdline')
                 reboot_require = True
 
-        if "test_hibernate_resume" in self.id():
+        if "test_hibernate_resume" in self.id() and self.vm and self.vm.provider != 'aws':
             proc_cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline', msg='Cat /proc/cmdline')
             resume_offset_arg = re.search('(resume_offset=.+)\s', proc_cmdline)
             resume_uuid_arg = re.search('(resume=UUID=.+)$', proc_cmdline)
