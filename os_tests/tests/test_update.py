@@ -328,7 +328,7 @@ class TestUpgrade(unittest.TestCase):
         utils_lib.run_cmd(self,
                         "sudo cat /etc/redhat-release",
                         expect_ret=0,
-                        msg='check current rhel release
+                        msg='check current rhel release')
         x_version = self.rhel_x_version
         #Setup internal repo for update
         data_file = "rhel-internal.repo"
