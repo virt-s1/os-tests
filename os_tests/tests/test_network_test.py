@@ -315,29 +315,51 @@ class TestNetworkTest(unittest.TestCase):
                              msg='compare with ip showed mac')
 
     def test_ethtool_S_xdp(self):
-        '''
+        """
         case_name:
             test_ethtool_S_xdp
-        case_file:
-            https://github.com/liangxiao1/os-tests/blob/master/os_tests/tests/test_network_test.py
-        case_priority:
-            2
+        case_tags:
+            network
+        case_status:
+            approved
+        title:
+            [os-tests]TestNetworkTest.test_ethtool_S_xdp
+        importance:
+            high
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            automated
+        linked_work_items:
+            n/a
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_network_test.py/#L317
+        setup_teardown:
+            n/a
+        environment:
+            n/a
         component:
             kernel
-        bugzilla_id:
-            1908542, 2000400
-        polarion_id:
+        bug_id:
+            2038158, 2038056, 2038079, 1908542, 2000400
+        is_customer_case:
+            True
+        testplan:
             n/a
+        test_type:
+            functional
+        test_level:
+            Component
         maintainer:
             xiliang@redhat.com
-        description:
+        description: |
             Use ethtool to query the specified network device xdp statistics.
-        key_steps:
+        key_steps: |
             1. # ethtool -S $nic |grep xdp
             2. # xdp-loader status (xdp-tools is required and it is only support x86_64 for now)
             3. # xdp-loader unload -a
             4. # xdp-filter load --mode skb $nic
-        expected_result:
+        expected_result: |
             1. xdp data found
             eg. # ethtool -S eth0 |grep xdp
                   queue_0_rx_xdp_aborted: 0
@@ -347,13 +369,13 @@ class TestNetworkTest(unittest.TestCase):
                   queue_0_rx_xdp_invalid: 0
                   queue_0_rx_xdp_redirect: 0
             2. xdp-loader works on x86_64 platform
-        debug_want:
+        debug_want: |
             1. # uname -r
             2. # ethtool -i $nic
             3. # rpm -q xdp-tools (if fail at xdp-tools)
             4. # xdp-loader $cmd -vv
+        """
 
-        '''
         product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
         cmd = "sudo ethtool -i {}".format(self.active_nic )
         output = utils_lib.run_cmd(self, cmd, expect_ret=0)
