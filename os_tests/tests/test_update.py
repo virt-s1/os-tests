@@ -81,15 +81,15 @@ class TestUpgrade(unittest.TestCase):
         case_tags:
             upgrade_rhui
         case_status:
-            Approved
+            approved
         title:
             [os-tests]TestUpgrade.test_leapp_upgrade_rhui        
         importance:
-            High
+            high
         subsystem_team:
             sst_virtualization_cloud
         automation_drop_down:
-            Automated
+            automated
         linked_work_items:
             n/a
         automation_field:
@@ -107,9 +107,9 @@ class TestUpgrade(unittest.TestCase):
         testplan:
             N/A
         test_type:
-            Functional
+            functional
         test_level:
-            Component
+            component
         maintainer:
             linl@redhat.com
         description:
@@ -262,15 +262,15 @@ class TestUpgrade(unittest.TestCase):
         case_tags:
             upgrade_customrepo
         case_status:
-            Approved
+            approved
         title:
             [os-tests]TestUpgrade.test_leapp_upgrade_customrepo       
         importance:
-            High
+            high
         subsystem_team:
             sst_virtualization_cloud
         automation_drop_down:
-            Automated
+            automated
         linked_work_items:
             polarion_[os-tests]TestUpgrade.test_leapp_upgrade_customrepo
         automation_field:
@@ -288,9 +288,9 @@ class TestUpgrade(unittest.TestCase):
         testplan:
             n/a
         test_type:
-            Functional
+            functional
         test_level:
-            Component
+            component
         maintainer:
             linl@redhat.com
         description:
