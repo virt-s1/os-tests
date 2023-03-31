@@ -80,7 +80,7 @@ class TestCloudInit(unittest.TestCase):
         utils_lib.run_cmd(self,
                     cmd,
                     expect_ret=0,
-                    expect_kw='ds-identify _RET=found',
+                    expect_kw='ds-identify rc=0',
                     msg='check /run/cloud-init/cloud-init-generator.log')
 
     def test_check_cloudinit_fingerprints(self):
