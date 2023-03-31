@@ -20,3 +20,4 @@ S.5....T.  c /etc/NetworkManager/NetworkManager.conf
 S.5....T.  c /etc/ssh/sshd_config
 .M.......    /boot/grub2/fonts/unicode.pf2
 .M.......  c /boot/grub2/grub.cfg
+.M.......  c /etc/machine-id

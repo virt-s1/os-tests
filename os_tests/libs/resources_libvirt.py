@@ -71,7 +71,17 @@ class LibvirtVM(VMResource):
         root = ET.fromstring(dom_xml)
         if self.arch == "x86_64":
             root.find("os").find("type").set("arch", self.arch)
-            root.find("os").find("type").set("machine", "pc")
+            if float(self.rhel_ver) >= 8.2:
+                root.find("os").find("type").set("machine", "q35")
+                sub_loader = ET.fromstring("<loader readonly='yes' \
+secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>")
+                root.find("os").insert(0, sub_loader)
+                sub_nvram = ET.fromstring(
+                    "<nvram template='/usr/share/OVMF/OVMF_VARS.secboot.fd'>\
+%s/OVMF_VARS.secboot.fd</nvram>" % self.image_dir)
+                root.find("os").insert(0, sub_nvram)
+                sub_smm = ET.fromstring("<smm state='on'/>")
+                root.find("features").insert(0, sub_smm)
         elif self.arch == "ppc64le":
             root.find("os").find("type").set("arch", self.arch)
             root.find("os").find("type").set("machine", "pseries")
@@ -82,18 +92,16 @@ class LibvirtVM(VMResource):
             root.find("os").find("type").set("arch", self.arch)
             root.find("os").find("type").set("machine", "virt")
             sub_cpu = ET.fromstring(
-                '<cpu mode="host-passthrough"><model fallback="allow" /></cpu>'
+                "<cpu mode='host-passthrough'/>"
             )
             root.insert(3, sub_cpu)
-            sub_loader = ET.fromstring('<loader readonly="yes" type="pflash">\
-/usr/share/AAVMF/AAVMF_CODE.fd</loader>')
+            sub_loader = ET.fromstring("<loader readonly='yes' type='pflash'>\
+/usr/share/AAVMF/AAVMF_CODE.fd</loader>")
             root.find("os").insert(0, sub_loader)
             sub_nvram = ET.fromstring(
                 "<nvram template='/usr/share/AAVMF/AAVMF_VARS.fd'>\
-%s/OVMF_VARS.fd</nvram>" % self.image_dir)
+%s/AAVMF_VARS.fd</nvram>" % self.image_dir)
             root.find("os").insert(0, sub_nvram)
-            root.find("devices").find("rng").find(
-                "backend").text = "/dev/urandom"
         else:
             root.find("os").find("type").set("arch", self.arch)
             root.find("os").find("type").set("machine", "pc")
@@ -233,9 +241,9 @@ class LibvirtVM(VMResource):
 dom_xml = """
 <domain type='kvm'>
   <name>rhel</name>
-  <memory unit='KiB'>1048576</memory>
-  <currentMemory unit='KiB'>1048576</currentMemory>
-  <vcpu>1</vcpu>
+  <memory unit='KiB'>4194304</memory>
+  <currentMemory unit='KiB'>4194304</currentMemory>
+  <vcpu>2</vcpu>
   <os>
     <type arch='x86_64' machine='pc'>hvm</type>
     <boot dev='hd'/>
@@ -244,7 +252,7 @@ dom_xml = """
     <acpi/>
     <apic/>
   </features>
-  <cpu mode='host-passthrough'/>
+  <cpu mode='host-model'/>
   <devices>
     <emulator>/usr/libexec/qemu-kvm</emulator>
     <disk type='file' device='disk'>
@@ -260,18 +268,12 @@ dom_xml = """
     </disk>
     <interface type='network'>
       <source network='default' bridge='virbr0'/>
-      <target dev='vnet0'/>
       <model type='virtio'/>
     </interface>
-    <serial type='pty'/>
     <console type='pty'/>
     <channel type='unix'>
        <target type='virtio' name='org.qemu.guest_agent.0'/>
     </channel>
-    <rng model='virtio'>
-      <rate period='2000' bytes='1234'/>
-      <backend model='random'>/dev/random</backend>
-    </rng>
   </devices>
 </domain>
 """
