@@ -1147,6 +1147,20 @@ COMMIT
                 'rx-gro-list': 'rx-gro-list',
                 'rx-udp-gro-forwarding': 'rx-udp-gro-forwarding'
             }
+        elif 'driver: gve' in output:
+            option_dict = {
+                'rx': 'rx-checksumming',
+                'tx': 'tx-checksumming',
+                'sg': 'scatter-gather',
+                'tso': 'tcp-segmentation-offload',
+                'gso': 'generic-segmentation-offload',
+                'gro': 'generic-receive-offload',
+                'tx-nocache-copy': 'tx-nocache-copy',
+                'rx-gro-list': 'rx-gro-list',
+                'rx-udp-gro-forwarding': 'rx-udp-gro-forwarding',
+                'rxhash': 'receive-hashing',
+                'highdma': 'highdma'
+            }
         else:
             option_dict = {
                 'rx': 'rx-checksumming',
