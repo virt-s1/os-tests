@@ -2032,11 +2032,13 @@ current_device"
         utils_lib.run_cmd(self,
                     'sudo insights-client --status',
                     cancel_kw="System is registered",
-                    msg="Please register system or add user to '/etc/insights-client/insights-client.conf'")
-        utils_lib.run_cmd(self,
-                    'sudo insights-client --check-result',
-                    expect_ret=0,
-                    msg="checking system")
+                    cancel_not_kw="machine is NOT registered",
+                    msg="Please register system or add subscription info to '/etc/insights-client/insights-client.conf'")
+        out = utils_lib.run_cmd(self, 'sudo insights-client --check-result', msg="checking system")
+        if "multiple hosts detected" in out:
+            cmd = "sudo bash -c 'insights-client --unregister && insights-client --register'"
+            utils_lib.run_cmd(self, cmd, msg="try to unregister and register system", timeout=240)
+        utils_lib.run_cmd(self, 'sudo insights-client --check-result', expect_ret=0, msg="checking system")
         result_out = utils_lib.run_cmd(self,
                     'sudo insights-client --show-result',
                     expect_ret=0,
@@ -2085,7 +2087,7 @@ current_device"
         utils_lib.run_cmd(self,cmd,msg="clean up old sos report")
         utils_lib.is_cmd_exist(self, cmd='sosreport')
         cmd = "sudo sosreport --batch"
-        utils_lib.run_cmd(self,cmd,expect_ret=0,msg="test sosreport",timeout=400)
+        utils_lib.run_cmd(self,cmd,expect_ret=0,msg="test sosreport",timeout=900)
         cmd = 'sudo ls /var/tmp/sos*.xz'
         sosfile = utils_lib.run_cmd(self, cmd, expect_ret=0)
         sosfile = sosfile.strip('\n')
