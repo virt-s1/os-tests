@@ -174,9 +174,9 @@ current_clocksource'
         component:
             kernel
         bug_id:
-            bugzilla_2160354
+            bugzilla_2160354,bugzilla_1716271,kcs_4463681
         is_customer_case:
-            False
+            True
         testplan:
             N/A
         test_type:
@@ -201,6 +201,7 @@ current_clocksource'
                                            msg = "Get cpu counts"))
         if int(cpu_counts) < 2:
             self.skipTest("only run when cpu count >= 2")
+        utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
         cmd = "sudo bash -c 'echo 0 > /sys/devices/system/cpu/cpu1/online'"
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         cmd = 'lscpu'
