@@ -1349,6 +1349,7 @@ if __name__ == "__main__":
         self._test_vm_time_sync_host('migration')
 
     def tearDown(self):
+        utils_lib.finish_case(self)
         if "test_cpu_hotplug_no_workload" in self.id():
             cmd = "cat /sys/devices/system/cpu/cpu1/online"
             out = utils_lib.run_cmd(self, cmd)

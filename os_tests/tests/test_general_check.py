@@ -671,7 +671,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         component:
             journal
         bugzilla_id:
-            1975897,2026544
+            1975897,2026544,2022432
         is_customer_case:
             True 
         polarion_id:
@@ -2178,6 +2178,7 @@ current_device"
         utils_lib.run_cmd(self, "sudo cat /var/log/secure", expect_not_kw="Input/output error")
 
     def tearDown(self):
+        utils_lib.finish_case(self)
         pass
 
 if __name__ == '__main__':

@@ -16,6 +16,7 @@ setuptools.setup(
     package_data={
         'os_tests': [
             'cfg/*',
+            'docs/*',
             'data/*',
             'templates/*',
             'utils/*'

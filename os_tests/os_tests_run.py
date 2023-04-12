@@ -29,6 +29,8 @@ def main():
         cfg_data['remote_user'] = args.remote_user
         cfg_data['run_uuid'] = run_uuid
         cfg_data['proxy_url'] = args.proxy_url
+        cfg_data['case_setup'] = args.case_setup
+        cfg_data['case_post'] = args.case_post
         vms, disks, nics = init_provider(params=cfg_data)
     cfg_file, cfg_data = get_cfg()
     is_rmt = False
@@ -43,6 +45,8 @@ def main():
         cfg_data['remote_password'] = args.remote_password
         cfg_data['remote_keyfile'] = args.remote_keyfile
         cfg_data['proxy_url'] = args.proxy_url
+        cfg_data['case_setup'] = args.case_setup
+        cfg_data['case_post'] = args.case_post
 
     if vms:
         is_rmt = True
@@ -52,6 +56,8 @@ def main():
         cfg_data['remote_password'] = args.remote_password
         cfg_data['remote_keyfile'] = args.remote_keyfile
         cfg_data['proxy_url'] = args.proxy_url
+        cfg_data['case_setup'] = args.case_setup
+        cfg_data['case_post'] = args.case_post
 
     results_dir = cfg_data['results_dir']
     results_dir_suffix = None

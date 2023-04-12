@@ -139,10 +139,10 @@ total 8
 ### Third party utils  
 
 Below tools are shiped under 'utils' directory with os-tests because not all systems can reach github.
-- ltp x86_64: https://github.com/liangxiao1/rpmbuild_specs/releases/download/sync_ltp_20220907/ltp-master-20220907.x86_64.rpm
-- ltp aarch64: https://github.com/liangxiao1/rpmbuild_specs/releases/download/sync_ltp_20220907/ltp-master-20220907.aarch64.rpm
-- blktests x86_64: https://github.com/liangxiao1/rpmbuild_specs/releases/download/sync_20220902/blktests-master-20220902.x86_64.rpm
-- blktests aarch64:https://github.com/liangxiao1/rpmbuild_specs/releases/download/sync_20220902/blktests-master-20220902.aarch64.rpm
+- ltp x86_64: https://github.com/liangxiao1/rpmbuild_specs/releases/latest/download/ltp-master.x86_64.rpm
+- ltp aarch64: https://github.com/liangxiao1/rpmbuild_specs/releases/latest/download/ltp-master.aarch64.rpm
+- blktests x86_64: https://github.com/liangxiao1/rpmbuild_specs/releases/latest/download/blktests-master.x86_64.rpm
+- blktests aarch64:https://github.com/liangxiao1/rpmbuild_specs/releases/latest/download/blktests-master.aarch64.rpm
 
 ### Contribution
 

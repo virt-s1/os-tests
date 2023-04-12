@@ -1104,6 +1104,7 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.run_cmd(self, 'dmesg', expect_kw="Restarting tasks", expect_not_kw='Call trace,Call Trace', msg="check the system is resumed")
 
     def tearDown(self):
+        utils_lib.finish_case(self)
         reboot_require = False
         addon_args = ["hpet_mmap=1", "mitigations=auto,nosmt", "usbcore.quirks=quirks=0781:5580:bk,0a5c:5834:gij",
         "nr_cpus=1","nr_cpus=2", "intel_iommu=on", "fips=1"]

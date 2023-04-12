@@ -1669,6 +1669,8 @@ COMMIT
             if end_time - start_time > 330:
                 cmd = 'sudo systemctl status nm-cloud-setup.timer'
                 utils_lib.run_cmd(self, cmd)
+                cmd = 'journalctl -u nm-cloud-setup'
+                utils_lib.run_cmd(self, cmd)
                 self.fail("expected 2nd ip {} not found in guest".format(self.vm.another_ip))
             time.sleep(25)
         cmd = 'sudo ip addr show {}'.format(self.active_nic)
@@ -1682,10 +1684,13 @@ COMMIT
             if end_time - start_time > 330:
                 cmd = 'sudo systemctl status nm-cloud-setup.timer'
                 utils_lib.run_cmd(self, cmd)
+                cmd = 'journalctl -u nm-cloud-setup'
+                utils_lib.run_cmd(self, cmd)
                 self.fail("expected 2nd ip {} not removed from guest".format(self.vm.another_ip))
             time.sleep(25)
 
     def tearDown(self):
+        utils_lib.finish_case(self)
         if 'test_mtu_min_max_set' in self.id():
             mtu_cmd = "sudo ip link set dev %s mtu %s" % (self.active_nic , self.mtu_old)
             utils_lib.run_cmd(self, mtu_cmd, expect_ret=0, msg='restore mtu')

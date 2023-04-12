@@ -470,6 +470,7 @@ class TestUpgrade(unittest.TestCase):
         if x_version_upgrade != x_version + 1:
             self.FailTest('Leapp upgrade failed since did not upgrade to target release')
     def tearDown(self):
+        utils_lib.finish_case(self)
         pass
 
 if __name__ == '__main__':
