@@ -1251,6 +1251,7 @@ class NutanixVM(VMResource):
                 "Timed out waiting for cloning VM.")
 
     def get_vm_by_filter(self, filter_name, filter_value):
+        vm_data = None
         if filter_name == "vm_name":
             key = "name"
         else:
