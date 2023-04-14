@@ -60,10 +60,13 @@ cat secret.dec'''
         self.log.info("Run vtpm test script")
         utils_lib.run_cmd(self,"echo '''%s''' | sudo tee /tmp/tpm_test.sh" % self.tpm_test_sh, expect_ret=0, rmt_node=rmt_node)
         utils_lib.run_cmd(self,"sudo chmod 777 /tmp/tpm_test.sh", expect_ret=0, rmt_node=rmt_node)
-        tpm_test_res = utils_lib.run_cmd(self,"sudo /tmp/tpm_test.sh", expect_ret=0, rmt_node=rmt_node)
+        utils_lib.run_cmd(self,"sudo /tmp/tpm_test.sh", expect_ret=0, rmt_node=rmt_node)
+        tpm_test_res = utils_lib.run_cmd(self, "sudo cat secret.dec")
         tpm_test_expect = 'This is some secret text'
         self.assertIn(tpm_test_expect, tpm_test_res,
             msg="Test encryption/decryption with TPM2 failed, Expect: %s, real: %s" % (tpm_test_expect,tpm_test_res))
+        #tear down
+        utils_lib.run_cmd(self, "rm -f key.* primary.ctx secret.*")
 
     def test_add_vtpm_device_to_guest(self):
         """
@@ -196,15 +199,16 @@ cat secret.dec'''
         description:
             Add vTPM device when creating a RHEL guest and check status.
         key_steps: |
-            1. Add vTPM device by acli command.
+            1. Create a new VM with vtpm device.
             2. Check device info and log and encryption/decryption.
         expect_result:
             No error threw.
         debug_want:
             output from dmesg or journal
         """
-        new_vm = self.vm.create_vm_by_acli(self.vm.vm_name+'_'+'scriptCreateVtpmVM', str(self.vm.memory)+'G', '2', self.vm.cpu, 'true', 'true')
-        self.vms.append(new_vm)
+        if len(self.vms) == 1:
+            new_vm = self.vm.create_vm_by_acli(self.vm.vm_name+'_'+'scriptCreateVtpmVM', str(self.vm.memory)+'G', '2', self.vm.cpu, 'true', 'true')
+            self.vms.append(new_vm)
         new_vm_ip = self.vms[1]['vm_nics'][0]['ip_address']
         for cmd, key_word_list, msg in zip(['ls /dev/tpm*','dmesg | grep TPM',\
             'cat /sys/class/tpm/tpm0/tpm_version_major'], \
@@ -223,11 +227,98 @@ cat secret.dec'''
         self.assertIn(tpm_test_expect, tpm_test_res,
             msg="Test encryption/decryption with TPM2 failed, Expect: %s, real: %s" % (tpm_test_expect,tpm_test_res))
 
+    def _basic_validation(self, rmt_node=None):
+        if rmt_node == None:
+            rmt_node = self.vm.floating_ip
+        self._check_vtpm_log_and_version()
+        #basic validation
+        for cmd in ["clevis", "tpm2-abrmd", "tpm2-tools"]:
+            utils_lib.is_cmd_exist(self, cmd=cmd, cancel_case=True)
+        utils_lib.run_cmd(self, "sudo systemctl enable tpm2-abrmd")
+        utils_lib.run_cmd(self, "tpm2_getrandom 20", expect_ret=0)
+        utils_lib.run_cmd(self, "echo 'hello world!' > input.txt && \
+            sudo clevis encrypt tpm2 '{}' < input.txt > secret.jwe", expect_ret=0)
+        utils_lib.run_cmd(self, "ls secret.jwe", expect_ret=0)
+        utils_lib.run_cmd(self, "rm -f input.txt && \
+            sudo clevis decrypt < secret.jwe > output.txt && cat output.txt", expect_ret=0, \
+                expect_output="hello world!")
+        #tear down
+        utils_lib.run_cmd(self, "rm -f output.txt secret.jwe", expect_ret=0)
+
+    def test_add_vtpm_device_basic_validation(self):
+        """
+        case_tag:
+            VTPM,VTPM_tier1
+        case_name:
+            test_add_vtpm_device_basic_validation
+        case_file:
+            os_tests.tests.test_vtpm.TestVTPM.test_add_vtpm_device_basic_validation
+        component:
+            VTPM
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Add vTPM device to an exist RHEL guest and test basic validation.
+        key_steps: |
+            1. Add vTPM device by acli command.
+            2. Test basic validation.
+        expect_result:
+            No error threw.
+        debug_want:
+            output from dmesg or journal
+        """
+        self.log.info("check if need to add vtpm device or not")
+        if 'No such file or directory' in utils_lib.run_cmd(self, 'ls /dev/tpm*'):
+            self._add_vtpm_device()
+        self._basic_validation()
+
+    def test_deploy_vtpm_vm_basic_validation(self):
+        """
+        case_tag:
+            VTPM,VTPM_tier1
+        case_name:
+            test_deploy_vtpm_vm_basic_validation
+        case_file:
+            os_tests.tests.test_vtpm.TestVTPM.test_deploy_vtpm_vm_basic_validation
+        component:
+            VTPM
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            minl@redhat.com
+        description:
+            Add vTPM device when creating a RHEL guest and test basic validation.
+        key_steps: |
+            1. Add vTPM device by acli command.
+            2. Test basic validation.
+        expect_result:
+            No error threw.
+        debug_want:
+            output from dmesg or journal
+        """
+        if len(self.vms) == 1:
+            new_vm = self.vm.create_vm_by_acli(self.vm.vm_name+'_'+'scriptCreateVtpmVM', str(self.vm.memory)+'G', '2', self.vm.cpu, 'true', 'true')
+            self.vms.append(new_vm)
+        new_vm_ip = self.vms[1]['vm_nics'][0]['ip_address']
+        self._basic_validation(rmt_node=new_vm_ip)
+
     def tearDown(self):
         utils_lib.check_log(self, "error,warn,fail,Call trace,Call Trace", log_cmd='dmesg -T', cursor=self.cursor)
-        if 'test_deploy_vm_with_vtpm' in self.id():
+        if 'test_deploy' in self.id():
             vm1 = self.vm.get_vm_by_filter('vm_name', self.vm.vm_name+'_'+'scriptCreateVtpmVM')
-            self.vm.delete(uuid=vm1['uuid'])
+            if vm1 != None:
+                self.vm.delete(uuid=vm1['uuid'])
+                self.vms.pop()
 
 if __name__ == '__main__':
     unittest.main()
