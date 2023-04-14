@@ -3221,6 +3221,7 @@ EOF
         utils_lib.run_cmd(self, 'sudo rpm -V cloud-init', expect_not_kw='/run/cloud-init')
 
     def tearDown(self):
+        utils_lib.finish_case(self)
         if 'test_cloudinit_sshd_keypair' in self.id():
             cmd = 'cp -f ~/.ssh/authorized_keys.bak ~/.ssh/authorized_keys'
             utils_lib.run_cmd(self, cmd, msg='restore .ssh/authorized_keys')

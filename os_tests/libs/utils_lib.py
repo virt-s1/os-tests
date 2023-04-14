@@ -63,6 +63,10 @@ def init_args():
                     help='debug purpose, skip cleanup phase at exit, do not use it in normal test', required=False)
     parser.add_argument('--proxy_url', dest='proxy_url', default=None, action='store',
                     help='specify it if pkg/repo url is internal only, format IP:PORT', required=False)
+    parser.add_argument('--case_setup', dest='case_setup', default=None, action='store',
+                    help='fips_enable,fips_disable,commands or a bash file before running into case steps,can add timeout:XXX if default 600 is not enough for operation done', required=False)
+    parser.add_argument('--case_post', dest='case_post', default=None, action='store',
+                    help='similar as case_setup, usually for collecting temporary debug information,can add timeout:XXX if default 600 is not enough for operation done', required=False)
     args = parser.parse_args()
     return args
 
@@ -355,13 +359,64 @@ def init_case(test_instance):
         _, test_instance.node_info = get_cfg(cfg_file=node_info)
     init_provider_from_guest(test_instance)
     core_file_check(test_instance)
+    extra_case_setups = test_instance.params.get('case_setup')
+    if extra_case_setups:
+        test_instance.log.info("extra case setup detected, run it:{}".format(extra_case_setups))
+        exe_timout = 600
+        for extra_case_setup in extra_case_setups.split(','):
+            if "timeout:" in extra_case_setup:
+                exe_timout = int(extra_case_setup.split(':')[-1])
+                test_instance.log.info("extra case exec timeout detected, use it:{}".format(exe_timout))
+                break
+        for extra_case_setup in extra_case_setups.split(','):
+            test_instance.log.info("try to set {}".format(extra_case_setup))
+            if "timeout:" in extra_case_setup:
+                continue
+            if os.path.isfile(extra_case_setup):
+                rmt_file = "/tmp/{}".format(os.path.basename(extra_case_setup))
+                if test_instance.is_rmt:
+                    test_instance.SSH.put_file(local_file=extra_case_setup, rmt_file=rmt_file)
+                    run_cmd(test_instance, cmd="cat {}".format(rmt_file), msg='print file content')
+                    run_cmd(test_instance, cmd="sudo chmod 777 {}".format(rmt_file), msg='add execute permission')
+                    run_cmd(test_instance, cmd="sudo {}".format(rmt_file), timeout=exe_timout, msg='run pre setup script')
+            else:
+                if 'fips_enable' in extra_case_setup:
+                    fips_enable(test_instance)
+                elif 'fips_disable' in extra_case_setup:
+                    fips_disable(test_instance)
+                else:
+                    run_cmd(test_instance, cmd=extra_case_setup, timeout=exe_timout, msg='run the {} content as command'.format(extra_case_setup))
 
 def finish_case(test_instance):
     """finish case
     Arguments:
         test_instance {Test instance} -- unittest.TestCase instance
     """
-    pass
+    extra_case_posts = test_instance.params.get('case_post')
+    if extra_case_posts:
+        exe_timout = 600
+        for extra_case_setup in extra_case_posts.split(','):
+            if "timeout:" in extra_case_setup:
+                exe_timout = int(extra_case_setup.split(':')[-1])
+                test_instance.log.info("extra case exec timeout detected, use it:{}".format(exe_timout))
+                break
+        test_instance.log.info("extra case post detected, run it:{}".format(extra_case_posts))
+        for extra_case_setup in extra_case_posts.split(','):
+            test_instance.log.info("try to set {}".format(extra_case_setup))
+            if os.path.isfile(extra_case_setup):
+                rmt_file = "/tmp/{}".format(os.path.basename(extra_case_setup))
+                if test_instance.is_rmt:
+                    test_instance.SSH.put_file(local_file=extra_case_setup, rmt_file=rmt_file)
+                    run_cmd(test_instance, cmd="cat {}".format(rmt_file), msg='print file content')
+                    run_cmd(test_instance, cmd="sudo chmod 777 {}".format(rmt_file), msg='add execute permission')
+                    run_cmd(test_instance, cmd="sudo {}".format(rmt_file), timeout=exe_timout, msg='run post setup script')
+            else:
+                if 'fips_enable' in extra_case_setup:
+                    fips_enable(test_instance)
+                elif 'fips_disable' in extra_case_setup:
+                    fips_disable(test_instance)
+                else:
+                    run_cmd(test_instance, cmd=extra_case_setup, timeout=exe_timout, msg='run the {} content as command'.format(extra_case_setup))
 
 def filter_case_doc(case=None, patterns=None, skip_patterns=None, filter_field='case_name', strict=False, verify_doc=False ):
     if patterns is None and skip_patterns is None and not verify_doc:
@@ -1497,3 +1552,59 @@ def get_test_disk(test_instance=None):
         else:
              test_instance.skipTest("No free disk for testing.")
         return test_disk
+
+def fips_enable(test_instance=None):
+    '''
+    enable fips
+    '''
+    cmdline = run_cmd(test_instance, 'cat /proc/cmdline', expect_ret=0)
+    if 'fips=1' in cmdline:
+        test_instance.log.info("fips is already enabled")
+        return True
+    output = run_cmd(test_instance, 'uname -r', expect_ret=0)
+    if 'el7' in output:
+        run_cmd(test_instance,
+                   'sudo dracut -v -f',
+                    msg='regenerate the initramfs!',
+                    timeout=600)
+        cmd = 'sudo grubby --update-kernel=ALL --args="fips=1"'
+        run_cmd(test_instance, cmd, msg='Enable fips!', timeout=600)
+    else:
+        cmd = 'sudo fips-mode-setup --enable'
+        run_cmd(test_instance, cmd, msg='Enable fips!', timeout=600)
+    if not test_instance.is_rmt:
+        test_instance.log.info("run locally, please reboot system to take effect")
+        return False
+    run_cmd(test_instance, 'sudo reboot', msg='reboot system under test')
+    time.sleep(10)
+    init_connection(test_instance, timeout=test_instance.ssh_timeout)
+    run_cmd(test_instance, 'cat /proc/cmdline', expect_kw='fips=1')
+    return True
+
+def fips_disable(test_instance=None):
+    '''
+    disable fips
+    '''
+    cmdline = run_cmd(test_instance, 'cat /proc/cmdline', expect_ret=0)
+    if 'fips=1' not in cmdline:
+        test_instance.log.info("fips is already disabled")
+        return True
+    output = run_cmd(test_instance, 'uname -r', expect_ret=0)
+    if 'el7' in output:
+        run_cmd(test_instance,
+                   'sudo dracut -v -f',
+                    msg='regenerate the initramfs!',
+                    timeout=600)
+        cmd = 'sudo grubby --update-kernel=ALL  --remove-args="fips=1"'
+        run_cmd(test_instance, cmd, msg='Disable fips!')
+    else:
+        cmd = 'sudo fips-mode-setup --disable'
+        run_cmd(test_instance, cmd, msg='Disable fips!')
+    if not test_instance.is_rmt:
+        test_instance.log.info("run locally, please reboot system to take effect")
+        return False
+    run_cmd(test_instance, 'sudo reboot', msg='reboot system under test')
+    time.sleep(10)
+    init_connection(test_instance, timeout=test_instance.ssh_timeout)
+    run_cmd(test_instance, 'cat /proc/cmdline', expect_not_kw='fips=1')
+    return True

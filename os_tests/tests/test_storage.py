@@ -1168,6 +1168,7 @@ class TestStorage(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, expect_ret=0)
 
     def tearDown(self):
+        utils_lib.finish_case(self)
         if 'test_ssd_trim' in self.id():
             if self.is_mounted:
                 utils_lib.run_cmd(self,'sudo umount /mnt')

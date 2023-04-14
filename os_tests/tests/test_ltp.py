@@ -191,6 +191,7 @@ at least which ltp not handle')
         self._ltp_run(file_name="smoketest")
 
     def tearDown(self):
+        utils_lib.finish_case(self)
         utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', cursor=self.cursor, rmt_redirect_stdout=True)
 
 if __name__ == '__main__':

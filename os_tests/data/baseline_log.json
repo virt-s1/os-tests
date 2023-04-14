@@ -964,9 +964,9 @@
     },
     "msg_109": {
         "content": ".*Could not set AlternativeName.*File exists.*;.*Could not apply link config.*File exists.*",
-        "analyze": "Known issue in RHEL-8.5",
+        "analyze": "Known issue in RHEL-8.5 and fixed in rhbz#2027908",
         "branch": "rhel-8.5",
-        "status": "active",
+        "status": "closed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2022432",
         "path": "journal, dmesg",
         "trigger": "el8"
