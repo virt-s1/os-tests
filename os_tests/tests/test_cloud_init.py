@@ -2957,7 +2957,7 @@ chpasswd:
         cmd = "sudo rpm -ql cloud-init |grep -w DataSourceEc2.py"
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Get DataSourceEc2.py')
         # checking code changes is almost same as verifying function
-        cmd = "sudo grep extended_metadata_versions " + output
+        cmd = "sudo grep -A 4 extended_metadata_versions " + output
         utils_lib.run_cmd(self, cmd,
                     expect_kw="2021-03-23",
                     msg='Check if metadata versions contains 2021-03-23')
