@@ -1,3 +1,4 @@
+import time
 import unittest
 from os_tests.libs import utils_lib
 
@@ -262,3 +263,33 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
 #            self.assertEqual(self._get_generation(), 'gen1', "Expected: gen1; Real: gen2")
 #        else:
 #            self.assertEqual(self._get_generation(), 'gen2', "Expected: gen2; Real: gen1")
+
+class TestAzureSriovUpgradeCheck(unittest.TestCase):
+    def setUp(self):
+        utils_lib.init_case(self)
+        if not utils_lib.is_azure(self):
+            self.skipTest('Only run for azure leapp checking.')
+
+    def test_check_vf_exists(self):
+        '''
+        Verify VF NIC exists
+        '''
+        cmd = "ip addr | grep 'master eth0'"
+        utils_lib.run_cmd(self, cmd, expect_kw='SLAVE,UP', msg="Verify VF NIC exists")
+
+    def test_check_vf_has_traffic(self):
+        '''
+        Verify VF NIC tx/rx are increasing
+        '''
+        cmd = "ip addr|grep SLAVE|awk '{print $2}'|tr ':' ' '"
+        vf_name = utils_lib.run_cmd(self, cmd, msg="Get VF NIC name")
+        cmd_tx = "ethtool -S %s|grep tx_packets:|awk '{print $2}'" % vf_name
+        cmd_rx = "ethtool -S %s|grep rx_packets:|awk '{print $2}'" % vf_name
+        tx_before = utils_lib.run_cmd(self, cmd_tx, msg="Get VF tx first time")
+        rx_before = utils_lib.run_cmd(self, cmd_rx, msg="Get VF rx first time")
+        time.sleep(3)
+        tx_after = utils_lib.run_cmd(self, cmd_tx, msg="Get VF tx second time")
+        rx_after = utils_lib.run_cmd(self, cmd_rx, msg="Get VF rx second time")
+        self.assertNotEqual(tx_before, tx_after, "VF tx is not increasing")
+        self.assertNotEqual(rx_before, rx_after, "VF rx is not increasing")
+            
