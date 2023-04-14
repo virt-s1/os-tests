@@ -24,7 +24,12 @@ This parameter makes the os-tests move to next stage to meet various scenarios. 
 $ os-tests --user ec2-user --keyfile /home/xxx.pem --platform_profile /home/aws.yaml -p ltp  --case_setup fips_enable
 ```
 
-#### Example-2: run a script like enable nm-cloud-setup debug mode
+#### Example-2: run the same case with debug kernel and kmemleak enabled
+```bash
+$ os-tests --user ec2-user --keyfile /home/xxx.pem --platform_profile /home/aws.yaml -p ltp  --case_setup debugkernel_enable
+```
+
+#### Example-3: run a script like enable nm-cloud-setup debug mode
 
 Usually we run in normal mode to avoid too many details in test log, but it will be useful if we want to enable it in special case failure debugging.
 It might be a good idea to provide method like fips_enable, fips_disable for generic usage. But we cannot cover all, so there is no limitation by allowing file or cmd string specification.
@@ -32,7 +37,7 @@ It might be a good idea to provide method like fips_enable, fips_disable for gen
 $ os-tests --user ec2-user --keyfile /home/xxx.pem --platform_profile /home/aws.yaml -p test_second_ip_hotplug  --case_setup /usr/local/lib/python3.6/site-packages/os_tests/utils/debug_nm_cloud_setup.sh
 ```
 
-#### Example-3: run a command like enable NetworkManager trace debug mode
+#### Example-4: run a command like enable NetworkManager trace debug mode
 
 If you do not check journal log in one case, you can run this case with debug enabled and collect it in another case. This is also one of the case order control advantages. 
 ```bash

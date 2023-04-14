@@ -384,6 +384,10 @@ def init_case(test_instance):
                     fips_enable(test_instance)
                 elif 'fips_disable' in extra_case_setup:
                     fips_disable(test_instance)
+                elif 'debugkernel_enable' in extra_case_setup:
+                    debugkernel_enable(test_instance)
+                elif 'debugkernel_disable' in extra_case_setup:
+                    debugkernel_disable(test_instance)
                 else:
                     run_cmd(test_instance, cmd=extra_case_setup, timeout=exe_timout, msg='run the {} content as command'.format(extra_case_setup))
 
@@ -415,6 +419,10 @@ def finish_case(test_instance):
                     fips_enable(test_instance)
                 elif 'fips_disable' in extra_case_setup:
                     fips_disable(test_instance)
+                elif 'debugkernel_enable' in extra_case_setup:
+                    debugkernel_enable(test_instance)
+                elif 'debugkernel_disable' in extra_case_setup:
+                    debugkernel_disable(test_instance)
                 else:
                     run_cmd(test_instance, cmd=extra_case_setup, timeout=exe_timout, msg='run the {} content as command'.format(extra_case_setup))
 
@@ -1607,4 +1615,106 @@ def fips_disable(test_instance=None):
     time.sleep(10)
     init_connection(test_instance, timeout=test_instance.ssh_timeout)
     run_cmd(test_instance, 'cat /proc/cmdline', expect_not_kw='fips=1')
+    return True
+
+def debugkernel_enable(test_instance=None):
+    '''
+    enable debug kernel and kmemleak
+    '''
+    if test_instance.vm and is_ahv(test_instance) and test_instance.vm.is_secure_boot:
+        test_instance.log.info('''Red Hat Insights error "sed: can't read /sys/kernel/debug/sched_features: \
+Operation not permitted" When using secure boot''')
+        return False
+    mini_mem = get_memsize(test_instance)
+    if int(mini_mem) < 2:
+        test_instance.log.info('minimal 2G memory required for debug kernel')
+        return False 
+    if is_arch(test_instance, 'aarch64') and int(mini_mem) < 4:
+        test_instance.log.info("minimal 4G memory required in aarch64")
+        return False
+
+    kernel_version = run_cmd(test_instance, 'uname -r', expect_ret=0).strip('\n')
+    cmdline = run_cmd(test_instance, 'cat /proc/cmdline', expect_ret=0)
+    if 'debug' in kernel_version:
+        test_instance.log.info("Already in debug kernel")
+        if 'kmemleak=on' in cmdline:
+            test_instance.log.info("Already enabled kmemleak")
+            return True
+        else:
+            cmd = 'sudo grubby --update-kernel=ALL --args="kmemleak=on"'
+            run_cmd(test_instance, cmd, expect_ret=0, msg='Add "kmemleak=on" to /proc/cmdline')
+    else:
+        if 'el7' in kernel_version:
+            debug_kernel = "/boot/vmlinuz-{}.debug".format(kernel_version)
+            run_cmd(test_instance, 'sudo dracut -v -f',
+                    msg='regenerate the initramfs!',
+                    timeout=600)
+        else:
+            debug_kernel = "/boot/vmlinuz-{}+debug".format(kernel_version)
+        debug_kernel_pkg = 'kernel-debug-' + kernel_version
+
+        is_pkg_installed(test_instance, pkg_name=debug_kernel_pkg, timeout=600)
+        run_cmd(test_instance, "sudo grubby --info=%s" % debug_kernel,
+                expect_ret=0, msg="check if kernel-debug is installed")
+        cmd = "sudo grubby --set-default {}".format(debug_kernel)
+        run_cmd(test_instance, cmd, expect_ret=0, msg="Set default boot kernel to debug kernel")
+        if 'kmemleak=on' not in cmdline:
+            cmd = 'sudo grubby --update-kernel=ALL --args="kmemleak=on"'
+            run_cmd(test_instance, cmd, expect_ret=0, msg='Add "kmemleak=on" to /proc/cmdline')
+
+    if not test_instance.is_rmt:
+        test_instance.log.info("run locally, please reboot system to take effects")
+        return False
+
+    run_cmd(test_instance, 'sudo reboot', msg='reboot OS to take debug kernel effects')
+    time.sleep(60)
+    init_connection(test_instance, timeout=test_instance.ssh_timeout)
+    run_cmd(test_instance, 'uname -r', expect_kw='debug')
+    run_cmd(test_instance, 'cat /proc/cmdline', expect_kw='kmemleak=on')
+    return True
+
+def debugkernel_disable(test_instance=None):
+    '''
+    disable debug kernel and kmemleak
+    '''
+    kernel_version = run_cmd(test_instance, 'uname -r', expect_ret=0).strip('\n')
+    cmdline = run_cmd(test_instance, 'cat /proc/cmdline', expect_ret=0)
+    if 'debug' not in kernel_version:
+        test_instance.log.info("Already disabled debug kernel")
+        if 'kmemleak=on' not in cmdline:
+            test_instance.log.info("Already disabled kmemleak")
+            return True
+        else:
+            cmd = 'sudo grubby --update-kernel=ALL --remove-args="kmemleak=on"'
+            run_cmd(test_instance, cmd, expect_ret=0, msg='Remove "kmemleak=on" from /proc/cmdline')
+    else:
+        current_kernel = run_cmd(test_instance, 'sudo grubby --default-kernel', expect_ret=0).strip('\n')
+        if 'el7' in kernel_version:
+            default_kernel = current_kernel.replace('.debug', '')
+            run_cmd(test_instance, 'sudo dracut -v -f',
+                    msg='regenerate the initramfs!',
+                    timeout=600)
+            default_kernel_pkg = 'kernel-' + kernel_version.replace('.debug', '')
+        else:
+            default_kernel = current_kernel.replace('+debug', '')
+            default_kernel_pkg = 'kernel-' + kernel_version.replace('+debug', '')
+
+        is_pkg_installed(test_instance, pkg_name=default_kernel_pkg, timeout=600)
+        run_cmd(test_instance, "sudo grubby --info=%s" % default_kernel,
+                expect_ret=0, msg="check if default kernel is installed")
+        cmd = "sudo grubby --set-default {}".format(default_kernel)
+        run_cmd(test_instance, cmd, expect_ret=0, msg="Set default boot kernel to default kernel")
+        if 'kmemleak=on' in cmdline:
+            cmd = 'sudo grubby --update-kernel=ALL --remove-args="kmemleak=on"'
+            run_cmd(test_instance, cmd, expect_ret=0, msg='Remove "kmemleak=on" from /proc/cmdline')
+
+    if not test_instance.is_rmt:
+        test_instance.log.info("run locally, please reboot system to take effects")
+        return False
+
+    run_cmd(test_instance, 'sudo reboot', msg='reboot OS to take default kernel effects')
+    time.sleep(60)
+    init_connection(test_instance, timeout=test_instance.ssh_timeout)
+    run_cmd(test_instance, 'uname -r', expect_not_kw='debug')
+    run_cmd(test_instance, 'cat /proc/cmdline', expect_not_kw='kmemleak=on')
     return True
