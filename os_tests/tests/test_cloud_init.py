@@ -1350,7 +1350,7 @@ EOF""".format(device, size), expect_ret=0)
             4. Verify can login successfully and AuthorizedKeysFile has correct authority
         """
         cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')        
-        cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)-', cloudinit_ver).group(1))
+        cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
         if cloudinit_ver < 21.1:
             self.skipTest('skip run as this case is suitable for rhel higher than rhel-8.5 and rhel-9.0, bz1862967')
         self.log.info(
@@ -1932,7 +1932,7 @@ ssh_pwauth: 1
         cmd = 'ip addr show eth1'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=',UP,')
         cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')        
-        cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)-', cloudinit_ver).group(1))
+        cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
         # Check ping gateway successful
         cmd = "ping6 {} -c 3".format(gateway)
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='0% packet loss')
@@ -1976,7 +1976,7 @@ ssh_pwauth: 1
         cmd = 'ip addr show eth1'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=',UP,')
         cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')        
-        cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)-', cloudinit_ver).group(1))
+        cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
         if cloudinit_ver < 22.1:
             cmd = 'sudo cat /etc/sysconfig/network-scripts/ifcfg-eth1'
             utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='DHCPV6C_OPTIONS=-S,IPV6_AUTOCONF=yes')
@@ -2022,7 +2022,7 @@ ssh_pwauth: 1
         cmd = 'ip addr show eth1'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=',UP,')
         cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')        
-        cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)-', cloudinit_ver).group(1))
+        cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
         if cloudinit_ver < 22.1:
             cmd = 'sudo cat /etc/sysconfig/network-scripts/ifcfg-eth1'
             utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='IPV6_FORCE_ACCEPT_RA=yes')
