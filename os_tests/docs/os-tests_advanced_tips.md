@@ -52,7 +52,12 @@ The default execution timeout is 600s, if it is not sufficient, please increase 
 
 Similar as "--case_setup", this allows user to append extra steps after the case done. We do recommend user to add the post steps to the case teardown if it is general. But we might want to run some temporary command like collect debug info after test.
 
-#### Example-1: run the case with debug enabled and collect its output
+#### Example-1: run the case with debug kernel and kmemleak enabled, and then collect memory leak
+```bash
+$ os-tests --user ec2-user --keyfile /home/xxx.pem --platform_profile /home/aws.yaml -p ltp --case_setup debugkernel_enable --case_post collect_kmemleak
+```
+
+#### Example-2: run the case with debug enabled and collect its output
 ```bash
 $ os-tests --user ec2-user --keyfile /home/xxx.pem --platform_profile /home/aws.yaml -p test_network_device_hotplug  --case_setup 'sudo nmcli general logging level TRACE domains ALL' --case_post "journalctl -u NetworkManager"
 ```

@@ -66,7 +66,7 @@ def init_args():
     parser.add_argument('--case_setup', dest='case_setup', default=None, action='store',
                     help='fips_enable,fips_disable,debugkernel_enable,debugkernel_disable,commands or a bash file before running into case steps,can add timeout:XXX if default 600 is not enough for operation done', required=False)
     parser.add_argument('--case_post', dest='case_post', default=None, action='store',
-                    help='similar as case_setup, usually for collecting temporary debug information,can add timeout:XXX if default 600 is not enough for operation done', required=False)
+                    help='collect_kmemleak, other args are similar as case_setup, usually for collecting temporary debug information, can add timeout:XXX if default 600 is not enough for operation done', required=False)
     args = parser.parse_args()
     return args
 
@@ -388,6 +388,8 @@ def init_case(test_instance):
                     debugkernel_enable(test_instance)
                 elif 'debugkernel_disable' in extra_case_setup:
                     debugkernel_disable(test_instance)
+                elif 'collect_kmemleak' in extra_case_setup:
+                     logging.info('Suggest to run this setup in --case_post')
                 else:
                     run_cmd(test_instance, cmd=extra_case_setup, timeout=exe_timout, msg='run the {} content as command'.format(extra_case_setup))
 
@@ -423,6 +425,8 @@ def finish_case(test_instance):
                     debugkernel_enable(test_instance)
                 elif 'debugkernel_disable' in extra_case_setup:
                     debugkernel_disable(test_instance)
+                elif 'collect_kmemleak' in extra_case_setup:
+                    collect_kmemleak(test_instance)
                 else:
                     run_cmd(test_instance, cmd=extra_case_setup, timeout=exe_timout, msg='run the {} content as command'.format(extra_case_setup))
 
@@ -1718,3 +1722,17 @@ def debugkernel_disable(test_instance=None):
     run_cmd(test_instance, 'uname -r', expect_not_kw='debug')
     run_cmd(test_instance, 'cat /proc/cmdline', expect_not_kw='kmemleak=on')
     return True
+
+def collect_kmemleak(test_instance=None):
+    '''
+    collect memory leak in debug kernel with 'kmemleak=on'
+    '''
+    run_cmd(test_instance, 'uname -r', expect_kw='debug')
+    run_cmd(test_instance, 'cat /proc/cmdline', expect_kw='kmemleak=on')
+
+    cmd = 'sudo bash -c "echo scan > /sys/kernel/debug/kmemleak"'
+    run_cmd(test_instance, cmd, expect_ret=0, timeout=1800)
+    cmd = 'sudo cat /sys/kernel/debug/kmemleak'
+    output = run_cmd(test_instance, cmd, expect_ret=0)
+    if len(output) > 0:
+        test_instance.log.info('Memory leak found!')
