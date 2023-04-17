@@ -64,7 +64,7 @@ def init_args():
     parser.add_argument('--proxy_url', dest='proxy_url', default=None, action='store',
                     help='specify it if pkg/repo url is internal only, format IP:PORT', required=False)
     parser.add_argument('--case_setup', dest='case_setup', default=None, action='store',
-                    help='fips_enable,fips_disable,commands or a bash file before running into case steps,can add timeout:XXX if default 600 is not enough for operation done', required=False)
+                    help='fips_enable,fips_disable,debugkernel_enable,debugkernel_disable,commands or a bash file before running into case steps,can add timeout:XXX if default 600 is not enough for operation done', required=False)
     parser.add_argument('--case_post', dest='case_post', default=None, action='store',
                     help='similar as case_setup, usually for collecting temporary debug information,can add timeout:XXX if default 600 is not enough for operation done', required=False)
     args = parser.parse_args()
