@@ -161,22 +161,6 @@ class TestUpgrade(unittest.TestCase):
                                 msg='Check if there is rhui client in system')
         if ret != 0:
             self.skipTest('Skip test since there is no rhui client')
-        utils_lib.run_cmd(self, 
-                        "sudo yum update -y",
-                        expect_ret=0, timeout=600,
-                        msg='Update system to the latest version for upgrade testing')
-        utils_lib.run_cmd(self, 
-                        "sudo reboot",
-                        msg='Reboot system to the latest kernel')
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
-        utils_lib.run_cmd(self,
-                        "sudo uname -r",
-                        expect_ret=0,
-                        msg='Check kernel version after updated')
-        utils_lib.run_cmd(self,
-                        "sudo cat /etc/redhat-release",
-                        expect_ret=0,
-                        msg='check rhel release after updated')
         #Install leapp packages:
         platform = os.getenv('INFRA_PROVIDER')
         if x_version == 7:
@@ -346,7 +330,7 @@ class TestUpgrade(unittest.TestCase):
                         "sudo ls /etc/yum.repos.d/",
                         expect_ret=0,
                         msg='check repo file')
-        if os.getenv('INFRA_PROVIDER') in ['azure','gcp','aws','alibaba']:
+        if os.getenv('INFRA_PROVIDER') in ['azure','google','aws','ali']:
             cmd = "sudo sed -i '/gpgcheck=0/a\proxy=http://127.0.0.1:8080/' {}".format(dest_path)
             utils_lib.run_cmd(self,
                             cmd,
@@ -402,7 +386,7 @@ class TestUpgrade(unittest.TestCase):
                         "sudo cp %s %s" % (tmp_path,dest_path),
                         expect_ret=0,
                         msg='Prepare leapp target repo')
-        if os.getenv('INFRA_PROVIDER') in ['azure','gcp','aws','alibaba']:
+        if os.getenv('INFRA_PROVIDER') in ['azure','google','aws','ali']:
             cmd = "sudo sed -i '/gpgcheck=0/a\proxy=http://127.0.0.1:8080/' {}".format(dest_path)
             utils_lib.run_cmd(self,
                             cmd,
