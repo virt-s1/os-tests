@@ -139,10 +139,62 @@ class TestLifeCycle(unittest.TestCase):
                 self.fail('Memory leak found!')
 
     def test_boot_fipsenabled(self):
-        '''
-        polarion_id:
-        bz: 1787270
-        '''
+        """
+        case_name:
+            test_boot_fipsenabled
+        case_tags:
+            fips
+        case_status:
+            approved
+        title:
+            [os-tests] TestLifeCycle.test_boot_fipsenabled
+        importance:
+            high
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            automated
+        linked_work_items:
+            polarion_[os-tests] TestLifeCycle.test_boot_fipsenabled
+        automation_field:
+            https://github.com/virt-s1/os-tests/tree/master/os_tests/tests/test_lifecycle.py
+        setup_teardown:
+            n/a
+        environment:
+            n/a
+        component:
+            kernel
+        bug_id:
+            1787270
+        is_customer_case:
+            False  
+        testplan:
+            N/A
+        test_type:
+            functional
+        test_level:
+            Component
+        maintainer:
+            xiliang@redhat.com
+        description: |
+            Test boot system with fips enabled.
+        key_steps: |
+            1. Start a system, enable fips in system.
+               For RHEL7,
+               Add the fips=1 option to the kernel command line of the boot loader, 
+               e.g., "sudo grubby --update-kernel=ALL --args="fips=1""
+               For RHEL8, RHEL9,
+               To switch the system to FIPS mode via command "sudo fips-mode-setup --enable"
+            2. Reboot system to enable FIPS mode in system.
+            3. Check if the FIPS mode enabled.
+               For RHEL7, there is "fips=1" in /proc/cmdline.
+               For RHEL8, RHEL9, 
+               There is "fips=1" in /proc/cmdline and "sudo fips-mode-setup --check" is enabled.
+        expected_result: |
+            System boot success with fips mode enabled without any error in dmesg.
+        debug_want: |
+            N/A
+        """
 
         utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_ret=0)
         self.log.info("Check system can boot with fips=1")
