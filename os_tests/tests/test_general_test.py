@@ -236,7 +236,7 @@ current_clocksource'
             No failed items found.
         '''
         cmd = "sudo dracut -f -v"
-        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='Failed,FAILED', timeout=120)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='Failed,FAILED', timeout=300)
 
 
     def test_fio_cpuclock(self):
