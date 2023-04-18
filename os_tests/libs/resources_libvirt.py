@@ -35,6 +35,8 @@ class LibvirtVM(VMResource):
         self.vcpus = params['Flavor'].get('cpu')
         self.memory = params['Flavor'].get('memory')
         self.size = params['Flavor'].get('size')
+
+        self.console_log = '/tmp/console'+self.rhel_ver+'.log'
         self.user_data = None
 
         # VM access parameters
@@ -130,6 +132,8 @@ secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>")
             "file", os.path.join(self.image_dir, self.image_name))
         root.find("devices").find("disk[@device='cdrom']").find("source").set(
             "file", os.path.join(self.image_dir, self.nocloud_iso_name))
+        root.find("devices").find("serial[@type='pty']").find("log").set(
+            "file", self.console_log)
         xmlconfig = ET.tostring(root).decode()
         dom = self.conn.defineXML(xmlconfig)
         dom.create()
@@ -228,7 +232,10 @@ secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>")
         return self.data
 
     def get_console_log(self):
-        raise NotImplementedError
+        with open(self.console_log) as f:
+            lines = f.readlines()
+        LOG.info(lines)
+        return lines
 
     def disk_count(self):
         raise NotImplementedError
@@ -286,6 +293,9 @@ dom_xml = """
       <source network='default' bridge='virbr0'/>
       <model type='virtio'/>
     </interface>
+    <serial type='pty'>
+      <log file='/tmp/console.log' append='off'/>
+    </serial>
     <console type='pty'/>
     <channel type='unix'>
        <target type='virtio' name='org.qemu.guest_agent.0'/>
