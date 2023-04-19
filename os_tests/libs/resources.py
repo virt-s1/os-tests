@@ -23,6 +23,7 @@ class BaseResource(metaclass=ABCMeta):
         # mark the resource created, default is os_tests
         self.tag = 'os_tests'
         self.provider = params['Cloud']['provider']
+        self.id = 0
 
     @abstractmethod
     def show(self):
