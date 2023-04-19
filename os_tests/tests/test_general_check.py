@@ -982,13 +982,13 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         component:
             glibc
         bugzilla_id:
-            2000878
+            2000878,2061604
         polarion_id:
             n/a
         maintainer:
             xiliang@redhat.com
         description:
-            Check there are no errors on the output of 'locale'
+            Check there are no errors on the output of 'locale', and LANG in /etc/locale.conf will not be changed by cloud-init
         key_steps:
             1. # locale
         expected_result:
@@ -1000,20 +1000,21 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         cmd = 'rpm -qa | grep glibc'
         utils_lib.run_cmd(self, cmd, msg='please attach {} output if file bug'.format(cmd))
         utils_lib.run_cmd(self, 'locale', expect_not_kw="Cannot", msg='check no errors about locale')
-        cmd = "grep 'LANG=' /etc/locale.conf"
-        output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Get LANG in locale.conf")
-        product_id = utils_lib.get_product_id(self)
-        if float(product_id) >= 9.0:
-            # workaround for the pending pkg release
-            cmd = "rpm -q cloud-init"
-            output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Get cloud-init rpm name")
-            ver = output.lstrip('cloud-init-').split('-')[0]
-            if (float(ver) >= 22.2):
-                self.assertTrue(re.match(r'LANG="*C.UTF-8"*', output),
-                                "default LANG is wrong -> %s" % output)
-        else:
-            self.assertTrue(re.match(r'LANG="*en_US.UTF-8"*', output),
-                            "default LANG is wrong -> %s" % output)
+
+        cmd = "locale | grep LANG="
+        lang_default = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Get LANG from 'locale' outputs").strip('\n')
+        if utils_lib.is_pkg_installed(self, pkg_name='cloud-init', is_install=False):
+            cmd = "sudo cloud-init clean"
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Clean cloud-init cache")
+            cmd = "sudo cloud-init init"
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Init cloud-init service")
+            cmd = "sudo cloud-init single --name locale"
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Reload locale module")
+
+        cmd = """grep 'LANG=' /etc/locale.conf | sed 's/"//g'"""
+        lang_cfg = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Get LANG in locale.conf").strip('\n')
+        self.assertEqual(lang_cfg, lang_default,
+                         "LANG in locale.conf: %s is not same as 'locale' outputs: %s" % (lang_cfg, lang_default))
 
     def test_check_lshw_mem(self):
         '''
@@ -1226,10 +1227,10 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
                     cancel_kw="kmemleak=on",
                     msg="Only run with kmemleak=on")
 
-        cmd = 'sudo echo scan > /sys/kernel/debug/kmemleak'
+        cmd = 'sudo bash -c "echo scan > /sys/kernel/debug/kmemleak"'
         utils_lib.run_cmd(self, cmd, expect_ret=0, timeout=1800)
 
-        cmd = 'cat /sys/kernel/debug/kmemleak'
+        cmd = 'sudo cat /sys/kernel/debug/kmemleak'
         output = utils_lib.run_cmd(self, cmd, expect_ret=0)
         if len(output) > 0:
             self.fail('Memory leak found!')
