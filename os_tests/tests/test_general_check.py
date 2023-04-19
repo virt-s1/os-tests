@@ -1004,11 +1004,12 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         cmd = "locale | grep LANG="
         lang_default = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Get LANG from 'locale' outputs").strip('\n')
         if utils_lib.is_pkg_installed(self, pkg_name='cloud-init', is_install=False):
-            cmd = "systemctl is-enabled cloud-init || systemctl enable cloud-init"
-            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Enable cloud-init for next boot up")
-            utils_lib.run_cmd(self, 'sudo reboot', msg="Reboot OS to check if locale.conf will be changed")
-            time.sleep(10)
-            utils_lib.init_connection(self)
+            cmd = "sudo cloud-init clean"
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Clean cloud-init cache")
+            cmd = "sudo cloud-init init"
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Init cloud-init service")
+            cmd = "sudo cloud-init single --name locale"
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Reload locale module")
 
         cmd = """grep 'LANG=' /etc/locale.conf | sed 's/"//g'"""
         lang_cfg = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Get LANG in locale.conf").strip('\n')
