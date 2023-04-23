@@ -1155,6 +1155,217 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check sleep process still exists')
         utils_lib.run_cmd(self, 'dmesg', expect_kw="Restarting tasks", expect_not_kw='Call trace,Call Trace', msg="check the system is resumed")
 
+    def test_kdump_over_ssh(self):
+        """
+        case_tag:
+            Lifecycle,Lifecycle_tier2
+        case_name:
+            test_kdump_over_ssh
+        case_file:
+            os_tests.tests.test_lifecycle.TestLifeCycle.test_kdump_over_ssh
+        component:
+            kexec-tools
+        bugzilla_id:
+            2186123,2185043
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            libhe@redhat.com
+        description:
+            Check kdump can save core file to remote ssh server.
+        key_steps:
+            1.To enable SSH logoin without password
+            2.To enable kdump over remote ssh server
+            3.Sends a sysrq command to trigger a crash
+        expect_result:
+            1. System can save core to remote ssh server successfully.
+        debug_want:
+            N/A
+        """
+        if 'non_interactive' not in self.id():
+            if not self.is_rmt:
+                self.skipTest('only run on remote')
+            if len(self.vms) < 2 and len(self.params.get('remote_nodes')) < 2:
+                self.skipTest('2 nodes required!')
+            if len(self.vms) > 1 and not self.vms[1].exists():
+                self.vms[1].create()
+                self.params['remote_nodes'].append(self.vms[1].floating_ip)
+            
+            utils_lib.init_connection(self, timeout=self.ssh_timeout, rmt_node=self.params['remote_nodes'][-1])
+            self.rmt_ipv4 = utils_lib.get_active_nic(self,rmt_node=self.params['remote_nodes'][-1])
+
+            cmd = 'sudo bash -c "mkdir -p /var/www/kdump/export/var/crash"'
+            utils_lib.run_cmd(self, cmd, rmt_node=self.params['remote_nodes'][-1])
+            cmd = 'sudo bash -c "chmod -R 777 /var/www/kdump/export/"'
+            utils_lib.run_cmd(self, cmd, rmt_node=self.params['remote_nodes'][-1])
+            cmd = 'sudo cat /root/.ssh/id_rsa.pub'
+            out = utils_lib.run_cmd(self, cmd, msg='check if root login is enabled')
+            if 'No such file' in out:
+                cmd = 'sudo bash -c "echo |ssh-keygen -t rsa"'
+                out = utils_lib.run_cmd(self, cmd)
+                cmd = 'sudo cat /root/.ssh/id_rsa.pub'
+                out = utils_lib.run_cmd(self, cmd)
+                if 'No such file' in out:
+                    self.log.info('Cannot get pub key from hut')
+            cmd = 'sudo bash -c "echo \'{}\'>/root/.ssh/authorized_keys"'.format(out)
+            utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1], msg='add pub key to test server')
+            cmd = 'sudo bash -c "ssh -o StrictHostKeyChecking=no root@{} ip addr"'.format(self.rmt_ipv4)
+            utils_lib.run_cmd(self, cmd, msg="test cmd execution on remote without password")
+
+        #Configure kdump over ssh
+        utils_lib.run_cmd(self, "sudo systemctl stop kdump", expect_ret=0, msg='stop kdump')
+        cmd = 'echo -e "ssh root@{}\nsshkey /root/.ssh/id_rsa\npath /var/crash\ncore_collector makedumpfile -F -l --message-level 7 -d 31" |sudo tee /etc/kdump.conf'.format(self.rmt_ipv4)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Configure kdump using ssh')
+        utils_lib.run_cmd(self, "sudo systemctl restart kdump", expect_ret=0, msg='restart kdump')
+
+        #Enable FIPs
+        #utils_lib.fips_enable(self)
+
+        utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
+        # Check kdump for the system
+        product_id = utils_lib.get_product_id(self)
+        if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self) and float(product_id) < 8.6:
+            self.skipTest("Cancel as bug 1654962 in arm guest earlier than 8.6 2082405" )
+        utils_lib.run_cmd(self,
+                    r'sudo rm -rf /var/crash/*',
+                    expect_ret=0,
+                    rmt_node=self.params['remote_nodes'][-1],
+                    msg='clean /var/crash firstly')
+        utils_lib.run_cmd(self, r'sudo sync', expect_ret=0)
+        self.log.info("Before system crash")
+        utils_lib.run_cmd(self,
+                    r'find /var/crash',
+                    expect_ret=0,
+                    rmt_node=self.params['remote_nodes'][-1],
+                    msg='list /var/crash')
+
+        utils_lib.run_cmd(self, "sudo bash -c \"echo c > /proc/sysrq-trigger\"", msg='trigger crash')
+
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        self.log.info("After system crash")
+        utils_lib.run_cmd(self,
+                    r'find /var/crash',
+                    expect_ret=0,
+                    rmt_node=self.params['remote_nodes'][-1],
+                    msg='list /var/crash after crash')
+        cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50'
+        utils_lib.run_cmd(self, cmd, expect_ret=0,rmt_node=self.params['remote_nodes'][-1],expect_kw='write_sysrq_trigger')
+
+    def test_kdump_over_nfs(self):
+        """
+        case_tag:
+            Lifecycle,Lifecycle_tier2
+        case_name:
+            test_kdump_over_nfs
+        case_file:
+            os_tests.tests.test_lifecycle.TestLifeCycle.test_kdump_over_nfs
+        component:
+            kexec-tools
+        bugzilla_id:
+            2186123,2185043
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            libhe@redhat.com
+        description:
+            Check kdump can save core file to remote ssh server".
+        key_steps:
+            1.To enable kdump over nfs server
+            2.Add inbound rule to allow nfs port 2049
+            3.Add nfs port 2049 to firewall allow list if firewall is enabled
+            4.Sends a sysrq command to trigger a crash.
+        expect_result:
+            1. System can save core to remote nfs server successfully.
+        debug_want:
+            N/A
+        """
+        if 'non_interactive' not in self.id():
+
+            if not self.is_rmt:
+                self.skipTest('only run on remote')
+            if len(self.vms) < 2 and len(self.params.get('remote_nodes')) < 2:
+                self.skipTest('2 nodes required!')
+            if len(self.vms) > 1 and not self.vms[1].exists():
+                self.vms[1].create()
+                self.params['remote_nodes'].append(self.vms[1].floating_ip)          
+            
+            utils_lib.init_connection(self, timeout=self.ssh_timeout, rmt_node=self.params['remote_nodes'][-1])
+            #Get active nic
+            self.rmt_ipv4 = utils_lib.get_active_nic(self,rmt_node=self.params['remote_nodes'][-1])
+            #Create nfs share folder
+            cmd = 'sudo bash -c "mkdir -p /var/www/export/kdump/var/crash"'
+            utils_lib.run_cmd(self, cmd, rmt_node=self.params['remote_nodes'][-1])
+            cmd = 'sudo bash -c "chmod -R 777 /var/www/export/kdump"'
+            utils_lib.run_cmd(self, cmd, rmt_node=self.params['remote_nodes'][-1])
+           
+            #Configure nfs server
+            utils_lib.run_cmd(self, "rpm -q nfs-utils||sudo yum install -y nfs-utils", expect_ret=0, timeout=180, rmt_node=self.params['remote_nodes'][-1])
+            cmd = 'sudo echo "/var/www/export/kdump *(rw)"|sudo tee /etc/exports'
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="configure nfs server",rmt_node=self.params['remote_nodes'][-1])
+            utils_lib.run_cmd(self, "sudo systemctl restart rpcbind", expect_ret=0, msg="restart rpcbind server",rmt_node=self.params['remote_nodes'][-1])
+            utils_lib.run_cmd(self, "sudo systemctl restart nfs-server", expect_ret=0, msg="start nfs server",rmt_node=self.params['remote_nodes'][-1])
+                   
+            #Allow inbound access on the NFS port
+            if self.vm.provider == 'aws':
+                instance_id = utils_lib.run_cmd(self,"cat /var/lib/cloud/data/instance-id",msg='get instance id',rmt_node=self.params['remote_nodes'][-1])
+                is_port_exist = self.nic.add_inbound_rule(instance_id.strip(),2049)
+            
+            if utils_lib.is_firewalld_installed_and_running(self,rmt_node=self.params['remote_nodes'][-1]):
+                utils_lib.add_port_to_firewall(self,rmt_node=self.params['remote_nodes'][-1],port=2049)
+
+        #Configure kdump over nfs
+        #https://access.redhat.com/solutions/1197493
+        utils_lib.run_cmd(self, "rpm -q nfs-utils||sudo yum install -y nfs-utils", expect_ret=0, timeout=180)
+        utils_lib.run_cmd(self, "sudo systemctl stop kdump", expect_ret=0, msg='stop kdump')
+        output = utils_lib.run_cmd(self, 'uname -r', expect_ret=0)
+        if 'el7' in output:
+           cmd = '''sudo echo -e 'dracut_args --mount \"{}:/var/www/export/kdump /var/crash nfs defaults\"\ncore_collector makedumpfile -l --message-level 7 -d 31' |sudo tee /etc/kdump.conf'''.format(self.rmt_ipv4) 
+        else:
+            cmd = 'sudo echo -e "nfs {}:/var/www/export/kdump\npath /var/crash\ncore_collector makedumpfile -l --message-level 7 -d 31" |sudo tee /etc/kdump.conf'.format(self.rmt_ipv4)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Configure kdump using nfs')
+        utils_lib.run_cmd(self, "sudo systemctl start kdump", msg='start kdump')
+        utils_lib.run_cmd(self, "sudo systemctl status kdump", expect_ret=0, msg='check kdump status')
+        
+        #Enable FIPs
+        #utils_lib.fips_enable(self)
+
+        utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
+        # Check kdump for the system
+        product_id = utils_lib.get_product_id(self)
+        if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self) and float(product_id) < 8.6:
+            self.skipTest("Cancel as bug 1654962 in arm guest earlier than 8.6 2082405" )
+        utils_lib.run_cmd(self,
+                    r'sudo rm -rf /var/www/export/kdump/var/crash/*',
+                    expect_ret=0,
+                    rmt_node=self.params['remote_nodes'][-1],
+                    msg='clean /var/crash firstly')
+        utils_lib.run_cmd(self, r'sudo sync', expect_ret=0)
+        self.log.info("Before system crash")
+        utils_lib.run_cmd(self,
+                    r'find /var/www/export/kdump/var/crash',
+                    expect_ret=0,
+                    rmt_node=self.params['remote_nodes'][-1],
+                    msg='list /var/crash')
+        utils_lib.run_cmd(self, "sudo bash -c \"echo c > /proc/sysrq-trigger\"", msg='trigger crash')
+        time.sleep(60)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout, rmt_node=self.params['remote_nodes'][-1])
+        self.log.info("After system crash")
+        utils_lib.run_cmd(self,
+                    r'find /var/www/export/kdump/var/crash',
+                    expect_ret=0,
+                    rmt_node=self.params['remote_nodes'][-1],
+                    msg='list /var/crash after crash')
+        cmd = r'sudo cat /var/www/export/kdump/var/crash/*/vmcore-dmesg.txt|tail -50'
+        utils_lib.run_cmd(self, cmd, expect_ret=0,rmt_node=self.params['remote_nodes'][-1],expect_kw='write_sysrq_trigger')
+        if self.vm.provider == 'aws':
+            if not is_port_exist:
+                self.nic.remove_inbound_rule(instance_id.strip(),2049)
+
     def tearDown(self):
         utils_lib.finish_case(self)
         reboot_require = False

@@ -1736,3 +1736,53 @@ def collect_kmemleak(test_instance=None):
     output = run_cmd(test_instance, cmd, expect_ret=0)
     if len(output) > 0:
         test_instance.log.info('Memory leak found!')
+
+def get_active_nic(test_instance=None, rmt_node=None, vm=None):
+    cmd = "sudo ip link show|grep mtu|grep -v lo|awk -F':' '{print $2}'"
+    output = run_cmd(test_instance, cmd, rmt_node=rmt_node, vm=vm)
+    test_instance.active_nic  = "eth0"
+    test_instance.log.info("Test which nic connects to public")
+    nic_found = False
+    for net in output.split('\n'):
+        if len(net) < 3:
+            continue
+        cmd = "sudo ping {} -c 6 -I {}".format(test_instance.params.get('ping_server'), net)
+        ret = run_cmd(test_instance, cmd, rmt_node=rmt_node, vm=vm)
+        if ret == 0:
+            test_instance.active_nic  = net
+            nic_found = True
+            break
+    if not nic_found:
+        for net in output.split('\n'):
+            #man systemd.net-naming-scheme
+            if net.startswith(('eth','en')):
+                test_instance.active_nic  = net
+                break
+    test_instance.log.info("Pick up nic {}".format(test_instance.active_nic ))
+    
+    cmd = "sudo ip addr show {}".format(test_instance.active_nic )
+    output = run_cmd(test_instance, cmd, rmt_node=rmt_node, vm=vm)
+    test_instance.rmt_ipv4 = re.findall('[\d.]{7,16}', output)[0]
+
+    return test_instance.rmt_ipv4
+
+def is_firewalld_installed_and_running(test_instance=None, rmt_node=None, vm=None):
+    cmd = "sudo systemctl status firewalld"
+    output = run_cmd(test_instance, cmd, rmt_node=rmt_node, vm=vm)
+    if "Active: active (running)" in output:
+        test_instance.log.info("Firewalld is installed and running")
+        return True
+    else:
+        test_instance.log.info("Firewalld is not installed and running")
+        return False
+
+def add_port_to_firewall(test_instance=None, rmt_node=None, vm=None, port=None):
+    cmd = "sudo firewall-cmd --list-ports | grep {}".format(port)
+    output = run_cmd(test_instance, cmd, rmt_node=rmt_node, vm=vm)
+    if str(port) not in output:
+        cmd = "sudo firewall-cmd --add-port={}/tcp --permanent".format(port)
+        run_cmd(test_instance, cmd, rmt_node=rmt_node, vm=vm)
+        cmd = "sudo firewall-cmd --reload"
+        run_cmd(test_instance, cmd, rmt_node=rmt_node, vm=vm)
+    else:
+        test_instance.log.info(f'port {port} has exist in the firewalld allow list')

@@ -725,6 +725,7 @@ class EC2NIC(NetworkResource):
     '''
     __network_interface = None
     EC2_CLIENT = boto3.client('ec2')
+    EC2_RESOURCE = boto3.resource('ec2')
 
     def __init__(self, params):
         super(EC2NIC, self).__init__(params)
@@ -990,3 +991,66 @@ class EC2NIC(NetworkResource):
         except Exception as err:
             LOG.info("Failed to release Elastic IP")
             LOG.error(err)
+    
+    def add_inbound_rule(self,instance_id,port):
+        '''
+        Add port to inbound rule
+        :param instance_id: id of instance
+        :param port: the port need to add inbound rule
+        :return: True if success, False as failed
+        '''
+        try:
+            instance = self.EC2_RESOURCE.Instance(instance_id)
+            security_group_id = instance.security_groups[0]['GroupId']
+            response = self.EC2_CLIENT.describe_security_groups(GroupIds=[security_group_id])
+            ip_permissions = response['SecurityGroups'][0]['IpPermissions']
+            is_port_exist= False
+            LOG.info(f'Trying to add port {port} to security group {security_group_id}')
+            for ip_permission in ip_permissions:
+                if ip_permission['FromPort'] == port:
+                    LOG.info(f'Port {port} has existed in the inbound ruel,no need to add.')
+                    is_port_exist = True
+                    return is_port_exist
+            self.EC2_CLIENT.authorize_security_group_ingress(
+                GroupId=security_group_id,
+                IpPermissions=[
+                    {
+                        'IpProtocol': 'tcp',
+                        'FromPort': port,
+                        'ToPort': port,
+                        'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
+                    }
+                ]
+            )  
+        except Exception as err:
+            LOG.info("Failed to add inbound rule")
+            LOG.error(err)
+            return False
+
+    def remove_inbound_rule(self,instance_id,port):
+        '''
+        remove port from inbound rule 
+        :param instance_id: id of instance
+        :param port: the port need to be removed from inbound rule
+        :return: True if success, False as failed
+        '''
+        try:
+            instance = self.EC2_RESOURCE.Instance(instance_id)
+            security_group_id = instance.security_groups[0]['GroupId']
+            LOG.info(f'Trying to remove port {port} from security group {security_group_id}')
+            self.EC2_CLIENT.revoke_security_group_ingress(
+                GroupId=security_group_id,
+                IpPermissions=[
+                    {
+                        'IpProtocol': 'tcp',
+                        'FromPort': port,
+                        'ToPort': port,
+                        'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
+                    }
+                ]
+            )
+            return True
+        except Exception as err:
+            LOG.info("Failed to remove inboud rule")
+            LOG.error(err)
+            return False
