@@ -274,6 +274,10 @@ dom_xml = """
     <channel type='unix'>
        <target type='virtio' name='org.qemu.guest_agent.0'/>
     </channel>
+    <rng model='virtio'>
+      <rate period='2000' bytes='1234'/>
+      <backend model='random'>/dev/urandom</backend>
+    </rng>
   </devices>
 </domain>
 """
