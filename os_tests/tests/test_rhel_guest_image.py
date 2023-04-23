@@ -219,6 +219,8 @@ class TestGuestImage(unittest.TestCase):
         debug_want:
             N/A
         """
+        if utils_lib.is_arch(self, arch='s390x'):
+            self.skipTest("Skip grub check on s390x")
         cmd = "cat /etc/default/grub"
         output = utils_lib.run_cmd(self,
                                    cmd,
@@ -630,7 +632,8 @@ class TestGuestImage(unittest.TestCase):
                                     cmd,
                                     ret_status=True,
                                     msg='check kdump is active')
-            if ret == 0: break
+            if ret == 0:
+                break
         src_dir = self.data_dir + "/guest-images/"
         data_file = "cmdline_params.lst"
         lines = filter(None,
@@ -849,6 +852,7 @@ class TestGuestImage(unittest.TestCase):
         debug_want:
             N/A
         """
+
     def test_check_redhat_release(self):
         cmd = "cat /etc/redhat-release"
         output = utils_lib.run_cmd(self,

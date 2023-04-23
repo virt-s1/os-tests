@@ -999,6 +999,8 @@ if __name__ == "__main__":
         debug_want:
             grub.cfg
         """
+        if utils_lib.is_arch(self, arch='s390x'):
+            self.skipTest("Skip grub check on s390x")
         cmd = 'rpm -qa "grub2*"'
         utils_lib.run_cmd(self,cmd,msg="show grub version")
         cmd = 'grub2-mkconfig -h'
