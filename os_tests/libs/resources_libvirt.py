@@ -67,6 +67,18 @@ class LibvirtVM(VMResource):
                     f_ip = ipaddr["addr"]
         return f_ip
 
+    @property
+    def is_secure_boot(self):
+        if self.arch == "x86_64":
+            return True
+        return False
+
+    @property
+    def is_uefi_boot(self):
+        if self.arch == "x86_64" or self.arch == 'aarch64':
+            return True
+        return False
+
     def create(self, wait=True):
         root = ET.fromstring(dom_xml)
         if self.arch == "x86_64":
