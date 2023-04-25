@@ -491,6 +491,7 @@ class TestLifeCycle(unittest.TestCase):
             System shutdown and reboot with the specified kernel version, kernel can be loaded via kexec.
         '''
         utils_lib.run_cmd(self,'uname -r', cancel_not_kw='el7,el6', msg='check if run in prior el8 as it is not fully supoorted in el7 or el6')
+        utils_lib.run_cmd(self,'lscpu',expect_ret=0,cancel_not_kw="Xen",msg="Not run in xen instance as bug 2188233")
         cmd = 'sudo rpm -qa|grep -e "kernel-[0-9]"'
         output = utils_lib.run_cmd(self, cmd, msg='Get kernel version')
         kernels_list = re.findall('kernel.*',output)
@@ -535,6 +536,7 @@ class TestLifeCycle(unittest.TestCase):
             Kernel can be loaded via kexec, and system will reboot into the loaded kernel via kexec -e without calling shutdown(8).
         '''
         utils_lib.run_cmd(self,'uname -r', cancel_not_kw='el7,el6', msg='Not full support earlier than el8, skip!')
+        utils_lib.run_cmd(self,'lscpu',expect_ret=0,cancel_not_kw="Xen",msg="Not run in xen instance as bug 2188233")
         cmd = 'sudo rpm -qa|grep -e "kernel-[0-9]"'
         output = utils_lib.run_cmd(self, cmd, msg='Get kernel version')
         kernels_list = re.findall('kernel.*',output)
@@ -1216,6 +1218,7 @@ class TestLifeCycle(unittest.TestCase):
 
         #Configure kdump over ssh
         utils_lib.run_cmd(self, "sudo systemctl stop kdump", expect_ret=0, msg='stop kdump')
+        utils_lib.run_cmd(self, "sudo cp /etc/kdump.conf /tmp", expect_ret=0, msg='save default kdump cfg')
         cmd = 'echo -e "ssh root@{}\nsshkey /root/.ssh/id_rsa\npath /var/crash\ncore_collector makedumpfile -F -l --message-level 7 -d 31" |sudo tee /etc/kdump.conf'.format(self.rmt_ipv4)
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Configure kdump using ssh')
         utils_lib.run_cmd(self, "sudo systemctl restart kdump", expect_ret=0, msg='restart kdump')
@@ -1310,7 +1313,7 @@ class TestLifeCycle(unittest.TestCase):
             utils_lib.run_cmd(self, "sudo systemctl restart nfs-server", expect_ret=0, msg="start nfs server",rmt_node=self.params['remote_nodes'][-1])
                    
             #Allow inbound access on the NFS port
-            if self.vm.provider == 'aws':
+            if self.vm and self.vm.provider == 'aws':
                 instance_id = utils_lib.run_cmd(self,"cat /var/lib/cloud/data/instance-id",msg='get instance id',rmt_node=self.params['remote_nodes'][-1])
                 is_port_exist = self.nic.add_inbound_rule(instance_id.strip(),2049)
             
@@ -1321,6 +1324,7 @@ class TestLifeCycle(unittest.TestCase):
         #https://access.redhat.com/solutions/1197493
         utils_lib.run_cmd(self, "rpm -q nfs-utils||sudo yum install -y nfs-utils", expect_ret=0, timeout=180)
         utils_lib.run_cmd(self, "sudo systemctl stop kdump", expect_ret=0, msg='stop kdump')
+        utils_lib.run_cmd(self, "sudo cp /etc/kdump.conf /tmp", expect_ret=0, msg='save default kdump cfg')
         output = utils_lib.run_cmd(self, 'uname -r', expect_ret=0)
         if 'el7' in output:
            cmd = '''sudo echo -e 'dracut_args --mount \"{}:/var/www/export/kdump /var/crash nfs defaults\"\ncore_collector makedumpfile -l --message-level 7 -d 31' |sudo tee /etc/kdump.conf'''.format(self.rmt_ipv4) 
@@ -1362,7 +1366,7 @@ class TestLifeCycle(unittest.TestCase):
                     msg='list /var/crash after crash')
         cmd = r'sudo cat /var/www/export/kdump/var/crash/*/vmcore-dmesg.txt|tail -50'
         utils_lib.run_cmd(self, cmd, expect_ret=0,rmt_node=self.params['remote_nodes'][-1],expect_kw='write_sysrq_trigger')
-        if self.vm.provider == 'aws':
+        if self.vm and self.vm.provider == 'aws':
             if not is_port_exist:
                 self.nic.remove_inbound_rule(instance_id.strip(),2049)
 
@@ -1406,6 +1410,11 @@ class TestLifeCycle(unittest.TestCase):
             time.sleep(10)
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
             utils_lib.run_cmd(self, 'cat /proc/cmdline', msg='Check /proc/cmdline')
+        
+        if "test_kdump_over_ssh" in self.id() or "test_kdump_over_nfs" in self.id():
+            utils_lib.run_cmd(self, "sudo systemctl stop kdump",expect_ret=0, msg='stop kdump')
+            utils_lib.run_cmd(self, "sudo cp -f /tmp/kdump.conf /etc", expect_ret=0, msg='restore default kdump cfg')
+            utils_lib.run_cmd(self, "sudo systemctl start kdump", expect_ret=0, msg='start kdump')
 
 if __name__ == '__main__':
     unittest.main()
