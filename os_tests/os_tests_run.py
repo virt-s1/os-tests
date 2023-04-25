@@ -2,7 +2,7 @@ import unittest
 import copy
 import os
 import sys
-from os_tests.libs.utils_lib import get_cfg, init_ssh, init_args, init_provider, filter_case_doc
+from os_tests.libs.utils_lib import get_cfg, update_cfgs, init_ssh, init_args, init_provider, filter_case_doc
 from os_tests.libs import utils_lib
 from shutil import rmtree
 import os_tests
@@ -22,42 +22,25 @@ logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 
 def main():
     args = init_args()
-    vms, disks, nics, sshs = [], [], [], []
-    run_uuid = str(uuid.uuid4())
+    vms, disks, nics, sshs, cfg_data = [], [], [], [], {}
     if args.platform_profile and not args.is_listcase and not args.verifydoc:
-        cfg_file, cfg_data = get_cfg(cfg_file=args.platform_profile)
-        cfg_data['remote_user'] = args.remote_user
-        cfg_data['run_uuid'] = run_uuid
-        cfg_data['proxy_url'] = args.proxy_url
-        cfg_data['case_setup'] = args.case_setup
-        cfg_data['case_post'] = args.case_post
-        vms, disks, nics = init_provider(params=cfg_data)
+        cfg_file, provider_data = get_cfg(cfg_file=args.platform_profile)
+        vms, disks, nics = init_provider(params=provider_data)
     cfg_file, cfg_data = get_cfg()
     is_rmt = False
-    if args.results_dir:
-        cfg_data['results_dir'] = args.results_dir
+    cfg_data = update_cfgs(cfg_data, vars(args))
+    run_uuid = str(uuid.uuid4())
+    cfg_data['run_uuid'] = run_uuid
+
     if args.remote_nodes:
         is_rmt = True
         cfg_data['remote_nodes'] = args.remote_nodes.split(',')
         cfg_data['remote_node'] =  cfg_data['remote_nodes'][0]
-        cfg_data['remote_port'] = args.remote_port
-        cfg_data['remote_user'] = args.remote_user
-        cfg_data['remote_password'] = args.remote_password
-        cfg_data['remote_keyfile'] = args.remote_keyfile
-        cfg_data['proxy_url'] = args.proxy_url
-        cfg_data['case_setup'] = args.case_setup
-        cfg_data['case_post'] = args.case_post
 
     if vms:
         is_rmt = True
         cfg_data['remote_nodes'] = []
         cfg_data['remote_node'] = None
-        cfg_data['remote_user'] = args.remote_user
-        cfg_data['remote_password'] = args.remote_password
-        cfg_data['remote_keyfile'] = args.remote_keyfile
-        cfg_data['proxy_url'] = args.proxy_url
-        cfg_data['case_setup'] = args.case_setup
-        cfg_data['case_post'] = args.case_post
 
     results_dir = cfg_data['results_dir']
     results_dir_suffix = None
@@ -115,7 +98,7 @@ def main():
                     for case in ts2._tests:
                         case.is_rmt = is_rmt
                         case.params = cfg_data
-                        case.run_uuid = run_uuid
+                        case.run_uuid = cfg_data.get('run_uuid')
                         case.utils_dir = utils_dir
                         case.data_dir = data_dir
                         case.SSHs = sshs

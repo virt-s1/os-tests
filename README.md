@@ -129,11 +129,11 @@ total 8
 -rw-r--r--. 1 root root 5472 Mar 30 16:44 os_tests.tests.test_general_test.TestGeneralTest.test_change_clocksource.debug
 ```
 
-### Recommend test matrix to catch potiential issues
+### Recommend test matrix to catch potential issues
 
-- run in normal kernel, it is the most used senario
-- run in debug kernel with 'kmemleak=on'
-- run in fips enabled kernel
+- run in normal kernel, it is the most used scenario
+- run in debug kernel with 'kmemleak=on'([docs](https://github.com/virt-s1/os-tests/blob/master/os_tests/docs/os-tests_advanced_tips.md))
+- run in fips enabled kernel ([docs](https://github.com/virt-s1/os-tests/blob/master/os_tests/docs/os-tests_advanced_tips.md))
 - run in remote-client mode to cover lifecycle cases
 
 ### Third party utils  
@@ -146,7 +146,7 @@ Below tools are shiped under 'utils' directory with os-tests because not all sys
 
 ### Contribution
 
-You are welcome to create pull request or raise issue. New case from real customer senario or rhbz is prefered.  
+You are welcome to create pull request or raise issue. New case from real customer scenario or rhbz is preferred.  
 Developing tool VS code is recommended with [refnow](https://marketplace.visualstudio.com/items?itemName=FrankLiang.refnow) plugin which ships the newest case doc template.
 
 If adding case, please verify case doc before pushing.

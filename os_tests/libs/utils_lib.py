@@ -1,3 +1,4 @@
+import base64
 from copy import deepcopy
 import os
 import random
@@ -131,18 +132,27 @@ def init_provider_from_guest(test_instance):
         provider = 'google'
     os.environ['INFRA_PROVIDER'] = provider
 
+def update_cfgs(base_cfg={}, new_cfg={}):
+    '''
+    update base_cfg according to new_cfg
+    '''
+    for key in new_cfg.keys():
+        if new_cfg.get(key) is not None or key not in base_cfg.keys():
+            base_cfg[key] = new_cfg.get(key)
+    return base_cfg
+
 def init_ssh(params=None, timeout=600, interval=10, log=None, rmt_node=None):
     if log is None:
         LOG_FORMAT = '%(levelname)s:%(message)s'
         log = logging.getLogger(__name__)
         logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
     ssh = rmt_ssh.RemoteSSH()
-    ssh.rmt_node = rmt_node or params['remote_node']
-    ssh.port = params['remote_port']
-    ssh.rmt_user = params['remote_user']
-    ssh.rmt_password = params['remote_password']
-    ssh.rmt_keyfile = params['remote_keyfile']
-    ssh.rmt_proxy = params['proxy_url']
+    ssh.rmt_node = rmt_node or params.get('remote_node')
+    ssh.port = params.get('remote_port')
+    ssh.rmt_user = params.get('remote_user')
+    ssh.rmt_password = params.get('remote_password')
+    ssh.rmt_keyfile = params.get('remote_keyfile')
+    ssh.rmt_proxy = params.get('proxy_url')
     ssh.log = log
     ssh.timeout = timeout
     ssh.interval = interval
