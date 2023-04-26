@@ -529,7 +529,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
                 return False
 
     @property
-    def id(self):
+    def instance_id(self):
         return self.data.get("InstanceId")
 
     def create(self, wait=False):
@@ -545,7 +545,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
             time.sleep(10)
             self.wait_for_status(status="Stopped")
         self._data = None
-        self.ecs.allocate_public_ip_address(self.id)
+        self.ecs.allocate_public_ip_address(self.instance_id)
         time.sleep(5)
 
     def start(self, wait=False):
@@ -553,7 +553,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         This helps to start a VM
         """
         logging.info("Start VM")
-        self.ecs.start_instance(self.id)
+        self.ecs.start_instance(self.instance_id)
         time.sleep(60)
         if wait:
             self.wait_for_status(status="Running")
@@ -563,7 +563,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         This helps to stop a VM
         """
         logging.info("Stop VM")
-        self.ecs.stop_instance(self.id, force=force)
+        self.ecs.stop_instance(self.instance_id, force=force)
         if wait:
             self.wait_for_status(status="Stopped")
 
@@ -572,7 +572,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         This helps to restart a VM
         """
         logging.info("Restart VM")
-        self.ecs.reboot_instance(self.id, force=force)
+        self.ecs.reboot_instance(self.instance_id, force=force)
         if wait:
             self.wait_for_status(status="Running")
 
@@ -584,7 +584,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         logging.info("Delete VM")
         if not self.is_stopped():
             self.stop(wait=True)
-        self.ecs.delete_instance(self.id)
+        self.ecs.delete_instance(self.instance_id)
         if wait:
             for count in utils_misc.iterate_timeout(
                     300, "Timed out waiting for server to get deleted.",
@@ -594,7 +594,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
 
     def reset_password(self, new_password):
         logging.info("Reset password for VM")
-        return self.ecs.modify_instance_attribute(self.id, new_password)
+        return self.ecs.modify_instance_attribute(self.instance_id, new_password)
 
     def create_nic(self, wait=False):
         logging.debug("Create NIC")
@@ -632,7 +632,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         nics_list = self.list_nics()
         if len(nics_list) >= nic_count:
             for nic in nics_list[0:nic_count]:
-                self.ecs.attach_nic(self.id, nic.get("NetworkInterfaceId"))
+                self.ecs.attach_nic(self.instance_id, nic.get("NetworkInterfaceId"))
         else:
             raise Exception("No enough NICs. Need: %s; Exists: %s" %
                             (nic_count, len(nics_list)))
@@ -664,7 +664,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
             self.detach_nics(nic_ids[forks:], True)
         else:
             for nic_id in nic_ids:
-                self.ecs.detach_nic(self.id, nic_id)
+                self.ecs.detach_nic(self.instance_id, nic_id)
             if wait:
                 for count in utils_misc.iterate_timeout(
                         300, "Timed out waiting for nics to be detached",
@@ -678,27 +678,27 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
     def query_nics(self):
         """Get NIC list of the current instance."""
         logging.info("Getting NICs attached to the ECS")
-        return self.ecs.describe_nics(instance_id=self.id, nic_name=None).get(
+        return self.ecs.describe_nics(instance_id=self.instance_id, nic_name=None).get(
             "NetworkInterfaceSets").get("NetworkInterfaceSet")
 
     def query_secondary_nics(self):
         """Get Secondary NIC list of the current instance."""
         logging.info("Getting Secondary NICs attached to the ECS")
         return self.ecs.describe_nics(
-            instance_id=self.id, nic_type="Secondary").get(
+            instance_id=self.instance_id, nic_type="Secondary").get(
                 "NetworkInterfaceSets").get("NetworkInterfaceSet")
 
     # SDK issue, can not get the primary nic.
     def query_primary_nic(self):
         """Get primary NIC of the current instance."""
         logging.info("Getting Primary NIC attached to the ECS")
-        logging.debug(self.id)
+        logging.debug(self.instance_id)
         logging.debug(
             self.ecs.describe_nics(
-                instance_id=self.id, nic_type="Primary").get(
+                instance_id=self.instance_id, nic_type="Primary").get(
                     "NetworkInterfaceSets").get("NetworkInterfaceSet"))
         return self.ecs.describe_nics(
-            instance_id=self.id, nic_type="Primary").get(
+            instance_id=self.instance_id, nic_type="Primary").get(
                 "NetworkInterfaceSets").get("NetworkInterfaceSet")[0]
 
     def list_nics(self):
@@ -796,7 +796,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
     def attach_cloud_disks(self, disk_id, wait=False, **args):
         logging.info("Attach cloud disk to VM")
         disk_id = disk_id.encode("ascii")
-        output = self.ecs.attach_disk(self.id, disk_id)
+        output = self.ecs.attach_disk(self.instance_id, disk_id)
         if wait:
             for count in utils_misc.iterate_timeout(
                     300,
@@ -810,7 +810,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
     def detach_cloud_disks(self, disk_id=None, wait=False, **args):
         logging.info("Detach cloud disk to VM")
         disk_id = disk_id.encode("ascii")
-        output = self.ecs.detach_disk(self.id, disk_id)
+        output = self.ecs.detach_disk(self.instance_id, disk_id)
         if wait:
             for count in utils_misc.iterate_timeout(
                     300,
@@ -850,13 +850,13 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
 
     def modify_instance_type(self, new_type):
         """Modify Instance Type."""
-        self.ecs.modify_instance_spec(self.id, new_type)
+        self.ecs.modify_instance_spec(self.instance_id, new_type)
 
     def get_console_log(self):
         """Get console log."""
         logging.info('Get console log')
         try:
-            output = self.ecs.get_console_log(self.id)
+            output = self.ecs.get_console_log(self.instance_id)
             b64code = output.get('ConsoleOutput')
             console_output = base64.b64decode(b64code)
             return True, console_output
