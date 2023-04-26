@@ -16,6 +16,11 @@ Below example shows to run cloudinit tests after leap upgrade done.
 $ os-tests --user ec2-user --keyfile /home/xxx.pem --platform_profile /home/aws.yaml -p test_leapp_upgrade_rhui,cloudinit
 ```
 
+## Run cases crossing two existing hosts.
+```bash
+$ os-tests --hosts 192.168.122.42,192.168.122.143 --user xxx --password xxx -p test_kdump_over_nfs,test_kdump_over_ssh
+```
+
 ## Add extra steps to cases by passing "--case_setup"
 
 This parameter makes the os-tests move to next stage to meet various scenarios. That means user can add many things as pre-conditions to the cases.
