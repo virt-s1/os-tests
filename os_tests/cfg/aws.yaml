@@ -11,6 +11,7 @@ subnet_id_ipv6 :
 subnet_id_ipv4 : 
 security_group_ids : 
 ssh_key_name : 
+username: ec2-user
 # optional, default is os_tests_aws
 tagname : os_tests_aws
 # you can pass multipe info seperated by ';', if one cannot start instance, will use anothers
