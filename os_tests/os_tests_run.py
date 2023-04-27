@@ -22,28 +22,22 @@ logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 
 def main():
     args = init_args()
-    vms, disks, nics, sshs, cfg_data = [], [], [], [], {}
-    if args.platform_profile and not args.is_listcase and not args.verifydoc:
-        cfg_file, provider_data = get_cfg(cfg_file=args.platform_profile)
-        vms, disks, nics = init_provider(params=provider_data)
     cfg_file, cfg_data = get_cfg()
-    is_rmt = False
-    cfg_data = update_cfgs(cfg_data, vars(args))
-    run_uuid = str(uuid.uuid4())
-    cfg_data['run_uuid'] = run_uuid
+    cfg_data['run_uuid'] = str(uuid.uuid4())
+    update_cfgs(cfg_data, vars(args))
+    vms, disks, nics, sshs = [], [], [], []
+    if args.platform_profile and not args.is_listcase and not args.verifydoc:
+        _, provider_data = get_cfg(cfg_file=args.platform_profile)
+        provider_data = update_cfgs(cfg_data, provider_data, keep_base=True)
+        vms, disks, nics = init_provider(params=provider_data)
 
     if args.remote_nodes:
-        is_rmt = True
         cfg_data['remote_nodes'] = args.remote_nodes.split(',')
         cfg_data['remote_node'] =  cfg_data['remote_nodes'][0]
 
-    if vms:
-        is_rmt = True
-        cfg_data['remote_nodes'] = []
-        cfg_data['remote_node'] = None
+    is_rmt = bool(args.remote_nodes or vms)
 
     results_dir = cfg_data['results_dir']
-    results_dir_suffix = None
     if os.path.exists(results_dir) and not args.is_listcase:
         rmtree(results_dir)
         log.info("saving results to {}".format(results_dir))

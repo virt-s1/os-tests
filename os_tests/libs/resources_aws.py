@@ -31,41 +31,32 @@ class EC2VM(VMResource):
         super().__init__(params)
         self.id = None
         self.ipv4 = None
-        self.ssh_user = params.get('remote_user')
+        self.vm_username = params.get('remote_user')
         if vendor == "amzn2_x86":
             self.ami_id = params.get('amzn2_ami_id_x86')
-            self.ssh_user = params.get('amzn2_ssh_user')
+            self.vm_username = params.get('amzn2_ssh_user')
         elif vendor == "amzn2_arm":
             self.ami_id = params.get('amzn2_ami_id_arm')
-            self.ssh_user = params.get('amzn2_ssh_user')
+            self.vm_username = params.get('amzn2_ssh_user')
         elif vendor == "ubuntu_x86":
             self.ami_id = params.get('ubuntu_ami_id_x86')
-            self.ssh_user = params.get('ubuntu_ssh_user')
+            self.vm_username = params.get('ubuntu_ssh_user')
         elif vendor == "ubuntu_arm":
             self.ami_id = params.get('ubuntu_ami_id_arm')
-            self.ssh_user = params.get('ubuntu_ssh_user')
+            self.vm_username = params.get('ubuntu_ssh_user')
         else:
             self.ami_id = params.get('ami_id')
         self.instance_type = params.get('instance_type')
-        if params.get('ipv6'):
-            self.subnet_id = params.get('subnet_id_ipv6')
-            LOG.info('Instance support ipv6, use subnet %s', self.subnet_id)
-        else:
-            self.subnet_id = params.get('subnet_id_ipv4')
-            LOG.info('Instance only support ipv4, use subnet %s',
-                     self.subnet_id)
+        self.subnet_id = params.get('subnet_id_ipv6') or params.get('subnet_id_ipv4')
+        LOG.info('Use subnet: {}'.format(self.subnet_id))
         self.security_group_ids = params.get('security_group_ids')
         self.region = params.get('region')
         self.subnet = self.resource.Subnet(self.subnet_id)
         self.additionalinfo = params.get('additionalinfo')
-        if params.get('tagname'):
-            self.tag = params.get('tagname')
-        else:
-            self.tag = 'os_tests_vm_ec2'
+        self.tag =  params.get('tagname') or 'os_tests_vm_ec2'
         self.ssh_key_name = params.get('ssh_key_name')
         self.ssh_key_path = params.get('ssh_key_path')
         LOG.info("AMI picked vendor:{} ami:{} key:{}".format(vendor, self.ami_id, self.ssh_key_name))
-        self.vm_username = self.ssh_user
         self.vm_password = None
         self.ssh_conn = None
         self.volume_id = None
