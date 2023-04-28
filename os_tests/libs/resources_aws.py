@@ -54,6 +54,7 @@ class EC2VM(VMResource):
         self.subnet = self.resource.Subnet(self.subnet_id)
         self.additionalinfo = params.get('additionalinfo')
         self.tag =  params.get('tagname') or 'os_tests_vm_ec2'
+        self.httptokens = params.get('httptokens') or 'optional'
         self.ssh_key_name = params.get('ssh_key_name')
         self.ssh_key_path = params.get('ssh_key_path')
         LOG.info("AMI picked vendor:{} ami:{} key:{}".format(vendor, self.ami_id, self.ssh_key_name))
@@ -150,6 +151,7 @@ class EC2VM(VMResource):
                 'Configured': self.hibernation_support
             },
             'MetadataOptions':{
+                'HttpTokens': self.httptokens,
                 'InstanceMetadataTags': 'enabled'
             },
             "UserData":self.user_data
@@ -220,16 +222,15 @@ class EC2VM(VMResource):
         self.ec2_instance.reload()
         self.ipv4 = self.ec2_instance.public_dns_name
         if self.ipv4 is None or self.ipv4 == '':
-            LOG.info("No public ip available! Try to reload it!")
-            return None
-        LOG.info("Public ip is: %s" % self.ipv4)
+            LOG.info("No public ip available yet! Try to reload it!")
+        LOG.info("instance: {} public ip is: {}".format(self.id, self.ipv4))
         return self.ipv4
 
     @property
     @utils_lib.wait_for(not_ret=None, ck_not_ret=True, timeout=120)
     def private_ip(self):
         self.ec2_instance.reload()
-        LOG.info("private_ip_address is: {}".format(self.ec2_instance.private_ip_address))
+        LOG.info("instance: {} private_ip_address is: {}".format(self.id, self.ec2_instance.private_ip_address))
         return self.ec2_instance.private_ip_address
 
     @property
@@ -459,9 +460,12 @@ class EC2VM(VMResource):
 
     def is_exist(self):
         try:
+            LOG.info("check if instance exists")
+            self.get_state()
             self.ec2_instance.reload()
             return True
         except Exception as exc:
+            LOG.info("{}".format(exc))
             return False
 
     def exists(self):
