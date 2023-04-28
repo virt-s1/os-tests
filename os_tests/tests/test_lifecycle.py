@@ -165,9 +165,9 @@ class TestLifeCycle(unittest.TestCase):
         component:
             kernel
         bug_id:
-            1787270
+            bugzilla_1787270, bugzilla_1973106
         is_customer_case:
-            False  
+            True
         testplan:
             N/A
         test_type:
@@ -1168,9 +1168,9 @@ class TestLifeCycle(unittest.TestCase):
         component:
             kexec-tools
         bugzilla_id:
-            2186123,2185043
+            1672817, 2186123,2185043
         is_customer_case:
-            False
+            True
         testplan:
             N/A
         maintainer:
@@ -1195,6 +1195,7 @@ class TestLifeCycle(unittest.TestCase):
                 self.vms[1].create()
                 self.params['remote_nodes'].append(self.vms[1].floating_ip)
             
+            self.log.info("Current IP bucket:{}".format(self.params['remote_nodes']))
             utils_lib.init_connection(self, timeout=self.ssh_timeout, rmt_node=self.params['remote_nodes'][-1])
             self.rmt_ipv4 = utils_lib.get_active_nic(self,rmt_node=self.params['remote_nodes'][-1])
 
@@ -1267,9 +1268,9 @@ class TestLifeCycle(unittest.TestCase):
         component:
             kexec-tools
         bugzilla_id:
-            2186123,2185043
+            1672817, 2186123,2185043
         is_customer_case:
-            False
+            True
         testplan:
             N/A
         maintainer:
@@ -1295,7 +1296,8 @@ class TestLifeCycle(unittest.TestCase):
             if len(self.vms) > 1 and not self.vms[1].exists():
                 self.vms[1].create()
                 self.params['remote_nodes'].append(self.vms[1].floating_ip)          
-            
+
+            self.log.info("Current IP bucket:{}".format(self.params['remote_nodes']))
             utils_lib.init_connection(self, timeout=self.ssh_timeout, rmt_node=self.params['remote_nodes'][-1])
             #Get active nic
             self.rmt_ipv4 = utils_lib.get_active_nic(self,rmt_node=self.params['remote_nodes'][-1])

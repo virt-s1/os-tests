@@ -896,10 +896,10 @@ COMMIT
             if not self.vms[1].exists():
                 self.vms[1].create()
             if self.vm.provider == 'aws':
-                if self.vms[1].private_ip not in self.params['remote_nodes']:
+                if self.vms[1].private_ip and self.vms[1].private_ip not in self.params['remote_nodes']:
                     self.params['remote_nodes'].append(self.vms[1].private_ip)
             else:
-                if self.vms[1].floating_ip not in self.params['remote_nodes']:
+                if self.vms[1].floating_ip and self.vms[1].floating_ip not in self.params['remote_nodes']:
                     self.params['remote_nodes'].append(self.vms[1].floating_ip)
         if len(self.params['remote_nodes']) < 2:
             self.skipTest("2 nodes required, current IP bucket:{}".format(self.params['remote_nodes']))
@@ -963,7 +963,7 @@ COMMIT
         if len(self.vms) > 1 and self.vm.provider != 'nutanix':
             if not self.vms[1].exists():
                 self.vms[1].create()
-            if self.vms[1].floating_ip not in self.params['remote_nodes']:
+            if self.vms[1].floating_ip and self.vms[1].floating_ip not in self.params['remote_nodes']:
                 self.params['remote_nodes'].append(self.vms[1].floating_ip)
         if len(self.params['remote_nodes']) < 2:
             self.skipTest("2 nodes required, current IP bucket:{}".format(self.params['remote_nodes']))
