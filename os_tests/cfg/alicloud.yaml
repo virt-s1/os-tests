@@ -31,3 +31,10 @@ Disk:
     cloud_disk_size: 100
 NIC:
     nic_name: avocado_cloud_nic_d00
+Flavor:
+    name: ecs.xxx
+    cpu: 2
+    memory: 8.0
+    nic_count: 3
+    disk_quantity: 9
+    arch: x86_64
