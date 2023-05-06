@@ -163,9 +163,9 @@ def init_ssh(params=None, timeout=600, interval=10, log=None, rmt_node=None):
     ssh.create_connection()
     return ssh
 
-def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=None):
+def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=None, retry=3):
     if not test_instance.params['remote_node'] and not rmt_node and not vm and not test_instance.vm:
-        return
+        return False
     new_vm_ip = None
     is_master_vm = False
     if test_instance.vm:
@@ -184,7 +184,9 @@ def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=N
             rmt_node = vm.floating_ip
         if vm.dead_count > 4:
             test_instance.fail("cannot connect to vm over 4 times, skip retry to connect it")
-    test_instance.log.info("remote_node found, init connection {}".format(rmt_node))
+    if not rmt_node:
+        test_instance.fail("no rmt_node found")
+    test_instance.log.info("init connection to {}.".format(rmt_node))
     ssh_exists = False
     is_active = False
     try:
@@ -210,23 +212,27 @@ def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=N
             if tmp_ssh.rmt_node == test_instance.params['remote_node']:
                 test_instance.SSH = tmp_ssh
                 break
-        if is_active:
-            return
     except AttributeError:
         pass
     except Exception:
         test_instance.log.info("connection is not live")
-    if ssh_exists:
-        test_instance.log.info("found exists dead connection, re-connect")
-        test_instance.SSHs[ssh_num].timeout = timeout
-        test_instance.SSHs[ssh_num].create_connection()
-        ssh = test_instance.SSHs[ssh_num]
-    else:
-        ssh = init_ssh(params=test_instance.params, timeout=timeout, interval=interval, log=test_instance.log, rmt_node=rmt_node)
+    for i in range(0,retry):
+        if ssh_exists:
+            test_instance.log.info("found existing connection, re-connect")
+            if is_active:
+                test_instance.SSHs[ssh_num].close()
+            test_instance.SSHs[ssh_num].timeout = timeout
+            test_instance.SSHs[ssh_num].create_connection()
+            ssh = test_instance.SSHs[ssh_num]
+        else:
+            ssh = init_ssh(params=test_instance.params, timeout=timeout, interval=interval, log=test_instance.log, rmt_node=rmt_node)
+            if ssh.ssh_client:
+                test_instance.SSHs.append(ssh)
         if ssh.ssh_client:
-            test_instance.SSHs.append(ssh)
+            break
+        test_instance.log.info("retry again {}/{}".format(i,retry))
+    vm = vm or test_instance.vm
     if not ssh.ssh_client:
-        vm = vm or test_instance.vm
         if vm:
             try:
                 vm.get_console_log()
@@ -239,14 +245,13 @@ def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=N
                 vm.stop()
                 vm.start()
         test_instance.fail("Cannot make ssh connection to remote, please check")
-    else:
-        vm = vm or test_instance.vm
-        if vm:
-            vm.dead_count = 0
+    if vm:
+        vm.dead_count = 0
     for tmp_ssh in test_instance.SSHs:
         if tmp_ssh.rmt_node == test_instance.params['remote_node']:
             test_instance.SSH = tmp_ssh
             break
+    return True
 
 def send_ssh_cmd(rmt_node, rmt_user, rmt_password, command, timeout=60):
     ssh = rmt_ssh.RemoteSSH()

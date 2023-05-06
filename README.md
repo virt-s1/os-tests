@@ -48,7 +48,7 @@ or
 
 #### Mode 2 - server client with 2 nodes used  
 
- Require ssh user, key/password and IP to access existing RHEL system, all tests are done remotely, can do lifecyle, kdump test, but without device hotplug capability and other tests requires instance access.  
+ Require ssh user, key/password and IP to access existing RHEL system, all tests are done remotely, can do lifecyle, kdump test, but without device hotplug capability and other tests require instance access.  
 `# os-tests --host <remote_node> --user <remote_user> --keyfile <remote_keyfile> --result <result_dir> -p <cases>`
 
 #### Mode 3 - server client with 1 node used, os-tests can provision test system self  
@@ -75,7 +75,7 @@ Note: supports aws, openstack, alicloud, nutanix, other platforms are in plannin
 
 `# os-tests -p test_general_check`  
 
-#### Run single case in one file
+#### Run a single case in one file
 
 `# os-tests -p test_change_clocksource`  
 
@@ -106,7 +106,7 @@ List RHEL only because CentOS Stream and Fedora usually have public repo availab
 
 ### The log file
 
-The suite saves summary to sum.html and sum.log under "/tmp/os_tests_result/" by default.
+The suite saves the summary to sum.html and sum.log under "/tmp/os_tests_result/" by default.
 The test debug log files are saved in "/tmp/os_tests_result/attachments" following case name by default.
 You can change "results_dir" in "cfg/os-tests.yaml" to save log to other place or passing as command option.
 
