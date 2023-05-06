@@ -163,7 +163,7 @@ class AlibabaSDK(object):
         request = self._add_params(request, key_list, self.vm_params)
         return self._send_request(request)
 
-    def create_instance(self, authentication="publickey"):
+    def create_instance(self, authentication="publickey", instance_name=None):
         request = CreateInstanceRequest.CreateInstanceRequest()
         key_list = [
             "InstanceChargeType", "ImageId", "InstanceType",
@@ -181,6 +181,9 @@ class AlibabaSDK(object):
             key_list.append("KeyPairName")
         elif authentication == "password":
             key_list.append("Password")
+        if instance_name:
+            self.vm_params["InstanceName"] = instance_name
+            self.vm_params["HostName"] = instance_name
         request = self._add_params(request, key_list, self.vm_params)
         response = self._send_request(request)
         if isinstance(response, Exception):
@@ -511,6 +514,14 @@ class AlibabaVM(VMResource):
             f_ip = ip
         return f_ip
 
+    @property
+    @utils_lib.wait_for(not_ret=None, ck_not_ret=True, timeout=120)
+    def private_ip(self):
+        p_ip = None
+        for ip in self.data.get('VpcAttributes').get('PrivateIpAddress').get('IpAddress'):
+            p_ip = ip
+        return p_ip
+
     def wait_for_status(self, status, timeout=300):
         error_message = "Timed out waiting for server to get %s." % status
         for count in utils_lib.iterate_timeout(timeout,
@@ -534,7 +545,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
     def instance_id(self):
         return self.data.get("InstanceId")
 
-    def create(self, wait=False):
+    def create(self, wait=False, instance_name=None):
         """
         This helps to create a VM
         """
@@ -542,7 +553,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         authentication = "publickey"
         if self.keypair is None:
             authentication = "password"
-        self.ecs.create_instance(authentication=authentication)
+        self.ecs.create_instance(authentication, instance_name)
         if wait:
             time.sleep(10)
             self.wait_for_status(status="Stopped")
@@ -888,7 +899,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         raise NotImplementedError
 
     def is_exist(self):
-        raise NotImplementedError
+        return self.exists()
 
     def is_paused(self):
         raise NotImplementedError
