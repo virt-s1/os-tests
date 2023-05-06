@@ -163,7 +163,7 @@ class AlibabaSDK(object):
         request = self._add_params(request, key_list, self.vm_params)
         return self._send_request(request)
 
-    def create_instance(self, authentication="publickey", instance_name=None):
+    def create_instance(self, authentication="publickey"):
         request = CreateInstanceRequest.CreateInstanceRequest()
         key_list = [
             "InstanceChargeType", "ImageId", "InstanceType",
@@ -181,9 +181,6 @@ class AlibabaSDK(object):
             key_list.append("KeyPairName")
         elif authentication == "password":
             key_list.append("Password")
-        if instance_name:
-            self.vm_params["InstanceName"] = instance_name
-            self.vm_params["HostName"] = instance_name
         request = self._add_params(request, key_list, self.vm_params)
         response = self._send_request(request)
         if isinstance(response, Exception):
@@ -545,7 +542,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
     def instance_id(self):
         return self.data.get("InstanceId")
 
-    def create(self, wait=False, instance_name=None):
+    def create(self, wait=False):
         """
         This helps to create a VM
         """
@@ -553,7 +550,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         authentication = "publickey"
         if self.keypair is None:
             authentication = "password"
-        self.ecs.create_instance(authentication, instance_name)
+        self.ecs.create_instance(authentication=authentication)
         if wait:
             time.sleep(10)
             self.wait_for_status(status="Stopped")

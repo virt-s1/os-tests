@@ -1189,13 +1189,11 @@ class TestLifeCycle(unittest.TestCase):
         if 'non_interactive' not in self.id():
             if not self.is_rmt:
                 self.skipTest('only run on remote')
-            if self.vm and self.vm.provider == 'ali':
-                if len(self.vms) == 1:
-                    utils_lib.create_vm1(self)
-                if self.vms[1].floating_ip and self.vms[1].floating_ip not in self.params['remote_nodes']:
-                    self.params['remote_nodes'].append(self.vms[1].floating_ip)
-            elif len(self.vms) > 1 and not self.vms[1].exists():
+
+            if len(self.vms) > 1 and not self.vms[1].exists():
                 self.vms[1].create()
+                if self.vms[1].is_stopped():
+                    self.vms[1].start(wait=True)
                 self.params['remote_nodes'].append(self.vms[1].floating_ip)
 
             if len(self.vms) < 2 and len(self.params.get('remote_nodes')) < 2:
@@ -1297,13 +1295,11 @@ class TestLifeCycle(unittest.TestCase):
 
             if not self.is_rmt:
                 self.skipTest('only run on remote')
-            if self.vm and self.vm.provider == 'ali':
-                if len(self.vms) == 1:
-                    utils_lib.create_vm1(self)
-                if self.vms[1].floating_ip and self.vms[1].floating_ip not in self.params['remote_nodes']:
-                    self.params['remote_nodes'].append(self.vms[1].floating_ip)
-            elif len(self.vms) > 1 and not self.vms[1].exists():
+                
+            if len(self.vms) > 1 and not self.vms[1].exists():
                 self.vms[1].create()
+                if self.vms[1].is_stopped():
+                    self.vms[1].start(wait=True)
                 self.params['remote_nodes'].append(self.vms[1].floating_ip)
 
             if len(self.vms) < 2 and len(self.params.get('remote_nodes')) < 2:

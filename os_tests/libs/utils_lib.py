@@ -98,6 +98,10 @@ def init_provider(params=None):
     if 'ali' in provider:
         from .resources_alicloud import AlibabaVM
         vms.append(AlibabaVM(params))
+        vm1 = AlibabaVM(params)
+        vm1.vm_name += '-vm1'
+        vm1.ecs.vm_params["InstanceName"] = vm1.ecs.vm_params["HostName"] = vm1.vm_name
+        vms.append(vm1)
     if 'nutanix' in provider:
         from .resources_nutanix import NutanixVM,NutanixVolume
         vms.append(NutanixVM(params))
@@ -1800,15 +1804,3 @@ def add_port_to_firewall(test_instance=None, rmt_node=None, vm=None, port=None):
         run_cmd(test_instance, cmd, rmt_node=rmt_node, vm=vm)
     else:
         test_instance.log.info(f'port {port} has exist in the firewalld allow list')
-
-def create_vm1(test_instance):
-    '''
-    create another vm for test cases which requires two nodes
-    '''
-    if test_instance.vm.provider == 'ali':
-        test_instance.vm1 = deepcopy(test_instance.vm)
-        test_instance.vm1.vm_name = test_instance.vm.vm_name+'-vm1'
-        test_instance.vm1.create(wait=True, instance_name=test_instance.vm1.vm_name)
-        if test_instance.vm1.is_stopped():
-            test_instance.vm1.start(wait=True)
-        test_instance.vms.append(test_instance.vm1)
