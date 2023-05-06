@@ -6,7 +6,7 @@ Subscription:
   password:
 VM:
   rhel_ver: '9.1'
-  username: root
+  username: cloud-user
   password: redhat
   vm_name: rhel9.1
   image_name: rhel-guest-image-9.1-20220606.1.x86_64.qcow2
