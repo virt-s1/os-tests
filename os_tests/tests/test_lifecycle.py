@@ -1189,11 +1189,15 @@ class TestLifeCycle(unittest.TestCase):
         if 'non_interactive' not in self.id():
             if not self.is_rmt:
                 self.skipTest('only run on remote')
-            if len(self.vms) < 2 and len(self.params.get('remote_nodes')) < 2:
-                self.skipTest('2 nodes required!')
+
             if len(self.vms) > 1 and not self.vms[1].exists():
                 self.vms[1].create()
+                if self.vms[1].is_stopped():
+                    self.vms[1].start(wait=True)
                 self.params['remote_nodes'].append(self.vms[1].floating_ip)
+
+            if len(self.vms) < 2 and len(self.params.get('remote_nodes')) < 2:
+                self.skipTest('2 nodes required!')
             
             self.log.info("Current IP bucket:{}".format(self.params['remote_nodes']))
             utils_lib.init_connection(self, timeout=self.ssh_timeout, rmt_node=self.params['remote_nodes'][-1])
@@ -1291,12 +1295,16 @@ class TestLifeCycle(unittest.TestCase):
 
             if not self.is_rmt:
                 self.skipTest('only run on remote')
-            if len(self.vms) < 2 and len(self.params.get('remote_nodes')) < 2:
-                self.skipTest('2 nodes required!')
+                
             if len(self.vms) > 1 and not self.vms[1].exists():
                 self.vms[1].create()
-                self.params['remote_nodes'].append(self.vms[1].floating_ip)          
+                if self.vms[1].is_stopped():
+                    self.vms[1].start(wait=True)
+                self.params['remote_nodes'].append(self.vms[1].floating_ip)
 
+            if len(self.vms) < 2 and len(self.params.get('remote_nodes')) < 2:
+                self.skipTest('2 nodes required!')
+                
             self.log.info("Current IP bucket:{}".format(self.params['remote_nodes']))
             utils_lib.init_connection(self, timeout=self.ssh_timeout, rmt_node=self.params['remote_nodes'][-1])
             #Get active nic

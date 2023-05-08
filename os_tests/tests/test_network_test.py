@@ -895,7 +895,9 @@ COMMIT
         if len(self.vms) > 1 and self.vm.provider != 'nutanix':
             if not self.vms[1].exists():
                 self.vms[1].create()
-            if self.vm.provider == 'aws':
+            if self.vms[1].is_stopped():
+                self.vms[1].start(wait=True)
+            if self.vm.provider == 'aws' or self.vm.provider == 'ali':
                 if self.vms[1].private_ip and self.vms[1].private_ip not in self.params['remote_nodes']:
                     self.params['remote_nodes'].append(self.vms[1].private_ip)
             else:
@@ -963,6 +965,8 @@ COMMIT
         if len(self.vms) > 1 and self.vm.provider != 'nutanix':
             if not self.vms[1].exists():
                 self.vms[1].create()
+            if self.vms[1].is_stopped():
+                self.vms[1].start(wait=True)
             if self.vms[1].floating_ip and self.vms[1].floating_ip not in self.params['remote_nodes']:
                 self.params['remote_nodes'].append(self.vms[1].floating_ip)
         if len(self.params['remote_nodes']) < 2:
@@ -1695,7 +1699,7 @@ COMMIT
             mtu_cmd = "sudo ip link set dev %s mtu %s" % (self.active_nic , self.mtu_old)
             utils_lib.run_cmd(self, mtu_cmd, expect_ret=0, msg='restore mtu')
         if 'test_ping_arp_ping' in self.id() or 'test_iperf' in self.id() or 'test_scp_mtu_9000' in self.id():
-            if self.vm and self.vm.provider == 'aws':
+            if self.vm and self.vm.provider == 'aws' or self.vm.provider == 'ali':
                 if self.vms[1].private_ip in self.params['remote_nodes']:
                     self.params['remote_nodes'].remove(self.vms[1].private_ip)
             if self.vm and self.vm.provider == 'nutanix':

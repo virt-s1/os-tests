@@ -511,6 +511,14 @@ class AlibabaVM(VMResource):
             f_ip = ip
         return f_ip
 
+    @property
+    @utils_lib.wait_for(not_ret=None, ck_not_ret=True, timeout=120)
+    def private_ip(self):
+        p_ip = None
+        for ip in self.data.get('VpcAttributes').get('PrivateIpAddress').get('IpAddress'):
+            p_ip = ip
+        return p_ip
+
     def wait_for_status(self, status, timeout=300):
         error_message = "Timed out waiting for server to get %s." % status
         for count in utils_lib.iterate_timeout(timeout,
@@ -888,7 +896,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         raise NotImplementedError
 
     def is_exist(self):
-        raise NotImplementedError
+        return self.exists()
 
     def is_paused(self):
         raise NotImplementedError

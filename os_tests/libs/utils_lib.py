@@ -98,6 +98,10 @@ def init_provider(params=None):
     if 'ali' in provider:
         from .resources_alicloud import AlibabaVM
         vms.append(AlibabaVM(params))
+        vm1 = AlibabaVM(params)
+        vm1.vm_name += '-vm1'
+        vm1.ecs.vm_params["InstanceName"] = vm1.ecs.vm_params["HostName"] = vm1.vm_name
+        vms.append(vm1)
     if 'nutanix' in provider:
         from .resources_nutanix import NutanixVM,NutanixVolume
         vms.append(NutanixVM(params))
