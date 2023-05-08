@@ -383,6 +383,7 @@ class TestLifeCycle(unittest.TestCase):
                     msg='list /var/crash')
         utils_lib.run_cmd(self, "sudo bash -c \"echo c > /proc/sysrq-trigger\"", msg='trigger crash')
 
+        time.sleep(60)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         self.log.info("After system crash")
         utils_lib.run_cmd(self,
@@ -451,7 +452,7 @@ class TestLifeCycle(unittest.TestCase):
                                            msg="list /var/crash before crash")
             cmd = "sudo bash -c 'taskset -c %d echo c > /proc/sysrq-trigger'" % core_num
             utils_lib.run_cmd(self, cmd, msg='trigger crash')
-            time.sleep(30)
+            time.sleep(60)
 
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
             self.log.info("After system crash")
@@ -929,6 +930,7 @@ class TestLifeCycle(unittest.TestCase):
                     expect_ret=0,
                     msg='list /var/crash')
         utils_lib.run_cmd(self, "sudo bash -c \"echo c > /proc/sysrq-trigger\"", msg='trigger crash')
+        time.sleep(60)
 
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         self.log.info("After system crash")
@@ -1075,6 +1077,8 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
         utils_lib.is_cmd_exist(self,"acpid")
         if self.vm.provider == 'aws':
+            if not self.vm.hibernation_support:
+                self.skipTest('not support hibernation')
             product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
             if float(product_id) >= 8.0 and float(product_id) < 9.0:
                 pkg_url='https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/e/ec2-hibinit-agent-1.0.4-1.el8.noarch.rpm'
@@ -1251,6 +1255,7 @@ class TestLifeCycle(unittest.TestCase):
 
         utils_lib.run_cmd(self, "sudo bash -c \"echo c > /proc/sysrq-trigger\"", msg='trigger crash')
 
+        time.sleep(60)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         self.log.info("After system crash")
         utils_lib.run_cmd(self,

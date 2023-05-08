@@ -1362,41 +1362,37 @@ COMMIT
     	"""
         if not self.vm:
             self.skipTest("Skip test case since instance is not vm")
-        else:
-            instance_type = self.vm.instance_type
-            if not self.vm.efa_support:
-                self.skipTest('EFA is not supported on the instance ' + instance_type)
+        if not self.vm.efa_support:
+            self.skipTest('EFA is not supported on the instance ' + self.vm.instance_type)
+        if self.vms:
+            self.vms[1].create(enable_efa=False)
+            if self.vms[1].is_stopped():
+                self.vms[1].start(wait=True)
+            utils_lib.init_connection(self, timeout=self.ssh_timeout, vm=self.vms[1])
+            run_cmd(self, 'lspci|grep EFA', expect_ret=1, vm=self.vms[1])
 
-            if self.vms:
-                    self.vms[1].create(enable_efa=False)
-                    if self.vms[1].is_stopped():
-                        self.vms[1].start(wait=True)
-                    utils_lib.init_connection(self, timeout=self.ssh_timeout, vm=self.vms[1])
-                    run_cmd(self, 'lspci|grep EFA', expect_ret=1, vm=self.vms[1])
+            # Create EFA network interface and allocate elastic ip
+            self.nic.create(interfaceType='efa')
+            self.nic.allocate_eip()
 
-                    # Create EFA network interface and allocate elastic ip
-                    self.nic.create(interfaceType='efa')
-                    self.nic.allocate_eip()
+            # Associate elastic ip  and attach EFA network interface to the instance
+            instance_id = run_cmd(self, 'cat /var/lib/cloud/data/instance-id', vm=self.vms[1])
+            self.vms[1].stop(wait=True)
+            self.log.info('start associating elastic ip to the instance')
+            self.nic.associate_eip(instance_id.strip())
+            self.log.info('start attaching network interface')
+            self.nic.attach_to_instance(instance_id.strip(),1)
 
-                    # Associate elastic ip  and attach EFA network interface to the instance
-                    instance_id = run_cmd(self, 'cat /var/lib/cloud/data/instance-id', vm=self.vms[1])
-                    self.vms[1].stop(wait=True)
-                    self.log.info('start associating elastic ip to the instance')
-                    self.nic.associate_eip(instance_id.strip())
-                    self.log.info('start attaching network interface')
-                    self.nic.attach_to_instance(instance_id.strip(),1)
+            # Check if EFA network interface is attached successfully
+            self.log.info('start vms[1]')
+            self.vms[1].start(wait=True)
+            utils_lib.init_connection(self, timeout=self.ssh_timeout, vm=self.vms[1])
+            run_cmd(self, 'lspci|grep EFA', expect_ret=0, vm=self.vms[1])
 
-                    # Check if EFA network interface is attached successfully
-                    self.log.info('start vms[1]')
-                    self.vms[1].start(wait=True)
-                    utils_lib.init_connection(self, timeout=self.ssh_timeout, vm=self.vms[1])
-                    run_cmd(self, 'lspci|grep EFA', expect_ret=0, vm=self.vms[1])
-
-                    # Release elastic ip
-                    self.vms[1].stop(wait=True)
-                    self.vms[1].delete(wait=True)
-                    self.log.info('start releasing elastic ip')
-                    self.nic.release_eip()
+            # Release elastic ip
+            self.vms[1].stop(wait=True)
+            self.vms[1].delete(wait=True)
+            self.nic.release_eip()
 
     def test_scp_mtu_9000(self):
         """

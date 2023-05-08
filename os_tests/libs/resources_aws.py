@@ -20,6 +20,7 @@ class EC2VM(VMResource):
     ec2_instance = None
 
     def __init__(self, params, vendor="redhat"):
+        LOG.info('Init EC2VM resource')
         config = Config(retries=dict(max_attempts=10, ))
         self.profile_name = params.get('profile_name')
         if self.profile_name is None:
@@ -217,11 +218,11 @@ class EC2VM(VMResource):
         #self.boot_volume_id
 
     @property
-    @utils_lib.wait_for(not_ret=None, ck_not_ret=True, timeout=120)
+    @utils_lib.wait_for(not_ret='', ck_not_ret=True, timeout=120)
     def floating_ip(self):
         self.ec2_instance.reload()
-        self.ipv4 = self.ec2_instance.public_dns_name
-        if self.ipv4 is None or self.ipv4 == '':
+        self.ipv4 = self.ec2_instance.public_dns_name or ''
+        if not self.ipv4:
             LOG.info("No public ip available yet! Try to reload it!")
         LOG.info("instance: {} public ip is: {}".format(self.id, self.ipv4))
         return self.ipv4
@@ -433,7 +434,7 @@ class EC2VM(VMResource):
     def get_console_log(self, silient=False):
         ret = None
         try:
-            LOG.info("try to retrive console log......")
+            LOG.info("try to retrive console log of {}".format(self.id))
             ret = self.ec2_instance.console_output(Latest=True).get('Output')
             if not silient: LOG.info(ret)
             return ret
@@ -453,7 +454,7 @@ class EC2VM(VMResource):
             state = 'unknown'
             self.ec2_instance.reload()
             state = self.ec2_instance.state['Name']
-            LOG.info("instance is in {}".format(state))
+            LOG.info("instance:{} is in {}".format(self.id,state))
         except Exception as err:
             return state
         return state
@@ -461,7 +462,8 @@ class EC2VM(VMResource):
     def is_exist(self):
         try:
             LOG.info("check if instance exists")
-            self.get_state()
+            if 'terminated' in self.get_state():
+                return False
             self.ec2_instance.reload()
             return True
         except Exception as exc:
@@ -562,6 +564,7 @@ class EC2Volume(StorageResource):
 
     def __init__(self, params):
         super(EC2Volume, self).__init__(params)
+        LOG.info('Init EC2Volume resource')
         config = Config(retries=dict(max_attempts=10, ))
         self.profile_name = params.get('profile_name')
         if self.profile_name is None:
@@ -570,13 +573,8 @@ class EC2Volume(StorageResource):
         self.session = boto3.session.Session(profile_name=self.profile_name, region_name=params.get('region'))
         self.resource = self.session.resource('ec2', config=config, region_name=params.get('region'))
         self.disksize = 100
-        if params.get('ipv6'):
-            self.subnet_id = params.get('subnet_id_ipv6')
-            LOG.info('Instance support ipv6, use subnet %s', self.subnet_id)
-        else:
-            self.subnet_id = params.get('subnet_id_ipv4')
-            LOG.info('Instance only support ipv4, use subnet %s',
-                     self.subnet_id)
+        self.subnet_id = params.get('subnet_id_ipv6') or params.get('subnet_id_ipv4')
+        LOG.info('Use subnet: {}'.format(self.subnet_id))
         self.subnet = self.resource.Subnet(self.subnet_id)
         self.zone = self.subnet.availability_zone
         LOG.info('Get zone from subnet {}'.format(self.zone))
@@ -719,25 +717,22 @@ class EC2NIC(NetworkResource):
     AWS Network class
     '''
     __network_interface = None
-    EC2_CLIENT = boto3.client('ec2')
-    EC2_RESOURCE = boto3.resource('ec2')
 
     def __init__(self, params):
         super(EC2NIC, self).__init__(params)
+        LOG.info('Init EC2NIC resource')
+        config = Config(retries=dict(max_attempts=10, ))
         self.profile_name = params.get('profile_name')
         if self.profile_name is None:
             self.profile_name = 'default'
+        LOG.info('Load profile_name: {}'.format(self.profile_name))
         self.session = boto3.session.Session(profile_name=self.profile_name, region_name=params.get('region'))
-        self.__ec2 = self.session.resource('ec2', region_name=params.get('region'))
-        self._resource = self.session.resource('ec2', region_name=params.get('region'))
-        if params.get('ipv6'):
-            self.subnet_id = params.get('subnet_id_ipv6')
-            LOG.info('Instance support ipv6, use subnet %s', self.subnet_id)
-        else:
-            self.subnet_id = params.get('subnet_id_ipv4')
-            LOG.info('Instance only support ipv4, use subnet %s',
-                     self.subnet_id)
-        self.subnet = self.__ec2.Subnet(self.subnet_id)
+        self.resource = self.session.resource('ec2', config=config)
+        self.client = self.session.client('ec2', config=config, region_name=params.get('region'))
+
+        self.subnet_id = params.get('subnet_id_ipv6') or params.get('subnet_id_ipv4')
+        LOG.info('Use subnet: {}'.format(self.subnet_id))
+        self.subnet = self.resource.Subnet(self.subnet_id)
 
         self.zone = self.subnet.availability_zone
         LOG.info("Get zone from current instance's subnet {}".format(self.zone))
@@ -765,7 +760,7 @@ class EC2NIC(NetworkResource):
         if network_interface_id is None:
             return False
         try:
-            self.__network_interface = self.__ec2.NetworkInterface(
+            self.__network_interface = self.resource.NetworkInterface(
                 network_interface_id)
             if self.is_attached():
                 return False
@@ -956,7 +951,8 @@ class EC2NIC(NetworkResource):
 
     def allocate_eip(self):
         try:
-            return self.EC2_CLIENT.allocate_address(Domain='vpc', TagSpecifications=[
+            LOG.info("Try to allocate elastic ip")
+            return self.client.allocate_address(Domain='vpc', TagSpecifications=[
                 {'ResourceType': 'elastic-ip', 'Tags': [{'Key': 'Name', 'Value': 'efa-elastic-ip'}, ]}, ])
         except Exception as err:
             LOG.info("Failed to allocate elastic ip")
@@ -964,10 +960,10 @@ class EC2NIC(NetworkResource):
 
     def associate_eip(self,instance_id):
         try:
-            response = self.EC2_CLIENT.describe_addresses(Filters=[{'Name': 'tag:Name', 'Values': ['efa-elastic-ip']}])
+            response = self.client.describe_addresses(Filters=[{'Name': 'tag:Name', 'Values': ['efa-elastic-ip']}])
             public_ip = response['Addresses'][0]['PublicIp']
             allocation_id = response['Addresses'][0]['AllocationId']
-            self.EC2_CLIENT.associate_address(InstanceId=instance_id, AllocationId=allocation_id)
+            self.client.associate_address(InstanceId=instance_id, AllocationId=allocation_id)
             LOG.info(f'EIP {public_ip} associated with the instance {instance_id}')
             return True
         except Exception as err:
@@ -977,11 +973,12 @@ class EC2NIC(NetworkResource):
 
     def release_eip(self):
         try:
-            response = self.EC2_CLIENT.describe_addresses(
+            LOG.info('start releasing elastic ip')
+            response = self.client.describe_addresses(
                 Filters=[{'Name': 'tag:Name', 'Values': ['efa-elastic-ip']}])
             public_ip = response['Addresses'][0]['PublicIp']
             allocation_id = response['Addresses'][0]['AllocationId']
-            self.EC2_CLIENT.release_address(AllocationId=allocation_id)
+            self.client.release_address(AllocationId=allocation_id)
             LOG.info(f'EIP {public_ip} has been released')
         except Exception as err:
             LOG.info("Failed to release Elastic IP")
@@ -995,9 +992,9 @@ class EC2NIC(NetworkResource):
         :return: True if success, False as failed
         '''
         try:
-            instance = self.EC2_RESOURCE.Instance(instance_id)
+            instance = self.resource.Instance(instance_id)
             security_group_id = instance.security_groups[0]['GroupId']
-            response = self.EC2_CLIENT.describe_security_groups(GroupIds=[security_group_id])
+            response = self.client.describe_security_groups(GroupIds=[security_group_id])
             ip_permissions = response['SecurityGroups'][0]['IpPermissions']
             is_port_exist= False
             LOG.info(f'Trying to add port {port} to security group {security_group_id}')
@@ -1006,7 +1003,7 @@ class EC2NIC(NetworkResource):
                     LOG.info(f'Port {port} has existed in the inbound ruel,no need to add.')
                     is_port_exist = True
                     return is_port_exist
-            self.EC2_CLIENT.authorize_security_group_ingress(
+            self.client.authorize_security_group_ingress(
                 GroupId=security_group_id,
                 IpPermissions=[
                     {
@@ -1030,10 +1027,10 @@ class EC2NIC(NetworkResource):
         :return: True if success, False as failed
         '''
         try:
-            instance = self.EC2_RESOURCE.Instance(instance_id)
+            instance = self.resource.Instance(instance_id)
             security_group_id = instance.security_groups[0]['GroupId']
             LOG.info(f'Trying to remove port {port} from security group {security_group_id}')
-            self.EC2_CLIENT.revoke_security_group_ingress(
+            self.client.revoke_security_group_ingress(
                 GroupId=security_group_id,
                 IpPermissions=[
                     {
