@@ -129,7 +129,11 @@ def main():
                 try:
                     yaml_data = load(case._testMethodDoc, Loader=Loader)
                     if not hasattr(yaml_data,'get'):
+                        log.info("please check doc of {}".format(case.id()))
+                        tmp_content = yaml_data
+                        yaml_data = {}
                         yaml_data['case_name'] = case.id()
+                        yaml_data['description'] = tmp_content
                     else:
                         yaml_data['case_name'] = case.id()
                 except Exception as err:
