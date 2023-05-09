@@ -1,3 +1,4 @@
+# the default setting can be overwriten in platform profiles
 code_repo: "https://github.com/virt-s1/os-tests"
 # save debug log to this dir
 results_dir: "/tmp/os_tests_result"
@@ -7,8 +8,12 @@ max_boot_time: 40
 pkg_reinstall: False
 # public server for ping connection test
 ping_server: 8.8.8.8
-# max disk utils accepted
+# max disk utils accepted, used in test_iostat_x
 disk_utils: 30
+# max cpu utils accepted, used in test_check_cpuusage_exception
+cpu_utils: 20
+# max mem utils accepted, used in test_check_memusage_exception
+mem_utils: 30
 # if you want to run os-tests in master-slave mode, please specify below options.
 # All tests are running in slave node including some reboot operations.
 # remote_nodes specify remote ip

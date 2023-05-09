@@ -28,6 +28,7 @@ def main():
     vms, disks, nics, sshs = [], [], [], []
     if args.platform_profile and not args.is_listcase and not args.verifydoc:
         _, provider_data = get_cfg(cfg_file=args.platform_profile)
+        update_cfgs(cfg_data, provider_data, update_exists_keys=True)
         provider_data = update_cfgs(cfg_data, provider_data, keep_base=True)
         vms, disks, nics = init_provider(params=provider_data)
 

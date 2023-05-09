@@ -528,27 +528,21 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         key_steps:
             1.#ps aux --sort=-%cpu|sed -n '2p'
         expected_result:
-            The usage of CPU is normal(slower than 85% once in 1min).
+            The usage of CPU is normal(higher than 20% once in 1min).
         '''
         count=0
+        expect_utils = int(self.params.get('cpu_utils'))
         for i in range(60):
-            result_out = utils_lib.run_cmd(self, "ps aux --sort=-%cpu|sed -n '2p'", msg='Find process with highest usage of CPU')
+            result_out = utils_lib.run_cmd(self, "ps aux --sort=-%cpu|sed -n '2p'", msg='Find process with higher usage of CPU than {}%'.format(expect_utils))
             result_out = result_out.split(' ')
             while '' in result_out:
                 result_out.remove('')
-            if count == 0:
-                lastpid = int(result_out[1])
-            if float(result_out[2]) >= 85 and lastpid == int(result_out[1]):
-                lastpid = int(result_out[1])
+            if float(result_out[2]) >= expect_utils:
+                self.log.info("CPU utils over {}%: {} times".format(expect_utils,count))
                 count += 1
-                time.sleep(1)
-            else:
-                break
-        if count>=59:
-            command =''
-            for i in range(10, len(result_out)):
-                command += result_out[i] + ' '
-            self.fail(f'{command}(pid:{lastpid}) have abnormal usage of CPU.')
+            time.sleep(1)
+        if count >= 30:
+            self.fail("some process has higher cpu usage {} times in past 1 min,please check whether they are expected.".format(count))
 
     def test_check_hostkey_permissions(self):
         """
@@ -1260,24 +1254,18 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
             The usage of Memory is normal(slower than 60% once in 1min).
         '''
         count=0
+        expect_utils = int(self.params.get('mem_utils'))
         for i in range(60):
-            result_out = utils_lib.run_cmd(self, "ps aux --sort=-rss|sed -n '2p'", msg='Find process with highest usage of Memory')
+            result_out = utils_lib.run_cmd(self, "ps aux --sort=-rss|sed -n '2p'", msg='Find process with higher usage of memory than {}%'.format(expect_utils))
             result_out = result_out.split(' ')
             while '' in result_out:
                 result_out.remove('')
-            if count == 0:
-                lastpid = int(result_out[1])
-            if float(result_out[3]) >= 60 and lastpid == int(result_out[1]):
-                lastpid = int(result_out[1])
+            if float(result_out[2]) >= expect_utils:
+                self.log.info("Memory utils over {}%: {} times".format(expect_utils,count))
                 count += 1
-                time.sleep(1)
-            else:
-                break
-        if count>=59:
-            command =''
-            for i in range(10, len(result_out)):
-                command += result_out[i] + ' '
-            self.fail(f'{command}(pid:{lastpid}) have abnormal usage of Memory.')
+            time.sleep(1)
+        if count >= 30:
+            self.fail("some process has higher memory usage {} times in past 1 min,please check whether they are expected.".format(count))
 
     def test_check_microcode_load(self):
         """

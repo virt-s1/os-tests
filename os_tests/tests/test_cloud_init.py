@@ -2522,7 +2522,7 @@ chpasswd:
             N/A
         """
         utils_lib.run_cmd(self, 'cat /etc/cloud/cloud.cfg')
-        utils_lib.run_cmd(self, 'rpm -V cloud-init', expect_not_kw='/etc/cloud/cloud.cfg')
+        utils_lib.run_cmd(self, 'sudo rpm -V cloud-init', expect_not_kw='/etc/cloud/cloud.cfg', msg="modify cloud.cfg is not recommended")
 
     def test_cloudinit_lang_is_not_en_us_utf8(self):
         """
