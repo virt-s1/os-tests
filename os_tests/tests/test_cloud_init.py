@@ -342,7 +342,7 @@ class TestCloudInit(unittest.TestCase):
         """
         #workaround nutanix dev console issue
         if self.vm and self.vm.provider == 'nutanix':
-            cmd = '''cat /var/log/cloud-init.log | grep -Pzo "Traceback.*\\n\s+File.*" | \
+            cmd = '''sudo cat /var/log/cloud-init.log | grep -Pzo "Traceback.*\\n\s+File.*" | \
 grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         else:
             cmd = 'sudo cat /var/log/cloud-init.log'
@@ -1494,7 +1494,7 @@ EOF""".format(device, size), expect_ret=0)
             2. Check /var/log/cloud-init.log
             cloud-init should config static ip route via "ip route append" 
         """
-        cmd = 'cat /var/log/cloud-init.log | grep append'
+        cmd = 'sudo cat /var/log/cloud-init.log | grep append'
 
         utils_lib.run_cmd(self,
                           cmd,
