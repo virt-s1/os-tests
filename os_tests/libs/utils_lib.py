@@ -136,17 +136,24 @@ def init_provider_from_guest(test_instance):
         provider = 'google'
     os.environ['INFRA_PROVIDER'] = provider
 
-def update_cfgs(base_cfg={}, new_cfg={}, keep_base = False):
+def update_cfgs(base_cfg={}, new_cfg={}, keep_base = False, update_exists_keys = False):
     '''
     update base_cfg according to new_cfg
+    keep_base: yes or no to change base_cfg
+    update_exists_keys: yes or no to update base_cfg if base_cfg has the same key
     '''
     if keep_base:
         tmp_cfg = deepcopy(base_cfg)
     else:
         tmp_cfg = base_cfg
-    for key in new_cfg.keys():
-        if new_cfg.get(key) is not None or key not in tmp_cfg.keys():
-            tmp_cfg[key] = new_cfg.get(key)
+    if update_exists_keys:
+        for key in new_cfg.keys():
+            if new_cfg.get(key) is not None and key in tmp_cfg.keys():
+                tmp_cfg[key] = new_cfg.get(key)
+    else:
+        for key in new_cfg.keys():
+            if new_cfg.get(key) is not None or key not in tmp_cfg.keys():
+                tmp_cfg[key] = new_cfg.get(key)
     return tmp_cfg
 
 def init_ssh(params=None, timeout=600, interval=10, log=None, rmt_node=None):
