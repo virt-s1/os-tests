@@ -688,7 +688,48 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         output = utils_lib.run_cmd(self, "hostname", expect_ret=0).rstrip('\n')
         self.assertEqual(output, self.vm.vm_name.replace('_', '-'),
                          "The hostname is wrong")
-        
+
+    def test_cloudinit_check_previous_hostname(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_name:
+            test_cloudinit_check_previous_hostname
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_check_previous_hostname
+        component:
+            cloudinit
+        bugzilla_id:
+            2184608,2182407
+        is_customer_case:
+            yes
+        testplan:
+            VIRT-297993
+        maintainer:
+            xiachen@redhat.com
+        description:
+            check previous-hostname is written/read correctly
+            support version is begin since cloud-init-23.1.1-2.el8 and cloud-init-23.1.1-2.el9
+        key_steps:
+            1. cat /var/lib/cloud/data/previous-hostname
+            2. checking /var/log/cloud-init.log
+        expect_result:
+            1. previous-hostname is equal to hostname by default
+            2. by default, no key words "previous-hostname differs from" in log
+        debug_want:
+            N/A
+        """
+        output1 = utils_lib.run_cmd(self, "cat /var/lib/cloud/data/previous-hostname", expect_ret=0)
+        output2 = utils_lib.run_cmd(self, "cat /etc/hostname", expect_ret=0)
+        self.assertEqual(output1,output2,"previous-hostname is: %s, hostname is: %s" % (output1, output2))
+        self._reboot_inside_vm()
+        cmd = 'sudo cat /var/log/cloud-init.log'
+        utils_lib.run_cmd(self,
+                    cmd,
+                    expect_ret=0,
+                    expect_not_kw='previous-hostname differs',
+                    msg='checking /var/log/cloud-init.log')
+
     def _cloudinit_auto_resize_partition(self, label):
         """
         :param label: msdos/gpt
