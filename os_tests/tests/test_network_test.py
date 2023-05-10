@@ -492,7 +492,7 @@ class TestNetworkTest(unittest.TestCase):
                 utils_lib.run_cmd(self, mtu_cmd, expect_not_ret=0)
                 utils_lib.run_cmd(self, mtu_check, expect_ret=0, expect_not_kw="mtu {}".format(mtu_size))
         cmd = "sudo ping {} -c 10 -I {}".format(self.params.get('ping_server'), self.active_nic ) #add sudo here or it will fail against 8.7
-        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, timeout=180)
         utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', cursor=self.dmesg_cursor, skip_words='ftrace')
 
     def test_persistent_route(self):
@@ -1449,7 +1449,7 @@ COMMIT
         utils_lib.run_cmd(self,"echo '''%s''' > ~/.ssh/authorized_keys" % id_rsa_pub_key, rmt_node=self.vm.vm1_ip)
         utils_lib.run_cmd(self, 'dd if=/dev/zero of=5G.img bs=1M count=5222', timeout=600)
         scp_cmd = 'scp -o StrictHostKeyChecking=no 5G.img {}@{}:~'.format(self.vm.vm_username, self.vm.vm1_ip)
-        utils_lib.run_cmd(self, scp_cmd, expect_ret=0, timeout=600)
+        utils_lib.run_cmd(self, scp_cmd, expect_ret=0, timeout=900)
         file_size = int(utils_lib.run_cmd(self, "ls -l ~/5G.img | awk '{print $5}'", expect_ret=0).strip())/(1024*1024*1024)
         self.assertAlmostEqual(first=5, second=file_size, delta=0.1, msg="Value of copied file is not right, Expect: 5, real: %s" % (file_size))
 
