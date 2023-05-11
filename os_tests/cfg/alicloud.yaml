@@ -38,3 +38,6 @@ Flavor:
     nic_count: 3
     disk_quantity: 9
     arch: x86_64
+# Add case name into support cases if support versions are undefined when testing fixed scratch build
+# For example ["case1","case2"]
+support_cases: None

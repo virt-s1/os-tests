@@ -36,3 +36,6 @@ Flavor:
   memory: 4
   size: 40G
   virt: kvm
+# Add case name into support cases if support versions are undefined when testing fixed scratch build
+# For example ["case1","case2"]
+support_cases: None
