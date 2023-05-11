@@ -1,5 +1,6 @@
 import unittest
 from os_tests.libs import utils_lib
+from os_tests.libs import version_util
 from os_tests.libs.resources import UnSupportedAction
 import time
 import re
@@ -719,16 +720,26 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         debug_want:
             N/A
         """
-        output1 = utils_lib.run_cmd(self, "cat /var/lib/cloud/data/previous-hostname", expect_ret=0)
-        output2 = utils_lib.run_cmd(self, "cat /etc/hostname", expect_ret=0)
-        self.assertEqual(output1,output2,"previous-hostname is: %s, hostname is: %s" % (output1, output2))
-        self._reboot_inside_vm()
-        cmd = 'sudo cat /var/log/cloud-init.log'
-        utils_lib.run_cmd(self,
-                    cmd,
-                    expect_ret=0,
-                    expect_not_kw='previous-hostname differs',
+        #get cloud-init rpm version
+        support_cases = self.vm.support_cases
+        main_support_versions = ["23.1.1-2.el8","23.1.1-2.el9"]
+        backport_versions = None
+        package_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
+        version = version_util.get_version(package_ver,'cloud-init-')
+
+        if version_util.is_support(version,"test_cloudinit_check_previous_hostname",support_cases,main_support_versions,backport_versions):
+            output1 = utils_lib.run_cmd(self, "cat /var/lib/cloud/data/previous-hostname", expect_ret=0)
+            output2 = utils_lib.run_cmd(self, "cat /etc/hostname", expect_ret=0)
+            self.assertEqual(output1,output2,"previous-hostname is: %s, hostname is: %s" % (output1, output2))
+            self._reboot_inside_vm()
+            cmd = 'sudo cat /var/log/cloud-init.log'
+            utils_lib.run_cmd(self,
+                        cmd,
+                        expect_ret=0,
+                        expect_not_kw='previous-hostname differs',
                     msg='checking /var/log/cloud-init.log')
+        else:
+            self.skipTest("Skip test_cloudinit_check_previous_hostname because it does not support "+package_ver)
 
     def _cloudinit_auto_resize_partition(self, label):
         """
