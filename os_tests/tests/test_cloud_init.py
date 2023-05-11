@@ -99,10 +99,10 @@ class TestCloudInit(unittest.TestCase):
             xiliang@redhat.com
         description:
             check if fingerprints is saved in /var/log/messages.
-        key_steps:
+        key_steps: |
             1.sudo awk '/BEGIN/,/END/' /var/log/messages
             2.check result
-        expect_result:
+        expect_result: |
             # grep -A 4 'BEGIN SSH HOST KEY FINGERPRINTS' /var/log/messages
             May  6 02:57:58 ip-10-116-2-239 ec2[1441]: -----BEGIN SSH HOST KEY FINGERPRINTS-----
             May  6 02:57:58 ip-10-116-2-239 ec2[1441]: 256 SHA256:n+iS6HUI/ApfkE/ZveBzBrIFSsmcL1YR/c3RsbPShd8 no comment (ECDSA)
@@ -974,9 +974,9 @@ EOF""".format(device, size), expect_ret=0)
             huzhao@redhat.com
         description:
             VIRT-103831 - CLOUDINIT-TC: VM can successfully login after provisioning(with public key authentication)
-        key_steps:        
-        1. Create a VM with only public key authentication
-        2. Login with publickey, should have sudo privilege
+        key_steps: |
+            1. Create a VM with only public key authentication
+            2. Login with publickey, should have sudo privilege
         """
         output=utils_lib.run_cmd(self, "whoami", expect_ret=0)
         self.assertEqual(
@@ -1001,10 +1001,10 @@ EOF""".format(device, size), expect_ret=0)
             huzhao@redhat.com
         description:
             RHEL-286739 - CLOUDINIT-TC: Check the datasource on openstack, aws, nutanix, Ali
-        key_steps:        
-        1. Launch instance with cloud-init installed
-        2. Check the datasource is correct
-        # cat /run/cloud-init/cloud.cfg
+        key_steps: |     
+            1. Launch instance with cloud-init installed
+            2. Check the datasource is correct
+            # cat /run/cloud-init/cloud.cfg
         """
         datasource={'openstack':'OpenStack',
                     'aws':'Ec2',
@@ -1035,12 +1035,12 @@ EOF""".format(device, size), expect_ret=0)
             cloud-init
         maintainer:
             huzhao@redhat.com
-        description:
+        description: |
             bz#: 1744526
             RHEL-182312 - CLOUDINIT-TC:cloud-init can successfully write data to instance-data.json
-        key_steps:        
-        1. Launch instance with cloud-init installed
-        2. Check instance-data.json
+        key_steps: |
+            1. Launch instance with cloud-init installed
+            2. Check instance-data.json
         """
         cmd = 'ls -l /run/cloud-init/instance-data.json'
         utils_lib.run_cmd(self,
@@ -1061,10 +1061,10 @@ EOF""".format(device, size), expect_ret=0)
             huzhao@redhat.com
         description:
             RHEL-189023 - CLOUDINIT-TC: check ipv6 configuration
-        key_steps:        
-        1. Launch instance with cloud-init installed
-        2. Check there is dynamic IPv6 address
-        Note: will add nm keyfiles configuration check after BZ2098624 is fixed
+        key_steps: | 
+            1. Launch instance with cloud-init installed
+            2. Check there is dynamic IPv6 address
+            Note: will add nm keyfiles configuration check after BZ2098624 is fixed
         """        
         cmd = "ip addr show | grep inet6 | grep 'scope global'"
         utils_lib.run_cmd(self,
@@ -1178,10 +1178,10 @@ EOF""".format(device, size), expect_ret=0)
             cloud-init
         maintainer:
             huzhao@redhat.com
-        description:
+        description: |
             RHEL7-103836 - CLOUDINIT-TC: Default configuration can regenerate sshd keypairs
             bz: 2013644
-        key_steps:
+        key_steps: |
             This auto case only check host key permissions
             expected:  
             $ ls -l /etc/ssh/ssh_host*.pub | awk '{print $1,$3,$4,$9}'
@@ -1221,10 +1221,10 @@ EOF""".format(device, size), expect_ret=0)
             cloud-init
         maintainer:
             huzhao@redhat.com
-        description:
+        description: |
             RHEL7-103836 - CLOUDINIT-TC: Default configuration can regenerate sshd keypairs
             bz: 1957532
-        key_steps:
+        key_steps: |
             This auto case only check fingerprints is saved in /var/log/messages.
             expected:  
                 # awk '/BEGIN/,/END/' /var/log/messages
@@ -1252,10 +1252,10 @@ EOF""".format(device, size), expect_ret=0)
             cloud-init
         maintainer:
             huzhao@redhat.com
-        description:
+        description: |
             RHEL-205128 - CLOUDINIT-TC: Can deal with the conflict of having swap configured 
             on /etc/fstab *and* having cloud-init duplicating this configuration automatically
-        key_steps:
+        key_steps: |
             1. Deploy a VM, attach an additional volume(or dd a file) to mkswap. 
             Add it to /etc/fstab, swapon, then check the free -m
             2. Configure cloud-init, /etc/cloud/cloud.cfg.d/cc_mount.cfg
@@ -1327,7 +1327,7 @@ EOF""".format(device, size), expect_ret=0)
             huzhao@redhat.com
         description:
             RHEL-189026	CLOUDINIT-TC: Verify multiple files in AuthorizedKeysFile
-        key_steps:
+        key_steps: |
             1. Launch VM/instance with cloud-init. Modify /etc/ssh/sshd_config:
             AuthorizedKeysFile .ssh/authorized_keys /etc/ssh/userkeys/%u
             2. Remove cc_ssh module flag and authorized_keys
@@ -1379,10 +1379,10 @@ EOF""".format(device, size), expect_ret=0)
             cloud-init
         maintainer:
             huzhao@redhat.com
-        description:
+        description: |
             RHEL-189027	CLOUDINIT-TC: Verify customized file in AuthorizedKeysFile
             bz1862967
-        key_steps:
+        key_steps: |
             1. Launch VM/instance with cloud-init. Modify /etc/ssh/sshd_config:
             AuthorizedKeysFile .ssh/authorized_keys2
             2. Remove cc_ssh module flag and authorized_keys
@@ -1430,10 +1430,10 @@ EOF""".format(device, size), expect_ret=0)
             cloud-init
         maintainer:
             huzhao@redhat.com
-        description:
+        description: |
             RHEL-152730 - CLOUDINIT-TC: Check 'NOZEROCONF=yes' in /etc/sysconfig/network
             cannot be removed by cloud-init
-        key_steps:
+        key_steps: |
             1. Create a VM with rhel-guest-image
             2. Login and check /etc/sysconfig/network
             3. There is "NOZEROCONF=yes" in /etc/sysconfig/network
@@ -1458,10 +1458,10 @@ EOF""".format(device, size), expect_ret=0)
             cloud-init
         maintainer:
             huzhao@redhat.com
-        description:
+        description: |
             RHEL-287348 - CLOUDINIT-TC: Using root user error should 
             cause a non-zero exit code
-        key_steps:
+        key_steps: |
             1. Launch instance with cloud-init installed
             2. Check the /root/.ssh/authorized_keys, the exit code is 142
             # cat /root/.ssh/authorized_keys" 
@@ -1486,10 +1486,10 @@ EOF""".format(device, size), expect_ret=0)
             cloud-init
         maintainer:
             huzhao@redhat.com
-        description:
+        description: |
             RHEL-288020 - CLOUDINIT-TC: Using "ip route append" 
             when config static ip route via cloud-init
-        key_steps:
+        key_steps: |
             1. Launch instance with cloud-init installed on OpenStack PSI
             2. Check /var/log/cloud-init.log
             cloud-init should config static ip route via "ip route append" 
@@ -1512,10 +1512,10 @@ EOF""".format(device, size), expect_ret=0)
             cloud-init
         maintainer:
             huzhao@redhat.com
-        description:
+        description: |
             RHEL-288482 - CLOUDINIT-TC: Check cloud-init dependency: openssl, gdisk,
             python3-configobj, python3-jinja2, python3-pyserial
-        key_steps:
+        key_steps: |
             1. Launch instance with cloud-init installed
             2. Check the cloud-init denpendency
             # rpm -qR cloud-init 
@@ -1538,11 +1538,11 @@ EOF""".format(device, size), expect_ret=0)
             cloud-init
         maintainer:
             huzhao@redhat.com
-        description:
+        description: |
             RHEL-198795 - CLOUDINIT-TC: Check cloud-init removed dependency,
             net-tools, python3-mock, python3-nose, python3-tox
             Note: For rhel-9.0, the python3-jsonschema is also removed
-        key_steps:
+        key_steps: |
             1. Launch instance with cloud-init installed
             2. Check the cloud-init denpendency
             # rpm -qR cloud-init
@@ -1644,10 +1644,10 @@ EOF""".format(device, size), expect_ret=0)
             cloud-init
         maintainer:
             huzhao@redhat.com
-        description:
+        description: |
             RHEL7-103830 - CLOUDINIT-TC: VM can successfully login
             after provisioning(with password authentication)
-        key_steps:
+        key_steps: |
             1. Create a VM with only password authentication
             2. Login with password, should have sudo privilege
         """
@@ -1788,7 +1788,7 @@ ssh_pwauth: 1
             huzhao@redhat.com
         description:
             RHEL-189580 - CLOUDINIT-TC: Check VM first launch boot time and cloud-init startup time
-        key_steps:
+        key_steps: |
             1. Launch a VM with cloud-init installed
             2. Login VM on the VM first boot
             3. Check boot time and cloud-init services startup time
@@ -1842,7 +1842,7 @@ ssh_pwauth: 1
             huzhao@redhat.com
         description:
             RHEL-282359 - CLOUDINIT-TC: Check VM subsequent boot time and cloud-init startup time
-        key_steps:
+        key_steps: |
             1. Launch a VM with cloud-init installed
             2. Login VM and reboot VM
             3. Check reboot time and cloud-init services startup time
@@ -1884,10 +1884,10 @@ ssh_pwauth: 1
             cloud-init
         maintainer:
             huzhao@redhat.com
-        description:
+        description: |
             RHEL-287483: CLOUDINIT-TC: cloud-init dhclient-hook script shoud exit
             while cloud-init services are disabled
-        key_steps:
+        key_steps: |
             1. Install cloud-init package in VM, disable cloud-init and related services:
                # systemctl disable cloud-{init-local,init,config,final}
             2. Clean the VM and reboot VM
@@ -1944,10 +1944,10 @@ ssh_pwauth: 1
             cloud-init
         maintainer:
             huzhao@redhat.com
-        description:
+        description: |
             RHEL-186186 - CLOUDINIT-TC: launch an instance with 2 interfaces
             basic case of two nics, the second nic is default ipv6 mode slaac
-        key_steps:
+        key_steps: |
             1. Create a VM with two nics
             2. Login and check user
             3. check network config file
@@ -2085,7 +2085,7 @@ ssh_pwauth: 1
             huzhao@redhat.com
         description:
             RHEL-186182	CLOUDINIT-TC:auto install package with subscription manager
-        key_steps:
+        key_steps: |
             1. Add content to user data config file
             rh_subscription:
             username: ******
@@ -2180,7 +2180,7 @@ packages:
             huzhao@redhat.com
         description:
             RHEL-189134 - CLOUDINIT-TC: Verify rh_subscription enable-repo and disable-repo
-        key_steps:
+        key_steps: |
             1. Add content to user data config file
             rh_subscription:
             username: ******
@@ -2859,7 +2859,7 @@ chpasswd:
         '''
         case_tag:
             cloudinit
-        description:
+        description: |
             This is a specific case of openstack, because the cloud guest images need to have "NOZEROCONF=yes" in /etc/sysconfig/network so that it works well as an openstack guest. (Bug 983611 - Cloud guest images needs to have "NOZEROCONF=yes" in /etc/sysconfig/network)
             cloud-init removed user configuration in /etc/sysconfig/network and rewrite the default configuration in every prevision before cloud-init-18.2-4.el7, after this version, certain lines in network configuration isn't removed after re-provision. linked case RHEL-152730
         testplan:
@@ -2874,7 +2874,7 @@ chpasswd:
             0
         case_component:
             cloud-init
-        key_steps:
+        key_steps: |
             1. Launch an instance on AWS EC2.
             2. Add "NOZEROCONF=yes" to top of network config /etc/sysconfig/network.
             3. Add "NETWORKING_IPV6=no" to top of network config /etc/sysconfig/network.
@@ -2942,7 +2942,7 @@ chpasswd:
             0
         case_component: 
             cloud-init
-        key_steps:
+        key_steps: |
             1. Launch an instance with custom scrtip, eg. passing an script to create a dir:
                 #!/bin/bash
                 mkdir /tmp/userdata_${uuid}
@@ -2980,7 +2980,7 @@ chpasswd:
             xiachen@redhat.com
         description:
            test cloud-init package upgrade, this auto case only works for openstack now
-        key_steps:
+        key_steps: |
             1. Enable tags on metadata when launch the EC2 instance
             2. verify that tags are available: cloud-init query ds.meta_data.tags
         debug_want:

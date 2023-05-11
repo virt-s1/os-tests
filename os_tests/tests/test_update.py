@@ -77,13 +77,13 @@ class TestUpgrade(unittest.TestCase):
     def test_leapp_upgrade_rhui(self):
         """
         case_name:
-            [os-tests]TestUpgrade.test_leapp_upgrade_rhui
+            TestUpgrade.test_leapp_upgrade_rhui
         case_tags:
             upgrade_rhui
         case_status:
             approved
         title:
-            [os-tests]TestUpgrade.test_leapp_upgrade_rhui        
+            TestUpgrade.test_leapp_upgrade_rhui
         importance:
             high
         subsystem_team:
@@ -114,7 +114,7 @@ class TestUpgrade(unittest.TestCase):
             linl@redhat.com
         description:
             Test leapp upgrade via RHUI.
-        key_steps:
+        key_steps: |
             1. Start an instance on public cloud (e.g., AWS) with rhui client installed and enabled.
             2. Upgrade according to docs,
                https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/upgrading_from_rhel_7_to_rhel_8/
@@ -139,7 +139,7 @@ class TestUpgrade(unittest.TestCase):
                $ sudo leapp answer --section <question_section>.confirm=True"
             7. Do upgrade via command "sudo leapp upgrade --debug --no-rhsm".
             8. Reboot system after upgrade.
-        expected_result:
+        expected_result: |
             System boot successfully to the next RHEL major version according to supported upgrade path after upgrade. 
             No issues with the upgraded system.
         debug_want:
@@ -248,7 +248,7 @@ class TestUpgrade(unittest.TestCase):
         case_status:
             approved
         title:
-            [os-tests]TestUpgrade.test_leapp_upgrade_customrepo       
+            TestUpgrade.test_leapp_upgrade_customrepo
         importance:
             high
         subsystem_team:
@@ -256,7 +256,7 @@ class TestUpgrade(unittest.TestCase):
         automation_drop_down:
             automated
         linked_work_items:
-            polarion_[os-tests]TestUpgrade.test_leapp_upgrade_customrepo
+            polarion_"["os-tests"]"TestUpgrade.test_leapp_upgrade_customrepo
         automation_field:
             https://github.com/virt-s1/os-tests/tree/master/os_tests/tests/test_update.py
         setup_teardown:
@@ -279,7 +279,7 @@ class TestUpgrade(unittest.TestCase):
             linl@redhat.com
         description:
             Test leapp upgrade via customrepo.
-        key_steps:
+        key_steps: |
             1. Start a system, upgrade according to docs, 
                https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/upgrading_from_rhel_7_to_rhel_8/
                Or https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/9/html/upgrading_from_rhel_8_to_rhel_9
@@ -300,7 +300,7 @@ class TestUpgrade(unittest.TestCase):
                $ sudo leapp answer --section <question_section>.confirm=True"
             7. Do upgrade via command "sudo leapp upgrade --debug --no-rhsm".
             8. Reboot system after upgrade.
-        expected_result:
+        expected_result: |
             System boot successfully to the next RHEL major version according to supported upgrade path after upgrade. 
             No issues with the upgraded system.
 
