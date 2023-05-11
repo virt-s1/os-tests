@@ -1014,7 +1014,6 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         '''
         case_name:
             test_check_lshw_mem
-
         case_priority:
             1
         component:
@@ -1050,6 +1049,13 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
                 break
         mem_in_gib = mem_in_byte/1024/1024/1024
         self.log.info("lshw showed mem: {}".format(mem_in_gib))
+        if utils_lib.is_cmd_exist(self, cmd='kdumpctl', is_install=False):
+            kdump_reserved_out = utils_lib.run_cmd(self, 'sudo kdumpctl showmem', expect_ret=0)
+            kdump_reserved_in_mb = re.findall('[\d]+',kdump_reserved_out)[0]
+            kdump_reserved_in_gib = float(kdump_reserved_in_mb)/1024
+            self.log.info("kdump reserved memory in GiB:{}".format(kdump_reserved_in_gib))
+            base_memory = float(format(base_memory,"0.3f")) + float(format(kdump_reserved_in_gib,"0.3f"))
+            self.log.info("Added kdump reserved memory to total memory. {}".format(base_memory))
 
         if mem_in_gib >= 4:
             utils_lib.compare_nums(self, mem_in_gib, base_memory, ratio=15)
