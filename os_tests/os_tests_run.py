@@ -128,18 +128,15 @@ def main():
             for case in final_ts:
                 yaml_data = {}
                 try:
-                    yaml_data = load(case._testMethodDoc, Loader=Loader)
+                    src_content = case._testMethodDoc
+                    yaml_data = load(src_content, Loader=Loader)
                     if not hasattr(yaml_data,'get'):
-                        log.info("please check doc of {}".format(case.id()))
-                        tmp_content = yaml_data
                         yaml_data = {}
-                        yaml_data['case_name'] = case.id()
-                        yaml_data['description'] = tmp_content
-                    else:
-                        yaml_data['case_name'] = case.id()
+                        yaml_data['description'] = src_content
                 except Exception as err:
-                    yaml_fail = err
-                    yaml_data['case_name'] = case.id()
+                    yaml_data['doc_yaml_err'] = str(err)
+                    yaml_data['description'] = src_content
+                yaml_data['case_name'] = case.id()
                 tmp_yaml_data[case.id()] = yaml_data
             with open(args.dumpdoc,'w') as fh:
                 dump(tmp_yaml_data,fh)

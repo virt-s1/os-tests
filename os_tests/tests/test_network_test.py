@@ -323,7 +323,7 @@ class TestNetworkTest(unittest.TestCase):
         case_status:
             approved
         title:
-            [os-tests]TestNetworkTest.test_ethtool_S_xdp
+            TestNetworkTest.test_ethtool_S_xdp
         importance:
             high
         subsystem_team:

@@ -147,7 +147,7 @@ class TestLifeCycle(unittest.TestCase):
         case_status:
             approved
         title:
-            [os-tests] TestLifeCycle.test_boot_fipsenabled
+            TestLifeCycle.test_boot_fipsenabled
         importance:
             high
         subsystem_team:
@@ -155,7 +155,7 @@ class TestLifeCycle(unittest.TestCase):
         automation_drop_down:
             automated
         linked_work_items:
-            polarion_[os-tests] TestLifeCycle.test_boot_fipsenabled
+            TestLifeCycle.test_boot_fipsenabled
         automation_field:
             https://github.com/virt-s1/os-tests/tree/master/os_tests/tests/test_lifecycle.py
         setup_teardown:
