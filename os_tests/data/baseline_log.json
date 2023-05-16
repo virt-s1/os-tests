@@ -1218,7 +1218,7 @@
         "content": "cc_scripts_user.py[WARNING]: Failed to run module scripts-user (scripts in /var/lib/cloud/instance/scripts)",
         "analyze": "Kernel cmdline contains 'console=ttyS0' in RHEL qcow2 image, but Nutanix AHV doesn't has serial console, which will caused cloud-final.service failed to start, then trigger this message",
         "branch": "rhel",
-        "status": "active",
+        "status": "closed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2034588",
         "path": "journal",
         "trigger": "nutanix_ahv"
@@ -1227,7 +1227,7 @@
         "content": "util.py[WARNING]: Running module scripts-user (<module 'cloudinit.config.cc_scripts_user' from '/usr/lib/python3.*/site-packages/cloudinit/config/cc_scripts_user.py'>) failed",
         "analyze": "Kernel cmdline contains 'console=ttyS0' in RHEL qcow2 image, but Nutanix AHV doesn't has serial console, which will caused cloud-final.service failed to start, then trigger this message",
         "branch": "rhel",
-        "status": "active",
+        "status": "closed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2034588",
         "path": "journal",
         "trigger": "nutanix_ahv"
@@ -1236,7 +1236,7 @@
         "content": "util.py[WARNING]: Running module ssh-authkey-fingerprints (<module 'cloudinit.config.cc_ssh_authkey_fingerprints' from '/usr/lib/python3.*/site-packages/cloudinit/config/cc_ssh_authkey_fingerprints.py'>) failed",
         "analyze": "Kernel cmdline contains 'console=ttyS0' in RHEL qcow2 image, but Nutanix AHV doesn't has serial console, which will caused cloud-final.service failed to start, then trigger this message",
         "branch": "rhel",
-        "status": "active",
+        "status": "closed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2034588",
         "path": "journal",
         "trigger": "nutanix_ahv"
@@ -1245,7 +1245,7 @@
         "content": "cc_keys_to_console.py[WARNING]: Writing keys to the system console failed!",
         "analyze": "Kernel cmdline contains 'console=ttyS0' in RHEL qcow2 image, but Nutanix AHV doesn't has serial console, which will caused cloud-final.service failed to start, then trigger this message",
         "branch": "rhel",
-        "status": "active",
+        "status": "closed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2034588",
         "path": "journal",
         "trigger": "nutanix_ahv"
@@ -1254,7 +1254,7 @@
         "content": "util.py[WARNING]: Running module keys-to-console (<module 'cloudinit.config.cc_keys_to_console' from '/usr/lib/python3.*/site-packages/cloudinit/config/cc_keys_to_console.py'>) failed",
         "analyze": "Kernel cmdline contains 'console=ttyS0' in RHEL qcow2 image, but Nutanix AHV doesn't has serial console, which will caused cloud-final.service failed to start, then trigger this message",
         "branch": "rhel",
-        "status": "active",
+        "status": "closed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2034588",
         "path": "journal",
         "trigger": "nutanix_ahv"
@@ -1546,5 +1546,14 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2160354",
         "path": "journal,dmesg",
         "trigger": "cpuhotplug"
-    } 
+    },
+    "msg_174": {
+        "content": "Failed to write to /dev/console",
+        "analyze": "Kernel cmdline contains 'console=ttyS0' in RHEL qcow2 image, but Nutanix AHV doesn't has serial console, which will caused cloud-final.service failed to start, then trigger this message",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2034588",
+        "path": "journal",
+        "trigger": "nutanix_ahv"
+    }
 }

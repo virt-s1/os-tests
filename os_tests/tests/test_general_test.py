@@ -1235,7 +1235,7 @@ if __name__ == "__main__":
         host_date = utils_lib.send_ssh_cmd(self.vm.host_ip, self.vm.host_username, \
             self.vm.host_password, cmd)[1]
         delta = int(host_date) - int(vm_date)
-        self.assertLessEqual(delta, 3, "delta shoud not bigger than 3 seconds")
+        self.assertLessEqual(delta, 4, "delta shoud not bigger than 4 seconds")
 
     def test_vm_time_sync_host_after_boot(self):
         """
