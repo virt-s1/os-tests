@@ -728,6 +728,11 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         version = version_util.get_version(package_ver,'cloud-init-')
 
         if version_util.is_support(version,"test_cloudinit_check_previous_hostname",support_cases,main_support_versions,backport_versions):
+            # this case applies only to the scenario that first boot with 'clean' image
+            # if there is historical data /var/lib/cloud/data/previous-hostname, we have to run cloud-init clean --log and reboot
+            cmd = "sudo cloud-init clean --log"
+            utils_lib.run_cmd(self, cmd, msg='clean cloud-init data and log')
+            self._reboot_inside_vm()
             output1 = utils_lib.run_cmd(self, "cat /var/lib/cloud/data/previous-hostname", expect_ret=0)
             output2 = utils_lib.run_cmd(self, "cat /etc/hostname", expect_ret=0)
             self.assertEqual(output1,output2,"previous-hostname is: %s, hostname is: %s" % (output1, output2))
@@ -738,6 +743,12 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
                         expect_ret=0,
                         expect_not_kw='previous-hostname differs',
                     msg='checking /var/log/cloud-init.log')
+            #tear down
+            self.vm.delete(wait=True)
+            self.vm.create(wait=True)
+            self.vm.start(wait=True)
+            time.sleep(30)
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
         else:
             self.skipTest("Skip test_cloudinit_check_previous_hostname because it does not support "+package_ver)
 
