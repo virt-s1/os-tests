@@ -1261,8 +1261,15 @@ EOF""".format(device, size), expect_ret=0)
         out = utils_lib.run_cmd(self, cmd, msg='get fingerprints in /var/log/messages')
         # change 'SHA256' to ' SHA256' for exact match
         # change != to > for fault tolerance
-        if out.count('BEGIN') > out.count(' SHA256')/3:
-            self.fail('fingerprints count {} does not match expected {}'.format(out.count(' SHA256')/3,out.count('BEGIN')))
+        # add one condition according to the change that logs_go_to_stdout_if_writing_to_console_fails
+        journalctl_fail = utils_lib.run_cmd(self, 'journalctl |grep -i fail')
+        if re.search('Failed\s+to\s+write\s+to\s+/dev/console', journalctl_fail, re.I):
+            if out.count('BEGIN') > out.count(' SHA256')/3 + out.count('ssh-rsa'):
+                self.fail('ecdsa count {} does not match expected {}'\
+                    .format(out.lower().count('ecdsa'),out.count('BEGIN')))
+        else:
+            if out.count('BEGIN') > out.count(' SHA256')/3:
+                self.fail('fingerprints count {} does not match expected {}'.format(out.count(' SHA256')/3,out.count('BEGIN')))
 
     def test_cloudinit_no_duplicate_swap(self):        
         """

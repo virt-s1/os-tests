@@ -174,13 +174,16 @@ class PrismApi(PrismSession):
             ssh_key = '\nssh_authorized_keys:\n- %s' % ssh_pubkey
             ssh_pwauth = ''
         # Attach user_data.
+        # Since8.9/9.3, logs_go_to_stdout_if_writing_to_console_fails,
+        # prompt more graceful and will not affect service cloud-final,
+        # remove following two lines
+        #- grubby --update-kernel=ALL --args="console=tty0"
+        #- systemctl restart cloud-final]
         user_data = '#cloud-config\n'
         user_data_ssh_key = '''\
 disable_root: false
 lock_passwd: false%s%s
 runcmd:
-- grubby --update-kernel=ALL --args="console=tty0"
-- systemctl restart cloud-final
 - sed -i "/PermitRootLogin prohibit/c\PermitRootLogin yes" /etc/ssh/sshd_config
 - systemctl restart sshd\n''' % (
             ssh_pwauth, ssh_key)
