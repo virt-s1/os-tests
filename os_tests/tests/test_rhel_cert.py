@@ -105,7 +105,7 @@ class TestRHELCert(unittest.TestCase):
         subsystem_team:
             sst_virtualization_cloud
         automation_drop_down:
-            Automated
+            automated
         linked_work_items:
             jira_RHELBU-1991
         automation_field:

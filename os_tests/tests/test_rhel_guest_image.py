@@ -609,9 +609,9 @@ class TestGuestImage(unittest.TestCase):
         component:
             rhel-guest-image
         bugzilla_id:
-            1144155
+            1144155,1729869
         is_customer_case:
-            False
+            True
         testplan:
             N/A
         maintainer:
@@ -621,7 +621,7 @@ class TestGuestImage(unittest.TestCase):
         key_steps:
             1. cat /proc/cmdline
         expect_result:
-            no_timer_check console=tty0 console=ttyS0,115200n8 net.ifnames=0 crashkernel=
+            no_timer_check console=ttyS0,115200n8 net.ifnames=0 crashkernel=
         debug_want:
             N/A
         """

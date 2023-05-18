@@ -162,7 +162,7 @@ current_clocksource'
         subsystem_team:
             sst_virtualization_cloud
         automation_drop_down:
-            Automated
+            automated
         linked_work_items:
             N/A
         automation_field:
@@ -182,7 +182,7 @@ current_clocksource'
         test_type:
             Functional
         test_level:
-            Component
+            component
         maintainer:
             xiliang@redhat.com
         description: |
@@ -416,7 +416,7 @@ int main(int argc, char *argv[])
         bugzilla_id:
             1932802, 1905398
         is_customer_case:
-            <optional: True or False>
+            False
         maintainer:
             xiliang@redhat.com
         description:
@@ -1148,7 +1148,7 @@ if __name__ == "__main__":
         subsystem_team:
             sst_virtualization_cloud
         automation_drop_down:
-            Automated
+            automated
         linked_work_items:
             N/A
         automation_field:
@@ -1168,7 +1168,7 @@ if __name__ == "__main__":
         test_type:
             Functional
         test_level:
-            Component
+            component
         maintainer:
             minl@redhat.com
         description: |
@@ -1252,7 +1252,7 @@ if __name__ == "__main__":
         subsystem_team:
             sst_virtualization_cloud
         automation_drop_down:
-            Automated
+            automated
         linked_work_items:
             N/A
         automation_field:
@@ -1272,7 +1272,7 @@ if __name__ == "__main__":
         test_type:
             Functional
         test_level:
-            Component
+            component
         maintainer:
             minl@redhat.com
         description: |
@@ -1309,7 +1309,7 @@ if __name__ == "__main__":
         subsystem_team:
             sst_virtualization_cloud
         automation_drop_down:
-            Automated
+            automated
         linked_work_items:
             N/A
         automation_field:
@@ -1329,7 +1329,7 @@ if __name__ == "__main__":
         test_type:
             Functional
         test_level:
-            Component
+            component
         maintainer:
             minl@redhat.com
         description: |

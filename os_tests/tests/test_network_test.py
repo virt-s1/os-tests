@@ -47,33 +47,25 @@ class TestNetworkTest(unittest.TestCase):
         '''
         case_name:
             test_ethtool_G
-
         case_priority:
             1
-
         component:
             kernel
-
         bugzilla_id:
             1722628
-
         polarion_id:
             n/a
-
         maintainer:
             xiliang@redhat.com
-
         description:
             Use ethtool to change the rx/tx ring parameters of the specified network device.
-
-        key_steps:
+        key_steps: |
             1. # ethtool -g $nic
             2. # ethtool -G $nic rx $num
             3. # ethtool -G $nic rx-mini $num
             4. # ethtool -G $nic rx-jumbo $num
             5. # ethtool -G $nic tx $num
-
-        expected_result:
+        expected_result: |
             Can change the supported rx/tx ring parameters of the specified network device.
             Cannot set the ring parameters to -1.
             eg. # ethtool -G eth0 rx 512
@@ -91,7 +83,6 @@ class TestNetworkTest(unittest.TestCase):
                 TX:		1024
                 # ethtool -G eth0 rx -1
                 no ring parameters changed, aborting
-
         '''
         self.log.info("Test change rx/tx ring setting.")
         query_cmd = "ethtool -g {}".format(self.active_nic )
@@ -205,7 +196,7 @@ class TestNetworkTest(unittest.TestCase):
         bug_id:
             N/A
         is_customer_case:
-            N/A
+            False 
         testplan:
             N/A
         maintainer:
@@ -266,7 +257,7 @@ class TestNetworkTest(unittest.TestCase):
         subsystem_team:
             sst_virtualization_cloud
         automation_drop_down:
-            Automated
+            automated
         linked_work_items:
             N/A
         automation_field:
@@ -349,7 +340,7 @@ class TestNetworkTest(unittest.TestCase):
         test_type:
             functional
         test_level:
-            Component
+            component
         maintainer:
             xiliang@redhat.com
         description: |

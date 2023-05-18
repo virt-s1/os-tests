@@ -2641,7 +2641,7 @@ chpasswd:
         bugzilla_id:
             1857309
         is_customer_case:
-            False
+            True
         testplan:
             N/A
         maintainer:
@@ -2655,14 +2655,16 @@ chpasswd:
         debug_want:
             N/A
         """
+        if utils_lib.is_aws(self):
+            self.skipTest('Temporary skip on aws platform since there is a connection issue after removing the cloud-init files')
         # Mount /tmp /var/tmp with noexec option
         utils_lib.run_cmd(self, "sudo dd if=/dev/zero of=/var/tmp.partition bs=1024 count=1024000")
         utils_lib.run_cmd(self, "sudo /sbin/mke2fs /var/tmp.partition ")
         utils_lib.run_cmd(self, "sudo mount -o loop,noexec,nosuid,rw /var/tmp.partition /tmp")
         utils_lib.run_cmd(self, "sudo chmod 1777 /tmp")
         utils_lib.run_cmd(self, "sudo mount -o rw,noexec,nosuid,nodev,bind /tmp /var/tmp")
-        utils_lib.run_cmd(self, "sudo echo '/var/tmp.partition /tmp ext2 loop,noexec,nosuid,rw 0 0' >> /etc/fstab")
-        utils_lib.run_cmd(self, "sudo echo '/tmp /var/tmp none rw,noexec,nosuid,nodev,bind 0 0' >> /etc/fstab")
+        utils_lib.run_cmd(self, "sudo bash -c 'echo /var/tmp.partition /tmp ext2 loop,noexec,nosuid,rw 0 0 >> /etc/fstab'")
+        utils_lib.run_cmd(self, "sudo bash -c 'echo /tmp /var/tmp none rw,noexec,nosuid,nodev,bind 0 0 >> /etc/fstab'")
         utils_lib.run_cmd(self, "sudo rm -rf /var/lib/cloud/instance /var/lib/cloud/instances/* /var/log/cloud-init.log")
         # Restart VM
         self.vm.reboot(wait=True)
@@ -2700,6 +2702,8 @@ chpasswd:
         """
         if float(self.rhel_x_version) >= 9.0:
             self.skipTest('skip run this case, network-script is not be supported by rhel 9 any more')
+        if utils_lib.is_aws(self):
+            self.skipTest('Temporary skip on aws platform since there is a connection issue after removing the cloud-init files')    
         pkg_install_check = utils_lib.is_pkg_installed(self,"network-scripts")
         if not pkg_install_check and self.vm.provider == 'openstack':
             # Register to rhsm stage
