@@ -1,4 +1,5 @@
 # enable nm-cloud-setup
+# example of called by os-tests: --case_setup "/tmp/debug_nm_cloud_setup.sh"
 set -x
 debug_file="/usr/lib/systemd/system/nm-cloud-setup.service.d/10-enable-debug-trace.conf"
 if [ -s $debug_file ]; then
