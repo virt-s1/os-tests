@@ -2655,8 +2655,6 @@ chpasswd:
         debug_want:
             N/A
         """
-        if utils_lib.is_aws(self):
-            self.skipTest('Temporary skip on aws platform since there is a connection issue after removing the cloud-init files')
         # Mount /tmp /var/tmp with noexec option
         utils_lib.run_cmd(self, "sudo dd if=/dev/zero of=/var/tmp.partition bs=1024 count=1024000")
         utils_lib.run_cmd(self, "sudo /sbin/mke2fs /var/tmp.partition ")
@@ -2667,7 +2665,8 @@ chpasswd:
         utils_lib.run_cmd(self, "sudo bash -c 'echo /tmp /var/tmp none rw,noexec,nosuid,nodev,bind 0 0 >> /etc/fstab'")
         utils_lib.run_cmd(self, "sudo rm -rf /var/lib/cloud/instance /var/lib/cloud/instances/* /var/log/cloud-init.log")
         # Restart VM
-        self.vm.reboot(wait=True)
+        # self.vm.reboot(wait=True)
+        utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(30)
         utils_lib.init_connection(self, timeout=1200)
         # Verify cloud-init.log
@@ -2702,8 +2701,6 @@ chpasswd:
         """
         if float(self.rhel_x_version) >= 9.0:
             self.skipTest('skip run this case, network-script is not be supported by rhel 9 any more')
-        if utils_lib.is_aws(self):
-            self.skipTest('Temporary skip on aws platform since there is a connection issue after removing the cloud-init files')    
         pkg_install_check = utils_lib.is_pkg_installed(self,"network-scripts")
         if not pkg_install_check and self.vm.provider == 'openstack':
             # Register to rhsm stage
@@ -2736,7 +2733,8 @@ chpasswd:
                                              /var/log/cloud-init.log")
             self.log.info(err)
         # Restart VM and verify connection
-        self.vm.reboot(wait=True)
+        # self.vm.reboot(wait=True)
+        utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(30)
         utils_lib.init_connection(self, timeout=1200)
         #saw activating (start) in CI log, change to loop check.
@@ -2947,7 +2945,8 @@ chpasswd:
         output = utils_lib.run_cmd(self, cmd, msg="Updated network configuration.")
         cmd = 'sudo rm /run/cloud-init/ /var/lib/cloud/* -rf'
         utils_lib.run_cmd(self, cmd, msg='clean cloud-init and redo it')
-        self.vm.reboot()
+        #self.vm.reboot()
+        utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(20)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         cmd = 'cat /etc/sysconfig/network'
