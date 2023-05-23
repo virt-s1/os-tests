@@ -2629,7 +2629,7 @@ chpasswd:
         bugzilla_id:
             1857309
         is_customer_case:
-            False
+            True
         testplan:
             N/A
         maintainer:
@@ -2649,11 +2649,12 @@ chpasswd:
         utils_lib.run_cmd(self, "sudo mount -o loop,noexec,nosuid,rw /var/tmp.partition /tmp")
         utils_lib.run_cmd(self, "sudo chmod 1777 /tmp")
         utils_lib.run_cmd(self, "sudo mount -o rw,noexec,nosuid,nodev,bind /tmp /var/tmp")
-        utils_lib.run_cmd(self, "sudo echo '/var/tmp.partition /tmp ext2 loop,noexec,nosuid,rw 0 0' >> /etc/fstab")
-        utils_lib.run_cmd(self, "sudo echo '/tmp /var/tmp none rw,noexec,nosuid,nodev,bind 0 0' >> /etc/fstab")
+        utils_lib.run_cmd(self, "sudo bash -c 'echo /var/tmp.partition /tmp ext2 loop,noexec,nosuid,rw 0 0 >> /etc/fstab'")
+        utils_lib.run_cmd(self, "sudo bash -c 'echo /tmp /var/tmp none rw,noexec,nosuid,nodev,bind 0 0 >> /etc/fstab'")
         utils_lib.run_cmd(self, "sudo rm -rf /var/lib/cloud/instance /var/lib/cloud/instances/* /var/log/cloud-init.log")
         # Restart VM
-        self.vm.reboot(wait=True)
+        # self.vm.reboot(wait=True)
+        utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(30)
         utils_lib.init_connection(self, timeout=1200)
         # Verify cloud-init.log
@@ -2720,7 +2721,8 @@ chpasswd:
                                              /var/log/cloud-init.log")
             self.log.info(err)
         # Restart VM and verify connection
-        self.vm.reboot(wait=True)
+        # self.vm.reboot(wait=True)
+        utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(30)
         utils_lib.init_connection(self, timeout=1200)
         #saw activating (start) in CI log, change to loop check.
@@ -2931,7 +2933,8 @@ chpasswd:
         output = utils_lib.run_cmd(self, cmd, msg="Updated network configuration.")
         cmd = 'sudo rm /run/cloud-init/ /var/lib/cloud/* -rf'
         utils_lib.run_cmd(self, cmd, msg='clean cloud-init and redo it')
-        self.vm.reboot()
+        #self.vm.reboot()
+        utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(20)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         cmd = 'cat /etc/sysconfig/network'

@@ -1695,7 +1695,7 @@ in cmdline as bug1859088")
         subsystem_team:
             sst_virtualization_cloud
         automation_drop_down:
-            Automated
+            automated
         linked_work_items:
             N/A
         automation_field:
@@ -1715,7 +1715,7 @@ in cmdline as bug1859088")
         test_type:
             Functional
         test_level:
-            Component
+            component
         maintainer:
             xiliang@redhat.com
         description: |
