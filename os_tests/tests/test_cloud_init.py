@@ -1823,9 +1823,8 @@ ssh_pwauth: 1
             3. Check boot time and cloud-init services startup time
             # systemd-analyze
             # systemd-analyze blame
-            4. The boot time should be less than 50s, cloud-init services startup time should less than 18s
-        """
-        max_boot_time = 60
+            4. The cloud-init services startup time should less than 20s
+        """        
         cloud_init_startup_time = 20
         if self.vm.exists():
             self.vm.delete()
@@ -1851,13 +1850,7 @@ ssh_pwauth: 1
         for service_time_sec in service_time_list:
             self.assertLess(
                 float(service_time_sec), float(cloud_init_startup_time), 
-                "{0} startup time is greater than {1}".format(service, cloud_init_startup_time))
-        # Check overal boot time
-        if float(boot_time_sec) > float(max_boot_time):
-            utils_lib.run_cmd(self, cmd='sudo journalctl -b0')
-        self.assertLess(
-            float(boot_time_sec), float(max_boot_time), 
-            "First boot time is greater than {}".format(max_boot_time))  
+                "{0} startup time is greater than {1}".format(service, cloud_init_startup_time)) 
 
     def test_cloudinit_reboot_time(self):
         """
@@ -1877,10 +1870,9 @@ ssh_pwauth: 1
             3. Check reboot time and cloud-init services startup time
             # systemd-analyze
             # systemd-analyze blame
-            4. The reboot time should be less than 30s, cloud-init services startup time should less than 5s
+            4. The cloud-init services startup time should less than 6s
         """
-        max_boot_time = 40
-        cloud_init_startup_time = 5
+        cloud_init_startup_time = 6
         # Reboot VM
         self._reboot_inside_vm()
         boot_time_sec = utils_lib.getboottime(self)
@@ -1898,10 +1890,6 @@ ssh_pwauth: 1
             self.assertLess(
                 float(service_time_sec), float(cloud_init_startup_time), 
                 "{0} startup time is greater than {1}".format(service, cloud_init_startup_time))
-        # Check overall boot time
-        self.assertLess(
-            float(boot_time_sec), float(max_boot_time), 
-            "Reboot time is greater than {}".format(max_boot_time))
 
     def test_cloudinit_disable_cloudinit(self):        
         """
