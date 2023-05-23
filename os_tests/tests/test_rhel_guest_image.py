@@ -211,11 +211,12 @@ class TestGuestImage(unittest.TestCase):
         maintainer:
             wshi@redhat.com
         description:
-            Validate GRUB_DEFAULT=saved in /etc/default/grub
+            Validate GRUB_DEFAULT=saved GRUB_CMDLINE_LINUX=... in /etc/default/grub
         key_steps:
             1. cat /etc/default/grub
         expect_result:
             GRUB_DEFAULT=saved
+            GRUB_CMDLINE_LINUX="console=tty0 console=ttyS0,115200n8 no_timer_check net.ifnames=0"
         debug_want:
             N/A
         """
@@ -228,6 +229,21 @@ class TestGuestImage(unittest.TestCase):
                                    msg="cat /etc/default/grub")
         self.assertIn('GRUB_DEFAULT=saved', output,
                       "Missing GRUB_DEFAULT=saved in /etc/default/grub")
+
+        product_id = utils_lib.get_product_id(self)
+        if float(product_id) >= 9.2 or float(product_id) < 9.0:
+            src_dir = self.data_dir + "/guest-images/"
+            data_file = "cmdline_params.lst"
+            lines = filter(None,
+                           (line.rstrip()
+                            for line in open(os.path.join(src_dir, data_file))))
+            testline = ""
+            for tmp in output.splitlines():
+                if "GRUB_CMDLINE_LINUX=" in tmp:
+                    testline = tmp
+            self.assertNotEqual(testline, "", "GRUB_CMDLINE_LINUX is not set in /etc/default/grub")
+            for line in lines:
+                self.assertIn(line, testline, "%s is not in GRUB_CMDLINE_LINUX" % line)
 
     def test_check_default_runlevel(self):
         """

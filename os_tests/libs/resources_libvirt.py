@@ -130,7 +130,7 @@ secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>")
         dom.create()
         if wait:
             for count in utils_lib.iterate_timeout(
-                    60, "Timed out waiting for server to get Created."):
+                    90, "Timed out waiting for server to get Created."):
                 if self.exists() and self.floating_ip:
                     break
         self._data = None
