@@ -390,38 +390,7 @@ def init_case(test_instance):
     init_provider_from_guest(test_instance)
     core_file_check(test_instance)
     extra_case_setups = test_instance.params.get('case_setup')
-    if extra_case_setups:
-        test_instance.log.info("extra case setup detected, run it:{}".format(extra_case_setups))
-        exe_timout = 600
-        for extra_case_setup in extra_case_setups.split(','):
-            if "timeout:" in extra_case_setup:
-                exe_timout = int(extra_case_setup.split(':')[-1])
-                test_instance.log.info("extra case exec timeout detected, use it:{}".format(exe_timout))
-                break
-        for extra_case_setup in extra_case_setups.split(','):
-            test_instance.log.info("try to set {}".format(extra_case_setup))
-            if "timeout:" in extra_case_setup:
-                continue
-            if os.path.isfile(extra_case_setup):
-                rmt_file = "/tmp/{}".format(os.path.basename(extra_case_setup))
-                if test_instance.is_rmt:
-                    test_instance.SSH.put_file(local_file=extra_case_setup, rmt_file=rmt_file)
-                    run_cmd(test_instance, cmd="cat {}".format(rmt_file), msg='print file content')
-                    run_cmd(test_instance, cmd="sudo chmod 777 {}".format(rmt_file), msg='add execute permission')
-                    run_cmd(test_instance, cmd="sudo {}".format(rmt_file), timeout=exe_timout, msg='run pre setup script')
-            else:
-                if 'fips_enable' in extra_case_setup:
-                    fips_enable(test_instance)
-                elif 'fips_disable' in extra_case_setup:
-                    fips_disable(test_instance)
-                elif 'debugkernel_enable' in extra_case_setup:
-                    debugkernel_enable(test_instance)
-                elif 'debugkernel_disable' in extra_case_setup:
-                    debugkernel_disable(test_instance)
-                elif 'collect_kmemleak' in extra_case_setup:
-                     logging.info('Suggest to run this setup in --case_post')
-                else:
-                    run_cmd(test_instance, cmd=extra_case_setup, timeout=exe_timout, msg='run the {} content as command'.format(extra_case_setup))
+    extra_step_parser(test_instance, extra_steps=extra_case_setups)
 
 def finish_case(test_instance):
     """finish case
@@ -429,36 +398,53 @@ def finish_case(test_instance):
         test_instance {Test instance} -- unittest.TestCase instance
     """
     extra_case_posts = test_instance.params.get('case_post')
-    if extra_case_posts:
-        exe_timout = 600
-        for extra_case_setup in extra_case_posts.split(','):
-            if "timeout:" in extra_case_setup:
-                exe_timout = int(extra_case_setup.split(':')[-1])
-                test_instance.log.info("extra case exec timeout detected, use it:{}".format(exe_timout))
-                break
-        test_instance.log.info("extra case post detected, run it:{}".format(extra_case_posts))
-        for extra_case_setup in extra_case_posts.split(','):
-            test_instance.log.info("try to set {}".format(extra_case_setup))
-            if os.path.isfile(extra_case_setup):
-                rmt_file = "/tmp/{}".format(os.path.basename(extra_case_setup))
-                if test_instance.is_rmt:
-                    test_instance.SSH.put_file(local_file=extra_case_setup, rmt_file=rmt_file)
-                    run_cmd(test_instance, cmd="cat {}".format(rmt_file), msg='print file content')
-                    run_cmd(test_instance, cmd="sudo chmod 777 {}".format(rmt_file), msg='add execute permission')
-                    run_cmd(test_instance, cmd="sudo {}".format(rmt_file), timeout=exe_timout, msg='run post setup script')
+    extra_step_parser(test_instance, extra_steps=extra_case_posts)
+
+def extra_step_parser(test_instance, extra_steps=None):
+    if not extra_steps:
+        test_instance.log.info("no extra steps found!")
+        return True
+    test_instance.log.info("extra case steps detected, parse it:{}".format(extra_steps))
+    exe_timout = 600
+    for extra_case_setup in extra_steps.split(','):
+        if "timeout:" in extra_case_setup:
+            exe_timout = int(extra_case_setup.split(':')[-1])
+            test_instance.log.info("extra case exec timeout detected, use it:{}".format(exe_timout))
+            break
+    for extra_case_setup in extra_steps.split(','):
+        test_instance.log.info("try to understand: {}".format(extra_case_setup))
+        if "timeout:" in extra_case_setup:
+            continue
+        inputs_list = extra_case_setup.split(' ')
+        cmdfile = inputs_list[0]
+        cmdfile_exists = False
+        if cmdfile:
+            ret = run_cmd(test_instance, cmd="sudo ls {}".format(cmdfile), ret_status=True, msg='guess {} is a file'.format(cmdfile))
+            if ret == 0:
+                cmdfile_exists = True
+        cmd_options = ''
+        if len(inputs_list) > 1:
+            cmd_options = ' '.join(inputs_list[1:])
+        if os.path.isfile(cmdfile):
+            rmt_file = "/tmp/{}".format(os.path.basename(cmdfile))
+            if test_instance.is_rmt and not cmdfile_exists:
+                test_instance.SSH.put_file(local_file=cmdfile, rmt_file=rmt_file)
+            run_cmd(test_instance, cmd="cat {}".format(rmt_file), msg='show file content')
+            run_cmd(test_instance, cmd="sudo chmod 777 {}".format(rmt_file), msg='add execute permission')
+            run_cmd(test_instance, cmd="sudo {} {}".format(rmt_file, cmd_options), timeout=exe_timout, msg='run the script')
+        else:
+            if 'fips_enable' in extra_case_setup:
+                fips_enable(test_instance)
+            elif 'fips_disable' in extra_case_setup:
+                fips_disable(test_instance)
+            elif 'debugkernel_enable' in extra_case_setup:
+                debugkernel_enable(test_instance)
+            elif 'debugkernel_disable' in extra_case_setup:
+                debugkernel_disable(test_instance)
+            elif 'collect_kmemleak' in extra_case_setup:
+                 collect_kmemleak(test_instance)
             else:
-                if 'fips_enable' in extra_case_setup:
-                    fips_enable(test_instance)
-                elif 'fips_disable' in extra_case_setup:
-                    fips_disable(test_instance)
-                elif 'debugkernel_enable' in extra_case_setup:
-                    debugkernel_enable(test_instance)
-                elif 'debugkernel_disable' in extra_case_setup:
-                    debugkernel_disable(test_instance)
-                elif 'collect_kmemleak' in extra_case_setup:
-                    collect_kmemleak(test_instance)
-                else:
-                    run_cmd(test_instance, cmd=extra_case_setup, timeout=exe_timout, msg='run the {} content as command'.format(extra_case_setup))
+                run_cmd(test_instance, cmd=extra_case_setup, timeout=exe_timout, msg='run the {} content as command'.format(extra_case_setup))
 
 def filter_case_doc(case=None, patterns=None, skip_patterns=None, filter_field='case_name', strict=False, verify_doc=False ):
     if patterns is None and skip_patterns is None and not verify_doc:

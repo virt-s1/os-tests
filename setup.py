@@ -24,7 +24,7 @@ setuptools.setup(
     },
     include_package_data=True,
     #data_files=[('/'+os.path.expanduser("~"), ['cfg/os-tests.yaml']),],
-    install_requires=['PyYAML', 'Jinja2<=2.11.3', 'tipset>=0.0.15', 'markupsafe<=1.1.1'],
+    install_requires=['PyYAML', 'Jinja2<=2.11.3', 'tipset>=0.0.15', 'markupsafe<=1.1.1', 'packaging'],
     license="GPLv3+",
     classifiers=[
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',

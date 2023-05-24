@@ -42,12 +42,20 @@ It might be a good idea to provide method like fips_enable, fips_disable for gen
 $ os-tests --user ec2-user --keyfile /home/xxx.pem --platform_profile /home/aws.yaml -p test_second_ip_hotplug  --case_setup /usr/local/lib/python3.6/site-packages/os_tests/utils/debug_nm_cloud_setup.sh
 ```
 
-#### Example-4: run a command like enable NetworkManager trace debug mode
+#### Example-4: add a user with password to the current system
+
+In many cloud systems, password login is disabled by default. If ssh is not working, you can add one user with password to allow login via console.
+If no username or password specified, the [debug_enable_user_with_passwd.sh](https://github.com/virt-s1/os-tests/blob/master/os_tests/utils/debug_enable_user_with_passwd.sh) will auto generate them.
+
+```bash
+$ os-tests -p test_leapp_upgrade_rhui,test_cloudinit_mount_with_noexec_option --user ec2-user --keyfile /root/.ssh/id_rsa.pem --platform_profile ./aws.yaml --case_setup "/usr/local/lib/python3.6/site-packages/os_tests/utils/debug_enable_user_with_passwd.sh <$username $password>"
+```
+
+#### Example-5: run a command like enable NetworkManager trace debug mode
 
 If you do not check journal log in one case, you can run this case with debug enabled and collect it in another case. This is also one of the case order control advantages. 
 ```bash
-$ os-tests --user ec2-user --keyfile /home/xxx.pem --platform_profile /home/aws.yaml -p test_network_device_hotplug,test_check_journalctl_fail  --case_setup 'sudo nmcli general logging level TRACE domains ALL
-'
+$ os-tests --user ec2-user --keyfile /home/xxx.pem --platform_profile /home/aws.yaml -p test_network_device_hotplug,test_check_journalctl_fail  --case_setup 'sudo nmcli general logging level TRACE domains ALL'
 ```
 
 Note: "--case_setup" supports multiple actions separating with ',', eg. "fips_enable,$cmd1,$cmd2,$bashfile". They will be executed one by one.
