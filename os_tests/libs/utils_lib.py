@@ -452,15 +452,15 @@ def filter_case_doc(case=None, patterns=None, skip_patterns=None, filter_field='
     yaml_data = {}
     yaml_fail = None
     try:
-        yaml_data = load(case._testMethodDoc, Loader=Loader)
+        src_content = case._testMethodDoc
+        yaml_data = load(src_content, Loader=Loader)
         if not hasattr(yaml_data,'get'):
             yaml_data = {}
-            yaml_data['case_name'] = case.id()
-        else:
-            yaml_data['case_name'] = case.id()
+            yaml_data['description'] = src_content
     except Exception as err:
-        yaml_fail = err
-        yaml_data['case_name'] = case.id()
+        yaml_data['doc_yaml_err'] = str(err)
+        yaml_data['description'] = src_content
+    yaml_data['case_name'] = case.id()
     is_skip = False
     is_select = False
     field_value = yaml_data.get(filter_field)
@@ -470,11 +470,8 @@ def filter_case_doc(case=None, patterns=None, skip_patterns=None, filter_field='
                 if not field_value:
                     break
                 # case_tag might has multiples
-                for tag in field_value.split(','):
-                    if not strict and p in tag:
-                        is_select = True
-                        break
-                    if strict and p == tag:
+                for tag_value in field_value.split(','):
+                    if not strict and p in tag_value or strict and p == tag_value:
                         is_select = True
                         break
                 if is_select:
@@ -494,11 +491,8 @@ def filter_case_doc(case=None, patterns=None, skip_patterns=None, filter_field='
                 if not field_value:
                     break
                 # case_tag might has multiples
-                for tag in field_value.split(','):
-                    if not strict and p in tag:
-                        is_skip = True
-                        break
-                    if strict and p == tag:
+                for tag_value in field_value.split(','):
+                    if not strict and p in tag_value or strict and p == tag_value:
                         is_skip = True
                         break
                 if is_skip:
@@ -516,8 +510,8 @@ def filter_case_doc(case=None, patterns=None, skip_patterns=None, filter_field='
         print(case.id())
         print(case._testMethodDoc)
         print("-"*20)
-        if  yaml_fail:
-            print(yaml_fail)
+        if yaml_data.get('doc_yaml_err'):
+            print(yaml_data.get('doc_yaml_err'))
             return is_select and not is_skip
         polarion_adm.verify_doc(casedoc = yaml_data)
     return is_select and not is_skip
