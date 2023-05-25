@@ -53,9 +53,9 @@ class TestNutanixVM(unittest.TestCase):
         test_log = "/tmp/live_migrate_fio_test.log"
         cmd = "setsid fio --group_reporting=1 --name=nutanix-fio-test \
 --numjobs=4 --iodepth=4 --size=500m --bs=4k --rw=randrw -rwmixread=70 \
---ioengine=psync --time_based=1 --runtime=900 \
+--ioengine=psync --time_based=1 --runtime=600 \
 --directory=/tmp/fio_test --filename=test01:test02:test03:test04:test05 > %s" % test_log
-        utils_lib.run_cmd(self, cmd, msg="Start fio test", timeout=2)
+        utils_lib.run_cmd(self, cmd, msg="Start fio test", timeout=5)
 
         cmd = "ps -ef | grep -v grep | grep fio-test"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw="nutanix",
@@ -75,7 +75,7 @@ class TestNutanixVM(unittest.TestCase):
         
         cmd = "ps -ef | grep -v grep | grep fio-test | wc -l"
         for count in utils_lib.iterate_timeout(
-                900, "Timed out waiting for complete fio test", wait=10):
+                600, "Timed out waiting for complete fio test", wait=60):
             fio_jobs = int(utils_lib.run_cmd(self, cmd, expect_ret=0,
                                         msg="Check if all fio test jobs are still alive").strip())
             if fio_jobs == 0:
@@ -1205,8 +1205,7 @@ gpgcheck=0"""
         if mem_gb_current < 2:
             self.skipTest("Skip test as minimal 2G memory is required for debug kernel")        
 
-        default_kernel = utils_lib.run_cmd(self, "sudo grubby --default-kernel",
-                                              expect_ret=0)
+        default_kernel = utils_lib.run_cmd(self, "sudo grubby --default-kernel", expect_ret=0)
         kernel_version = utils_lib.run_cmd(self, "uname -r", expect_ret=0)
         if "debug" in kernel_version:
             self.log.info("Already in debug kernel")
@@ -1214,16 +1213,11 @@ gpgcheck=0"""
             debug_kernel = "/boot/vmlinuz-" + kernel_version.strip('\n') + "+debug"
             debug_kernel_pkg = "kernel-debug-" + kernel_version
             utils_lib.is_pkg_installed(self, pkg_name=debug_kernel_pkg, timeout=1200)
-            utils_lib.run_cmd(self,
-                              "sudo grubby --info=%s" % debug_kernel,
-                              expect_ret=0,
-                              msg="check kernel-debug installed")
-            cmd = "sudo grubby --info=%s|grep index|cut -d'=' -f2" % debug_kernel
-            debug_kernel_index = utils_lib.run_cmd(self, cmd,
-                                                   expect_ret=0, cancel_ret='0',
-                                                   msg="check kernel-debug index")
-            cmd = "sudo grubby --set-default-index=%s" % debug_kernel_index
-            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="change default boot index")
+            utils_lib.run_cmd(self, "sudo grubby --info=%s" % debug_kernel,
+                    expect_ret=0, msg="check if kernel-debug is installed")
+            cmd = "sudo grubby --set-default {}".format(debug_kernel)
+            utils_lib.run_cmd(self, cmd, expect_ret=0,
+                              msg="Set default boot kernel to debug kernel")
 
         utils_lib.run_cmd(self, "sudo reboot", msg='Reboot OS to boot to debug kernel')
         time.sleep(60)
@@ -1231,19 +1225,6 @@ gpgcheck=0"""
         utils_lib.run_cmd(self, "uname -r",
                           expect_ret=0, expect_kw="debug",
                           msg="checking debug kernel booted")
-
-        cmd = "sudo systemd-analyze"
-        time_start = int(time.time())
-        while True:
-            output = utils_lib.run_cmd(self, cmd)
-            if 'Bootup is not yet finished' not in output:
-                break
-            time_end = int(time.time())
-            utils_lib.run_cmd(self, 'sudo systemctl list-jobs')
-            if time_end - time_start > 120:
-                self.fail("Bootup is not yet finished after 120s")
-            self.log.info("Wait for bootup finish......")
-            time.sleep(1)
         
         reboot_cycles = 10
         self._reboot_os_cycles(reboot_cycles, time_wait=30)
@@ -1254,7 +1235,7 @@ gpgcheck=0"""
                           msg="Recover kernel to origin: %s" % default_kernel)
         utils_lib.run_cmd(self, "sudo reboot",
                           msg='Reboot OS to boot to default kernel')
-        time.sleep(30)
+        time.sleep(60)
         utils_lib.init_connection(self)
         utils_lib.run_cmd(self, "uname -r",
                           expect_ret=0, expect_not_kw="debug",

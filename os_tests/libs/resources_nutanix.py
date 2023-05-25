@@ -896,7 +896,7 @@ class NutanixVM(VMResource):
             res = self.prism.migrate_vm(self.data.get('uuid'))
         if wait:
             self.wait_for_status(
-                res['taskUuid'], 600,
+                res['taskUuid'], 300,
                 "Timed out waiting for VM to complete migration.")
         self._data = None
 
