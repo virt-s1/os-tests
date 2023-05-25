@@ -111,7 +111,7 @@ def main():
                     log.info("Cannot handle ts discovered:{}".format(ts2))
                     log.info(err)
     # sort cases following the patterns specified order
-    if test_patterns:
+    if test_patterns and 'case_name' in args.filter_by:
         sorted_tests = []
         for pattern in test_patterns.split(','):
             for case in tests_list:

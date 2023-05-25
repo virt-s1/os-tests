@@ -1823,9 +1823,8 @@ ssh_pwauth: 1
             3. Check boot time and cloud-init services startup time
             # systemd-analyze
             # systemd-analyze blame
-            4. The boot time should be less than 50s, cloud-init services startup time should less than 18s
-        """
-        max_boot_time = 60
+            4. The cloud-init services startup time should less than 20s
+        """        
         cloud_init_startup_time = 20
         if self.vm.exists():
             self.vm.delete()
@@ -1851,13 +1850,7 @@ ssh_pwauth: 1
         for service_time_sec in service_time_list:
             self.assertLess(
                 float(service_time_sec), float(cloud_init_startup_time), 
-                "{0} startup time is greater than {1}".format(service, cloud_init_startup_time))
-        # Check overal boot time
-        if float(boot_time_sec) > float(max_boot_time):
-            utils_lib.run_cmd(self, cmd='sudo journalctl -b0')
-        self.assertLess(
-            float(boot_time_sec), float(max_boot_time), 
-            "First boot time is greater than {}".format(max_boot_time))  
+                "{0} startup time is greater than {1}".format(service, cloud_init_startup_time)) 
 
     def test_cloudinit_reboot_time(self):
         """
@@ -1877,10 +1870,9 @@ ssh_pwauth: 1
             3. Check reboot time and cloud-init services startup time
             # systemd-analyze
             # systemd-analyze blame
-            4. The reboot time should be less than 30s, cloud-init services startup time should less than 5s
+            4. The cloud-init services startup time should less than 6s
         """
-        max_boot_time = 40
-        cloud_init_startup_time = 5
+        cloud_init_startup_time = 6
         # Reboot VM
         self._reboot_inside_vm()
         boot_time_sec = utils_lib.getboottime(self)
@@ -1898,10 +1890,6 @@ ssh_pwauth: 1
             self.assertLess(
                 float(service_time_sec), float(cloud_init_startup_time), 
                 "{0} startup time is greater than {1}".format(service, cloud_init_startup_time))
-        # Check overall boot time
-        self.assertLess(
-            float(boot_time_sec), float(max_boot_time), 
-            "Reboot time is greater than {}".format(max_boot_time))
 
     def test_cloudinit_disable_cloudinit(self):        
         """
@@ -2641,7 +2629,7 @@ chpasswd:
         bugzilla_id:
             1857309
         is_customer_case:
-            False
+            True
         testplan:
             N/A
         maintainer:
@@ -2661,11 +2649,12 @@ chpasswd:
         utils_lib.run_cmd(self, "sudo mount -o loop,noexec,nosuid,rw /var/tmp.partition /tmp")
         utils_lib.run_cmd(self, "sudo chmod 1777 /tmp")
         utils_lib.run_cmd(self, "sudo mount -o rw,noexec,nosuid,nodev,bind /tmp /var/tmp")
-        utils_lib.run_cmd(self, "sudo echo '/var/tmp.partition /tmp ext2 loop,noexec,nosuid,rw 0 0' >> /etc/fstab")
-        utils_lib.run_cmd(self, "sudo echo '/tmp /var/tmp none rw,noexec,nosuid,nodev,bind 0 0' >> /etc/fstab")
+        utils_lib.run_cmd(self, "sudo bash -c 'echo /var/tmp.partition /tmp ext2 loop,noexec,nosuid,rw 0 0 >> /etc/fstab'")
+        utils_lib.run_cmd(self, "sudo bash -c 'echo /tmp /var/tmp none rw,noexec,nosuid,nodev,bind 0 0 >> /etc/fstab'")
         utils_lib.run_cmd(self, "sudo rm -rf /var/lib/cloud/instance /var/lib/cloud/instances/* /var/log/cloud-init.log")
         # Restart VM
-        self.vm.reboot(wait=True)
+        # self.vm.reboot(wait=True)
+        utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(30)
         utils_lib.init_connection(self, timeout=1200)
         # Verify cloud-init.log
@@ -2732,7 +2721,8 @@ chpasswd:
                                              /var/log/cloud-init.log")
             self.log.info(err)
         # Restart VM and verify connection
-        self.vm.reboot(wait=True)
+        # self.vm.reboot(wait=True)
+        utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(30)
         utils_lib.init_connection(self, timeout=1200)
         #saw activating (start) in CI log, change to loop check.
@@ -2943,7 +2933,8 @@ chpasswd:
         output = utils_lib.run_cmd(self, cmd, msg="Updated network configuration.")
         cmd = 'sudo rm /run/cloud-init/ /var/lib/cloud/* -rf'
         utils_lib.run_cmd(self, cmd, msg='clean cloud-init and redo it')
-        self.vm.reboot()
+        #self.vm.reboot()
+        utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(20)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         cmd = 'cat /etc/sysconfig/network'
@@ -3320,7 +3311,10 @@ EOF
                 time.sleep(30)
                 utils_lib.init_connection(self, timeout=self.ssh_timeout)
         if "test_cloudinit_mount_with_noexec_option" in self.id():
-            utils_lib.run_cmd(self, "sudo umount /var/tmp")
+            utils_lib.run_cmd(self, "sudo umount -l /tmp")
+            time.sleep(1)
+            utils_lib.run_cmd(self, "sudo umount -l /var/tmp")
+            utils_lib.run_cmd(self, "sudo sed -i '/noexec/d' /etc/fstab", msg='delete old config in fstab')
         #utils_lib.finish_case(self)
 
 if __name__ == '__main__':

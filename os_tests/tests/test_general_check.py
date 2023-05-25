@@ -38,7 +38,8 @@ class TestGeneralCheck(unittest.TestCase):
                 cmd = 'sudo cp -f {} {}'.format(check_file,check_file_tmp)
                 utils_lib.run_cmd(self, cmd)
             check_file = check_file_tmp
-            utils_lib.run_cmd(self, 'sudo chmod 755 {}'.format(check_file_tmp))
+            utils_lib.run_cmd(self, 'sudo chmod 755 {}'.format(check_file))
+            utils_lib.run_cmd(self, 'sudo ls -l {}'.format(check_file))
             self.systemd_analyze_verify_file = '/tmp/{}_systemd_analyze_verify.log'.format(self.run_uuid)
             cmd = 'sudo bash -c "{} {}"'.format(check_file, self.systemd_analyze_verify_file)
             output = utils_lib.run_cmd(self, cmd, timeout=240, msg="start analyze......")
@@ -1695,7 +1696,7 @@ in cmdline as bug1859088")
         subsystem_team:
             sst_virtualization_cloud
         automation_drop_down:
-            Automated
+            automated
         linked_work_items:
             N/A
         automation_field:
@@ -1715,7 +1716,7 @@ in cmdline as bug1859088")
         test_type:
             Functional
         test_level:
-            Component
+            component
         maintainer:
             xiliang@redhat.com
         description: |
