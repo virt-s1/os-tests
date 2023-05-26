@@ -433,17 +433,14 @@ def extra_step_parser(test_instance, extra_steps=None):
             run_cmd(test_instance, cmd="sudo chmod 777 {}".format(rmt_file), msg='add execute permission')
             run_cmd(test_instance, cmd="sudo {} {}".format(rmt_file, cmd_options), timeout=exe_timout, msg='run the script')
         else:
-            if 'fips_enable' in extra_case_setup:
-                fips_enable(test_instance)
-            elif 'fips_disable' in extra_case_setup:
-                fips_disable(test_instance)
-            elif 'debugkernel_enable' in extra_case_setup:
-                debugkernel_enable(test_instance)
-            elif 'debugkernel_disable' in extra_case_setup:
-                debugkernel_disable(test_instance)
-            elif 'collect_kmemleak' in extra_case_setup:
-                 collect_kmemleak(test_instance)
-            else:
+            funcs = [fips_enable,fips_disable,debugkernel_enable,debugkernel_disable,collect_kmemleak]
+            is_func = False
+            for func in funcs:
+                if func.__name__ in extra_case_setup:
+                    is_func = True
+                    test_instance.log.info("call {}".format(func.__name__))
+                    func(test_instance)
+            if not is_func:
                 run_cmd(test_instance, cmd=extra_case_setup, timeout=exe_timout, msg='run the {} content as command'.format(extra_case_setup))
 
 def filter_case_doc(case=None, patterns=None, skip_patterns=None, filter_field='case_name', strict=False, verify_doc=False ):
@@ -1737,8 +1734,10 @@ def collect_kmemleak(test_instance=None):
     '''
     collect memory leak in debug kernel with 'kmemleak=on'
     '''
-    run_cmd(test_instance, 'uname -r', expect_kw='debug')
-    run_cmd(test_instance, 'cat /proc/cmdline', expect_kw='kmemleak=on')
+    out = run_cmd(test_instance, 'cat /proc/cmdline')
+    if 'debug' not in out or 'kmemleak=on' not in out:
+        test_instance.log.info('collect_kmemleak requires debug kernel with kmemleak=on')
+        return False
 
     cmd = 'sudo bash -c "echo scan > /sys/kernel/debug/kmemleak"'
     run_cmd(test_instance, cmd, expect_ret=0, timeout=1800)
