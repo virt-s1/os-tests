@@ -1246,9 +1246,10 @@ COMMIT
             libhe@redhat.com
         description:
             Install libfabric package and check if EFA provider exist in EFA-enabled instance
-        key_steps:
+        key_steps: |
             1.# sudo yum install libfabric
             2.# fi_info -p efa
+            3.# fi_pingpong -e rdm -p efa -I 100 & sleep 2; fi_pingpong -e rdm -p efa localhost -I 100
         expect_result:
             libfabric package is installed successfully and fi_info command should return information about the Libfabric EFA interfaces.
         debug_want:
@@ -1263,6 +1264,8 @@ COMMIT
             if utils_lib.is_pkg_installed(self,'libfabric'):
                 cmd = 'fi_info -p efa'
                 utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw="provider: efa", msg='Check the Libfabric EFA interfaces')
+                cmd = "sudo  bash -c 'fi_pingpong -e rdm -p efa -I 100 & sleep 2; fi_pingpong -e rdm -p efa localhost -I 100'"
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg='run pingpong test')
 
     @unittest.skipUnless(os.getenv('INFRA_PROVIDER') == 'aws', 'aws dedicated feature')        
     def test_load_unload_efa_driver(self):

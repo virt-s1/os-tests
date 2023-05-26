@@ -154,7 +154,7 @@ current_clocksource'
         case_tags:
             kernel
         case_status:
-            Approved
+            approved
         title:
             simple case to offline, online cpu without workload
         importance:
@@ -180,7 +180,7 @@ current_clocksource'
         testplan:
             N/A
         test_type:
-            Functional
+            functional
         test_level:
             component
         maintainer:
@@ -1166,7 +1166,7 @@ if __name__ == "__main__":
         testplan:
             N/A
         test_type:
-            Functional
+            functional
         test_level:
             component
         maintainer:
@@ -1270,7 +1270,7 @@ if __name__ == "__main__":
         testplan:
             N/A
         test_type:
-            Functional
+            functional
         test_level:
             component
         maintainer:
@@ -1327,7 +1327,7 @@ if __name__ == "__main__":
         testplan:
             N/A
         test_type:
-            Functional
+            functional
         test_level:
             component
         maintainer:
