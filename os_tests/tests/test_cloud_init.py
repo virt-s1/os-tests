@@ -3309,7 +3309,12 @@ EOF
                 self.vm.second_nic_id = None
                 self.vm.create()
                 time.sleep(30)
-                utils_lib.init_connection(self, timeout=self.ssh_timeout)        
+                utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        if "test_cloudinit_mount_with_noexec_option" in self.id():
+            utils_lib.run_cmd(self, "sudo umount -l /tmp")
+            time.sleep(1)
+            utils_lib.run_cmd(self, "sudo umount -l /var/tmp")
+            utils_lib.run_cmd(self, "sudo sed -i '/noexec/d' /etc/fstab", msg='delete old config in fstab')
         #utils_lib.finish_case(self)
 
 if __name__ == '__main__':
