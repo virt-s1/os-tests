@@ -11,7 +11,7 @@
     "msg_2": {
         "content": "acpi PNP0A03:00: fail to add MMCONFIG information, can't access extended PCI configuration space under this bridge.",
         "analyze": "The messages in question indicate that OS is disabling ASPM as the BIOS doesn't support ASPM.d",
-        "branch": "rhel7,rhel8",
+        "branch": "rhel7,rhel8,rhel9",
         "status": "active",
         "link": "https://access.redhat.com/solutions/4057221",
         "path": "dmesg or journal",
@@ -245,7 +245,7 @@
     "msg_29": {
         "content": "augenrules[681]: failure 1",
         "analyze": "information only",
-        "branch": "rhel8,rhel7",
+        "branch": "rhel7,rhel8,rhel9",
         "status": "active",
         "link": "https://access.redhat.com/solutions/3343401",
         "path": "journal",
@@ -1555,5 +1555,131 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2034588",
         "path": "journal",
         "trigger": "nutanix_ahv"
+    },
+    "msg_175": {
+        "content": "gnome-shell[*]: Realizing HW cursor failed: drmModeAddFB does not support format 'AR24' (0x34325241)",
+        "analyze": "Known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2065045",
+        "path": "journal",
+        "trigger": "nutanix_ahv"
+    },
+    "msg_176": {
+        "content": "gnome-shell[*]: drmModeSetCursor2 failed with (No such device or address), drawing cursor with OpenGL from now on",
+        "analyze": "Known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2065045",
+        "path": "journal",
+        "trigger": "nutanix_ahv"
+    },
+    "msg_177": {
+        "content": "Host name conflict, retrying with linux-*",
+        "analyze": "Known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/41198",
+        "path": "journal",
+        "trigger": "nutanix_ahv"
+    },
+    "msg_178": {
+        "content": "pulseaudio[*]: Failed to open cookie file *: No such file or directory",
+        "analyze": "The output of this message when logging in to the GUI environment for the first time is the expected operation",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/4853421",
+        "path": "journal",
+        "trigger": "nutanix_ahv"
+    },
+    "msg_179": {
+        "content": "pulseaudio[*]: Failed to load authentication key *: No such file or directory",
+        "analyze": "The output of this message when logging in to the GUI environment for the first time is the expected operation",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/4853421",
+        "path": "journal",
+        "trigger": "nutanix_ahv"
+    },
+    "msg_180": {
+        "content": "MESA-LOADER: failed to open bochs-drm: /usr/lib64/dri/bochs-drm_dri.so: cannot open shared object file: No such file or directory (search paths /usr/lib64/dri, suffix _dri)",
+        "analyze": "Known issus",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/4853421",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_181": {
+        "content": "Failed to initialize glamor, falling back to sw",
+        "analyze": "Known issus",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2044212, https://bugzilla.redhat.com/show_bug.cgi?id=2150212",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_182": {
+        "content": "Failed to initialize accelerated iGPU/dGPU framebuffer sharing: Do not want to use software renderer (llvmpipe (LLVM 16.0.1, 256 bits)), falling back to CPU copy path",
+        "analyze": "Known issus",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2044212, https://bugzilla.redhat.com/show_bug.cgi?id=2150212",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_183": {
+        "content": "Failed to grab accelerator for keybinding settings:hibernate",
+        "analyze": "Known issus",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2044212, https://bugzilla.redhat.com/show_bug.cgi?id=2150212",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_184": {
+        "content": "Failed to grab accelerator for keybinding settings:playback-repeat",
+        "analyze": "Known issus",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2044212, https://bugzilla.redhat.com/show_bug.cgi?id=2150212",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_185": {
+        "content": "Failed to StopUnit service: GDBus.Error:org.freedesktop.DBus.Error.Spawn.ChildExited: Process org.freedesktop.systemd1 exited with status 1",
+        "analyze": "Known issus",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2044212, https://bugzilla.redhat.com/show_bug.cgi?id=2150212",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_186": {
+        "content": "Activated service 'org.freedesktop.systemd1' failed: Process org.freedesktop.systemd1 exited with status 1",
+        "analyze": "Known issus",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2044212, https://bugzilla.redhat.com/show_bug.cgi?id=2150212",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_187": {
+        "content": "org.gnome.Shell.desktop[*]: > Warning:*Unsupported maximum keycode *, clipping.",
+        "analyze": "Known issus",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2044212, https://bugzilla.redhat.com/show_bug.cgi?id=2150212",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_188": {
+        "content": "rtkit-daemon[*]: Failed to make ourselves RT: Operation not permitted",
+        "analyze": "Known issus",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1965090",
+        "path": "journal",
+        "trigger": ""
     }
 }
