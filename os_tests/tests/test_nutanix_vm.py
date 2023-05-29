@@ -1544,8 +1544,9 @@ sudo systemctl set-default multi-user.target"
         debug_want:
             N/A
         """
-        TestNutanixVM.vm_vgpu_driver = False
-        supported_release = ["8.6", "8.7", "8.8"]
+        TestNutanixVM.vm_vgpu_driver = False        
+        supported_release = ["8.6", "8.7", "8.8", "8.9",
+                             "9.0", "9.1"]
         rhel_release = utils_lib.get_product_id(self).rstrip()
         if rhel_release not in supported_release:
             self.skipTest("Skip test as RHEL%s is not supported" % rhel_release)
@@ -1555,31 +1556,25 @@ sudo systemctl set-default multi-user.target"
         
         rpm_pkgs = ["make", "gcc", "gcc-c++",
                     "kernel-headers-$(uname -r)", "kernel-devel-$(uname -r)",
-                    "elfutils-libelf-devel"]
+                    "elfutils-libelf-devel", "freeglut", "freeglut-devel",
+                    "libXi-devel", "libXmu-devel"]
         for rpm_pkg in rpm_pkgs:
             utils_lib.is_pkg_installed(self, pkg_name=rpm_pkg, cancel_case=True)
 
-        ftp_url = self.vm.params['vGPU']['ftp_url']
-        if not ftp_url:
-            self.skipTest("Skip test as no ftp url specified in nutanix.yaml")
-        software_version = self.vm.params['vGPU']['software_version']
-        if not software_version:
-            self.skipTest("Skip test as no software version specified in nutanix.yaml")
-        driver_file = self.vm.params['vGPU']['driver_file']
-        if not driver_file:
-            self.skipTest("Skip test as no driver file specified in nutanix.yaml")
+        driver_url = self.vm.params['vGPU']['driver_url']
+        if not driver_url:
+            self.skipTest("Skip test as no driver url specified in nutanix.yaml")
+        driver_file = driver_url[driver_url.rfind("/")+1:]
         driver_version = driver_file.split("-")[3]
 
-        cmd = "sudo wget -nv --directory-prefix=/tmp %s/driver/%s/%s" % (ftp_url, software_version, driver_file)
+        cmd = "sudo wget -nv --directory-prefix=/tmp %s" % (driver_url)
         utils_lib.is_cmd_exist(self, cmd="wget", cancel_case=True)
         utils_lib.run_cmd(self, cmd, expect_ret=0,
                           msg="Download vGPU driver from ftp server.")
 
         cmd = "sudo chmod +x /tmp/%s && \
 sudo /tmp/%s --no-opengl-files --accept-license --install-compat32-libs --silent" % (driver_file, driver_file)
-        utils_lib.run_cmd(self, cmd,
-                          msg="Install the NVIDIA driver",
-                          timeout=300)
+        utils_lib.run_cmd(self, cmd, msg="Install the NVIDIA driver", timeout=600)
 
         utils_lib.run_cmd(self, "sudo reboot", msg="Reboot to take effects")
         utils_lib.init_connection(self)
