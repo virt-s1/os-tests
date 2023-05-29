@@ -1681,5 +1681,68 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1965090",
         "path": "journal",
         "trigger": ""
+    },
+    "msg_189": {
+        "content": "wireplumber[*]: Failed to set scheduler settings: Operation not permitted",
+        "analyze": "This is because the user does not have the right permissions to set the nice level of wireplumber, it's harmless.",
+        "branch": "rhel9",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2059874, https://gitlab.freedesktop.org/pipewire/wireplumber/-/issues/255",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_190": {
+        "content": "Can't find org.freedesktop.portal.Desktop. Is xdg-desktop-portal running?",
+        "analyze": "This messages are just a warning, see: https://gitlab.freedesktop.org/pipewire/pipewire/-/issues/3194",
+        "branch": "rhel9",
+        "status": "active",
+        "link": "",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_191": {
+        "content": "wireplumber[*]: SPA handle 'api.libcamera.enum.manager' could not be loaded; is it installed?",
+        "analyze": "Known issue",
+        "branch": "rhel9",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2210684",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_192": {
+        "content": "wireplumber[*]: GetManagedObjects() failed: org.freedesktop.DBus.Error.NameHasNoOwner",
+        "analyze": "Known issue",
+        "branch": "rhel9",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2210684",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_193": {
+        "content": "nvidia: module verification failed: signature and/or required key missing - tainting kernel",
+        "analyze": "NVIDIA vGPU driver don't have signature in before GA",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "dmesg,journal",
+        "trigger": "nutanix_ahv"
+    },
+    "msg_194": {
+        "content": "/usr/libexec/gdm-wayland-session[*]: dbus[*]: Unable to set up transient service directory: XDG_RUNTIME_DIR subdirectory * not available: Permission denied",
+        "analyze": "This messages are from SELinux, see: https://bugzilla.redhat.com/show_bug.cgi?id=2024211",
+        "branch": "rhel8",
+        "status": "active",
+        "link": "",
+        "path": "journal",
+        "trigger": "nutanix_ahv"
+    },
+    "msg_195": {
+        "content": "dbus-broker[*]: A security policy denied :* to send method call /org/freedesktop/PackageKit:org.freedesktop.DBus.Properties.GetAll to :*",
+        "analyze": "This messages are from SELinux, see: https://bugzilla.redhat.com/show_bug.cgi?id=1949712",
+        "branch": "rhel9",
+        "status": "active",
+        "link": "",
+        "path": "journal",
+        "trigger": "nutanix_ahv"
     }
 }
