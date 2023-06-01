@@ -476,8 +476,15 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         utils_lib.run_cmd(self, cmd, msg='append empty DenyUsers filed')
         cmd = "sudo cloud-init clean"
         utils_lib.run_cmd(self, cmd, msg='clean cloud-init')
+        data_source_cmd = '''cat /run/cloud-init/instance-data.json | grep -E '"platform' | grep -v Linux'''
+        data_source = utils_lib.run_cmd(self, data_source_cmd, msg='check data source type')
+        if re.search('configdrive', data_source):
+            utils_lib.run_cmd(self, 'sudo cloud-init init --local')
         cmd = "sudo cloud-init init"
         utils_lib.run_cmd(self, cmd, msg='init cloud-init again')
+        if re.search('configdrive', data_source):
+            utils_lib.run_cmd(self, 'sudo cloud-init modules --mode config')
+            utils_lib.run_cmd(self, 'sudo cloud-init modules --mode final')
         cmd = 'sudo cp -f /etc/ssh/sshd_config.bak /etc/ssh/sshd_config'
         utils_lib.run_cmd(self, cmd, msg='restore /etc/ssh/sshd_config')  
         utils_lib.run_cmd(self,
@@ -927,7 +934,7 @@ EOF""".format(device, size), expect_ret=0)
             N/A
         """
         utils_lib.run_cmd(self,"sudo chmod 777 /tmp/%s" % self.vm.vm_custom_file)
-        res = utils_lib.run_cmd(self,"sudo /tmp/%s cloud-init" % self.vm.vm_custom_file)
+        res = utils_lib.run_cmd(self,"sudo /tmp/%s cloud-init" % self.vm.vm_custom_file, timeout=240)
         self.assertIn("13x OK", res, "man-page-day.sh check failed.")
 
     @unittest.skipIf(os.getenv('INFRA_PROVIDER') != 'nutanix', 'needs to configure single_nic which is configured on nutanix')
@@ -1330,7 +1337,11 @@ EOF""".format(device, size), expect_ret=0)
                           expect_ret=0,
                           expect_kw=keyfiles, 
                           msg='Check if change sshd_config successful')
-        utils_lib.run_cmd(self, "sudo systemctl restart sshd")
+        sshd_restart = utils_lib.run_cmd(self, "sudo systemctl restart sshd")
+        #Met fail once in automation debug, add debug and re-try command
+        if re.search('failed', sshd_restart, re.I):
+            utils_lib.run_cmd(self, "journalctl -xeu sshd.service")
+            utils_lib.run_cmd(self, "sudo systemctl restart sshd", msg="Start sshd again if failed.")
         # 2. Remove cc_ssh flag and authorized_keys
         utils_lib.run_cmd(self, 
             "sudo rm -f /var/lib/cloud/instance/sem/config_ssh /home/{}/.ssh/authorized_keys".format(self.vm.vm_username))
