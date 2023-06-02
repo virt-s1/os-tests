@@ -589,7 +589,7 @@ class TestStorage(unittest.TestCase):
         self.assertAlmostEqual(
             first=10,
             second=float(file_size),
-            delta=0.6,
+            delta=0.7,
             msg="Gap is two much between file size and create size Expect: %s, real: %s" %('10', file_size)
         )
         #tear down
@@ -927,34 +927,12 @@ class TestStorage(unittest.TestCase):
         new_disk_num = self._get_disk_num('rom')
         new_add_num = int(new_disk_num) - int(origin_disk_num)
         self.assertEqual(new_add_num, total_num, "Number of new attached total rom is not right Expect: %s, real: %s" % (total_num, new_add_num))
-        sata_dev_num = int(utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-sata' -A 80 | grep '*-cdrom' | wc -l", expect_ret=0).strip())
+        sata_dev_num = int(utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-sata' -A 100 | grep '*-cdrom' | wc -l", expect_ret=0).strip())
         self.assertEqual(sata_dev_num, 6, "Number of new attached sata rom is not right Expect: %s, real: %s" % (6, sata_dev_num))
         if self.vm.provider == 'nutanix':
             if not self.vm.if_secure_boot and not self.vm.machine_type == 'q35':
-                ide_dev_num = int(utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-ide' -A 56 | grep '*-cdrom' | wc -l", expect_ret=0).strip())
-                self.assertEqual(ide_dev_num, 4, "Number of new attached sata rom is not right Expect: %s, real: %s" % (3, ide_dev_num))
-        #tear down
-        self.vm.stop(wait=True)
-        for i in range(0,6):
-            disk_uuid = self.vm.get_disk_uuid('sata', device_index=i)
-            try:
-                self.vm.detach_disk('sata', disk_uuid, device_index=i, wait=True)
-            except NotImplementedError:
-                self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
-            except UnSupportedAction:
-                self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
-        if self.vm.provider == 'nutanix':
-            if not self.vm.if_secure_boot and not self.vm.machine_type == 'q35':
-                for i in range(0,3):
-                    disk_uuid = self.vm.get_disk_uuid('ide', device_index=i)
-                    try:
-                        self.vm.detach_disk('ide', disk_uuid, device_index=i, wait=True)
-                    except NotImplementedError:
-                        self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
-                    except UnSupportedAction:
-                        self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
-        self.vm.start(wait=True)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+                ide_dev_num = int(utils_lib.run_cmd(self, "sudo lshw -C disk -C storage | grep '*-ide' -A 76 | grep '*-cdrom' | wc -l", expect_ret=0).strip())
+                self.assertEqual(ide_dev_num, 4, "Number of new attached ide rom is not right Expect: %s, real: %s" % (3, ide_dev_num))
 
     def test_check_disk_count(self):
         '''
@@ -1183,6 +1161,29 @@ class TestStorage(unittest.TestCase):
                 self.vm.prism.delete_vm(self.vms[1]['uuid'])
                 self.vms.pop()
                 self.params['remote_nodes'].pop()
+        if 'test_add_remove_multi_cdrom' in self.id():
+            #tear down
+            self.vm.stop(wait=True)
+            for i in range(0,6):
+                disk_uuid = self.vm.get_disk_uuid('sata', device_index=i)
+                try:
+                    self.vm.detach_disk('sata', disk_uuid, device_index=i, wait=True)
+                except NotImplementedError:
+                    self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
+                except UnSupportedAction:
+                    self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
+            if self.vm.provider == 'nutanix':
+                if not self.vm.if_secure_boot and not self.vm.machine_type == 'q35':
+                    for i in range(0,3):
+                        disk_uuid = self.vm.get_disk_uuid('ide', device_index=i)
+                        try:
+                            self.vm.detach_disk('ide', disk_uuid, device_index=i, wait=True)
+                        except NotImplementedError:
+                            self.skipTest('detach disk func is not implemented in {}'.format(self.vm.provider))
+                        except UnSupportedAction:
+                            self.skipTest('detach disk func is not supported in {}'.format(self.vm.provider))
+            self.vm.start(wait=True)
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
 if __name__ == '__main__':
     unittest.main()

@@ -1231,9 +1231,9 @@ if __name__ == "__main__":
         elif action == 'migration':
             self.vm.migrate()
         cmd = 'date +%s'
-        vm_date = utils_lib.run_cmd(self, cmd)
         host_date = utils_lib.send_ssh_cmd(self.vm.host_ip, self.vm.host_username, \
             self.vm.host_password, cmd)[1]
+        vm_date = utils_lib.run_cmd(self, cmd)
         delta = int(host_date) - int(vm_date)
         self.assertLessEqual(delta, 4, "delta shoud not bigger than 4 seconds")
 
