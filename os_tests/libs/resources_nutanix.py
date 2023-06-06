@@ -291,7 +291,8 @@ runcmd:
                     network_uuids.append({"network_uuid": network["uuid"]})
         data = {
             'boot': {
-                'uefi_boot': False
+                'uefi_boot': self.if_uefi_boot,
+                'secure_boot': self.if_secure_boot
             },
             'boot_device_type': 'CDROM',
             'memory_mb':
