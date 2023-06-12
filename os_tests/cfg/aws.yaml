@@ -16,6 +16,8 @@ username: ec2-user
 tagname : os_tests_aws
 # optional(imdsv1 and v2)|required(imdsv2 only)
 httptokens : optional
+# default root volume setting
+volume_size : 10
 # you can pass multipe info seperated by ';', if one cannot start instance, will use anothers
 # "ignore-no-launches=true,target-droplet=$ip;ignore-no-launches=true,target-droplet=$ip"
 # additionalinfo : xxxx
