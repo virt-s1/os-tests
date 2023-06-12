@@ -164,9 +164,9 @@ class TestRHELCert(unittest.TestCase):
         for cmd in cmds:
             utils_lib.run_cmd(self,cmd, timeout=180)
         cmd = 'sudo bash -c "yes|rhcert-cli plan"'
-        utils_lib.run_cmd(self,cmd, timeout=1800, msg='create test plan')
+        utils_lib.run_cmd(self,cmd, timeout=3600, msg='create test plan')
         cmd = 'sudo bash -c "yes|rhcert-cli run --tag non-interactive"'
-        utils_lib.run_cmd(self,cmd, timeout=3600, msg='start to run non-interactive cert test')
+        utils_lib.run_cmd(self,cmd, timeout=7200, msg='start to run non-interactive cert test')
         self._wait_cert_done()
         self.is_cert_done = True
 

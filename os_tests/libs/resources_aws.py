@@ -74,6 +74,7 @@ class EC2VM(VMResource):
         self.hibernation_support = False
         # efa_support default set to False, will query instance property next
         self.efa_support = False
+        self.volume_size = params.get('volume_size') or 10
 
     def show(self):
         if self.is_exist():
@@ -105,17 +106,17 @@ class EC2VM(VMResource):
         except Exception as error:
             LOG.info('Cannot determin root device name, use default {}'.format(self.root_device_name))
 
-        volume_size = 10
-        if self.hibernation_support:
+        if self.hibernation_support and self.volume_size < 20:
             # extend disk size to 20 in case no space to create swap
-            volume_size = 20
+            self.volume_size = 20
+            LOG.info('hibernation_support enabled, change volume size to {}'.format(self.volume_size))
         vm_kwargs = {
             'BlockDeviceMappings':[
                 {
                     'DeviceName': self.root_device_name,
                     'Ebs': {
                         'DeleteOnTermination': True,
-                        'VolumeSize': volume_size,
+                        'VolumeSize': self.volume_size,
                         # root disk must be encrypted when hibernation enabled
                         'Encrypted': self.hibernation_support
                     },
@@ -164,7 +165,7 @@ class EC2VM(VMResource):
                 LOG.info("efa is supported, but disable it as request")
         #vm_kwargs["EnclaveOptions"]["Enabled"] = True       
         if not self.additionalinfo:
-            for volume_size in [10,20,40,50]:
+            for volume_size in [20,40,50]:
                 LOG.info("Create instance {}".format(vm_kwargs))
                 try:
                     self.ec2_instance = self.resource.create_instances(**vm_kwargs)[0]

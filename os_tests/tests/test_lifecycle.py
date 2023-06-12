@@ -364,8 +364,14 @@ class TestLifeCycle(unittest.TestCase):
             2. Check if kdump is working and dump file will be generated
         expect_result:
             kdump is working and dump file will be generated
-        debug_want:
-            N/A
+        debug_want: |
+            If the kdump failed due to crashkernel is missing during upgrade/pkg installation, please provide below output before and after reboot system.
+            See rhbz#2212320
+            # cat /proc/cmdline
+            # cat /etc/kernel/cmdline
+            # cat /etc/default/grub
+            # cat /etc/sysconfig/kernel
+            # grubby --info DEFAULT
         '''
         utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
         product_id = utils_lib.get_product_id(self)

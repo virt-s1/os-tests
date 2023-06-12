@@ -1009,6 +1009,120 @@ COMMIT
                 utils_lib.compare_nums(self, perf_spec, sender_ipv4, expect_ratio, msg="Sender")
                 utils_lib.compare_nums(self, perf_spec, receiver_ipv4, expect_ratio, msg="Receiver")
 
+    def test_tcp_checksum_offload(self):
+        """
+        case_name:
+            test_tcp_checksum_offload
+        case_tags:
+            network
+        case_status:
+            approved
+        title:
+            TCP checksum offload check
+        importance:
+            low
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            automated
+        linked_work_items:
+            polarion_XXXX
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_network_test.py
+        setup_teardown:
+            N/A
+        environment:
+            N/A
+        component:
+            integration
+        bug_id:
+            bugzilla_2211258
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        test_type:
+            functional
+        test_level:
+           Component
+        maintainer:
+            xiliang@redhat.com
+        description: |
+            TCP checksum offload check
+        key_steps: |
+            # ethtool -k eth0|grep checksum
+            # yum install nmap-ncat or nc
+            # yum install kernel-modules-extra
+            # nc -l 2233 > data2 (node 2)
+            # nc ${IPv6/4 adress of guest2} 2233 < data1 (node 1)
+            # nc -6 fe80::215:5dff:fec4:172c%eth0 2233 < data1
+            # tc qdisc add dev eth0 root netem corrupt 1% (node 1)
+            # md5sum data2 == md5sum data1
+
+        expected_result: |
+            data2 and data1 has same md5sum
+        debug_want: |
+            # ethtool -i eth0
+        """
+        if self.vm and self.vm.provider == 'nutanix':
+            if len(self.vm.prism.list_hosts_detail()["entities"])==1:
+                self.skipTest('Need to test between VMs on different hosts')
+            if len(self.vms) == 1:
+                self._create_vm1()
+            vm1_host_uuid = self.vm.prism.get_vm_by_uuid(self.vms[1]['uuid'])['host_uuid']
+            if self.vms[0].vm_host_uuid() == vm1_host_uuid:
+                self.log.info('vm1 host uuid %s is same with vm2: %s, do migration' % (self.vms[0].vm_host_uuid(), vm1_host_uuid))
+                self.vm.migrate()
+            if self.vm.vm1_ip not in self.params['remote_nodes']:
+                self.params['remote_nodes'].append(self.vm.vm1_ip)
+        if len(self.vms) > 1 and self.vm.provider != 'nutanix':
+            if not self.vms[1].exists():
+                self.vms[1].create()
+            if self.vms[1].is_stopped():
+                self.vms[1].start(wait=True)
+            if self.vms[1].floating_ip and self.vms[1].floating_ip not in self.params['remote_nodes']:
+                self.params['remote_nodes'].append(self.vms[1].floating_ip)
+        if len(self.params['remote_nodes']) < 2:
+            self.skipTest("2 nodes required, current IP bucket:{}".format(self.params['remote_nodes']))
+        self.log.info("Current IP bucket:{}".format(self.params['remote_nodes']))
+        k_ver = utils_lib.run_cmd(self,'uname -r').strip('\n')
+        utils_lib.run_cmd(self,'sudo ethtool -k eth0|grep checksum')
+        if 'not found' in utils_lib.run_cmd(self,'modinfo sch_netem'):
+            utils_lib.is_pkg_installed(self,'kernel-modules-extra-{}'.format(k_ver))
+        utils_lib.is_cmd_exist(self,"nc")
+        utils_lib.is_cmd_exist(self,"tc")
+        utils_lib.init_connection(self, timeout=180, rmt_node=self.params['remote_nodes'][-1])
+        utils_lib.is_cmd_exist(self,"nc", rmt_node=self.params['remote_nodes'][-1])
+        utils_lib.is_cmd_exist(self,"tc", rmt_node=self.params['remote_nodes'][-1])
+        cmd = "ip addr show {}".format(self.active_nic )
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0, \
+            msg='try to get {} ipv4 address'.format(self.active_nic ),rmt_node=self.params['remote_nodes'][-1])
+        srv_ipv4 = re.findall('[\d.]{7,16}', output)[0]
+        testfile_s = "/tmp/test_tcp_checksum_offload_s.data"
+        testfile_c = "/tmp/test_tcp_checksum_offload_c.data"
+        for i in [False, True]:
+            nc_srv_cmd = 'sudo bash -c "nc -l 2233 > {} 2>&1 &"'.format(testfile_s)
+            utils_lib.run_cmd(self, nc_srv_cmd, rmt_node=self.params['remote_nodes'][-1])
+            cmd = "dd if=/dev/urandom of={} bs=1M count=500 status=progress".format(testfile_c)
+            utils_lib.run_cmd(self,cmd,timeout=300,msg='create a 500M file')
+            if i:
+                cmd = "sudo tc qdisc add dev eth0 root netem corrupt 1%"
+                utils_lib.run_cmd(self,cmd,expect_ret=0,msg='Test again with network corrupt 1%')
+            nc_cli_cmd = 'nc {} 2233 < {}'.format(srv_ipv4,testfile_c)
+            utils_lib.run_cmd(self, nc_cli_cmd, expect_ret=0, timeout=600)
+            utils_lib.run_cmd(self,'ls -lai {}'.format(testfile_c))
+            utils_lib.run_cmd(self,'ls -lai {}'.format(testfile_s),rmt_node=self.params['remote_nodes'][-1])
+            cmd = "md5sum {}".format(testfile_c)
+            md5_client = utils_lib.run_cmd(self, cmd).split(' ')[0]
+            cmd = "md5sum {}".format(testfile_s)
+            md5_server = utils_lib.run_cmd(self, cmd, rmt_node=self.params['remote_nodes'][-1]).split(' ')[0]
+            self.assertEqual(md5_client, md5_server)
+            utils_lib.run_cmd(self,'rm -rf {}'.format(testfile_c),msg='delete the test data file')
+            if i:
+                cmd = "sudo tc qdisc delete dev eth0 root netem corrupt 1%"
+                utils_lib.run_cmd(self,cmd,msg='remove network corrupt setting')
+            self.log.info("test {} tcp corrupt done".format(i and 'with' or 'without'))
+
     def test_unload_load_virtio(self):
         """
         case_tag:

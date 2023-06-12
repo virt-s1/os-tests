@@ -1002,7 +1002,7 @@ def is_metal(test_instance, action=None):
         test_instance.log.info("It is a bare metal instance.")
         return True
 
-def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False):
+def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False, rmt_node=None, vm=None):
     '''
     check cmd exists status, if no, try to install it.
     Arguments:
@@ -1011,7 +1011,7 @@ def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False):
         is_install {bool} -- try to install it or not
     '''
     cmd_check = "which %s" % cmd
-    ret = run_cmd(test_instance, cmd_check, ret_status=True)
+    ret = run_cmd(test_instance, cmd_check, ret_status=True, rmt_node=rmt_node, vm=vm)
     if ret == 0:
         return True
     else:
@@ -1020,9 +1020,9 @@ def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False):
         if cancel_case:
             test_instance.skipTest("Cancel it as {} not found".format(cmd))
         return False
-    arch = run_cmd(test_instance, 'uname -p').rstrip('\n')
+    arch = run_cmd(test_instance, 'uname -p',rmt_node=rmt_node, vm=vm).rstrip('\n')
     pkg_find = "sudo yum provides %s" % cmd
-    output = run_cmd(test_instance, pkg_find)
+    output = run_cmd(test_instance, pkg_find, rmt_node=rmt_node, vm=vm)
     for i in [arch, 'noarch']:
         pkg_list_tmp = re.findall(".*\.{}".format(i), output)
         pkg_list = [i for i in pkg_list_tmp if 'Repo' not in i]
@@ -1032,13 +1032,13 @@ def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False):
         test_instance.skipTest("Unable to install {}".format(cmd))
         return False
     pkg_list.sort(reverse=True)
-    out = run_cmd(test_instance, "sudo yum info {}".format(pkg_list[0]))
+    out = run_cmd(test_instance, "sudo yum info {}".format(pkg_list[0]), rmt_node=rmt_node, vm=vm)
     pkg_names = re.findall('Name.*',out)
     if len(pkg_names) > 0:
         pkg_name = pkg_names[0].split(':')[-1].strip(' ')
     else:
         test_instance.skipTest("Unable to retrive {} owned by which pkg".format(cmd))
-    run_cmd(test_instance, "sudo yum install -y {}".format(pkg_name), expect_ret=0, timeout=720)
+    run_cmd(test_instance, "sudo yum install -y {}".format(pkg_name), expect_ret=0, timeout=720, rmt_node=rmt_node, vm=vm)
     return True
 
 def is_pkg_installed(test_instance, pkg_name=None, is_install=True, cancel_case=False, timeout=120):
