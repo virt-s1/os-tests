@@ -183,9 +183,7 @@ class PrismApi(PrismSession):
         user_data_ssh_key = '''\
 disable_root: false
 lock_passwd: false%s%s
-runcmd:
-- sed -i "/PermitRootLogin prohibit/c\PermitRootLogin yes" /etc/ssh/sshd_config
-- systemctl restart sshd\n''' % (
+runcmd:\n''' % (
             ssh_pwauth, ssh_key)
         user_data += user_data_ssh_key+'- mkdir /tmp/userdata_{}\n'.format(self.run_uuid)
         user_data += '''- [ sh, -xc, "echo $(date) ': hello today!'" ]'''
@@ -289,6 +287,10 @@ runcmd:
             for network in self.list_networks_detail()["entities"]:
                 if network["uuid"] != self.network_uuid:
                     network_uuids.append({"network_uuid": network["uuid"]})
+        if self.machine_type == 'q35':
+            cdrom_bus = 'sata'
+        else:
+            cdrom_bus = 'ide'
         data = {
             'boot': {
                 'uefi_boot': self.if_uefi_boot,
@@ -306,26 +308,32 @@ runcmd:
             'timezone':
             'UTC',
             'vm_disks': [{
+                'disk_address': {
+			        'device_bus': cdrom_bus
+		        },
                 'is_cdrom': True,
                 'is_empty': False,
                 'is_scsi_pass_through': True,
                 'is_thin_provisioned': False,
                 'vm_disk_clone': {
                     'disk_address': {
-                        'device_bus': 'ide',
+                        'device_bus': cdrom_bus,
                         'device_index': 0,
                         'vmdisk_uuid': vmdisk_uuid[0]
                     }
                 }
             },
             {
+                'disk_address': {
+			        'device_bus': cdrom_bus
+		        },
                 'is_cdrom': True,
                 'is_empty': False,
                 'is_scsi_pass_through': True,
                 'is_thin_provisioned': False,
                 'vm_disk_clone': {
                     'disk_address': {
-                        'device_bus': 'ide',
+                        'device_bus': cdrom_bus,
                         'device_index': 1,
                         'vmdisk_uuid': vmdisk_uuid[1]
                     },
@@ -341,9 +349,10 @@ runcmd:
                     'storage_container_uuid': self.storage_container_uuid
                 }
             }],
-            'vm_nics': network_uuids
+            'vm_nics': network_uuids,
+            'machine_type': self.machine_type
         }
-        logging.debug("data is " + str(data))
+        logging.info("data for creating iso vm is " + str(data))
         return self.make_request(endpoint, 'post', data=data)
         
     def delete_vm(self, vm_uuid):
