@@ -1797,6 +1797,86 @@ COMMIT
                 self.fail("expected 2nd ip {} not removed from guest".format(self.vm.another_ip))
             time.sleep(25)
 
+    def test_network_device_hotplug_multi(self):
+        """
+        case_tag:
+            network
+        case_name:
+            test_network_device_hotplug_multi
+        case_file:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_network_test.py
+        component:
+            network
+        bugzilla_id:
+            2207812
+        is_customer_case:
+            True
+        testplan:
+            N/A
+        maintainer:
+            libhe@redhat.com
+        description:
+            Test hotplug multiple network interface to RHEL.
+        key_steps: |
+            1. Launch an instance.
+            2. Attach multiple network interfaces to the instance, check the network appears in guest, e.g., "$ sudo lspci", "$ sudo ip addr show".
+            3. Detach the network interfaces from the instance, check the network disappears in guest again.
+            4. Check network connection
+            5. Check dmesg log of the instance.
+        expect_result: |
+            When multiple network interfaces are attached in step 2, there are multiple Elastic Network Adapters displays in PCI devices, and the IP address are auto assigned to the device.
+            When multiple network interfaces are detached in step 3, there are 1 Elastic Network Adapters displays in PCI devices, and only 1 NIC displays when showing ip information.
+            No crash or panic in system, no related error message or call trace in dmesg.
+            No network connection lost when attach network interfaces 
+        debug_want: |
+            network driver type and version
+            nm-cloud-setup
+            dmesg
+        """
+        if not self.nics:
+            self.skipTest('nic device not init')
+        i = 1
+        for nic in self.nics: 
+            try:
+                if not nic.is_exist():
+                    if not nic.create():
+                        self.fail("network interface create failed")
+            except NotImplementedError:
+                self.skipTest('nic create func is not implemented in {}'.format(self.vm.provider))
+            except UnSupportedAction:
+                self.skipTest('nic create func is not supported in {}'.format(self.vm.provider)) 
+
+            cmd = "ip -o link show|wc -l"
+            nic_num_1 = utils_lib.run_cmd(self,cmd)
+            utils_lib.run_cmd(self,'ip rule show')
+
+            self.vm.attach_nic(nic, device_index=i, wait=True)
+            i = i + 1
+            
+            for j in range(1, 4):
+                time.sleep(5)
+                self.log.info('Check network in guest, loop {}'.format(j))
+                utils_lib.run_cmd(self, 'lspci')
+                utils_lib.run_cmd(self, 'ip addr show')
+                nic_num_2 = utils_lib.run_cmd(self, cmd)
+                if nic_num_2 == nic_num_1:
+                    self.log.info("Added nic not found")
+
+            utils_lib.run_cmd(self,'ip rule show')
+            time.sleep(60)
+            if utils_lib.init_connection(self,timeout=60):
+                self.log.info("Network connection is live when attach NO.{} network interface.".format(i))
+
+        for nic in self.nics:
+            self.vm.detach_nic(nic)
+            utils_lib.run_cmd(self, 'lspci')
+            utils_lib.run_cmd(self, 'ip addr show')
+            
+        self.assertGreater(nic_num_2,nic_num_1,msg='New added network device not found after attached nic')
+        cmd = 'dmesg'
+        utils_lib.run_cmd(self, cmd, expect_not_kw='Call Trace')
+
+
     def tearDown(self):
         utils_lib.finish_case(self)
         if 'test_mtu_min_max_set' in self.id():

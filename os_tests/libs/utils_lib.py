@@ -91,7 +91,7 @@ def init_provider(params=None):
         # init resources only without create them at very beginning
         vms.extend([EC2VM(params),EC2VM(params)])
         disks.append(EC2Volume(params))
-        nics.append(EC2NIC(params))
+        nics.extend([EC2NIC(params),EC2NIC(params),EC2NIC(params),EC2NIC(params)])
     if 'openstack' in provider:
         from .resources_openstack import OpenstackVM
         vms.append(OpenstackVM(params))
