@@ -906,7 +906,7 @@ class EC2NIC(NetworkResource):
         except Exception as err:
             LOG.error("NIC cannot attach to %s error %s" % (instance_id, err))
             return False
-
+            
     def detach_from_instance(self, instance_id, wait=True, force=False):
         """Detach nic from instance as $device_name
 

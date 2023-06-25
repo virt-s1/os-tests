@@ -1835,6 +1835,7 @@ COMMIT
         """
         if not self.nics:
             self.skipTest('nic device not init')
+        
         i = 1
         for nic in self.nics: 
             try:
@@ -1844,21 +1845,24 @@ COMMIT
             except NotImplementedError:
                 self.skipTest('nic create func is not implemented in {}'.format(self.vm.provider))
             except UnSupportedAction:
-                self.skipTest('nic create func is not supported in {}'.format(self.vm.provider)) 
+                self.skipTest('nic create func is not supported in {}'.format(self.vm.provider))
 
             cmd = "ip -o link show|wc -l"
-            nic_num_1 = utils_lib.run_cmd(self,cmd)
+            nic_num_1 = int(utils_lib.run_cmd(self,cmd))
             utils_lib.run_cmd(self,'ip rule show')
 
-            self.vm.attach_nic(nic, device_index=i, wait=True)
-            i = i + 1
+            if not self.vm.attach_nic(nic, device_index=i, wait=True):
+                nic_num_1 = nic_num_1 - 1
+                break
+            else:
+                i = i + 1
             
             for j in range(1, 4):
                 time.sleep(5)
                 self.log.info('Check network in guest, loop {}'.format(j))
                 utils_lib.run_cmd(self, 'lspci')
                 utils_lib.run_cmd(self, 'ip addr show')
-                nic_num_2 = utils_lib.run_cmd(self, cmd)
+                nic_num_2 = int(utils_lib.run_cmd(self, cmd))
                 if nic_num_2 == nic_num_1:
                     self.log.info("Added nic not found")
 
@@ -1871,11 +1875,10 @@ COMMIT
             self.vm.detach_nic(nic)
             utils_lib.run_cmd(self, 'lspci')
             utils_lib.run_cmd(self, 'ip addr show')
-            
+
         self.assertGreater(nic_num_2,nic_num_1,msg='New added network device not found after attached nic')
         cmd = 'dmesg'
         utils_lib.run_cmd(self, cmd, expect_not_kw='Call Trace')
-
 
     def tearDown(self):
         utils_lib.finish_case(self)
