@@ -1088,7 +1088,10 @@ COMMIT
         k_ver = utils_lib.run_cmd(self,'uname -r').strip('\n')
         utils_lib.run_cmd(self,'sudo ethtool -k eth0|grep checksum')
         if 'not found' in utils_lib.run_cmd(self,'modinfo sch_netem'):
-            utils_lib.is_pkg_installed(self,'kernel-modules-extra-{}'.format(k_ver))
+            if not 'debug' in k_ver:
+                utils_lib.is_pkg_installed(self,'kernel-modules-extra-{}'.format(k_ver))
+            else:
+                utils_lib.is_pkg_installed(self,'kernel-debug-modules-extra-{}'.format(k_ver.rstrip('+debug')))
         utils_lib.is_cmd_exist(self,"nc")
         utils_lib.is_cmd_exist(self,"tc")
         utils_lib.init_connection(self, timeout=180, rmt_node=self.params['remote_nodes'][-1])
