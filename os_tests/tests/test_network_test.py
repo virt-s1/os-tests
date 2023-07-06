@@ -453,7 +453,7 @@ class TestNetworkTest(unittest.TestCase):
             mtu_range = [0, 67, 68, 1500,1600]
             mtu_min = 68
             mtu_max = 1500
-            if self.vm.provider == 'nutanix':
+            if self.vm.provider == 'nutanix' or self.vm.provider == 'ali':
                 mtu_range = [0, 67, 68, 65535,65536]
                 mtu_max = 65535
         elif 'hv_netvsc' in output and not utils_lib.is_azure(self):
