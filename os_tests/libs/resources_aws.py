@@ -51,6 +51,7 @@ class EC2VM(VMResource):
         self.subnet_id = params.get('subnet_id_ipv6') or params.get('subnet_id_ipv4')
         LOG.info('Use subnet: {}'.format(self.subnet_id))
         self.security_group_ids = params.get('security_group_ids')
+        self.placement_group_name = params.get('placement_group_name')
         self.region = params.get('region')
         self.subnet = self.resource.Subnet(self.subnet_id)
         self.additionalinfo = params.get('additionalinfo')
@@ -163,6 +164,8 @@ class EC2VM(VMResource):
                 vm_kwargs["NetworkInterfaces"][0]["InterfaceType"] = 'efa'
             else:
                 LOG.info("efa is supported, but disable it as request")
+        if self.placement_group_name:
+            vm_kwargs["Placement"] = {"GroupName":self.placement_group_name}
         #vm_kwargs["EnclaveOptions"]["Enabled"] = True       
         if not self.additionalinfo:
             for volume_size in [20,40,50]:

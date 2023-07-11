@@ -94,6 +94,34 @@ class TestRHELCert(unittest.TestCase):
             cmd = 'sudo bash -c "systemctl disable --now firewalld"'.format(out)
             utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1], msg='disable firewalld')
 
+        if self.id().endswith(('test_rhcert_non_interactive','test_rhcert_pcie_nvme')):   
+            cmd = 'sudo lsblk -d|wc -l'
+            out = utils_lib.run_cmd(self,cmd, msg='check disk count')
+            if int(out) <= 2:
+                if not self.vm:
+                    self.skipTest("Skip this test case as no vm inited to attach disk")
+                online_disk_1 = utils_lib.get_disk_online(self)
+                if not self.disk:
+                    self.skipTest('Skip as lacking of storage provision support.')
+                if not self.disk.is_exist():
+                    self.disk.create()
+                time.sleep(20)
+                if not self.vm.attach_block(self.disk, '/dev/sdz'):
+                    self.fail('attach failed')
+                timeout = 60
+                interval = 2
+                time_start = int(time.time())
+                while True:
+                   if not self.disk.is_free():
+                       break
+                   time_end = int(time.time())
+                   if time_end - time_start > timeout:
+                      self.log.info('timeout ended: {}'.format(timeout))
+                      break
+                   self.log.info('retry after {}s'.format(interval))
+                   time.sleep(interval)
+                time.sleep(5)
+
     def test_rhcert_non_interactive(self):
         """
         case_tags:
@@ -156,6 +184,8 @@ class TestRHELCert(unittest.TestCase):
         debug_want: |
             N/A
         """
+        test_disk = 'nvme1n1'
+        test_disk = utils_lib.get_test_disk(self) or test_disk
 
         cmds = ['sudo bash -c "dd if=/dev/zero of=/swap bs=1024 count=2000000"',
         'sudo bash -c "chmod 0600 /swap"',
@@ -165,13 +195,60 @@ class TestRHELCert(unittest.TestCase):
             utils_lib.run_cmd(self,cmd, timeout=180)
         cmd = 'sudo bash -c "yes|rhcert-cli plan"'
         utils_lib.run_cmd(self,cmd, timeout=3600, msg='create test plan')
-        cmd = 'sudo bash -c "yes|rhcert-cli run --tag non-interactive"'
-        utils_lib.run_cmd(self,cmd, timeout=7200, msg='start to run non-interactive cert test')
+        cmd = 'sudo bash -c "yes|rhcert-cli run --tag non-interactive --device {}"'.format(test_disk)
+        utils_lib.run_cmd(self,cmd, timeout=28800, msg='start to run non-interactive cert test')
         self._wait_cert_done()
         self.is_cert_done = True
 
     def test_rhcert_kdump(self):
         
+        cmd = 'sudo bash -c "yes|rhcert-cli plan"'
+        utils_lib.run_cmd(self,cmd, timeout=1800, msg='create test plan')
+        cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device local"'
+        utils_lib.run_cmd(self,cmd, timeout=1800, msg='run kdump local test')
+        if not self.SSH.is_active():
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        time.sleep(30)
+        self._wait_cert_done()
+        utils_lib.is_pkg_installed(self,'nfs-utils')
+        cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device nfs --server {}"'.format(self.rmt_ipv4)
+        utils_lib.run_cmd(self,cmd, timeout=1800, msg='run kdump nfs test')
+        if not self.SSH.is_active():
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        time.sleep(30)
+        self._wait_cert_done()
+        self.is_cert_done = True
+
+    def test_rhcert_kdump_aws_arm_irqpoll(self):
+        '''
+        run the same test with test_rhcert_kdump, if test_rhcert_kdump fail and this case pass, that means they are the same issue with https://access.redhat.com/articles/6562431.
+
+        '''
+        if not utils_lib.is_aws(self):
+            self.skipTest("No need to run it because it is aws specified")
+        if not utils_lib.is_arch(self, 'aarch64'):
+            self.skipTest("Only for arm instances")
+        if utils_lib.is_metal(self):
+            self.skipTest("Only for virtual arm instances")
+        self.log.info("aws aarch64 non-metal instance found, remove irqpoll if it is used following https://access.redhat.com/articles/6562431")
+        update_kdump_cfg = False
+        cmd = 'sudo grep irqpoll /etc/sysconfig/kdump |grep KDUMP_COMMANDLINE_REMOVE'
+        ret = utils_lib.run_cmd(self, cmd, ret_status=True)
+        if ret != 0:
+            cmd = 'sudo bash -c " sed -i \'/KDUMP_COMMANDLINE_REMOVE=/s/quiet/quiet irqpoll/g\'  /etc/sysconfig/kdump"'
+            utils_lib.run_cmd(self, cmd, msg='add irqpoll to KDUMP_COMMANDLINE_REMOVE')
+            update_kdump_cfg = True
+        cmd = 'sudo grep irqpoll /etc/sysconfig/kdump |grep KDUMP_COMMANDLINE_APPEND'
+        ret = utils_lib.run_cmd(self, cmd, ret_status=True)
+        if ret == 0:
+            cmd = 'sudo bash -c "sed -i \'/KDUMP_COMMANDLINE_APPEND=/s/irqpoll //g\'  /etc/sysconfig/kdump"'
+            utils_lib.run_cmd(self, cmd, msg='remove irqpoll from KDUMP_COMMANDLINE_APPEND')
+            update_kdump_cfg = True
+        if update_kdump_cfg:
+            cmd = 'sudo cat /etc/sysconfig/kdump'
+            utils_lib.run_cmd(self, cmd, msg='updated kdump')
+            cmd = 'sudo systemctl restart kdump'
+            utils_lib.run_cmd(self, cmd, msg='restart kdump')
         cmd = 'sudo bash -c "yes|rhcert-cli plan"'
         utils_lib.run_cmd(self,cmd, timeout=1800, msg='create test plan')
         cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device local"'
@@ -219,32 +296,6 @@ class TestRHELCert(unittest.TestCase):
         self.is_cert_done = True
 
     def test_rhcert_pcie_nvme(self):
-        cmd = 'sudo lsblk -d|wc -l'
-        out = utils_lib.run_cmd(self,cmd, msg='check disk count')
-        if int(out) <= 2:
-            if not self.vm:
-                self.skipTest("Skip this test case as no vm inited to attach disk")
-            online_disk_1 = utils_lib.get_disk_online(self)
-            if not self.disk:
-                self.skipTest('Skip as lacking of storage provision support.')
-            if not self.disk.is_exist():
-                self.disk.create()
-            time.sleep(20)
-            if not self.vm.attach_block(self.disk, '/dev/sdz'):
-                self.fail('attach failed')
-            timeout = 60
-            interval = 2
-            time_start = int(time.time())
-            while True:
-               if not self.disk.is_free():
-                   break
-               time_end = int(time.time())
-               if time_end - time_start > timeout:
-                  self.log.info('timeout ended: {}'.format(timeout))
-                  break
-               self.log.info('retry after {}s'.format(interval))
-               time.sleep(interval)
-            time.sleep(5)
         cmd = 'sudo bash -c "yes|rhcert-cli plan"'
         utils_lib.run_cmd(self,cmd, timeout=1800, msg='create test plan')
         test_disk = 'nvme1n1'
@@ -264,7 +315,7 @@ class TestRHELCert(unittest.TestCase):
             if 'xml' not in out:
                 self.fail("xml format result expected")
             result_path = re.findall("/.*xml", out)[0]
-            local_file='{}/attachments/{}'.format(self.log_dir,os.path.basename(result_path))
+            local_file='{}/attachments/{}_{}'.format(self.log_dir,self.id().split('.')[-1],os.path.basename(result_path))
             self.log.info('retrive {} from remote to {}'.format(result_path,local_file))
             self.SSH.get_file(rmt_file=result_path,local_file=local_file)
             cmd = 'sudo bash -c "rm -rf /var/rhcert/*"'
