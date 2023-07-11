@@ -1913,6 +1913,9 @@ COMMIT
                     self.params['remote_nodes'].remove(self.vm.vm1_ip)
                 self.vm.prism.delete_vm(self.vms[1]['uuid'])
                 self.vms.pop()
+        if 'test_network_device_hotplug_multi' in self.id():
+            for nic in self.nics:
+                self.vm.detach_nic(nic)
         if self.nic and self.nic.is_exist():
             self.nic.delete()
         utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', skip_words='ftrace,rawtrace', cursor=self.dmesg_cursor)
