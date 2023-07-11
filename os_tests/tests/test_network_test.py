@@ -1763,13 +1763,29 @@ COMMIT
             - journalctl -u nm-cloud-setup.service
             - AWS only(ensure infra assign it): curl 169.254.169.254/latest/meta-data/network/interfaces/macs/$MAC/local-ipv4s
         '''
-        utils_lib.is_pkg_installed(self, pkg_name='NetworkManager-cloud-setup', is_install=False, cancel_case=True)
+        utils_lib.is_pkg_installed(self, pkg_name='NetworkManager-cloud-setup', is_install=True, cancel_case=True)
         for attrname in ['assign_new_ip','remove_added_ip']:
             if not hasattr(self.vm, attrname):
                 self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
         cmd = 'sudo systemctl status nm-cloud-setup.timer'
         utils_lib.run_cmd(self, cmd)
         self.vm.assign_new_ip()
+
+        if self.vm.provider == 'ali':
+            config_file = self.utils_dir + '/nm_cloud_setup.sh'
+            config_file_tmp = '/tmp/nm_cloud_setup.sh'
+            if self.params.get('remote_node') is not None:
+                cmd = 'ls -l {}'.format(config_file_tmp)
+                ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='check if {} exists'.format(config_file))
+                if ret != 0:
+                    self.log.info('Copy {} to remote node'.format(config_file))
+                    self.SSH.put_file(local_file=config_file, rmt_file=config_file_tmp)
+            else:
+                cmd = 'sudo cp -f {} {}'.format(config_file,config_file_tmp)
+                utils_lib.run_cmd(self, cmd)
+            utils_lib.run_cmd(self,'sudo chmod 755 {}'.format(config_file_tmp))
+            utils_lib.run_cmd(self,'sudo {} ALIYUN'.format(config_file_tmp), rmt_get_pty=True)
+
         cmd = 'sudo ip addr show {}'.format(self.active_nic)
         start_time = time.time()
         while True:
