@@ -36,6 +36,8 @@ try:
     from aliyunsdkecs.request.v20140526 import DeleteNetworkInterfaceRequest
     from aliyunsdkecs.request.v20140526 import GetInstanceConsoleOutputRequest
     from aliyunsdkecs.request.v20140526 import DescribeAvailableResourceRequest
+    from aliyunsdkecs.request.v20140526 import AssignPrivateIpAddressesRequest
+    from aliyunsdkecs.request.v20140526 import UnassignPrivateIpAddressesRequest
 except ImportError:
     print("Please install aliyun-python-sdk-core,aliyun-python-sdk-ecs modules if run alicloud test")
     sys.exit(1)
@@ -453,6 +455,24 @@ class AlibabaSDK(object):
         request = self._add_params(request, key_list, self.vm_params)
         return self._send_request(request)
 
+    # Assign Secondary Private IPs
+    def assign_private_ips(self, nic_id, secondary_private_ip_count):
+        request = AssignPrivateIpAddressesRequest.AssignPrivateIpAddressesRequest()
+        key_list = ["NetworkInterfaceId", "SecondaryPrivateIpAddressCount"]
+        self.vm_params["NetworkInterfaceId"] = nic_id
+        self.vm_params["SecondaryPrivateIpAddressCount"] = secondary_private_ip_count
+        request = self._add_params(request, key_list, self.vm_params)
+        return self._send_request(request)
+
+    # Unassign Secondary Private IPs
+    def unassign_private_ips(self, nic_id, secondary_private_ip_list):
+        request = UnassignPrivateIpAddressesRequest.UnassignPrivateIpAddressesRequest()
+        key_list = ["NetworkInterfaceId"]
+        self.vm_params["NetworkInterfaceId"] = nic_id
+        request = self._add_params(request, key_list, self.vm_params)
+        request.set_PrivateIpAddresss(secondary_private_ip_list)
+        return self._send_request(request)
+
     def get_console_log(self, instance_id):
         request = GetInstanceConsoleOutputRequest.GetInstanceConsoleOutputRequest(
         )
@@ -481,6 +501,9 @@ class AlibabaVM(VMResource):
         self.disk_type = params['Flavor'].get('disk_type')
         self.nic_count = params['Flavor'].get('nic_count')
         self.disk_quantity = params['Flavor'].get('disk_quantity')
+
+        # Single secondary ip
+        self.another_ip = None
 
         # VM access parameters
         self.vm_username = params['VM'].get('username')
@@ -760,6 +783,20 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
                     'Remaining {0} NIC(s) to be deleted.'.format(remaining))
                 if remaining == 0:
                     break
+
+    def assign_new_ip(self):
+        nic_id = self.get_nic_id(self.query_nics()[0])
+        ret = self.ecs.assign_private_ips(nic_id=nic_id,secondary_private_ip_count=1)
+        self.another_ip = ret.get("AssignedPrivateIpAddressesSet").get("PrivateIpSet").get("PrivateIpAddress")[0]
+        logging.info("Assigning secondary nic ip {}".format(self.another_ip))
+        return self.another_ip
+
+    def remove_added_ip(self):
+        nic_id = self.get_nic_id(self.query_nics()[0])
+        logging.info("Removing secondary nic ip {}".format(self.another_ip))
+        ip_list = []
+        ip_list.append(self.another_ip)
+        return self.ecs.unassign_private_ips(nic_id, ip_list)
 
     def create_cloud_disk(self, wait=False, **args):
         logging.info("Create cloud disk")
