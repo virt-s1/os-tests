@@ -10,7 +10,7 @@ VM:
   vm_name: rhel-guest-image-9-1-20220606-1
   image_name: rhel-guest-image-9-1-20220606-1
 Flavor:
-  name: e2-standard-2
+  name: n2-standard-2
   cpu: 2
   memory: 8
   size: 20G
