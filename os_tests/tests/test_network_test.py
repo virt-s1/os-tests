@@ -1111,6 +1111,7 @@ COMMIT
             if i:
                 cmd = "sudo tc qdisc add dev eth0 root netem corrupt 1%"
                 utils_lib.run_cmd(self,cmd,expect_ret=0,msg='Test again with network corrupt 1%')
+                utils_lib.init_connection(self, timeout=self.ssh_timeout)
             nc_cli_cmd = 'nc {} 2233 < {}'.format(srv_ipv4,testfile_c)
             utils_lib.run_cmd(self, nc_cli_cmd, expect_ret=0, timeout=600)
             utils_lib.run_cmd(self,'ls -lai {}'.format(testfile_c))
@@ -1124,6 +1125,7 @@ COMMIT
             if i:
                 cmd = "sudo tc qdisc delete dev eth0 root netem corrupt 1%"
                 utils_lib.run_cmd(self,cmd,msg='remove network corrupt setting')
+                utils_lib.init_connection(self, timeout=self.ssh_timeout)
             self.log.info("test {} tcp corrupt done".format(i and 'with' or 'without'))
 
     def test_unload_load_virtio(self):
