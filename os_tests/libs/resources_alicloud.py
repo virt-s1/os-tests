@@ -501,9 +501,10 @@ class AlibabaVM(VMResource):
         self.disk_type = params['Flavor'].get('disk_type')
         self.nic_count = params['Flavor'].get('nic_count')
         self.disk_quantity = params['Flavor'].get('disk_quantity')
+        self.private_ip_quantity = params['Flavor'].get('private_ip_quantity')
 
-        # Single secondary ip
-        self.another_ip = None
+        # Secondary ip list
+        self.secondary_ip_list = []
 
         # VM access parameters
         self.vm_username = params['VM'].get('username')
@@ -784,19 +785,17 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
                 if remaining == 0:
                     break
 
-    def assign_new_ip(self):
+    def assign_secondary_ips(self, secondary_ip_count=1):
         nic_id = self.get_nic_id(self.query_nics()[0])
-        ret = self.ecs.assign_private_ips(nic_id=nic_id,secondary_private_ip_count=1)
-        self.another_ip = ret.get("AssignedPrivateIpAddressesSet").get("PrivateIpSet").get("PrivateIpAddress")[0]
-        logging.info("Assigning secondary nic ip {}".format(self.another_ip))
-        return self.another_ip
+        ret = self.ecs.assign_private_ips(nic_id=nic_id,secondary_private_ip_count=secondary_ip_count)
+        self.secondary_ip_list = ret.get("AssignedPrivateIpAddressesSet").get("PrivateIpSet").get("PrivateIpAddress")
+        logging.info("Assigning secondary nic ips: {}".format(str(self.secondary_ip_list)))
+        return self.secondary_ip_list
 
-    def remove_added_ip(self):
+    def remove_secondary_ips(self):
         nic_id = self.get_nic_id(self.query_nics()[0])
-        logging.info("Removing secondary nic ip {}".format(self.another_ip))
-        ip_list = []
-        ip_list.append(self.another_ip)
-        return self.ecs.unassign_private_ips(nic_id, ip_list)
+        logging.info("Removing secondary nic ips: {}".format(str(self.secondary_ip_list)))
+        return self.ecs.unassign_private_ips(nic_id, self.secondary_ip_list)
 
     def create_cloud_disk(self, wait=False, **args):
         logging.info("Create cloud disk")

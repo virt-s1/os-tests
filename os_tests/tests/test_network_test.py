@@ -1764,12 +1764,9 @@ COMMIT
             - AWS only(ensure infra assign it): curl 169.254.169.254/latest/meta-data/network/interfaces/macs/$MAC/local-ipv4s
         '''
         utils_lib.is_pkg_installed(self, pkg_name='NetworkManager-cloud-setup', is_install=True, cancel_case=True)
-        for attrname in ['assign_new_ip','remove_added_ip']:
+        for attrname in ['assign_secondary_ips','remove_secondary_ips']:
             if not hasattr(self.vm, attrname):
                 self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
-        cmd = 'sudo systemctl status nm-cloud-setup.timer'
-        utils_lib.run_cmd(self, cmd)
-        self.vm.assign_new_ip()
 
         if self.vm.provider == 'ali':
             config_file = self.utils_dir + '/nm_cloud_setup.sh'
@@ -1786,11 +1783,17 @@ COMMIT
             utils_lib.run_cmd(self,'sudo chmod 755 {}'.format(config_file_tmp))
             utils_lib.run_cmd(self,'sudo {} ALIYUN'.format(config_file_tmp), rmt_get_pty=True)
 
+        cmd = 'sudo systemctl status nm-cloud-setup.timer'
+        utils_lib.run_cmd(self, cmd)
+        self.vm.assign_secondary_ips()
+        if not self.vm.secondary_ip_list:
+            self.fail('assign single secondary ip failed on {}'.format(self.vm.provider))
+
         cmd = 'sudo ip addr show {}'.format(self.active_nic)
         start_time = time.time()
         while True:
             out = utils_lib.run_cmd(self, cmd)
-            if self.vm.another_ip in out:
+            if self.vm.secondary_ip_list[0] in out:
                 break
             end_time = time.time()
             if end_time - start_time > 330:
@@ -1798,14 +1801,14 @@ COMMIT
                 utils_lib.run_cmd(self, cmd)
                 cmd = 'journalctl -u nm-cloud-setup'
                 utils_lib.run_cmd(self, cmd)
-                self.fail("expected 2nd ip {} not found in guest".format(self.vm.another_ip))
+                self.fail("expected secondary ip {} is not found in guest".format(self.vm.secondary_ip_list[0]))
             time.sleep(25)
         cmd = 'sudo ip addr show {}'.format(self.active_nic)
         start_time = time.time()
-        self.vm.remove_added_ip()
+        self.vm.remove_secondary_ips()
         while True:
             out = utils_lib.run_cmd(self, cmd)
-            if self.vm.another_ip not in out:
+            if self.vm.secondary_ip_list[0] not in out:
                 break
             end_time = time.time()
             if end_time - start_time > 330:
@@ -1813,7 +1816,140 @@ COMMIT
                 utils_lib.run_cmd(self, cmd)
                 cmd = 'journalctl -u nm-cloud-setup'
                 utils_lib.run_cmd(self, cmd)
-                self.fail("expected 2nd ip {} not removed from guest".format(self.vm.another_ip))
+                self.fail("expected secondary ip {} is not removed from guest".format(self.vm.secondary_ip_list[0]))
+            time.sleep(25)
+
+    def test_second_ip_hotplug_multi(self):
+        """
+        case_name:
+            test_second_ip_hotplug_multi
+        case_tags:
+            network
+        case_status:
+            approved
+        title:
+            assign/remove multiple secondary ip addresses
+        importance:
+            medium
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            automated
+        linked_work_items:
+            N/A
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_network_test.py
+        setup_teardown:
+            N/A
+        environment:
+            N/A
+        component:
+            component
+        bug_id:
+            bugzilla_1623084,bugzilla_1642461,bugzilla_2179718
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        test_type:
+            functional
+        test_level:
+            Component
+        maintainer:
+            yoguo@redhat.com
+        description: |
+            Test multiple secondary IPs hotplug on primary nic, nm-cloud-setup can assign/remove them automatically
+        key_steps: |
+            1. Launch an instance on AWS EC2/AliCloud/Azure/GCP.
+            2. Check if package NetworkManager-cloud-setup is installed via command "$ sudo rpm -q NetworkManager-cloud-setup", if not, use yum to install it.
+            3. Check the service status via command "$ sudo systemctl status nm-cloud-setup.timer".
+            4. Assign multiple secondary IPs to the NIC of instance.
+            5. Check the ip addresses of the NIC for several times via command "$ sudo ip addr show eth0".
+            6. Remove the secondary IPs from the NIC of instance.
+            7. Check if the secondary IPs are removed from the NIC.
+        pass_criteria: |
+            After multiple secondary IPs are assigned to the NIC of instance in step 4, there will be corresponding IP addresses that show in step 5.
+            After multiple secondary IPs are removed from the NIC of instance in step 6, there will be only 1 primary IP address that shows in step 7.
+        debug_want: |
+            Attach trace log from nm-cloud-setup when case fail.
+            - Run "systemctl edit nm-cloud-setup" uncomment "Environment=NM_CLOUD_SETUP_LOG=TRACE"
+            - systemctl daemon-reload
+            - systemctl restart nm-cloud-setup.service
+            - journalctl -u nm-cloud-setup.service
+            - AWS only(ensure infra assign it): curl 169.254.169.254/latest/meta-data/network/interfaces/macs/$MAC/local-ipv4s
+            - AliCloud only: curl 100.100.100.200/latest/meta-data/network/interfaces/macs/$MAC/private-ipv4s
+        """
+        utils_lib.is_pkg_installed(self, pkg_name='NetworkManager-cloud-setup', is_install=True, cancel_case=True)
+        for attrname in ['assign_secondary_ips','remove_secondary_ips']:
+            if not hasattr(self.vm, attrname):
+                self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
+
+        # Default value
+        secondary_ip_count = 10
+        if self.vm.provider == 'ali':
+            secondary_ip_count = self.vm.private_ip_quantity - 1
+            config_file = self.utils_dir + '/nm_cloud_setup.sh'
+            config_file_tmp = '/tmp/nm_cloud_setup.sh'
+            if self.params.get('remote_node') is not None:
+                cmd = 'ls -l {}'.format(config_file_tmp)
+                ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='check if {} exists'.format(config_file))
+                if ret != 0:
+                    self.log.info('Copy {} to remote node'.format(config_file))
+                    self.SSH.put_file(local_file=config_file, rmt_file=config_file_tmp)
+            else:
+                cmd = 'sudo cp -f {} {}'.format(config_file,config_file_tmp)
+                utils_lib.run_cmd(self, cmd)
+            utils_lib.run_cmd(self,'sudo chmod 755 {}'.format(config_file_tmp))
+            utils_lib.run_cmd(self,'sudo {} ALIYUN'.format(config_file_tmp), rmt_get_pty=True)
+
+        cmd = 'sudo systemctl status nm-cloud-setup.timer'
+        utils_lib.run_cmd(self, cmd)
+        self.vm.assign_secondary_ips(secondary_ip_count)
+        if not self.vm.secondary_ip_list:
+            self.fail('assign multiple secondary ips failed on {}'.format(self.vm.provider))
+
+        cmd = 'sudo ip addr show {}'.format(self.active_nic)
+        start_time = time.time()
+        ip_count = 0
+        while True:
+            out = utils_lib.run_cmd(self, cmd)
+            for ip in self.vm.secondary_ip_list:
+                if not ip in out:
+                    break
+                else:
+                    ip_count += 1
+                    continue
+            if ip_count == len(self.vm.secondary_ip_list):
+                break
+            end_time = time.time()
+            if end_time - start_time > 330:
+                cmd = 'sudo systemctl status nm-cloud-setup.timer'
+                utils_lib.run_cmd(self, cmd)
+                cmd = 'journalctl -u nm-cloud-setup'
+                utils_lib.run_cmd(self, cmd)
+                self.fail("expected secondary ips {} are not found completely in guest".format(str(self.vm.secondary_ip_list)))
+            time.sleep(25)
+
+        cmd = 'sudo ip addr show {}'.format(self.active_nic)
+        start_time = time.time()
+        self.vm.remove_secondary_ips()
+        while True:
+            out = utils_lib.run_cmd(self, cmd)
+            for ip in self.vm.secondary_ip_list:
+                if ip in out:
+                    break
+                else:
+                    ip_count -= 1
+                    continue
+            if ip_count == 0:
+                break
+            end_time = time.time()
+            if end_time - start_time > 330:
+                cmd = 'sudo systemctl status nm-cloud-setup.timer'
+                utils_lib.run_cmd(self, cmd)
+                cmd = 'journalctl -u nm-cloud-setup'
+                utils_lib.run_cmd(self, cmd)
+                self.fail("expected secondary ips {} are not removed completely from guest".format(str(self.vm.secondary_ip_list)))
             time.sleep(25)
 
     def test_network_device_hotplug_multi(self):
