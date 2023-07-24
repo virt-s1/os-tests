@@ -560,6 +560,13 @@ class EC2VM(VMResource):
             LOG.info(err)
         return False
 
+    def get_volume(self, name='sda'):
+        for disk in self.ec2_instance.block_device_mappings:
+            if name in disk.get("DeviceName"):
+                volid = disk['Ebs'].get('VolumeId')
+        LOG.info("volume id: {}".format(volid))
+        return volid
+
 class EC2Volume(StorageResource):
     '''
     Volume class
@@ -576,6 +583,7 @@ class EC2Volume(StorageResource):
         LOG.info('Load profile_name: {}'.format(self.profile_name))
         self.session = boto3.session.Session(profile_name=self.profile_name, region_name=params.get('region'))
         self.resource = self.session.resource('ec2', config=config, region_name=params.get('region'))
+        self.client = self.session.client('ec2', config=config, region_name=params.get('region'))
         self.disksize = 100
         self.subnet_id = params.get('subnet_id_ipv6') or params.get('subnet_id_ipv4')
         LOG.info('Use subnet: {}'.format(self.subnet_id))
@@ -599,6 +607,23 @@ class EC2Volume(StorageResource):
             LOG.info("%s disk is in use.", self.volume.id)
             return False
         return True
+
+    def load(self, id=None):
+        """
+        load an existing volume
+        """
+        if not id:
+            LOG.info("Please specify vol id!")
+            return False
+        try:
+            self.volume = self.resource.Volume(id)
+            self.id = self.volume.id
+            self.size = self.volume.size
+        except Exception as err:
+            LOG.info(err)
+            return False
+        return True
+
 
     def create(self, wait=True):
         """
@@ -685,7 +710,8 @@ class EC2Volume(StorageResource):
             state = 'unknown'
             self.volume.reload()
             state = self.volume.state
-            LOG.info("disk state: {}".format(state))
+            self.size = self.volume.size
+            LOG.info("disk state: {}, size: {}".format(state,self.size))
         except Exception as err:
             return state
         return state
@@ -713,8 +739,23 @@ class EC2Volume(StorageResource):
             LOG.info("Volume does not exists %s" % self.id)
             return False
 
-    def modify_disk_size(self, os_disk_size, expand_num):
-        raise NotImplementedError
+    def modify_disk_size(self, os_disk_size=10, expand_num=10):
+        """
+        expand the disk with size in G
+        do no decrease the size because xfs not supported
+        """
+        os_disk_size = self.size
+        try:
+            response = self.client.modify_volume(
+                VolumeId=self.id,
+                Size=os_disk_size + expand_num
+            )
+            time.sleep(20)
+            self.get_state()
+        except Exception as err:
+            LOG.info(err)
+            return False
+        return True
 
 class EC2NIC(NetworkResource):
     '''

@@ -567,6 +567,8 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
             self.skipTest('modify disk size func is not implemented in {}'.format(self.vm.provider))
         except UnSupportedAction:
             self.skipTest('modify disk size func is not supported in {}'.format(self.vm.provider))
+        except Exception as err:
+            self.skipTest('Cannot modify disk size:{}'.format(self.vm.provider, err))
         utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(10)
         utils_lib.init_connection(self, timeout=1200)

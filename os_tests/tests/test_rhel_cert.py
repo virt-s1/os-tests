@@ -94,7 +94,7 @@ class TestRHELCert(unittest.TestCase):
             cmd = 'sudo bash -c "systemctl disable --now firewalld"'.format(out)
             utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1], msg='disable firewalld')
 
-        if self.id().endswith(('test_rhcert_non_interactive','test_rhcert_pcie_nvme')):   
+        if self.id().endswith(('test_rhcert_pcie_nvme')):   
             cmd = 'sudo lsblk -d|wc -l'
             out = utils_lib.run_cmd(self,cmd, msg='check disk count')
             if int(out) <= 2:
@@ -185,17 +185,45 @@ class TestRHELCert(unittest.TestCase):
             N/A
         """
         test_disk = 'nvme1n1'
-        test_disk = utils_lib.get_test_disk(self) or test_disk
+        #test_disk = utils_lib.get_test_disk(self) or test_disk
 
-        cmds = ['sudo bash -c "dd if=/dev/zero of=/swap bs=1024 count=2000000"',
-        'sudo bash -c "chmod 0600 /swap"',
-        'sudo bash -c "mkswap /swap"',
-        'sudo bash -c "swapon /swap"' ]
-        for cmd in cmds:
-            utils_lib.run_cmd(self,cmd, timeout=180)
+        #cmds = ['sudo bash -c "dd if=/dev/zero of=/swap bs=1024 count=2000000"',
+        #'sudo bash -c "chmod 0600 /swap"',
+        #'sudo bash -c "mkswap /swap"',
+        #'sudo bash -c "swapon /swap"' ]
+        #for cmd in cmds:
+        #    utils_lib.run_cmd(self,cmd, timeout=180)
+        self.log.info("Please make sure you have swap partition in your disk")
+        if 'aws' in self.vm.provider:
+            root_id = self.vm.get_volume()
+            root_vol = None
+            for disk in self.disks:
+                if not disk.is_exist() or disk.is_free():
+                    root_vol = disk
+                    break
+            if not root_vol:
+                self.fail("No free disk to pick up")
+            root_vol.load(root_id)
+            swap_start = root_vol.size + 3
+            swap_end = root_vol.size + 8
+            if not root_vol.modify_disk_size(expand_num=10):
+                self.fail("cannot extend disk size")
+            cmds = ['sudo sgdisk /dev/nvme0n1 -e',
+                'sudo parted -s /dev/nvme0n1 print',
+                'sudo parted -s /dev/nvme0n1 mkpart swap xfs {}G {}G'.format(swap_start,swap_end),
+                'sudo parted -s /dev/nvme0n1 print',
+                'lsblk',
+                'swapoff -a',
+                'sudo mkswap /dev/nvme0n1p4',
+                'sudo swapon /dev/nvme0n1p4',
+                'sudo cat /proc/swaps',
+                'sudo cat /proc/partitions']
+            for cmd in cmds:
+                utils_lib.run_cmd(self,cmd, expect_ret=0, timeout=180)
         cmd = 'sudo bash -c "yes|rhcert-cli plan"'
         utils_lib.run_cmd(self,cmd, timeout=3600, msg='create test plan')
-        cmd = 'sudo bash -c "yes|rhcert-cli run --tag non-interactive --device {}"'.format(test_disk)
+        #cmd = 'sudo bash -c "yes|rhcert-cli run --tag non-interactive --device {}"'.format(test_disk)
+        cmd = 'sudo bash -c "yes|rhcert-cli run --tag non-interactive"'
         utils_lib.run_cmd(self,cmd, timeout=28800, msg='start to run non-interactive cert test')
         self._wait_cert_done()
         self.is_cert_done = True

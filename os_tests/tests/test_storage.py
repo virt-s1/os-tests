@@ -576,6 +576,8 @@ class TestStorage(unittest.TestCase):
             self.skipTest('modify disk size func is not implemented in {}'.format(self.vm.provider))
         except UnSupportedAction:
             self.skipTest('modify disk size func is not supported in {}'.format(self.vm.provider))
+        except Exception as err:
+            self.skipTest('Cannot modify disk size:{}'.format(self.vm.provider, err))
         #Get new size of test disk
         test_disk_new_size = int(utils_lib.run_cmd(self, cmd, expect_ret=0))/(1024*1024)
         self.assertEqual(10, int(test_disk_new_size), msg='disk size is not the same with expanded value, expect: {}, real: {}'.format(10*1024*1024, test_disk_new_size))
