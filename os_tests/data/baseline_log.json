@@ -1744,5 +1744,14 @@
         "link": "",
         "path": "journal",
         "trigger": "nutanix_ahv"
+    },
+    "msg_196": {
+        "content": ".*the ifcfg-rh plugin is deprecated.*",
+        "analyze": "NM emit deprecation warning when a ifcfg-rh profile is found",
+        "branch": "rhel9",
+        "status": "active",
+        "link": "https://www.redhat.com/en/blog/rhel-9-networking-say-goodbye-ifcfg-files-and-hello-keyfiles",
+        "path": "journal",
+        "trigger": ""
     }
 }
