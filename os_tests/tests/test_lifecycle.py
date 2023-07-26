@@ -871,7 +871,11 @@ class TestLifeCycle(unittest.TestCase):
         cpu_num = int(utils_lib.run_cmd(self, 'cat /proc/cpuinfo | grep processor | wc -l'))
         if cpu_num < 2:
             self.skipTest("Skip test case since need at least 2 cpus for test")
-        for cpus in [1,2]:
+        cpu_list = [1,2]
+        if utils_lib.is_metal(self) and cpu_num >= 6:
+            cpu_list = [4,5]
+        self.log.info('Test boot with nr_cpus in {}'.format(cpu_list))
+        for cpus in cpu_list:
             boot_param_required = 'nr_cpus='+str(cpus)
             cat_proc_cmdline = self._update_kernel_args(boot_param_required)
             self.assertIn(boot_param_required, cat_proc_cmdline, msg='Expect intel_iommu=on in /proc/cmdline')
