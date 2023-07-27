@@ -208,14 +208,16 @@ class TestRHELCert(unittest.TestCase):
             swap_end = root_vol.size + 8
             if not root_vol.modify_disk_size(expand_num=10):
                 self.fail("cannot extend disk size")
+            part_count = utils_lib.run_cmd(self, "lsblk|grep p[0-9]|wc -l")
+            part_count = int(part_count.strip('\n')) + 1
             cmds = ['sudo sgdisk /dev/nvme0n1 -e',
                 'sudo parted -s /dev/nvme0n1 print',
                 'sudo parted -s /dev/nvme0n1 mkpart swap xfs {}G {}G'.format(swap_start,swap_end),
                 'sudo parted -s /dev/nvme0n1 print',
                 'lsblk',
                 'swapoff -a',
-                'sudo mkswap /dev/nvme0n1p4',
-                'sudo swapon /dev/nvme0n1p4',
+                'sudo mkswap /dev/nvme0n1p{}'.format(part_count),
+                'sudo swapon /dev/nvme0n1p{}'.format(part_count),
                 'sudo cat /proc/swaps',
                 'sudo cat /proc/partitions']
             for cmd in cmds:
