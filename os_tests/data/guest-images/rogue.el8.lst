@@ -92,3 +92,4 @@
 /etc/rhsm/syspurpose/syspurpose.json
 /root/.gnupg/pubring.kbx
 /root/.gnupg/trustdb.gpg
+/etc/systemd/system/sysinit.target.wants/systemd-pstore.service

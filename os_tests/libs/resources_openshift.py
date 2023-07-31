@@ -68,8 +68,8 @@ class OpenShiftVM(VMResource):
     def port(self):
         if not self._port:
             self._port = subprocess.Popen(
-                'oc get svc ssh -o custom-columns=:.spec.ports[0].nodePort'
-                ' --no-headers',
+                'oc get svc %s -o custom-columns=:.spec.ports[0].nodePort'
+                ' --no-headers' % self.vm_name,
                 shell=True,
                 stdout=subprocess.PIPE).communicate()[0] \
                     .decode("utf-8").rstrip('\n')
@@ -78,7 +78,7 @@ class OpenShiftVM(VMResource):
     @port.setter
     def port(self, name):
         subprocess.Popen(
-            'virtctl expose vm %s --port=22 --name=ssh --type=NodePort' % name,
+            'virtctl expose vm %s --port=22 --name=%s --type=NodePort' % (name, name),
             shell=True,
             stdout=FNULL).communicate()
 
@@ -147,7 +147,7 @@ class OpenShiftVM(VMResource):
         subprocess.Popen('oc delete vm %s' % self.vm_name,
                          shell=True,
                          stdout=FNULL).communicate()
-        subprocess.Popen('oc delete svc ssh', shell=True,
+        subprocess.Popen('oc delete svc %s' % self.vm_name, shell=True,
                          stdout=FNULL).communicate()
         if wait:
             for count in utils_lib.iterate_timeout(
