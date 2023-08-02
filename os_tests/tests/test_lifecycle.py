@@ -1088,7 +1088,13 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.is_cmd_exist(self,"acpid")
         if self.vm.provider == 'aws':
             if not self.vm.hibernation_support:
-                self.skipTest('not support hibernation')
+                self.skipTest("This instance type does not support hibernation.")
+            if self.vm.is_exist():
+                self.vm.delete()
+            if not self.vm.create(enable_hibernation=True):
+                self.vm.create()
+                self.skipTest("Cannot create instance with hibernation enabled")
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
             product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
             if float(product_id) >= 8.0 and float(product_id) < 9.0:
                 pkg_url='https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/e/ec2-hibinit-agent-1.0.4-1.el8.noarch.rpm'
