@@ -2124,8 +2124,10 @@ current_device"
         try:
             if utils_lib.is_sev_enabled(self):
                 # https://gitlab.com/redhat/centos-stream/src/kernel/centos-stream-9/-/merge_requests/875/diffs?commit_id=ea66ccfe756058c054f6c32b30f79e69e2b77c08#1314bf7c9c25b9572d0a973f6be52499f0478e85
-                v = float(utils_lib.get_product_id(self))
-                if 8.8 <= v < 9.0 or v >=9.2:
+                v = utils_lib.get_product_id(self)
+                x = int(v.split(".")[0])
+                y = int(v.split(".")[1])
+                if x < 8 or (x == 8 and y >= 8) or (x == 9 and y >= 2) or x > 9:
                     utils_lib.run_cmd(self, 'dmesg', expect_ret=0,
                                       expect_kw='Memory Encryption Features active: AMD SEV',
                                       msg="Check there is 'Memory Encryption Features active: AMD SEV' in dmesg before run 'perf top'")

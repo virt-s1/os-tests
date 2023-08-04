@@ -17,3 +17,4 @@ Flavor:
   virt: kvm
   arch: x86_64
   nic_type: VIRTIO_NET
+  sev: false

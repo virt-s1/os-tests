@@ -123,6 +123,7 @@ class GCPVM(VMResource):
 
         self.arch = params.get('Flavor').get('arch')
         self.nic_type = params.get('Flavor').get('nic_type')
+        self.sev = params.get('Flavor').get('sev')
 
     @property
     def data(self):
@@ -150,17 +151,13 @@ class GCPVM(VMResource):
     def is_uefi_boot(self):
         return True
 
-    def create(self, sev=False, wait=False):
+    def create(self, wait=False):
         # Get image.
         source_disk_image = get_image(self.service_v1, self.project,
                                       self.image_name)['selfLink']
 
         # Configure the machine
         machine_type = "zones/%s/machineTypes/%s" % (self.zone, self.flavor)
-        if sev:
-            machine_type = "zones/%s/machineTypes/n2d-standard-2" % self.zone
-        if "n2d" in self.flavor or "c2d" in self.flavor:
-            sev = True
 
         config = {
             'name':
@@ -213,7 +210,7 @@ class GCPVM(VMResource):
             },
         }
 
-        if sev:
+        if self.sev:
             config['confidentialInstanceConfig'] = {
                 "enableConfidentialCompute": True
             }

@@ -231,7 +231,9 @@ class TestGuestImage(unittest.TestCase):
                       "Missing GRUB_DEFAULT=saved in /etc/default/grub")
 
         product_id = utils_lib.get_product_id(self)
-        if float(product_id) >= 9.2 or float(product_id) < 9.0:
+        x = int(product_id.split(".")[0])
+        y = int(product_id.split(".")[1])
+        if x < 9 or x > 9 or (x == 9 and y >= 2):
             src_dir = self.data_dir + "/guest-images/"
             data_file = "cmdline_params.lst"
             lines = filter(None,
@@ -241,9 +243,11 @@ class TestGuestImage(unittest.TestCase):
             for tmp in output.splitlines():
                 if "GRUB_CMDLINE_LINUX=" in tmp:
                     testline = tmp
-            self.assertNotEqual(testline, "", "GRUB_CMDLINE_LINUX is not set in /etc/default/grub")
+            self.assertNotEqual(
+                testline, "", "GRUB_CMDLINE_LINUX is not set in /etc/default/grub")
             for line in lines:
-                self.assertIn(line, testline, "%s is not in GRUB_CMDLINE_LINUX" % line)
+                self.assertIn(line, testline,
+                              "%s is not in GRUB_CMDLINE_LINUX" % line)
 
     def test_check_default_runlevel(self):
         """
