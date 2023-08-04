@@ -143,13 +143,15 @@ class GCPVM(VMResource):
 
     @property
     def is_secure_boot(self):
-        if self.arch == "x86_64":
-            return True
-        return False
+        return self.is_uefi_boot
 
     @property
     def is_uefi_boot(self):
-        return True
+        guestOsFeatures = get_image(self.service_v1, self.project,
+                                    self.image_name)['guestOsFeatures']
+        if {'type': 'UEFI_COMPATIBLE'} in guestOsFeatures:
+            return True
+        return False
 
     def create(self, wait=False):
         # Get image.
@@ -204,21 +206,21 @@ class GCPVM(VMResource):
                 'provisioningModel': 'SPOT',
                 'instanceTerminationAction': 'DELETE'
             },
-            'shieldedInstanceConfig': {
+        }
+
+        if self.is_secure_boot:
+            config['shieldedInstanceConfig'] = {
+                'enableSecureBoot': True,
                 'enableIntegrityMonitoring': True,
                 'enableVtpm': True
-            },
-        }
+            }
 
         if self.sev:
             config['confidentialInstanceConfig'] = {
-                "enableConfidentialCompute": True
+                'enableConfidentialCompute': True
             }
             config['disks'][0]['interface'] = 'NVME'
             config['networkInterfaces'][0]['nicType'] = 'GVNIC'
-
-        if self.is_secure_boot:
-            config['shieldedInstanceConfig']['enableSecureBoot'] = True
 
         operation = self.service_v1.instances().insert(project=self.project,
                                                        zone=self.zone,
