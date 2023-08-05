@@ -143,7 +143,9 @@ class GCPVM(VMResource):
 
     @property
     def is_secure_boot(self):
-        return self.is_uefi_boot
+        if self.arch == "x86_64" and self.is_uefi_boot:
+            return True
+        return False
 
     @property
     def is_uefi_boot(self):
