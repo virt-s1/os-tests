@@ -1753,5 +1753,14 @@
         "link": "https://www.redhat.com/en/blog/rhel-9-networking-say-goodbye-ifcfg-files-and-hello-keyfiles",
         "path": "journal",
         "trigger": ""
+    },
+    "msg_197": {
+        "content": ".*irqbalance.*Cannot change IRQ.* affinity.*",
+        "analyze": "Information only when a IRQ number failed to set affinity",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2227536",
+        "path": "journal",
+        "trigger": ""
     }
 }

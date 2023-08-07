@@ -73,6 +73,7 @@ class EC2VM(VMResource):
         self.run_uuid = params.get('run_uuid')
         self.user_data = '#!/bin/bash\nmkdir -p /tmp/userdata_{}'.format(self.run_uuid)
         self.hibernation_support = False
+        self.enclave_support = False
         # efa_support default set to False, will query instance property next
         self.efa_support = False
         self.volume_size = params.get('volume_size') or 10
@@ -81,7 +82,7 @@ class EC2VM(VMResource):
         if self.is_exist():
             LOG.info("Instance ID: {}".format(self.ec2_instance.id))
 
-    def create(self, wait=True, enable_efa=True):
+    def create(self, wait=True, enable_efa=True, enable_hibernation=False, enable_enclave=False):
         # enable_efa is option to enable or disable efa when create vms
         # if vm does not support efa, it will be disabled
         self.is_created = False
@@ -92,14 +93,22 @@ class EC2VM(VMResource):
             )['InstanceTypes'][0]['NetworkInfo']['EfaSupported']
             LOG.info('efa supported status: {}'.format(self.efa_support))
         except Exception as error:
-            LOG.info('Cannot determin efa status, disable in launch')
+            LOG.info('Cannot determin efa status, disable in launch:{}'.format(error))
+        self.hibernation_support = enable_hibernation
         try:
             self.hibernation_support = self.client.describe_instance_types(
                 InstanceTypes=[self.instance_type],
             )['InstanceTypes'][0]['HibernationSupported']
             LOG.info('Hibernation supported status: {}'.format(self.hibernation_support))
         except Exception as error:
-            LOG.info('Cannot determin Hibernation status, disable in launch')
+            LOG.info('Cannot determin Hibernation status, disable in launch:{}'.format(error))
+        try:
+            self.enclave_support = self.client.describe_instance_types(
+                InstanceTypes=[self.instance_type],
+            )['InstanceTypes'][0]['NitroEnclavesSupport']
+            LOG.info('enclave supported status: {}'.format(self.enclave_support))
+        except Exception as error:
+            LOG.info('Cannot determin enclave status:{}'.format(error))
         self.root_device_name = '/dev/sda1'
         try:
             self.root_device_name = self.client.describe_images(ImageIds=[self.ami_id])['Images'][0]['RootDeviceName']
@@ -107,9 +116,12 @@ class EC2VM(VMResource):
         except Exception as error:
             LOG.info('Cannot determin root device name, use default {}'.format(self.root_device_name))
 
-        if self.hibernation_support and self.volume_size < 20:
+        if enable_hibernation and self.volume_size < 50:
+            if not self.hibernation_support:
+                LOG.info("instance do not support hibernation")
+                return False
             # extend disk size to 20 in case no space to create swap
-            self.volume_size = 20
+            self.volume_size = 50
             LOG.info('hibernation_support enabled, change volume size to {}'.format(self.volume_size))
         vm_kwargs = {
             'BlockDeviceMappings':[
@@ -119,7 +131,7 @@ class EC2VM(VMResource):
                         'DeleteOnTermination': True,
                         'VolumeSize': self.volume_size,
                         # root disk must be encrypted when hibernation enabled
-                        'Encrypted': self.hibernation_support
+                        'Encrypted': enable_hibernation
                     },
                 },
             ],
@@ -151,7 +163,10 @@ class EC2VM(VMResource):
                 },
             ],
             'HibernationOptions':{
-                'Configured': self.hibernation_support
+                'Configured': enable_hibernation
+            },
+            'EnclaveOptions': {
+                'Enabled': False
             },
             'MetadataOptions':{
                 'HttpTokens': self.httptokens,
@@ -166,24 +181,18 @@ class EC2VM(VMResource):
                 LOG.info("efa is supported, but disable it as request")
         if self.placement_group_name:
             vm_kwargs["Placement"] = {"GroupName":self.placement_group_name}
-        #vm_kwargs["EnclaveOptions"]["Enabled"] = True       
+        if enable_enclave:
+            LOG.info("try to create instance with enclave enabled")
+            vm_kwargs["EnclaveOptions"]["Enabled"] = True 
         if not self.additionalinfo:
-            for volume_size in [20,40,50]:
-                LOG.info("Create instance {}".format(vm_kwargs))
-                try:
-                    self.ec2_instance = self.resource.create_instances(**vm_kwargs)[0]
-                    self.is_created = True
-                    break
-                except Exception as err:
-                    LOG.error("Failed to create instance with error:{}".format(err))
-                    if 'UnsupportedHibernationConfiguration' in str(err):
-                        vm_kwargs["BlockDeviceMappings"][0]['Ebs']['VolumeSize'] = volume_size
-                        LOG.info("Increase disk size {}".format(volume_size))
-                        if volume_size == 40:
-                            LOG.info("try to launch with hibernation disabled")
-                            self.hibernation_support = False
-                            vm_kwargs["HibernationOptions"]['Configured'] = self.hibernation_support
-                        continue
+            LOG.info("Create instance {}".format(vm_kwargs))
+            try:
+                self.ec2_instance = self.resource.create_instances(**vm_kwargs)[0]
+                self.is_created = True
+            except Exception as err:
+                LOG.error("Failed to create instance with error:{}".format(err))
+                return False
+
         if self.additionalinfo:
             for additionalinfo in self.additionalinfo.split(';'):
                 LOG.info("try addtionalinfo:{}".format(additionalinfo))
@@ -220,6 +229,7 @@ class EC2VM(VMResource):
         # self.ipv4 = self.ec2_instance.public_ip_address
         self.floating_ip
         #self.boot_volume_id
+        return True
 
     @property
     @utils_lib.wait_for(not_ret='', ck_not_ret=True, timeout=120)

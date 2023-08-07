@@ -26,18 +26,26 @@ class TestRHELCert(unittest.TestCase):
            time_end = int(time.time())
            if time_end - time_start > timeout:
               self.log.info('timeout ended: {}'.format(timeout))
-              break
+              return False
            self.log.info('wait rhcert finish, retry after {}s'.format(interval))
            time.sleep(interval)
-        cmd = 'sudo bash -c "yes|rhcert-cli print"'
-        utils_lib.run_cmd(self,cmd, timeout=1800, msg='print cert result')
+        cmd = 'sudo bash -c "yes|rhcert-cli save"'
+        out = utils_lib.run_cmd(self,cmd, msg='save test result')
+        if 'xml' not in out:
+            self.fail("xml format result expected")
+        result_path = re.findall("/.*xml", out)[0]
+        local_file='{}/attachments/{}_{}'.format(self.log_dir,self.id().split('.')[-1],os.path.basename(result_path))
+        self.log.info('retrive {} from remote to {}'.format(result_path,local_file))
+        self.SSH.get_file(rmt_file=result_path,local_file=local_file)
+        cmd = 'sudo bash -c "rm -rf /var/rhcert/*"'
+        utils_lib.run_cmd(self,cmd, msg='cleanup the test result')
+        return True
 
     def setUp(self):
         utils_lib.init_case(self)
         utils_lib.is_cmd_exist(self, cmd='rhcert-cli', cancel_case=True)
         cmd = 'sudo bash -c "rm -rf /var/rhcert/*"'
         utils_lib.run_cmd(self,cmd, msg='cleanup prior test result')
-        self.is_cert_done = False
         if 'non_interactive' not in self.id():
             if not self.is_rmt:
                 self.skipTest('only run on remote')
@@ -94,34 +102,36 @@ class TestRHELCert(unittest.TestCase):
             cmd = 'sudo bash -c "systemctl disable --now firewalld"'.format(out)
             utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1], msg='disable firewalld')
 
-        if self.id().endswith(('test_rhcert_pcie_nvme')):   
-            cmd = 'sudo lsblk -d|wc -l'
-            out = utils_lib.run_cmd(self,cmd, msg='check disk count')
-            if int(out) <= 2:
-                if not self.vm:
-                    self.skipTest("Skip this test case as no vm inited to attach disk")
-                online_disk_1 = utils_lib.get_disk_online(self)
-                if not self.disk:
-                    self.skipTest('Skip as lacking of storage provision support.')
-                if not self.disk.is_exist():
-                    self.disk.create()
-                time.sleep(20)
-                if not self.vm.attach_block(self.disk, '/dev/sdz'):
-                    self.fail('attach failed')
-                timeout = 60
-                interval = 2
-                time_start = int(time.time())
-                while True:
-                   if not self.disk.is_free():
-                       break
-                   time_end = int(time.time())
-                   if time_end - time_start > timeout:
-                      self.log.info('timeout ended: {}'.format(timeout))
-                      break
-                   self.log.info('retry after {}s'.format(interval))
-                   time.sleep(interval)
-                time.sleep(5)
-
+        if self.id().endswith(('test_rhcert_pcie_nvme','test_rhcert_non_interactive')):
+            if 'aws' in self.vm.provider:
+                root_id = self.vm.get_volume()
+                root_vol = None
+                for disk in self.disks:
+                    if not disk.is_exist() or disk.is_free():
+                        root_vol = disk
+                        break
+                if not root_vol:
+                    self.fail("No free disk to pick up")
+                root_vol.load(root_id)
+                swap_start = root_vol.size + 3
+                swap_end = root_vol.size + 8
+                if not root_vol.modify_disk_size(expand_num=10):
+                    self.fail("cannot extend disk size")
+                part_count = utils_lib.run_cmd(self, "lsblk|grep p[0-9]|wc -l")
+                part_count = int(part_count.strip('\n')) + 1
+                cmds = ['sudo sgdisk /dev/nvme0n1 -e',
+                    'sudo parted -s /dev/nvme0n1 print',
+                    'sudo parted -s /dev/nvme0n1 mkpart swap xfs {}G {}G'.format(swap_start,swap_end),
+                    'sudo parted -s /dev/nvme0n1 print',
+                    'lsblk',
+                    'swapoff -a',
+                    'sudo mkswap /dev/nvme0n1p{}'.format(part_count),
+                    'sudo swapon /dev/nvme0n1p{}'.format(part_count),
+                    'sudo cat /proc/swaps',
+                    'sudo cat /proc/partitions']
+                for cmd in cmds:
+                    utils_lib.run_cmd(self,cmd, expect_ret=0, timeout=180)
+ 
     def test_rhcert_non_interactive(self):
         """
         case_tags:
@@ -194,41 +204,27 @@ class TestRHELCert(unittest.TestCase):
         #for cmd in cmds:
         #    utils_lib.run_cmd(self,cmd, timeout=180)
         self.log.info("Please make sure you have swap partition in your disk")
-        if 'aws' in self.vm.provider:
-            root_id = self.vm.get_volume()
-            root_vol = None
-            for disk in self.disks:
-                if not disk.is_exist() or disk.is_free():
-                    root_vol = disk
-                    break
-            if not root_vol:
-                self.fail("No free disk to pick up")
-            root_vol.load(root_id)
-            swap_start = root_vol.size + 3
-            swap_end = root_vol.size + 8
-            if not root_vol.modify_disk_size(expand_num=10):
-                self.fail("cannot extend disk size")
-            part_count = utils_lib.run_cmd(self, "lsblk|grep p[0-9]|wc -l")
-            part_count = int(part_count.strip('\n')) + 1
-            cmds = ['sudo sgdisk /dev/nvme0n1 -e',
-                'sudo parted -s /dev/nvme0n1 print',
-                'sudo parted -s /dev/nvme0n1 mkpart swap xfs {}G {}G'.format(swap_start,swap_end),
-                'sudo parted -s /dev/nvme0n1 print',
-                'lsblk',
-                'swapoff -a',
-                'sudo mkswap /dev/nvme0n1p{}'.format(part_count),
-                'sudo swapon /dev/nvme0n1p{}'.format(part_count),
-                'sudo cat /proc/swaps',
-                'sudo cat /proc/partitions']
-            for cmd in cmds:
-                utils_lib.run_cmd(self,cmd, expect_ret=0, timeout=180)
         cmd = 'sudo bash -c "yes|rhcert-cli plan"'
         utils_lib.run_cmd(self,cmd, timeout=3600, msg='create test plan')
-        #cmd = 'sudo bash -c "yes|rhcert-cli run --tag non-interactive --device {}"'.format(test_disk)
-        cmd = 'sudo bash -c "yes|rhcert-cli run --tag non-interactive"'
-        utils_lib.run_cmd(self,cmd, timeout=28800, msg='start to run non-interactive cert test')
-        self._wait_cert_done()
-        self.is_cert_done = True
+        subtests = []
+        if not utils_lib.is_metal(self):
+            subtests.append('hwcert/memory')
+            subtests.append('hwcert/core')
+            subtests.append('hwcert/profiler_hardware_core')
+            if 'NVMe' in utils_lib.run_cmd(self, 'lspci'):
+                subtests.append('PCIE_NVMe')
+            if not utils_lib.is_arch(self, 'aarch64'):
+                subtests.append('hwcert/cpuscaling')
+            self.log.info("Will run: {}".format(subtests))
+            for case in subtests:
+                cmd = 'sudo bash -c "yes|rhcert-cli run --test {}"'.format(case)
+                utils_lib.run_cmd(self,cmd, timeout=7200, msg='run {}'.format(case))
+                self._wait_cert_done()
+        else:
+            #cmd = 'sudo bash -c "yes|rhcert-cli run --tag non-interactive --device {}"'.format(test_disk)
+            cmd = 'sudo bash -c "yes|rhcert-cli run --tag non-interactive"'
+            utils_lib.run_cmd(self,cmd, timeout=28800, msg='start to run non-interactive cert test')
+            self._wait_cert_done()
 
     def test_rhcert_kdump(self):
         
@@ -247,7 +243,6 @@ class TestRHELCert(unittest.TestCase):
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
         time.sleep(30)
         self._wait_cert_done()
-        self.is_cert_done = True
 
     def test_rhcert_kdump_aws_arm_irqpoll(self):
         '''
@@ -294,7 +289,6 @@ class TestRHELCert(unittest.TestCase):
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
         time.sleep(30)
         self._wait_cert_done()
-        self.is_cert_done = True
 
     def test_rhcert_ethernet(self):
         
@@ -323,33 +317,9 @@ class TestRHELCert(unittest.TestCase):
         utils_lib.run_cmd(self,cmd, timeout=1800, msg='run ethernet test')
         time.sleep(20)
         self._wait_cert_done()
-        self.is_cert_done = True
-
-    def test_rhcert_pcie_nvme(self):
-        cmd = 'sudo bash -c "yes|rhcert-cli plan"'
-        utils_lib.run_cmd(self,cmd, timeout=1800, msg='create test plan')
-        test_disk = 'nvme1n1'
-        test_disk = utils_lib.get_test_disk(self) or test_disk
-        if 'nvme' in test_disk:
-            cmd = 'sudo bash -c "yes|rhcert-cli run --test PCIE_NVMe --device {}"'.format(test_disk)
-            utils_lib.run_cmd(self,cmd, timeout=1800, msg='run ethernet test')
-        else:
-            self.skipTest("No nvme device found")
-        self._wait_cert_done()
-        self.is_cert_done = True
 
     def tearDown(self):
-        if self.is_cert_done:
-            cmd = 'sudo bash -c "yes|rhcert-cli save"'
-            out = utils_lib.run_cmd(self,cmd, msg='save test result')
-            if 'xml' not in out:
-                self.fail("xml format result expected")
-            result_path = re.findall("/.*xml", out)[0]
-            local_file='{}/attachments/{}_{}'.format(self.log_dir,self.id().split('.')[-1],os.path.basename(result_path))
-            self.log.info('retrive {} from remote to {}'.format(result_path,local_file))
-            self.SSH.get_file(rmt_file=result_path,local_file=local_file)
-            cmd = 'sudo bash -c "rm -rf /var/rhcert/*"'
-            utils_lib.run_cmd(self,cmd, msg='cleanup the test result')
+        pass
 
 if __name__ == '__main__':
     unittest.main()
