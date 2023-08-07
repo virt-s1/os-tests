@@ -585,10 +585,10 @@ class TestUpgrade(unittest.TestCase):
         x_version = self.rhel_x_version
         #Register to rhsm
         self.log.info("Register to rhsm")
-        reg_cmd = "sudo subscription-manager register --username {0} --password {1}".format(
-            self.vm.subscription_username,
-            self.vm.subscription_password)
-        utils_lib.run_cmd(self, reg_cmd, expect_ret=0)
+        reg_cmd = "sudo subscription-manager register --username {0} --password {1} --force".format(
+            self.params.get('subscription_username'),
+            self.params.get('subscription_password')) 
+        utils_lib.run_cmd(self, reg_cmd, is_log_cmd=False, expect_ret=0)
         #Configure manage_repos to 1 to enable rhsm repo
         cmd = "sed -i 's/manage_repos = 0/manage_repos = 1/g' /etc/rhsm/rhsm.conf"
         utils_lib.run_cmd(self,
