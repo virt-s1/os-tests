@@ -77,6 +77,8 @@ class EC2VM(VMResource):
         # efa_support default set to False, will query instance property next
         self.efa_support = False
         self.volume_size = params.get('volume_size') or 10
+        self.subscription_username = params.get('subscription_username')
+        self.subscription_password = params.get('subscription_password')
 
     def show(self):
         if self.is_exist():

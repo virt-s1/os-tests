@@ -27,4 +27,6 @@ remote_user: ec2-user
 # ssh key file location for remote access
 remote_keyfile: 
 # or password for remote access
-remote_password: 
+remote_password:
+subscription_username:
+subscription_password:

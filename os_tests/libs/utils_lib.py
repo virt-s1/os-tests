@@ -68,6 +68,10 @@ def init_args():
                     help='fips_enable,fips_disable,debugkernel_enable,debugkernel_disable,commands or a bash file before running into case steps,can add timeout:XXX if default 600 is not enough for operation done', required=False)
     parser.add_argument('--case_post', dest='case_post', default=None, action='store',
                     help='collect_kmemleak, other args are similar as case_setup, usually for collecting temporary debug information, can add timeout:XXX if default 600 is not enough for operation done', required=False)
+    parser.add_argument('--subscription_username', dest='subscription_username', default=None, action='store',
+                    help='username for RHSM register', required=False)
+    parser.add_argument('--subscription_password', dest='subscription_password', default=None, action='store',
+                    help='password for RHSM register', required=False)
     args = parser.parse_args()
     return args
 
@@ -340,7 +344,7 @@ def init_case(test_instance):
     test_instance.log.info("Case Doc: {}".format(eval(test_instance.id()).__doc__))
     test_instance.log.info("Case Params:")
     for key in test_instance.params.keys():
-        if 'password' in key:
+        if key in ['password', 'subscription_username', 'subscription_password']:
             test_instance.log.info("key:{}, val:*******".format(key))
         else:
             test_instance.log.info("key:{}, val:{}".format(key, test_instance.params[key]))
@@ -546,6 +550,7 @@ def run_cmd(test_instance,
             timeout=120,
             ret_status=False,
             is_log_output=True,
+            is_log_cmd=True,
             cursor=None,
             rmt_redirect_stdout=False,
             rmt_redirect_stderr=False,
@@ -576,6 +581,7 @@ def run_cmd(test_instance,
         msg {string} -- addtional info to mark cmd run.
         ret_status {bool} -- return ret code instead of output
         is_log_output {bool} -- print cmd output or not
+        is_log_cmd {bool} -- print cmd or not
         cursor {string} -- skip content before cursor(line)
         rmt_redirect_stdout {bool} -- ssh command not exit some times, redirect stdout to tmpfile if needed
         rmt_redirect_stderr {bool} -- ssh command not exit some times, redirect stderr to tmpfile if needed
@@ -608,10 +614,12 @@ def run_cmd(test_instance,
                     SSH = ssh
                     ssh_index = i
                     break
-            test_instance.log.info("CMD: {} on {}".format(cmd, rmt_node))
-            status, output = SSH.remote_excute(cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty)
+            if is_log_cmd:
+                test_instance.log.info("CMD: {} on {}".format(cmd, rmt_node))
+            status, output = SSH.remote_excute(cmd, timeout, is_log_cmd, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty)
         else:
-            test_instance.log.info("CMD: {}".format(cmd))
+            if is_log_cmd:
+                test_instance.log.info("CMD: {}".format(cmd))
             ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
             #ret = subprocess.run(cmd, shell=True, capture_output=True, timeout=timeout, encoding='utf-8')
             status = ret.returncode
@@ -636,14 +644,15 @@ def run_cmd(test_instance,
                     test_instance.SSHs[ssh_index].create_connection()
                     SSH = test_instance.SSHs[ssh_index]
                 status, output = SSH.remote_excute(test_cmd, timeout)
-                status, output = SSH.remote_excute(cmd, timeout, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty)
+                status, output = SSH.remote_excute(cmd, timeout, is_log_cmd, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty)
             else:
                 ret = subprocess.run(test_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
                 status = ret.returncode
                 if ret.stdout is not None:
                    output = ret.stdout
                 test_instance.log.info("CMD ret: {} out:{}".format(status, output))
-                test_instance.log.info("Retry to run CMD: {}".format(cmd))
+                if is_log_cmd:
+                    test_instance.log.info("Retry to run CMD: {}".format(cmd))
                 status = None
                 output = None
                 ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
