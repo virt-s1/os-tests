@@ -1027,7 +1027,7 @@ if __name__ == "__main__":
         component:
             kernel
         bugzilla_id:
-            2011739
+            2011739,2227177
         polarion_id:
             n/a
         maintainer:

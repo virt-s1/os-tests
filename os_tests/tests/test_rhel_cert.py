@@ -9,9 +9,10 @@ import re
 class TestRHELCert(unittest.TestCase):
 
 
-    def _wait_cert_done(self, timeout=600, interval=30):
+    def _wait_cert_done(self, timeout=600, interval=30, prefix=''):
         timeout = timeout
         interval = interval
+        prefix = str(prefix)
         time_start = int(time.time())
         while True:
            cmd = 'sudo ls /var/lock/subsys/rhcert'
@@ -34,7 +35,7 @@ class TestRHELCert(unittest.TestCase):
         if 'xml' not in out:
             self.fail("xml format result expected")
         result_path = re.findall("/.*xml", out)[0]
-        local_file='{}/attachments/{}_{}'.format(self.log_dir,self.id().split('.')[-1],os.path.basename(result_path))
+        local_file='{}/attachments/{}_{}_{}'.format(self.log_dir,self.id().split('.')[-1],prefix.replace('/','_'),os.path.basename(result_path))
         self.log.info('retrive {} from remote to {}'.format(result_path,local_file))
         self.SSH.get_file(rmt_file=result_path,local_file=local_file)
         cmd = 'sudo bash -c "rm -rf /var/rhcert/*"'
@@ -205,12 +206,14 @@ class TestRHELCert(unittest.TestCase):
         #    utils_lib.run_cmd(self,cmd, timeout=180)
         self.log.info("Please make sure you have swap partition in your disk")
         cmd = 'sudo bash -c "yes|rhcert-cli plan"'
-        utils_lib.run_cmd(self,cmd, timeout=3600, msg='create test plan')
+        auto_plan = utils_lib.run_cmd(self,cmd, timeout=3600, msg='create test plan')
         subtests = []
         if not utils_lib.is_metal(self):
             subtests.append('hwcert/memory')
             subtests.append('hwcert/core')
             subtests.append('hwcert/profiler_hardware_core')
+            if 'profiler_hardware_core' not in auto_plan:
+                subtests.append('hwcert/profiler_software')
             if 'NVMe' in utils_lib.run_cmd(self, 'lspci'):
                 subtests.append('PCIE_NVMe')
             if not utils_lib.is_arch(self, 'aarch64'):
@@ -218,8 +221,11 @@ class TestRHELCert(unittest.TestCase):
             self.log.info("Will run: {}".format(subtests))
             for case in subtests:
                 cmd = 'sudo bash -c "yes|rhcert-cli run --test {}"'.format(case)
-                utils_lib.run_cmd(self,cmd, timeout=7200, msg='run {}'.format(case))
-                self._wait_cert_done()
+                out = utils_lib.run_cmd(self,cmd, timeout=7200, msg='run {}'.format(case))
+                if "No such test" in out:
+                    self.log.info("the case might not in plan and support")
+                    continue
+                self._wait_cert_done(prefix=case)
         else:
             #cmd = 'sudo bash -c "yes|rhcert-cli run --tag non-interactive --device {}"'.format(test_disk)
             cmd = 'sudo bash -c "yes|rhcert-cli run --tag non-interactive"'
@@ -235,14 +241,14 @@ class TestRHELCert(unittest.TestCase):
         if not self.SSH.is_active():
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
         time.sleep(30)
-        self._wait_cert_done()
+        self._wait_cert_done(prefix='local')
         utils_lib.is_pkg_installed(self,'nfs-utils')
         cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device nfs --server {}"'.format(self.rmt_ipv4)
         utils_lib.run_cmd(self,cmd, timeout=1800, msg='run kdump nfs test')
         if not self.SSH.is_active():
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
         time.sleep(30)
-        self._wait_cert_done()
+        self._wait_cert_done(prefix='nfs')
 
     def test_rhcert_kdump_aws_arm_irqpoll(self):
         '''
@@ -281,14 +287,14 @@ class TestRHELCert(unittest.TestCase):
         if not self.SSH.is_active():
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
         time.sleep(30)
-        self._wait_cert_done()
+        self._wait_cert_done(prefix='local_irqpoll')
         utils_lib.is_pkg_installed(self,'nfs-utils')
         cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device nfs --server {}"'.format(self.rmt_ipv4)
         utils_lib.run_cmd(self,cmd, timeout=1800, msg='run kdump nfs test')
         if not self.SSH.is_active():
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
         time.sleep(30)
-        self._wait_cert_done()
+        self._wait_cert_done(prefix='nfs_irqpoll')
 
     def test_rhcert_ethernet(self):
         
@@ -316,7 +322,7 @@ class TestRHELCert(unittest.TestCase):
         cmd = 'sudo bash -c "yes|rhcert-cli run --test {}GigEthernet --device {} --server {}"'.format(net_bandwidth,self.active_nic,self.rmt_ipv4)
         utils_lib.run_cmd(self,cmd, timeout=1800, msg='run ethernet test')
         time.sleep(20)
-        self._wait_cert_done()
+        self._wait_cert_done(prefix=net_bandwidth)
 
     def tearDown(self):
         pass
