@@ -16,6 +16,7 @@
 /etc/alternatives/soelim.1.gz
 /etc/alternatives/whatis
 /etc/alternatives/whatis.1.gz
+/etc/alternatives/ld
 /etc/cloud/cloud-init.disabled
 /etc/group-
 /etc/grub.d/00_tuned
@@ -93,3 +94,4 @@
 /etc/NetworkManager/conf.d/99-cloud-init.conf
 /etc/NetworkManager/system-connections/cloud-init-eth0.nmconnection
 /etc/systemd/system/sysinit.target.wants/systemd-boot-update.service
+/etc/ssh/sshd_config.d/50-cloud-init.conf
