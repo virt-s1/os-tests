@@ -566,6 +566,13 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
     def instance_id(self):
         return self.data.get("InstanceId")
 
+    @property
+    def is_metal(self):
+        """
+        return if vm is bare metal or not
+        """
+        return 'ebm' in self.flavor
+
     def create(self, wait=False):
         """
         This helps to create a VM
