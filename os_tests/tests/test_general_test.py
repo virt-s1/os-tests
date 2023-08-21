@@ -238,6 +238,7 @@ current_clocksource'
         cmd = "sudo dracut -f -v"
         out = utils_lib.run_cmd(self, cmd, expect_not_kw='Failed,FAILED', timeout=300)
         if 'No space left' in out:
+            utils_lib.run_cmd(self, 'df -h;dnf list installed kernel', msg='list disk space and kernel info')
             cmd = 'sudo dnf remove --oldinstallonly --setopt installonl_limit=1 kernel -y'
             utils_lib.run_cmd(self, cmd, msg='remove old kernel to save space')
             cmd = "sudo dracut -f -v"
@@ -1090,7 +1091,7 @@ if __name__ == "__main__":
         utils_lib.run_cmd(self, 'sudo dnf groupinstall "Development Tools" -y', msg='install development tools', timeout=300)
         cmds = [ "sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo",
                  "sudo dnf config-manager --set-disable 'rh*'",
-                 "sudo dnf install -y docker-ce docker-ce-cli containerd.io",
+                 "sudo dnf install -y docker-ce docker-ce-cli containerd.io --allowerasing",
                  "sudo systemctl enable --now docker",
                  "sudo usermod -aG docker $(whoami)" ]
         for cmd in cmds:
@@ -1365,6 +1366,14 @@ if __name__ == "__main__":
         if "test_vm_time_sync_host" in self.id():
             utils_lib.run_cmd(self, 'sudo chkconfig chronyd on')
             utils_lib.run_cmd(self, 'sudo systemctl start chronyd.service')
+        if "test_z_nitro_enclaves" in self.id():
+            # delete enclave enabled vm, because 3rd party docker installed
+            if self.vm and self.vm.provider == 'aws':
+                if self.vm.is_exist() and self.vm.enclave_enabled:
+                    self.vm.delete()
+                if not self.vm.create():
+                    self.vm.create()
+                utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
 if __name__ == '__main__':
     unittest.main()

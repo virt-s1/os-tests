@@ -1764,6 +1764,9 @@ COMMIT
             - systemctl restart nm-cloud-setup.service
             - journalctl -u nm-cloud-setup.service
             - AWS only(ensure infra assign it): curl 169.254.169.254/latest/meta-data/network/interfaces/macs/$MAC/local-ipv4s
+            imdsv2: TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"`
+            curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/network/interfaces/macs/$MAC/local-ipv4s
+
         '''
         utils_lib.is_pkg_installed(self, pkg_name='NetworkManager-cloud-setup', is_install=True, cancel_case=True)
         for attrname in ['assign_secondary_ips','remove_secondary_ips']:
@@ -1793,9 +1796,10 @@ COMMIT
 
         cmd = 'sudo ip addr show {}'.format(self.active_nic)
         start_time = time.time()
+        tmp_ip = self.vm.secondary_ip_list[0]
         while True:
             out = utils_lib.run_cmd(self, cmd)
-            if self.vm.secondary_ip_list[0] in out:
+            if tmp_ip in out:
                 break
             end_time = time.time()
             if end_time - start_time > 330:
@@ -1803,14 +1807,14 @@ COMMIT
                 utils_lib.run_cmd(self, cmd)
                 cmd = 'journalctl -u nm-cloud-setup'
                 utils_lib.run_cmd(self, cmd)
-                self.fail("expected secondary ip {} is not found in guest".format(self.vm.secondary_ip_list[0]))
+                self.fail("expected secondary ip {} is not found in guest".format(tmp_ip))
             time.sleep(25)
         cmd = 'sudo ip addr show {}'.format(self.active_nic)
         start_time = time.time()
         self.vm.remove_secondary_ips()
         while True:
             out = utils_lib.run_cmd(self, cmd)
-            if self.vm.secondary_ip_list[0] not in out:
+            if tmp_ip not in out:
                 break
             end_time = time.time()
             if end_time - start_time > 330:
@@ -1818,7 +1822,7 @@ COMMIT
                 utils_lib.run_cmd(self, cmd)
                 cmd = 'journalctl -u nm-cloud-setup'
                 utils_lib.run_cmd(self, cmd)
-                self.fail("expected secondary ip {} is not removed from guest".format(self.vm.secondary_ip_list[0]))
+                self.fail("expected secondary ip {} is not removed from guest".format(tmp_ip))
             time.sleep(25)
 
     def test_second_ip_hotplug_multi(self):
@@ -1934,10 +1938,11 @@ COMMIT
 
         cmd = 'sudo ip addr show {}'.format(self.active_nic)
         start_time = time.time()
+        tmp_ips = self.vm.secondary_ip_list
         self.vm.remove_secondary_ips()
         while True:
             out = utils_lib.run_cmd(self, cmd)
-            for ip in self.vm.secondary_ip_list:
+            for ip in tmp_ips:
                 if ip in out:
                     break
                 else:
@@ -1951,7 +1956,7 @@ COMMIT
                 utils_lib.run_cmd(self, cmd)
                 cmd = 'journalctl -u nm-cloud-setup'
                 utils_lib.run_cmd(self, cmd)
-                self.fail("expected secondary ips {} are not removed completely from guest".format(str(self.vm.secondary_ip_list)))
+                self.fail("expected secondary ips {} are not removed completely from guest".format(str(tmp_ips)))
             time.sleep(25)
 
     def test_network_device_hotplug_multi(self):

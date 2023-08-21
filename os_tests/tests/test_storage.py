@@ -1109,6 +1109,7 @@ class TestStorage(unittest.TestCase):
         """
         cmd = 'sudo lsblk -d -O -J'
         disk_discard = None
+        self.is_mounted = False
         try:
             output = utils_lib.run_cmd(self, cmd)
             disks_dict = json.loads(output)
@@ -1136,7 +1137,6 @@ class TestStorage(unittest.TestCase):
             utils_lib.run_cmd(self, cmd, expect_ret=0)
         cmd = 'mount'
         output = utils_lib.run_cmd(self, cmd)
-        self.is_mounted = False
         if disk_discard not in output:
             cmd = "sudo mkfs.xfs -f /dev/%s" % disk_discard
             utils_lib.run_cmd(self, cmd, expect_ret=0)
@@ -1167,6 +1167,8 @@ class TestStorage(unittest.TestCase):
             #tear down
             self.vm.stop(wait=True)
             for i in range(0,6):
+                if not hasattr(self.vm, 'get_disk_uuid'):
+                    break
                 disk_uuid = self.vm.get_disk_uuid('sata', device_index=i)
                 try:
                     self.vm.detach_disk('sata', disk_uuid, device_index=i, wait=True)

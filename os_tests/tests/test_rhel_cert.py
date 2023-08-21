@@ -27,6 +27,8 @@ class TestRHELCert(unittest.TestCase):
            time_end = int(time.time())
            if time_end - time_start > timeout:
               self.log.info('timeout ended: {}'.format(timeout))
+              cmd = 'sudo bash -c "rm -rf /var/rhcert/*"'
+              utils_lib.run_cmd(self,cmd, msg='cleanup the test result to avoid impact other result')
               return False
            self.log.info('wait rhcert finish, retry after {}s'.format(interval))
            time.sleep(interval)

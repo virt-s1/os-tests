@@ -74,6 +74,8 @@ class EC2VM(VMResource):
         self.user_data = '#!/bin/bash\nmkdir -p /tmp/userdata_{}'.format(self.run_uuid)
         self.hibernation_support = False
         self.enclave_support = False
+        self.enclave_enabled = False
+        self.secondary_ip_list = []
         # efa_support default set to False, will query instance property next
         self.efa_support = False
         self.volume_size = params.get('volume_size') or 10
@@ -223,6 +225,8 @@ class EC2VM(VMResource):
                     break
         if not self.is_created:
             raise Exception("Cannot create instance")
+        if enable_enclave:
+            self.enclave_enabled = True
         if wait:
             try:
                 self.ec2_instance.wait_until_running()
@@ -317,12 +321,16 @@ class EC2VM(VMResource):
     def is_uefi_boot(self):
         self.ec2_instance.reload()
         try:
-            bootmode = self.client.describe_instances(
+            bootmode_set = self.client.describe_instances(
                 InstanceIds=[
                     self.ec2_instance.id,
                 ])['Reservations'][0]['Instances'][0].get("BootMode")
-            LOG.info('boot mode: {}'.format(bootmode))
-            if bootmode and 'uefi' in bootmode:
+            boot_mode_current = self.client.describe_instances(
+                InstanceIds=[
+                    self.ec2_instance.id,
+                ])['Reservations'][0]['Instances'][0].get("CurrentInstanceBootMode")
+            LOG.info('boot mode set: {} current:'.format(bootmode_set, boot_mode_current))
+            if boot_mode_current and 'uefi' in boot_mode_current:
                 return True
             else:
                 return False
@@ -551,26 +559,39 @@ class EC2VM(VMResource):
 
     def assign_new_ip(self):
         nic = self.resource.NetworkInterface(self.primary_nic_id)
-        ret = nic.assign_private_ip_addresses(
-                AllowReassignment=True,
-                SecondaryPrivateIpAddressCount=1
-            )
-        self.another_ip = ret['AssignedPrivateIpAddresses'][0]['PrivateIpAddress']
-        LOG.info("second nic ip{}".format(self.another_ip))
+        try:
+            ret = nic.assign_private_ip_addresses(
+                    AllowReassignment=True,
+                    SecondaryPrivateIpAddressCount=1
+                )
+            self.another_ip = ret['AssignedPrivateIpAddresses'][0]['PrivateIpAddress']
+            LOG.info("secondary nic ip{}".format(self.another_ip))
+        except Exception as err:
+            LOG.info('Cannot assign more: {}'.format(err))
+            return None
         return self.another_ip
-    
-    def remove_added_ip(self):
+
+    def assign_secondary_ips(self, secondary_ip_count=1):
+        # assign secondary_ip_count ips
+        for i in range(0, secondary_ip_count):
+            new_ip = self.assign_new_ip()
+            if new_ip:
+                self.secondary_ip_list.append(new_ip)
+            else:
+                LOG.info("Cannot add more, current secondary list:{}".format(self.secondary_ip_list))
+                break
+
+    def remove_secondary_ips(self):
         nic = self.resource.NetworkInterface(self.primary_nic_id)
-        if self.another_ip is None:
-            LOG.info("second nic ip is {}".format(self.another_ip))
-            return False
+        LOG.info("secondary ips is {}".format(self.secondary_ip_list))
         try:
             ret = nic.unassign_private_ip_addresses(
-                    PrivateIpAddresses=[
-                        self.another_ip,
-                    ]
+                    PrivateIpAddresses=self.secondary_ip_list
                 )
-            LOG.info("removed second nic ip{}".format(self.another_ip))
+            LOG.info("removed second nic ip{}".format(self.secondary_ip_list))
+            nic.reload()
+            LOG.info("current ips:{}".format(nic.private_ip_addresses))
+            self.secondary_ip_list = []
             return True
         except Exception as err:
             LOG.info(err)

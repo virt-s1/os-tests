@@ -214,8 +214,13 @@ class TestLifeCycle(unittest.TestCase):
             cmd = 'sudo grubby --update-kernel=ALL  --remove-args="fips=1"'
             utils_lib.run_cmd(self, cmd, msg='Disable fips!')
         else:
-            cmd = 'sudo fips-mode-setup --enable'
-            utils_lib.run_cmd(self, cmd, msg='Enable fips!', timeout=600)
+            fips_enable_cmd = 'sudo fips-mode-setup --enable'
+            out = utils_lib.run_cmd(self, fips_enable_cmd, msg='Enable fips!', timeout=600)
+            if 'No space left' in out:
+                utils_lib.run_cmd(self, 'df -h;dnf list installed kernel', msg='list disk space and kernel info')
+                cmd = 'sudo dnf remove kernel-debug -y'
+                utils_lib.run_cmd(self, cmd, msg='remove debug kernel to save space')
+                utils_lib.run_cmd(self, fips_enable_cmd, msg='Enable fips again!', timeout=600)
             utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
             time.sleep(10)
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
