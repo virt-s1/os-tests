@@ -66,7 +66,8 @@ class TestGeneralCheck(unittest.TestCase):
         cmd = "rpm -qa selinux\* container\* | sort"
         utils_lib.run_cmd(self, cmd, msg='please attach this log if bug is found')
         cmd = "sudo ausearch -m AVC -ts today -i"
-        utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='Checking avc log!', rmt_get_pty=True)
+        #utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='Checking avc log!', rmt_get_pty=True)
+        utils_lib.check_log(self, 'PROCTITLE', expect_not_ret=0, log_cmd=cmd, rmt_get_pty=True)
 
     def test_check_avclog_nfs(self):
         """
@@ -120,7 +121,8 @@ class TestGeneralCheck(unittest.TestCase):
 
         time.sleep(10)
         cmd = "sudo ausearch -i -m AVC -ts today {}".format(time_start)
-        utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='check if new avc log generated', rmt_get_pty=True)
+        #utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='check if new avc log generated', rmt_get_pty=True)
+        utils_lib.check_log(self, 'PROCTITLE', expect_not_ret=0, log_cmd=cmd, rmt_get_pty=True)
 
     def test_check_available_clocksource(self):
         """
