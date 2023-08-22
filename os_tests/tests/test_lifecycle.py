@@ -443,9 +443,9 @@ class TestLifeCycle(unittest.TestCase):
         cpu_counts = int(utils_lib.run_cmd(self, cmd, expect_ret=0,
                                            msg = "Get cpu counts"))
         test_cpus = range(cpu_counts)
-        if utils_lib.is_aws(self) and cpu_counts > 3:
+        if (utils_lib.is_aws(self) or utils_lib.is_ali(self)) and cpu_counts > 3:
             test_cpus = random.choices(range(cpu_counts),k=2)
-            self.log.info("It takes too long time in aws bare metal system or instances with tens of vcpus, pick up 2 of them to test {}".format(test_cpus))
+            self.log.info("It takes too long time in bare metal system or instances with tens of vcpus, pick up 2 of them to test {}".format(test_cpus))
         for core_num in test_cpus:
             self.log.info("Trigger kdump on core %d" % core_num)
             cmd = "systemctl is-active kdump || sudo systemctl start kdump"
