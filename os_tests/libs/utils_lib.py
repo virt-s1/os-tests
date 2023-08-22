@@ -895,7 +895,7 @@ def is_ali(test_instance, action=None):
         test_instance {Test instance} -- unittest.TestCase instance
         action {string} -- cancel case if it is not a ali system
     Return:
-        aws: return True
+        ali: return True
         other: return False
     '''
     if is_pkg_installed(test_instance, pkg_name='virt-what', cancel_case=False, is_install=False):
