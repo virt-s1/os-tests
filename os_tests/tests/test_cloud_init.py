@@ -2339,9 +2339,9 @@ rh_subscription:
         debug_want:
             N/A
         """
-        for attrname in ['subscription_username', 'subscription_password']:
-            if not hasattr(self.vm, attrname):
-                self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
+        # skip this case for public cloud, will update the case when it's suitable for public cloud
+        if self.vm.provider != 'openstack' and self.vm.provider != 'nutanix':
+            self.skipTest('skip run as this case need connect rhsm stage server, not suitable for public cloud')
         CONFIG='''rh_subscription:
     username: {}
     password: {}
