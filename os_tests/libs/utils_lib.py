@@ -1159,7 +1159,8 @@ def get_cmd_cursor(test_instance, cmd='dmesg -T', rmt_redirect_stdout=False, rmt
     test_instance.log.info("Get cursor: {}".format(cursor))
     return cursor
 
-def check_log(test_instance, log_keyword, log_cmd="journalctl -b 0", match_word_exact=False, cursor=None, skip_words=None, rmt_redirect_stdout=False, rmt_redirect_stderr=False, rmt_get_pty=False, msg=None):
+def check_log(test_instance, log_keyword, log_cmd="journalctl -b 0", expect_ret=None,
+            expect_not_ret=None, match_word_exact=False, cursor=None, skip_words=None, rmt_redirect_stdout=False, rmt_redirect_stderr=False, rmt_get_pty=False, msg=None):
     '''
     check journal log
     Arguments:
@@ -1192,7 +1193,8 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl -b 0", match_word_
     if cursor is not None:
         out = run_cmd(test_instance,
                       check_cmd,
-                      expect_ret=0,
+                      expect_ret=expect_ret,
+                      expect_not_ret= expect_not_ret,
                       msg='Get log......', cursor=cursor,
                       rmt_redirect_stderr=rmt_redirect_stderr,
                       rmt_redirect_stdout=rmt_redirect_stdout,
@@ -1200,7 +1202,8 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl -b 0", match_word_
     else:
         out = run_cmd(test_instance,
                       check_cmd,
-                      expect_ret=0,
+                      expect_ret=expect_ret,
+                      expect_not_ret= expect_not_ret,
                       msg='Get log......',
                       rmt_redirect_stderr=rmt_redirect_stderr,
                       rmt_redirect_stdout=rmt_redirect_stdout,

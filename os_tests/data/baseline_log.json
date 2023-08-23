@@ -1762,5 +1762,23 @@
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2227536",
         "path": "journal",
         "trigger": ""
+    },
+    "msg_198": {
+        "content": ".*rhc-worker-playbook.worker.*",
+        "analyze": "known avc log",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2188231",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_199": {
+        "content": ".*GDS: Unknown: Dependent on hypervisor status.*",
+        "analyze": "Controlled by the host:Running on a virtual guest processor that is affected but with no way to know if host processor is mitigated or vulnerable.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://www.kernel.org/doc/html/next/admin-guide/hw-vuln/gather_data_sampling.html",
+        "path": "journal",
+        "trigger": ""
     }
 }
