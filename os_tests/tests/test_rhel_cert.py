@@ -49,7 +49,7 @@ class TestRHELCert(unittest.TestCase):
         utils_lib.is_cmd_exist(self, cmd='rhcert-cli', cancel_case=True)
         cmd = 'sudo bash -c "rm -rf /var/rhcert/*"'
         utils_lib.run_cmd(self,cmd, msg='cleanup prior test result')
-        if 'non_interactive' not in self.id():
+        if self.id().endswith(('test_rhcert_kdump','test_rhcert_kdump_aws_arm_irqpoll','test_rhcert_ethernet')):
             if not self.is_rmt:
                 self.skipTest('only run on remote')
             if len(self.vms) < 2 and len(self.params.get('remote_nodes')) < 2:
@@ -120,16 +120,28 @@ class TestRHELCert(unittest.TestCase):
                 swap_end = root_vol.size + 8
                 if not root_vol.modify_disk_size(expand_num=10):
                     self.fail("cannot extend disk size")
-                part_count = utils_lib.run_cmd(self, "lsblk|grep p[0-9]|wc -l")
+                parts = utils_lib.run_cmd(self, "lsblk -r -o NAME,TYPE|grep part|sort|awk -F' ' '{print $1}'")
+                tmp_parts_list = parts.split('\n')
+                parts_list = [ i for i in tmp_parts_list if i ]
+                parts_list.sort()
+                new_part = parts_list[-1][:-1] + str(len(parts_list) + 1)
+                disks = utils_lib.run_cmd(self, "lsblk -d -o NAME")
+                root_disk = '/dev/nvme0n1'
+                for disk in disks.split('\n'):
+                    if disk and disk in parts:
+                        root_disk = '/dev/{}'.format(disk)
+                        break
+                self.log.info("boot disk:{}, new part:{}".format(root_disk,new_part))
+                part_count = utils_lib.run_cmd(self, "lsblk|grep part|wc -l")
                 part_count = int(part_count.strip('\n')) + 1
-                cmds = ['sudo sgdisk /dev/nvme0n1 -e',
-                    'sudo parted -s /dev/nvme0n1 print',
-                    'sudo parted -s /dev/nvme0n1 mkpart swap xfs {}G {}G'.format(swap_start,swap_end),
-                    'sudo parted -s /dev/nvme0n1 print',
+                cmds = ['sudo sgdisk {} -e'.format(root_disk),
+                    'sudo parted -s {} print'.format(root_disk),
+                    'sudo parted -s {} mkpart swap xfs {}G {}G'.format(root_disk,swap_start,swap_end),
+                    'sudo parted -s {} print'.format(root_disk),
                     'lsblk',
                     'swapoff -a',
-                    'sudo mkswap /dev/nvme0n1p{}'.format(part_count),
-                    'sudo swapon /dev/nvme0n1p{}'.format(part_count),
+                    'sudo mkswap /dev/{}'.format(new_part),
+                    'sudo swapon /dev/{}'.format(new_part),
                     'sudo cat /proc/swaps',
                     'sudo cat /proc/partitions']
                 for cmd in cmds:
@@ -210,34 +222,40 @@ class TestRHELCert(unittest.TestCase):
         cmd = 'sudo bash -c "yes|rhcert-cli plan"'
         auto_plan = utils_lib.run_cmd(self,cmd, timeout=3600, msg='create test plan')
         subtests = []
-        if not utils_lib.is_metal(self):
-            subtests.append('hwcert/memory')
-            subtests.append('hwcert/core')
-            subtests.append('hwcert/profiler_hardware_core')
-            if 'profiler_hardware_core' not in auto_plan:
-                subtests.append('hwcert/profiler_software')
-            if 'NVMe' in utils_lib.run_cmd(self, 'lspci'):
-                subtests.append('PCIE_NVMe')
-            if not utils_lib.is_arch(self, 'aarch64'):
-                subtests.append('hwcert/cpuscaling')
-            self.log.info("Will run: {}".format(subtests))
-            for case in subtests:
-                cmd = 'sudo bash -c "yes|rhcert-cli run --test {}"'.format(case)
-                out = utils_lib.run_cmd(self,cmd, timeout=7200, msg='run {}'.format(case))
-                if "No such test" in out:
-                    self.log.info("the case might not in plan and support")
-                    continue
-                self._wait_cert_done(prefix=case)
-        else:
-            #cmd = 'sudo bash -c "yes|rhcert-cli run --tag non-interactive --device {}"'.format(test_disk)
-            cmd = 'sudo bash -c "yes|rhcert-cli run --tag non-interactive"'
-            utils_lib.run_cmd(self,cmd, timeout=28800, msg='start to run non-interactive cert test')
-            self._wait_cert_done()
+        #if not utils_lib.is_metal(self):
+        subtests.append('hwcert/memory')
+        subtests.append('hwcert/core')
+        subtests.append('hwcert/profiler_hardware_core')
+        if 'profiler_hardware_core' not in auto_plan:
+            subtests.append('hwcert/profiler_software')
+        if 'profiler_hardware_uncore' in auto_plan:
+            subtests.append('hwcert/profiler_hardware_uncore')
+        if 'NVMe' in auto_plan:
+            subtests.append('PCIE_NVMe')
+        if not utils_lib.is_arch(self, 'aarch64'):
+            subtests.append('hwcert/cpuscaling')
+
+        self.log.info("Will run subtests: {}".format(subtests))
+        for case in subtests:
+            cmd = 'sudo bash -c "yes|rhcert-cli run --test {}"'.format(case)
+            out = utils_lib.run_cmd(self,cmd, timeout=7200, msg='run {}'.format(case))
+            if "No such test" in out:
+                self.log.info("the case might not in plan and support")
+                continue
+            self._wait_cert_done(prefix=case)
+        #else:
+        #    #cmd = 'sudo bash -c "yes|rhcert-cli run --tag non-interactive --device {}"'.format(test_disk)
+        #    cmd = 'sudo bash -c "yes|rhcert-cli run --tag non-interactive"'
+        #    utils_lib.run_cmd(self,cmd, timeout=28800, msg='start to run non-interactive cert test')
+        #    self._wait_cert_done()
 
     def test_rhcert_kdump(self):
-        
+        """
+        Not support in xen instance, https://access.redhat.com/solutions/2890881
+        """
         cmd = 'sudo bash -c "yes|rhcert-cli plan"'
         utils_lib.run_cmd(self,cmd, timeout=1800, msg='create test plan')
+        utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
         cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device local"'
         utils_lib.run_cmd(self,cmd, timeout=1800, msg='run kdump local test')
         if not self.SSH.is_active():
@@ -255,7 +273,7 @@ class TestRHELCert(unittest.TestCase):
     def test_rhcert_kdump_aws_arm_irqpoll(self):
         '''
         run the same test with test_rhcert_kdump, if test_rhcert_kdump fail and this case pass, that means they are the same issue with https://access.redhat.com/articles/6562431.
-
+        Not support in xen instance, https://access.redhat.com/solutions/2890881
         '''
         if not utils_lib.is_aws(self):
             self.skipTest("No need to run it because it is aws specified")
@@ -263,6 +281,11 @@ class TestRHELCert(unittest.TestCase):
             self.skipTest("Only for arm instances")
         if utils_lib.is_metal(self):
             self.skipTest("Only for virtual arm instances")
+        utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
+        if not self.SSH.is_active():
+            self.vm.stop(wait=True)
+            self.vm.start()
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
         self.log.info("aws aarch64 non-metal instance found, remove irqpoll if it is used following https://access.redhat.com/articles/6562431")
         update_kdump_cfg = False
         cmd = 'sudo grep irqpoll /etc/sysconfig/kdump |grep KDUMP_COMMANDLINE_REMOVE'
@@ -325,6 +348,30 @@ class TestRHELCert(unittest.TestCase):
         utils_lib.run_cmd(self,cmd, timeout=1800, msg='run ethernet test')
         time.sleep(20)
         self._wait_cert_done(prefix=net_bandwidth)
+
+    def test_rhcert_only_metal(self):
+        """
+        metal instance only
+        """
+        if not utils_lib.is_metal(self):
+            self.skipTest("Only run on metal instance")
+        cmd = 'sudo bash -c "yes|rhcert-cli plan"'
+        auto_plan = utils_lib.run_cmd(self,cmd, timeout=3600, msg='create test plan')
+        subtests = []
+        if 'fv_core' in auto_plan:
+            subtests.append('hwcert/fvtest/fv_core')
+        if 'fv_memory' in auto_plan:
+            subtests.append('hwcert/fvtest/fv_memory')
+
+        self.log.info("Will run subtests: {}".format(subtests))
+        for case in subtests:
+            cmd = 'sudo bash -c "yes|rhcert-cli run --test {}"'.format(case)
+            #out = utils_lib.run_cmd(self,cmd, timeout=3600, msg='run {}'.format(case),rmt_redirect_stdout=True, rmt_redirect_stderr=True,rmt_get_pty=True)
+            out = utils_lib.run_cmd(self,cmd, timeout=7200, msg='run {}'.format(case),rmt_get_pty=True)
+            if "No such test" in out:
+                self.log.info("the case might not in plan and support")
+                continue
+            self._wait_cert_done(prefix=case)
 
     def tearDown(self):
         pass

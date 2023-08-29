@@ -1780,5 +1780,14 @@
         "link": "https://www.kernel.org/doc/html/next/admin-guide/hw-vuln/gather_data_sampling.html",
         "path": "journal",
         "trigger": ""
+    },
+    "msg_200": {
+        "content": ".*skx_uncore: probe of.*failed with error -22.*",
+        "analyze": "skx_uncore can't be initialized for disabled CPUs.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/7005533",
+        "path": "journal",
+        "trigger": "nr_cpus"
     }
 }

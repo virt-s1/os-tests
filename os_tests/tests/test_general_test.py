@@ -365,7 +365,7 @@ int main(int argc, char *argv[])
             1. # wget https://github.com/redis/redis/files/5717040/redis_8124.c.txt
             2. # mv redis_8124.c.txt redis_8124.c
             3. # gcc -o os_tests_redis redis_8124.c
-            4. # systemd-run --scope -p MemoryLimit=550M ./os_tests_redis
+            4. # systemd-run --scope -p MemoryLimit=550M ./os_tests_redis (change to bigger to avoid OOM)
         expected_result:
             Your kernel looks fine.
         '''
@@ -382,10 +382,13 @@ int main(int argc, char *argv[])
         else:
             cmd = "sudo cp -f {} {}".format(redis_src, redis_src_tmp)
             utils_lib.run_cmd(self, cmd, expect_ret=0, timeout=120)
-        cmd_list = ['gcc -o /tmp/os_tests_redis /tmp/redis_8124.c',
-                    'sudo systemd-run --scope -p MemoryLimit=550M /tmp/os_tests_redis']
-        for cmd in cmd_list:
-            out = utils_lib.run_cmd(self, cmd, expect_ret=0, timeout=120)
+        cmd = 'gcc -o /tmp/os_tests_redis /tmp/redis_8124.c'
+        utils_lib.run_cmd(self, cmd, expect_ret=0, timeout=120)
+        for i in [550, 1024, 2048]:
+            cmd = "sudo systemd-run --scope -p MemoryLimit={}M /tmp/os_tests_redis".format(i)
+            out = utils_lib.run_cmd(self, cmd, timeout=120)
+            if 'Your kernel looks fine' in out:
+                break
         if 'Your kernel looks fine' not in out:
             self.fail("'Your kernel looks fine' not found in {}".format(out))
 
