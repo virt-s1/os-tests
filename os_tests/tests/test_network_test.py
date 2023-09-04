@@ -453,7 +453,7 @@ class TestNetworkTest(unittest.TestCase):
             mtu_range = [0, 67, 68, 1500,1600]
             mtu_min = 68
             mtu_max = 1500
-            if self.vm.provider == 'nutanix' or self.vm.provider == 'ali':
+            if self.vm.provider == 'nutanix' or self.vm.provider == 'ali' or self.vm.provider == 'google':
                 mtu_range = [0, 67, 68, 65535,65536]
                 mtu_max = 65535
         elif 'hv_netvsc' in output and not utils_lib.is_azure(self):
@@ -466,6 +466,11 @@ class TestNetworkTest(unittest.TestCase):
             mtu_range = [0, 67, 68, 4500, 65521, 65525]
             mtu_min = 68
             mtu_max = 65521
+        elif 'gve' in output:
+            self.log.info('gve found!')
+            mtu_range = [0, 67, 68, 1460, 1461]
+            mtu_min = 68
+            mtu_max = 1460
         else:
             self.log.info('Did not detect network type, use default min~max mtu. %s' % output)
             mtu_range = [0, 67, 68, 4500, 65535, 65536]
