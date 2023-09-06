@@ -67,7 +67,7 @@ class TestGeneralCheck(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, msg='please attach this log if bug is found')
         cmd = "sudo ausearch -m AVC -ts today -i"
         #utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='Checking avc log!', rmt_get_pty=True)
-        utils_lib.check_log(self, 'PROCTITLE', expect_not_ret=0, log_cmd=cmd, rmt_get_pty=True)
+        utils_lib.check_log(self, 'PROCTITLE', log_cmd=cmd, rmt_get_pty=True)
 
     def test_check_avclog_nfs(self):
         """
@@ -1047,7 +1047,8 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         output = utils_lib.run_cmd(self, cmd, expect_ret=0)
         out = json.loads(output)['children'][0]["children"]
         for i in out:
-            if i['id'] == 'memory':
+            if i.get('id') and 'memory' in i.get('id'):
+            # id can be "memory:0|1" or "memory"
                 mem_in_byte = i['size']
                 break
         mem_in_gib = mem_in_byte/1024/1024/1024
@@ -2015,7 +2016,7 @@ current_device"
             If run in GAed compose, please follow rule suggestion to check manually.
         '''
         cmd="cat /etc/redhat-release"
-        utils_lib.run_cmd(self, cmd, cancel_not_kw='CentOS,Fedora', msg='Not run in centos')
+        utils_lib.run_cmd(self, cmd, cancel_not_kw='CentOS,Fedora', msg='Not run in centos,fedora')
         if not utils_lib.is_cmd_exist(self, cmd="insights-client"):
             self.skipTest('No insights-client installation found!')
         utils_lib.run_cmd(self,
@@ -2036,6 +2037,19 @@ current_device"
         if "multiple hosts detected" in out:
             cmd = "sudo bash -c 'insights-client --unregister && insights-client --register'"
             utils_lib.run_cmd(self, cmd, msg="try to unregister and register system", timeout=240)
+            timeout = 720
+            interval = 5
+            time_start = int(time.time())
+            while True:
+               out = utils_lib.run_cmd(self, 'sudo insights-client --status', msg="checking system register status")
+               if 'NOT registered' not in out:
+                   break
+               time_end = int(time.time())
+               if time_end - time_start > timeout:
+                  self.log.info('timeout ended: {}'.format(timeout))
+                  break
+               self.log.info('retry after {}s'.format(interval))
+               time.sleep(interval)
         utils_lib.run_cmd(self, 'sudo insights-client --check-result', expect_ret=0, msg="checking system")
         result_out = utils_lib.run_cmd(self,
                     'sudo insights-client --show-result',
