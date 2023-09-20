@@ -47,7 +47,10 @@ class EC2VM(VMResource):
             self.vm_username = params.get('ubuntu_ssh_user')
         else:
             self.ami_id = params.get('ami_id')
-        self.instance_type = params.get('instance_type')
+        if params.get('instance_type') and '|' in params.get('instance_type'):
+            self.instance_type = params.get('instance_type').split('|')[0]
+        else:
+            self.instance_type = params.get('instance_type')
         self.subnet_id = params.get('subnet_id_ipv6') or params.get('subnet_id_ipv4')
         LOG.info('Use subnet: {}'.format(self.subnet_id))
         self.security_group_ids = params.get('security_group_ids')

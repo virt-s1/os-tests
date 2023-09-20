@@ -2037,8 +2037,11 @@ current_device"
         if "multiple hosts detected" in out:
             cmd = "sudo bash -c 'insights-client --unregister && insights-client --register'"
             utils_lib.run_cmd(self, cmd, msg="try to unregister and register system", timeout=240)
-            timeout = 720
-            interval = 5
+            time.sleep(10)
+            cmd = "sudo insights-client --register"
+            utils_lib.run_cmd(self, cmd, msg="try to register system again", timeout=240)
+            timeout = 3600
+            interval = 20
             time_start = int(time.time())
             while True:
                out = utils_lib.run_cmd(self, 'sudo insights-client --status', msg="checking system register status")

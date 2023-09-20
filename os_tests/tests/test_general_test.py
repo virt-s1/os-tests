@@ -1111,7 +1111,7 @@ if __name__ == "__main__":
             utils_lib.run_cmd(self, f"sed -i '{first_row}i\install: install-tools' aws-nitro-enclaves-cli/Makefile ")
             utils_lib.run_cmd(self,
                               'cd aws-nitro-enclaves-cli ; export NITRO_CLI_INSTALL_DIR=/ && make nitro-cli && make vsock-proxy;sudo make NITRO_CLI_INSTALL_DIR=/ install',
-                              timeout=1200, msg='make and install nitro-cli')
+                              timeout=1800, msg='make and install nitro-cli')
             cmd = 'ls -l /etc/profile.d/nitro-cli-env.sh'
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check nitro-cli-env.sh exists')
             utils_lib.run_cmd(self, 'echo source /etc/profile.d/nitro-cli-env.sh >> ~/.bashrc')
@@ -1374,8 +1374,8 @@ if __name__ == "__main__":
             if self.vm and self.vm.provider == 'aws':
                 if self.vm.is_exist() and self.vm.enclave_enabled:
                     self.vm.delete()
-                if not self.vm.create():
-                    self.vm.create()
+                    if not self.vm.create():
+                        self.vm.create()
                 utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
 if __name__ == '__main__':

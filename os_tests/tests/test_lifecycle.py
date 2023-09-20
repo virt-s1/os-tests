@@ -1410,7 +1410,7 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.finish_case(self)
         reboot_require = False
         addon_args = ["hpet_mmap=1", "mitigations=auto,nosmt", "usbcore.quirks=quirks=0781:5580:bk,0a5c:5834:gij",
-        "nr_cpus=1","nr_cpus=2", "intel_iommu=on", "fips=1"]
+        "nr_cpus=1","nr_cpus=2", "nr_cpus=4", "nr_cpus=5", "intel_iommu=on", "fips=1"]
         cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline')
         if cmdline:
             for arg in addon_args:
