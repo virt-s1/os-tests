@@ -35,6 +35,9 @@ ubuntu_ssh_user : ubuntu
 # specify allowed ration in test eg. amazon 23s, rhel 40s, (40-23/23)*100 > 70, the test will fail
 boottime_max_ratio : 70
 net_max_ratio : 10
+# specify 1(vm1&vm2) or 2 instance types(vm1|vm2), split by '|'
+# instance_type: is4gen.large
+# instance_type: t2.large|t3.small (vm1|vm2)
 instance_type: is4gen.large
 # specify below items if cannot retrive instance spec automatically
 cpus: None

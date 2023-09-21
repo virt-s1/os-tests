@@ -9,6 +9,17 @@ import re
 class TestRHELCert(unittest.TestCase):
 
 
+    def _collect_debug_log(self, prefix=''):
+        self.log.info("Collect run logs for further debug")
+        utils_lib.run_cmd(self, 'sudo ls -l /var/rhcert/*')
+        debug_run_file = "{}_{}_rhcert_run.tar".format(self.id().split('.')[-1],prefix.replace('/','_'))
+        rmt_file = "/tmp/{}".format(debug_run_file)
+        utils_lib.run_cmd(self, "sudo bash -c 'cd /var/log;tar -zcf {} rhcert/runs/'".format(rmt_file))
+        utils_lib.run_cmd(self, "sudo chmod 777 {}".format(rmt_file))
+        local_file='{}/attachments/{}'.format(self.log_dir,debug_run_file)
+        self.log.info('retrive {} from remote to {}'.format(rmt_file,local_file))
+        self.SSH.get_file(rmt_file=rmt_file,local_file=local_file)
+
     def _wait_cert_done(self, timeout=600, interval=30, prefix=''):
         timeout = timeout
         interval = interval
@@ -22,11 +33,15 @@ class TestRHELCert(unittest.TestCase):
                 out = utils_lib.run_cmd(self,cmd, timeout=1800, msg='print cert result')
                 if 'INCOMPLETE' in out:
                    self.log.info("INCOMPLETE task found, wait it done")
+                elif 'Traceback' in out:
+                    self._collect_debug_log(prefix)
+                    return False
                 else:
                     break
            time_end = int(time.time())
            if time_end - time_start > timeout:
               self.log.info('timeout ended: {}'.format(timeout))
+              self._collect_debug_log(prefix)
               cmd = 'sudo bash -c "rm -rf /var/rhcert/*"'
               utils_lib.run_cmd(self,cmd, msg='cleanup the test result to avoid impact other result')
               return False
@@ -251,6 +266,7 @@ class TestRHELCert(unittest.TestCase):
 
     def test_rhcert_kdump(self):
         """
+        This case will not run in xen.
         Not support in xen instance, https://access.redhat.com/solutions/2890881
         """
         cmd = 'sudo bash -c "yes|rhcert-cli plan"'
@@ -275,6 +291,10 @@ class TestRHELCert(unittest.TestCase):
         run the same test with test_rhcert_kdump, if test_rhcert_kdump fail and this case pass, that means they are the same issue with https://access.redhat.com/articles/6562431.
         Not support in xen instance, https://access.redhat.com/solutions/2890881
         '''
+        if not self.SSH.is_active() and self.vm:
+            self.vm.stop(wait=True)
+            self.vm.start()
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
         if not utils_lib.is_aws(self):
             self.skipTest("No need to run it because it is aws specified")
         if not utils_lib.is_arch(self, 'aarch64'):
@@ -282,10 +302,7 @@ class TestRHELCert(unittest.TestCase):
         if utils_lib.is_metal(self):
             self.skipTest("Only for virtual arm instances")
         utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
-        if not self.SSH.is_active():
-            self.vm.stop(wait=True)
-            self.vm.start()
-            utils_lib.init_connection(self, timeout=self.ssh_timeout)
+
         self.log.info("aws aarch64 non-metal instance found, remove irqpoll if it is used following https://access.redhat.com/articles/6562431")
         update_kdump_cfg = False
         cmd = 'sudo grep irqpoll /etc/sysconfig/kdump |grep KDUMP_COMMANDLINE_REMOVE'
