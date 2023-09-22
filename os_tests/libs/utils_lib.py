@@ -1809,3 +1809,53 @@ def add_port_to_firewall(test_instance=None, rmt_node=None, vm=None, port=None):
         run_cmd(test_instance, cmd, rmt_node=rmt_node, vm=vm)
     else:
         test_instance.log.info(f'port {port} has exist in the firewalld allow list')
+
+def imds_tracer_tool(test_instance=None, log_check=True, timeout=610, interval=30, cleanup=False, is_return=True):
+    '''
+    setup/remove aws imds_tracer_tool.service
+    is_return: call test_instance fail/skip or return True/False only
+    log_check: if check log during the call
+    '''
+    if not is_aws(test_instance):
+        if is_return:
+            test_instance.log.info('only support imdsv2 on aws')
+            return False
+        else:
+            test_instance.skipTest('only support imdsv2 on aws')
+    is_pkg_installed(test_instance, pkg_name="bcc-tools", cancel_case=is_return, timeout=600)
+    is_pkg_installed(test_instance, pkg_name="libbpf", cancel_case=is_return, timeout=600)
+    is_pkg_installed(test_instance, pkg_name="git", cancel_case=is_return)
+    ret = run_cmd(test_instance, 'systemctl status imds_tracer_tool.service', ret_status=True)
+    if ret != 0:
+        run_cmd(test_instance, 'sudo rm -rf aws-imds-packet-analyzer')
+        run_cmd(test_instance, 'git clone https://github.com/aws/aws-imds-packet-analyzer.git')
+        run_cmd(test_instance, 'cd aws-imds-packet-analyzer; sudo ./activate-tracer-service.sh')
+        time.sleep(30)
+        ret = run_cmd(test_instance, 'systemctl status imds_tracer_tool.service', ret_status=True)
+        if ret != 0 and not is_return:
+            test_instance.fail("cannot start imds_tracer_tool.service")
+        elif ret !=0:
+            test_instance.log.info('cannot start imds_tracer_tool.service')
+            return False
+    if log_check:    
+        timeout = timeout
+        interval = interval
+        time_start = int(time.time())
+        while True:
+           run_cmd(test_instance,'journalctl -u imds_tracer_tool.service', rmt_redirect_stdout=True)
+           run_cmd(test_instance, "sudo cat /var/log/imds/imds-trace.log", expect_not_kw='IMDSv1')
+           time_end = int(time.time())
+           if time_end - time_start > timeout:
+              test_instance.log.info('timeout ended: {}'.format(timeout))
+              break
+           test_instance.log.info('retry after {}s'.format(interval))
+           time.sleep(interval)
+    else:
+        run_cmd(test_instance,'journalctl -u imds_tracer_tool.service', rmt_redirect_stdout=True)
+        run_cmd(test_instance, "sudo cat /var/log/imds/imds-trace.log")
+
+    if cleanup:
+        run_cmd(test_instance, 'systemctl stop imds_tracer_tool.service')
+        run_cmd(test_instance, 'cd aws-imds-packet-analyzer; sudo ./activate-tracer-service.sh') 
+        run_cmd(test_instance, 'sudo rm -rf /var/log/imds/imds-trace.log') 
+    return True

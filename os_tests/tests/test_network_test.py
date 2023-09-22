@@ -1778,6 +1778,7 @@ COMMIT
             if not hasattr(self.vm, attrname):
                 self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
 
+        utils_lib.imds_tracer_tool(self, timeout=10, interval=5, log_check=False)
         if self.vm.provider == 'ali':
             config_file = self.utils_dir + '/nm_cloud_setup.sh'
             config_file_tmp = '/tmp/nm_cloud_setup.sh'
@@ -1793,6 +1794,7 @@ COMMIT
             utils_lib.run_cmd(self,'sudo chmod 755 {}'.format(config_file_tmp))
             utils_lib.run_cmd(self,'sudo {} ALIYUN'.format(config_file_tmp), rmt_get_pty=True)
 
+        utils_lib.run_cmd(self, 'systemctl cat nm-cloud-setup')
         cmd = 'sudo systemctl status nm-cloud-setup.timer'
         utils_lib.run_cmd(self, cmd)
         self.vm.assign_secondary_ips()
@@ -1812,6 +1814,7 @@ COMMIT
                 utils_lib.run_cmd(self, cmd)
                 cmd = 'journalctl -u nm-cloud-setup'
                 utils_lib.run_cmd(self, cmd)
+                utils_lib.imds_tracer_tool(self, timeout=10, interval=5, log_check=False)
                 self.fail("expected secondary ip {} is not found in guest".format(tmp_ip))
             time.sleep(25)
         cmd = 'sudo ip addr show {}'.format(self.active_nic)
@@ -1829,6 +1832,7 @@ COMMIT
                 utils_lib.run_cmd(self, cmd)
                 self.fail("expected secondary ip {} is not removed from guest".format(tmp_ip))
             time.sleep(25)
+        utils_lib.imds_tracer_tool(self, timeout=10, interval=5)
 
     def test_second_ip_hotplug_multi(self):
         """
@@ -1895,6 +1899,7 @@ COMMIT
             if not hasattr(self.vm, attrname):
                 self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
 
+        utils_lib.imds_tracer_tool(self, timeout=10, interval=5, log_check=False)
         # Default value
         secondary_ip_count = 10
         if self.vm.provider == 'ali':
@@ -1913,6 +1918,7 @@ COMMIT
             utils_lib.run_cmd(self,'sudo chmod 755 {}'.format(config_file_tmp))
             utils_lib.run_cmd(self,'sudo {} ALIYUN'.format(config_file_tmp), rmt_get_pty=True)
 
+        utils_lib.run_cmd(self, 'systemctl cat nm-cloud-setup')
         cmd = 'sudo systemctl status nm-cloud-setup.timer'
         utils_lib.run_cmd(self, cmd)
         self.vm.assign_secondary_ips(secondary_ip_count)
@@ -1938,6 +1944,7 @@ COMMIT
                 utils_lib.run_cmd(self, cmd)
                 cmd = 'journalctl -u nm-cloud-setup'
                 utils_lib.run_cmd(self, cmd)
+                utils_lib.imds_tracer_tool(self, timeout=10, interval=5, log_check=False)
                 self.fail("expected secondary ips {} are not found completely in guest".format(str(self.vm.secondary_ip_list)))
             time.sleep(25)
 
@@ -1970,6 +1977,7 @@ COMMIT
             utils_lib.run_cmd(self, cmd)
             self.fail("expected secondary ips {} are not removed completely from guest".format(str(tmp_ips)))
         time.sleep(25)
+        utils_lib.imds_tracer_tool(self, timeout=10, interval=5)
 
     def test_network_device_hotplug_multi(self):
         """
