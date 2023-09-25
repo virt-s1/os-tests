@@ -416,6 +416,59 @@ int main(int argc, char *argv[])
         utils_lib.run_cmd(self, 'sudo fsadm resize $(findmnt -n -o source /)', expect_ret=0,
             expect_not_kw="unbound variable", msg="fsadm should not crash")
 
+    def test_imds_tracer(self):
+        """
+        case_name:
+            test_imds_tracer
+        case_tags:
+            imdsv2
+        case_status:
+            approved
+        title:
+            check no process retrive metadata via imdsv1 on aws
+        importance:
+            medium
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            automated
+        linked_work_items:
+            jira_RHEL-5024
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_general_check.py
+        setup_teardown:
+            aws
+        environment:
+            aws
+        component:
+            component
+        bug_id:
+            jira_RHEL-5024
+        is_customer_case:
+            True
+        testplan:
+            N/A
+        test_type:
+            functional
+        test_level:
+            Component
+        maintainer:
+            xiliang
+        description: |
+            Check there is no process using imdsv1 to access instance metadata
+        key_steps: |
+            - sudo yum -y install bcc-tools libbpf
+            - git clone https://github.com/aws/aws-imds-packet-analyzer.git
+            - sudo aws-imds-packet-analyzer/activate-tracer-service.sh
+            - sudo cat /var/log/imds/imds-trace.log|grep imdsv1
+        expected_result: |
+            No process are using imdsv1 to access instance metadata
+        debug_want: |
+            - cat /var/log/imds/imds-trace.log
+            - journalctl -u imds_tracer_tool.service
+        """
+        utils_lib.imds_tracer_tool(self, is_return=False, timeout=610)
+
     def test_subscription_manager_auto(self):
         """
         case_name:
@@ -458,10 +511,10 @@ int main(int argc, char *argv[])
         if float(product_id) < 8.4:
             self.skipTest('skip in earlier than el8.4')
 
-        if utils_lib.is_aws(self):
-            cmds = ['curl -s http://169.254.169.254/latest/dynamic/instance-identity/rsa2048','curl -s http://169.254.169.254/latest/dynamic/instance-identity/document']
-            for cmd in cmds:
-                utils_lib.run_cmd(self, cmd, msg='region identity data')
+        #if utils_lib.is_aws(self):
+        #    cmds = ['curl -s http://169.254.169.254/latest/dynamic/instance-identity/rsa2048','curl -s http://169.254.169.254/latest/dynamic/instance-identity/document']
+        #    for cmd in cmds:
+        #        utils_lib.run_cmd(self, cmd, msg='region identity data')
         cmd = "sudo subscription-manager config --rhsmcertd.auto_registration=1 --rhsm.manage_repos=0 --rhsmcertd.auto_registration_interval=1"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to enable auto_registration, disable managed_repos and change inverval from 60mins to 1min')
         cmd = "sudo systemctl restart rhsmcertd"

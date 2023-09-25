@@ -2040,7 +2040,7 @@ current_device"
             time.sleep(10)
             cmd = "sudo insights-client --register"
             utils_lib.run_cmd(self, cmd, msg="try to register system again", timeout=240)
-            timeout = 3600
+            timeout = 1200
             interval = 20
             time_start = int(time.time())
             while True:
@@ -2196,7 +2196,6 @@ current_device"
 
     def tearDown(self):
         utils_lib.finish_case(self)
-        pass
 
 if __name__ == '__main__':
     unittest.main()
