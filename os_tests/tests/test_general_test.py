@@ -1026,7 +1026,7 @@ if __name__ == "__main__":
         debug_want:
             "strace -o log wipefs -a /dev/srN
         """
-        cmd = "lsblk | grep sr"
+        cmd = "lsblk | grep -E 'sr[0-9]'"
         all = utils_lib.run_cmd(self,cmd,cancel_kw="sr0",
                                 msg="check if machine mounted CDROM").rstrip().split("\n")
         self.cursor = utils_lib.get_cmd_cursor(self, cmd='journalctl -b0', rmt_redirect_stdout=True)
