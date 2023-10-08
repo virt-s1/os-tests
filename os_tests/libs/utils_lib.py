@@ -1815,6 +1815,7 @@ def imds_tracer_tool(test_instance=None, log_check=True, timeout=610, interval=3
     setup/remove aws imds_tracer_tool.service
     is_return: call test_instance fail/skip or return True/False only
     log_check: if check log during the call
+    https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instancedata-data-retrieval.html
     '''
     if not is_aws(test_instance):
         if is_return:
@@ -1822,11 +1823,15 @@ def imds_tracer_tool(test_instance=None, log_check=True, timeout=610, interval=3
             return False
         else:
             test_instance.skipTest('only support imdsv2 on aws')
-    is_pkg_installed(test_instance, pkg_name="bcc-tools", cancel_case=is_return, timeout=600)
-    is_pkg_installed(test_instance, pkg_name="libbpf", cancel_case=is_return, timeout=600)
-    is_pkg_installed(test_instance, pkg_name="git", cancel_case=is_return)
     ret = run_cmd(test_instance, 'systemctl status imds_tracer_tool.service', ret_status=True)
     if ret != 0:
+        if cleanup:
+            test_instance.log.info("imds_tracer_tool service is not enabled, no need to cleanup")
+            return True
+        is_pkg_installed(test_instance, pkg_name="bcc-tools", cancel_case=is_return, timeout=600)
+        is_pkg_installed(test_instance, pkg_name="libbpf", cancel_case=is_return, timeout=600)
+        is_pkg_installed(test_instance, pkg_name="git", cancel_case=is_return)
+        is_cmd_exist(test_instance, 'python3')
         run_cmd(test_instance, 'sudo rm -rf aws-imds-packet-analyzer')
         run_cmd(test_instance, 'git clone https://github.com/aws/aws-imds-packet-analyzer.git')
         run_cmd(test_instance, 'cd aws-imds-packet-analyzer; sudo ./activate-tracer-service.sh')
@@ -1856,6 +1861,6 @@ def imds_tracer_tool(test_instance=None, log_check=True, timeout=610, interval=3
 
     if cleanup:
         run_cmd(test_instance, 'systemctl stop imds_tracer_tool.service')
-        run_cmd(test_instance, 'cd aws-imds-packet-analyzer; sudo ./activate-tracer-service.sh') 
+        run_cmd(test_instance, 'cd aws-imds-packet-analyzer; sudo ./deactivate-tracer-service.sh') 
         run_cmd(test_instance, 'sudo rm -rf /var/log/imds/imds-trace.log') 
     return True

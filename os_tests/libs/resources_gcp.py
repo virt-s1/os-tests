@@ -210,6 +210,9 @@ class GCPVM(VMResource):
             },
         }
 
+        if self.arch == "aarch64":
+            config['displayDevice']['enableDisplay'] = False
+
         if self.is_secure_boot:
             config['shieldedInstanceConfig'] = {
                 'enableSecureBoot': True,

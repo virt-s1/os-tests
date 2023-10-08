@@ -1771,6 +1771,7 @@ COMMIT
             - AWS only(ensure infra assign it): curl 169.254.169.254/latest/meta-data/network/interfaces/macs/$MAC/local-ipv4s
             imdsv2: TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"`
             curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/network/interfaces/macs/$MAC/local-ipv4s
+            https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instancedata-data-retrieval.html
 
         '''
         utils_lib.is_pkg_installed(self, pkg_name='NetworkManager-cloud-setup', is_install=True, cancel_case=True)
@@ -1795,6 +1796,8 @@ COMMIT
             utils_lib.run_cmd(self,'sudo {} ALIYUN'.format(config_file_tmp), rmt_get_pty=True)
 
         utils_lib.run_cmd(self, 'systemctl cat nm-cloud-setup')
+        cmd = 'sudo systemctl enable --now nm-cloud-setup.timer'
+        utils_lib.run_cmd(self, cmd)
         cmd = 'sudo systemctl status nm-cloud-setup.timer'
         utils_lib.run_cmd(self, cmd)
         self.vm.assign_secondary_ips()
@@ -1817,12 +1820,12 @@ COMMIT
                 utils_lib.imds_tracer_tool(self, timeout=10, interval=5, log_check=False)
                 self.fail("expected secondary ip {} is not found in guest".format(tmp_ip))
             time.sleep(25)
-        cmd = 'sudo ip addr show {}'.format(self.active_nic)
+        cmd = "sudo ip addr show {}|grep -oP 'inet \K[^/]+'".format(self.active_nic)
         start_time = time.time()
         self.vm.remove_secondary_ips()
         while True:
             out = utils_lib.run_cmd(self, cmd)
-            if tmp_ip not in out:
+            if tmp_ip not in out.split('\n'):
                 break
             end_time = time.time()
             if end_time - start_time > 330:
@@ -2079,6 +2082,8 @@ COMMIT
         if 'test_network_device_hotplug_multi' in self.id():
             for nic in self.nics:
                 self.vm.detach_nic(nic)
+        if 'test_second_ip_hotplug_multi' in self.id():
+            utils_lib.imds_tracer_tool(self, timeout=10, interval=5, cleanup=True, log_check=False)
         if self.nic and self.nic.is_exist():
             self.nic.delete()
         utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', skip_words='ftrace,rawtrace', cursor=self.dmesg_cursor)
