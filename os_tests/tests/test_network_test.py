@@ -1817,12 +1817,12 @@ COMMIT
                 utils_lib.imds_tracer_tool(self, timeout=10, interval=5, log_check=False)
                 self.fail("expected secondary ip {} is not found in guest".format(tmp_ip))
             time.sleep(25)
-        cmd = 'sudo ip addr show {}'.format(self.active_nic)
+        cmd = "sudo ip addr show {}|grep -oP 'inet \K[^/]+'".format(self.active_nic)
         start_time = time.time()
         self.vm.remove_secondary_ips()
         while True:
             out = utils_lib.run_cmd(self, cmd)
-            if tmp_ip not in out:
+            if tmp_ip not in out.split('\n'):
                 break
             end_time = time.time()
             if end_time - start_time > 330:
