@@ -81,8 +81,10 @@ class LibvirtVM(VMResource):
 
     def create(self, wait=True):
         root = ET.fromstring(dom_xml)
+        acpi = ET.fromstring("<acpi/>")
         if self.arch == "x86_64":
             root.find("os").find("type").set("arch", self.arch)
+            root.find("features").insert(0, acpi)
             if float(self.rhel_ver) >= 8.2:
                 root.find("os").find("type").set("machine", "q35")
                 sub_loader = ET.fromstring("<loader readonly='yes' \
@@ -97,12 +99,14 @@ secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>")
         elif self.arch == "ppc64le":
             root.find("os").find("type").set("arch", self.arch)
             root.find("os").find("type").set("machine", "pseries")
+            root.find("features").insert(0, acpi)
         elif self.arch == "s390x":
             root.find("os").find("type").set("arch", self.arch)
             root.find("os").find("type").set("machine", "s390-ccw-virtio")
         elif self.arch == "aarch64":
             root.find("os").find("type").set("arch", self.arch)
             root.find("os").find("type").set("machine", "virt")
+            root.find("features").insert(0, acpi)
             sub_cpu = ET.fromstring(
                 "<cpu mode='host-passthrough'/>"
             )
@@ -117,6 +121,7 @@ secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>")
         else:
             root.find("os").find("type").set("arch", self.arch)
             root.find("os").find("type").set("machine", "pc")
+            root.find("features").insert(0, acpi)
         root.find("name").text = self.vm_name
         root.find("vcpu").text = str(self.vcpus)
         root.find("memory").text = str(self.memory * 1024 * 1024)
@@ -261,7 +266,6 @@ dom_xml = """
     <boot dev='hd'/>
   </os>
   <features>
-    <acpi/>
     <apic/>
   </features>
   <cpu mode='host-model'/>
