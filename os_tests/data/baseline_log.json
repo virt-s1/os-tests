@@ -1789,5 +1789,32 @@
         "link": "https://access.redhat.com/solutions/7005533",
         "path": "journal",
         "trigger": "nr_cpus"
+    },
+    "msg_201": {
+        "content": ".*irqbalance.*arm-smmu-v3-gerror.*guessed as class.*",
+        "analyze": "debug information only",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_202": {
+        "content": ".*IMDSv1.*rhsmcertd-worke.*;.*IMDSv1.*subscription-manager.*",
+        "analyze": "known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "RHEL-9435",
+        "path": "journal",
+        "trigger": ""
+    },
+    "msg_203": {
+        "content": ".*IMDSv1.*update-client.*",
+        "analyze": "known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "RHUIOPS-177",
+        "path": "journal",
+        "trigger": ""
     }
 }

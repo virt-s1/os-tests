@@ -1848,7 +1848,7 @@ def imds_tracer_tool(test_instance=None, log_check=True, timeout=610, interval=3
         time_start = int(time.time())
         while True:
            run_cmd(test_instance,'journalctl -u imds_tracer_tool.service', rmt_redirect_stdout=True)
-           run_cmd(test_instance, "sudo cat /var/log/imds/imds-trace.log", expect_not_kw='IMDSv1')
+           check_log(test_instance, "IMDSv1", log_cmd="sudo cat /var/log/imds/imds-trace.log")
            time_end = int(time.time())
            if time_end - time_start > timeout:
               test_instance.log.info('timeout ended: {}'.format(timeout))
