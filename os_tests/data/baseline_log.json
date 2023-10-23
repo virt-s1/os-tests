@@ -300,7 +300,7 @@
         "content": "dbus-daemon[8161]: [system] Failed to reset fd limit before activating service: org.freedesktop.DBus.Error.AccessDenied: Failed to restore old fd limit: Operation not permitted",
         "analyze": "Known issue",
         "branch": "rhel8",
-        "status": "active",
+        "status": "fixed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1839753",
         "path": "journal",
         "trigger": ""
@@ -354,7 +354,7 @@
         "content": "org.gnome.Shell.desktop[1578]: libEGL warning: DRI2: failed to create dri screen",
         "analyze": "Known issue",
         "branch": "rhel",
-        "status": "active",
+        "status": "fixed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1877997",
         "path": "journal",
         "trigger": ""
@@ -363,7 +363,7 @@
         "content": "gnome-shell[1578]: Failed to initialize accelerated iGPU/dGPU framebuffer sharing: Do not want to use software renderer (llvmpipe (LLVM 10.0.1, 256 bits)), falling back to CPU copy path",
         "analyze": "Known issue",
         "branch": "rhel",
-        "status": "active",
+        "status": "fixed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1877997",
         "path": "journal",
         "trigger": ""
@@ -381,7 +381,7 @@
         "content": "org.gnome.Shell.desktop[1578]: Errors from xkbcomp are not fatal to the X server",
         "analyze": "Known bug.",
         "branch": "rhel",
-        "status": "active",
+        "status": "fixed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1780463",
         "path": "journal",
         "trigger": ""
@@ -390,7 +390,7 @@
         "content": "org.gnome.Shell.desktop[1578]: > Warning:          Could not resolve keysym XF86MonBrightnessCycle",
         "analyze": "Known issue",
         "branch": "rhel",
-        "status": "active",
+        "status": "fixed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1780463",
         "path": "journal",
         "trigger": ""
@@ -507,10 +507,11 @@
         "content": "libvirtd[43301]: internal error: Invalid unsigned integer value '-1' in file '/sys/devices/system/cpu/cpu0/topology/die_id'",
         "analyze": "Know issue in arm bz#1876742",
         "branch": "rhel8",
-        "status": "active",
+        "status": "fixed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1876742",
         "path": "journal",
-        "trigger": ""
+        "trigger": "",
+        "addedby": "xiliang@redhat.com"
     },
     "msg_59": {
         "content": "kernel: hub 2-0:1.0: config failed, hub doesn't have any ports! (err -19)",
@@ -579,10 +580,11 @@
         "content": "insights-client[1133]: Error: Could not submit event: Could not find the TLS certificate file, invalid path: /etc/pki/consumer/cert.pem",
         "analyze": "known issue fixed by errata",
         "branch": "rhel",
-        "status": "closed",
+        "status": "fixed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1907266",
         "path": "journal, dmesg",
-        "trigger": ""
+        "trigger": "",
+        "addedby": "xiliang@redhat.com"
     },
     "msg_67": {
         "content": "sshd[7714]: error: maximum authentication attempts exceeded for root from 75.165.202.153 port 51082 ssh2 [preauth]",
@@ -633,19 +635,21 @@
         "content": "lvm[761]:   Failed to get primary device for 259:1.",
         "analyze": "known issue fixed by errata",
         "branch": "rhel8",
-        "status": "closed",
+        "status": "fixed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1925871",
         "path": "journal, dmesg",
-        "trigger": "blob data"
+        "trigger": "blob data",
+        "addedby": "xiliang@redhat.com"
     },
     "msg_73": {
         "content": "lvm[761]:   readlink failed: Invalid argument",
         "analyze": "known issue fixed by errata",
         "branch": "rhel8",
-        "status": "closed",
+        "status": "fixed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1925871",
         "path": "journal, dmesg",
-        "trigger": "blob data"
+        "trigger": "blob data",
+        "addedby": "xiliang@redhat.com"
     },
     "msg_74": {
         "content": "insights-client[1876]: Error: failed to download advisor report.",
@@ -1119,7 +1123,7 @@
         "content": ".*systemd-sysctl.* Couldn't write '0 2147483647' to '-net/ipv4/ping_group_range', ignoring: No such file or directory.*",
         "analyze": "this should be fixed in systemd-239-57.el8",
         "branch": "rhel",
-        "status": "active",
+        "status": "fixed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2037807",
         "path": "journal",
         "trigger": ""
@@ -1524,7 +1528,7 @@
         "content": ".*Failed to start Flush Journal to Persistent Storage.*;.*systemd-journal-flush.service: Failed with result.*;.*systemd-journal-flush.service.*failed.*",
         "analyze": "It is a known issue",
         "branch": "rhel8.8",
-        "status": "active",
+        "status": "fixed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2174645",
         "path": "journal",
         "trigger": "el8"
@@ -1788,7 +1792,8 @@
         "status": "active",
         "link": "https://access.redhat.com/solutions/7005533",
         "path": "journal",
-        "trigger": "nr_cpus"
+        "trigger": "nr_cpus",
+        "addedby": "xiliang@redhat.com"
     },
     "msg_201": {
         "content": ".*irqbalance.*arm-smmu-v3-gerror.*guessed as class.*",
@@ -1797,7 +1802,8 @@
         "status": "active",
         "link": "",
         "path": "journal",
-        "trigger": ""
+        "trigger": "",
+        "addedby": "xiliang@redhat.com"
     },
     "msg_202": {
         "content": ".*IMDSv1.*rhsmcertd-worke.*;.*IMDSv1.*subscription-manager.*",
@@ -1805,8 +1811,9 @@
         "branch": "rhel",
         "status": "active",
         "link": "RHEL-9435",
-        "path": "journal",
-        "trigger": ""
+        "path": "journal,/var/log/imds/imds-trace.log",
+        "trigger": "",
+        "addedby": "xiliang@redhat.com"
     },
     "msg_203": {
         "content": ".*IMDSv1.*update-client.*",
@@ -1814,7 +1821,8 @@
         "branch": "rhel",
         "status": "active",
         "link": "RHUIOPS-177",
-        "path": "journal",
-        "trigger": ""
+        "path": "journal,/var/log/imds/imds-trace.log",
+        "trigger": "",
+        "addedby": "xiliang@redhat.com"
     }
 }
