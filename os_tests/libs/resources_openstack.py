@@ -78,7 +78,7 @@ runcmd:
 
 password: {1}
 chpasswd: {{ expire: False }}
-ssh_pwauth: 0
+ssh_pwauth: False
 """.format(self.run_uuid, 'R')
     
         # VM creation parameter for rhsm subscription related cases
