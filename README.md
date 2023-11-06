@@ -2,7 +2,7 @@
 
 ## Introduction
 
-os-tests is a lightweight, portable and customer centric tests collection for Linux OS.
+os-tests is a lightweight, portable and customer focus tests collection for Linux OS.
 
 ## Installation
 
@@ -12,9 +12,9 @@ os-tests is a lightweight, portable and customer centric tests collection for Li
 
 Note: please install [paramiko](https://pypi.org/project/paramiko/) if run os-tests in server-client mode.
 
-There is an pynacl issue when installing paramiko on RHEL-8.6. Please install previous pynacl version (1.4.0) instead.
+There is a known pynacl issue while installing paramiko on RHEL-8.6. Please install earlier pynacl version (1.4.0) instead.
 
-### Install from source code repo directly
+### Install from the source code repo directly
 
 ```bash
 # pip install git+https://github.com/virt-s1/os-tests.git@master
@@ -39,25 +39,25 @@ note: the default bin path is "/usr/local/bin" if not in virtual environment.
 
 ### os-tests supports 3 working modes
 
-#### Mode 1 -  single node used  
+#### Mode 1 - run on single node
 
 Install and run tests inside the RHEL system directly, fewer cases than Mode 2 and 3, lacking of tests requiring reboot system and instance control access.  
 `# os-tests`  
 or  
 `# python3 -m unittest -v os_tests.os_tests_run`
 
-#### Mode 2 - server client with 2 nodes used  
+#### Mode 2 - run on existing systems remotely
 
  Require ssh user, key/password and IP to access existing RHEL system, all tests are done remotely, can do lifecyle, kdump test, but without device hotplug capability and other tests require instance access.  
 `# os-tests --host <remote_node> --user <remote_user> --keyfile <remote_keyfile> --result <result_dir> -p <cases>`
 
-#### Mode 3 - server client with 1 node used, os-tests can provision test system self  
+#### Mode 3 - os-tests provision test system by itself  
 
-Require cloud/platform account to provision remote system self, can do full test with full control of instance. Eg. device hotplug, snapshot creation, send nmi events......  
-Note: supports alicloud, aws, gcp, openstack, libvirt, nutanix, openshift, openstack and other platforms are in planning. The config template is under cfg dir.  
+Require cloud/platform account to provision remote system self, can do full test with control of instance. Eg. device hotplug, snapshot creation, send nmi events......  
+Note: supports alicloud, aws, gcp, openstack, libvirt, nutanix, openshift, openstack for now. Other platforms are in todo list. The config template is under cfg dir.  
 `# os-tests -p cloudinit --user ec2-user --keyfile /home/virtqe_s1.pem --platform_profile aws_env.yaml`
 
-### More options  
+### More options - [advanced tips](https://github.com/virt-s1/os-tests/blob/master/os_tests/docs/os-tests_advanced_tips.md)
 
 #### List all supported cases only without run
 
@@ -95,7 +95,7 @@ os_tests
 
 ### Recommended pkgs in test system  
 
-os-tests will try to install required pkgs from default repo during run, but it would be better to have them if no repo provided.
+os-tests will try to install required pkgs from default repo during run, but it would be better to have them if no repo is provided.
 List RHEL only because CentOS Stream and Fedora usually have public repo available.
 
 **RHEL-7**: install,automake,autoconf,sysstat,gcc,unzip,wget,quota,bzip2,iperf3,pciutils,fio,psmisc,expect,ntpdate,perf,nvme-cli,pciutils,fio,git,tar,nfs-utils,libvirt,qemu-kvm,kernel-debug,python3,dracut-fips,podman,strace,sos
@@ -107,8 +107,8 @@ List RHEL only because CentOS Stream and Fedora usually have public repo availab
 ### The log file
 
 The suite saves the summary to sum.html and sum.log under "/tmp/os_tests_result/" by default.
-The test debug log files are saved in "/tmp/os_tests_result/attachments" following case name by default.
-You can change "results_dir" in "cfg/os-tests.yaml" to save log to other place or passing as command option.
+The test debug log files are saved in "/tmp/os_tests_result/attachments" following case name.
+You can change "results_dir" in "cfg/os-tests.yaml" to save log to other place or pass as command option.
 
 Below is an example:
 
@@ -136,9 +136,9 @@ total 8
 - run in fips enabled kernel ([docs](https://github.com/virt-s1/os-tests/blob/master/os_tests/docs/os-tests_advanced_tips.md))
 - run in remote-client mode to cover lifecycle cases
 
-### Third party utils  
+### Third-party utils  
 
-Below tools are shiped under 'utils' directory with os-tests because not all systems can reach github.
+Pre-compiled tools are shipped under 'utils' directory with os-tests because not all systems can reach github.
 - ltp x86_64: https://github.com/liangxiao1/rpmbuild_specs/releases/latest/download/ltp-master.x86_64.rpm
 - ltp aarch64: https://github.com/liangxiao1/rpmbuild_specs/releases/latest/download/ltp-master.aarch64.rpm
 - blktests x86_64: https://github.com/liangxiao1/rpmbuild_specs/releases/latest/download/blktests-master.x86_64.rpm
