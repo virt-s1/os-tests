@@ -1436,12 +1436,13 @@
     },
     "msg_161": {
         "content": ".*acpid.socket:.*ListenStream= references a path below legacy directory.*",
-        "analyze": "known issue",
+        "analyze": "known issue fixed in RHEL-9.3",
         "branch": "rhel",
-        "status": "active",
+        "status": "fixed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2159568",
         "path": "journal,systemctl",
-        "trigger": ""
+        "trigger": "",
+        "addedby": "xiliang@redhat.com"
     },
     "msg_162": {
         "content": "rc-local.service.* not executable: Permission denied.*",
@@ -1810,7 +1811,7 @@
         "analyze": "known issue",
         "branch": "rhel",
         "status": "active",
-        "link": "RHEL-9435",
+        "link": "https://issues.redhat.com/browse/RHEL-9435",
         "path": "journal,/var/log/imds/imds-trace.log",
         "trigger": "",
         "addedby": "xiliang@redhat.com"
@@ -1823,6 +1824,36 @@
         "link": "RHUIOPS-177",
         "path": "journal,/var/log/imds/imds-trace.log",
         "trigger": "",
+        "addedby": "xiliang@redhat.com"
+    },
+    "msg_204": {
+        "content": ".*Upgrade.*OUT OF SPEC.*",
+        "analyze": "dmidecode known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-9007",
+        "path": "dmidecode",
+        "trigger": "EPYC",
+        "addedby": "xiliang@redhat.com"
+    },
+    "msg_205": {
+        "content": ".*Upgrade.*OUT OF SPEC.*",
+        "analyze": "dmidecode known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-15487",
+        "path": "dmidecode",
+        "trigger": "Platinum",
+        "addedby": "xiliang@redhat.com"
+    },
+    "msg_206": {
+        "content": ".*Family:.*OUT OF SPEC.*",
+        "analyze": "dmidecode known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-15884",
+        "path": "dmidecode",
+        "trigger": "Graviton",
         "addedby": "xiliang@redhat.com"
     }
 }

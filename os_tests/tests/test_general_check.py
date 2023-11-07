@@ -450,11 +450,7 @@ available_clocksource'
         utils_lib.is_cmd_exist(self, cmd='dmidecode')
         cmd = "sudo dmidecode --dump-bin {}/attachments/dmidecode_debug.bin".format(self.log_dir)
         utils_lib.run_cmd(self, cmd, msg='save dmidecode_debug.bin for debug purpose, please attach it if file bug')
-        utils_lib.run_cmd(self,
-                    'sudo dmidecode',
-                    expect_ret=0,
-                    expect_not_kw='OUT OF SPEC',
-                    msg='Check there is no "OUT OF SPEC" in dmidecode output')
+        utils_lib.check_log(self,'OUT OF SPEC', log_cmd='sudo dmidecode', expect_ret=0, msg='Check there is no "OUT OF SPEC" in dmidecode output')
 
     def test_check_cpu_vulnerabilities(self):
         """
