@@ -32,29 +32,19 @@ class TestGeneralTest(unittest.TestCase):
         expect_result:
             current clock source is changed
         """
-        output = utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
-        cmd = 'sudo cat /sys/devices/system/clocksource/clocksource0/\
-current_clocksource'
-
-        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Check current clock source')
-        cmd = 'sudo cat /sys/devices/system/clocksource/clocksource0/\
-available_clocksource'
-
+        utils_lib.run_cmd(self, 'lscpu', expect_ret=0)
+        current_clocksource_cmd = 'sudo cat /sys/devices/system/clocksource/clocksource0/current_clocksource'
+        utils_lib.run_cmd(self, current_clocksource_cmd, expect_ret=0, msg='Check current clock source')
+        
+        cmd = 'sudo cat /sys/devices/system/clocksource/clocksource0/available_clocksource'
         output = utils_lib.run_cmd(self, cmd, expect_ret=0)
-        for clocksource in output.split(' '):
-            cmd = 'sudo bash -c \'echo "%s" > /sys/devices/system/clocksource/clocksource0/\
-current_clocksource\'' % clocksource
-            utils_lib.run_cmd(self,
-                        cmd,
-                        expect_ret=0,
-                        msg='Change clocksource to %s' % clocksource)
-            cmd = 'sudo cat /sys/devices/system/clocksource/clocksource0/\
-current_clocksource'
+        for clocksource in output.split():
+            cmd = 'sudo bash -c \'echo "%s" > /sys/devices/system/clocksource/clocksource0/current_clocksource\'' % clocksource
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Change clocksource to %s' % clocksource)
 
-            utils_lib.run_cmd(self,
-                        cmd,
-                        expect_kw=clocksource,
-                        msg='Check current clock source')
+            utils_lib.run_cmd(self, current_clocksource_cmd, expect_kw=clocksource, msg='Check current clock source')
+        cmd = 'sudo bash -c \'echo "" > /sys/devices/system/clocksource/clocksource0/current_clocksource\''
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="restore to default clocksource")
         utils_lib.run_cmd(self, 'dmesg|tail -30', expect_ret=0)
 
     def test_change_tracer(self):

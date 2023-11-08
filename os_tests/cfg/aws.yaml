@@ -49,3 +49,5 @@ net_bandwidth: None
 support_cases: None
 subscription_username:
 subscription_password:
+# Test with amdsevsnp enabled, us-east-2 supports this feature
+amdsevsnp: False
