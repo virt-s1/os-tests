@@ -78,6 +78,8 @@ class EC2VM(VMResource):
         self.hibernation_support = False
         self.enclave_support = False
         self.enclave_enabled = False
+        self.sev_snp_enable_cfg = params.get('amdsevsnp') or False
+        self.sev_snp_enabled = False
         self.secondary_ip_list = []
         # efa_support default set to False, will query instance property next
         self.efa_support = False
@@ -89,7 +91,7 @@ class EC2VM(VMResource):
         if self.is_exist():
             LOG.info("Instance ID: {}".format(self.ec2_instance.id))
 
-    def create(self, wait=True, enable_efa=True, enable_hibernation=False, enable_enclave=False):
+    def create(self, wait=True, enable_efa=True, enable_hibernation=False, enable_enclave=False, enable_sev_snp=False):
         # enable_efa is option to enable or disable efa when create vms
         # if vm does not support efa, it will be disabled
         self.is_created = False
@@ -195,6 +197,9 @@ class EC2VM(VMResource):
         if enable_enclave:
             LOG.info("try to create instance with enclave enabled")
             vm_kwargs["EnclaveOptions"]["Enabled"] = True 
+        if enable_sev_snp or self.sev_snp_enable_cfg:
+            LOG.info("try to create instance with sev-snp enabled")
+            vm_kwargs["CpuOptions"]={"AmdSevSnp":'enabled'}
         if not self.additionalinfo:
             LOG.info("Create instance {}".format(vm_kwargs))
             try:
@@ -230,6 +235,8 @@ class EC2VM(VMResource):
             raise Exception("Cannot create instance")
         if enable_enclave:
             self.enclave_enabled = True
+        if enable_sev_snp or self.sev_snp_enable_cfg:
+            self.sev_snp_enabled = True
         if wait:
             try:
                 self.ec2_instance.wait_until_running()

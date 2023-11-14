@@ -1843,7 +1843,7 @@
         "status": "active",
         "link": "https://issues.redhat.com/browse/RHEL-15487",
         "path": "dmidecode",
-        "trigger": "Platinum",
+        "trigger": "Xeon",
         "addedby": "xiliang@redhat.com"
     },
     "msg_206": {
@@ -1854,6 +1854,26 @@
         "link": "https://issues.redhat.com/browse/RHEL-15884",
         "path": "dmidecode",
         "trigger": "Graviton",
+        "addedby": "xiliang@redhat.com"
+    },
+    "msg_207": {
+        "content": ".*Speculative Return Stack Overflow: WARNING.*for mitigation options.*",
+        "analyze": "known warning when no microcode is loaded",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://kernel.org/doc/html/latest/admin-guide/hw-vuln/srso.html",
+        "path": "dmesg",
+        "trigger": "no microcode",
+        "addedby": "xiliang@redhat.com"
+    },
+    "msg_208": {
+        "content": ".*systemd-udevd.* Failed to send readiness notification, ignoring: Too many open files.*",
+        "analyze": "known systemd issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-15962, https://github.com/systemd/systemd/pull/29322",
+        "path": "journal",
+        "trigger": "",
         "addedby": "xiliang@redhat.com"
     }
 }

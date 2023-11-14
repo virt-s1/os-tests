@@ -296,6 +296,68 @@ class TestLifeCycle(unittest.TestCase):
         #remove trace for "memory used for stack traces" or "Callback from call_rcu_tasks_trace() invoked"
         utils_lib.check_log(self, "error,warn,fail,CallTrace", rmt_redirect_stdout=True)
 
+    def test_boot_sev_snp(self):
+        """
+        case_name:
+            test_boot_sev_snp
+        case_tags:
+            lifecycle
+        case_status:
+            approved
+        title:
+            Check system can boot up with sev-snp enabled
+        importance:
+            medium
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            automated
+        linked_work_items:
+            polarion_XXXX
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_lifecycle.py
+        setup_teardown:
+            N/A
+        environment:
+            AMD
+        component:
+            component
+        bug_id:
+            bugzilla_2241202,bugzilla_2218934
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        test_type:
+            functional
+        test_level:
+            Component
+        maintainer:
+            xiliang@redhat.com
+        description: |
+            Check system can boot up with sev-snp enabled on supported amd platform
+        key_steps: |
+            - enable sev-snp when create new vm or instances
+        expected_result: |
+            - system can boot up successfully without any error
+            - sev-guest module loaded
+        debug_want: |
+            dmesg
+        """
+        if self.vm and self.vm.provider == 'aws':
+            if self.vm.is_exist():
+                self.vm.delete()
+            if not self.vm.create(enable_sev_snp=True):
+                self.vm.create()
+                self.skipTest("Cannot create instance with sev_snp enabled")
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
+
+        utils_lib.is_sev_enabled(self)
+        utils_lib.run_cmd(self, 'dmesg', expect_kw="SEV-SNP")
+        utils_lib.run_cmd(self, 'lsmod|grep sev',
+                    expect_ret=0, msg='check whether sev-snp loaded')
+        utils_lib.check_log(self, "error,warn,fail,CallTrace", rmt_redirect_stdout=True)
+
     def test_reboot_resolve_content(self):
         """
         case_tag:
@@ -864,8 +926,11 @@ class TestLifeCycle(unittest.TestCase):
             N/A
         maintainer:
             minl@redhat.com
-        description:
-            Check /proc/cmdline after configure nr_cpus equal 1 and then 2 .
+        description: |
+            Check system can boot up with "nr_cpus=N"
+            N is from [1,2] by default.
+            N is from [4,7] in metal which cpu count over 8
+            N is from [8,33] when cpu count over 100.
         key_steps:
             1. Update kernel command line using grubby command and than check /proc/cmdline.
         expect_result:
@@ -877,13 +942,15 @@ class TestLifeCycle(unittest.TestCase):
         if cpu_num < 2:
             self.skipTest("Skip test case since need at least 2 cpus for test")
         cpu_list = [1,2]
-        if utils_lib.is_metal(self) and cpu_num >= 6:
-            cpu_list = [4,5]
+        if cpu_num > 8 and utils_lib.is_metal(self):
+            cpu_list = [4,7]
+        if cpu_num > 100:
+            cpu_list = [8,33]
         self.log.info('Test boot with nr_cpus in {}'.format(cpu_list))
         for cpus in cpu_list:
             boot_param_required = 'nr_cpus='+str(cpus)
             cat_proc_cmdline = self._update_kernel_args(boot_param_required)
-            self.assertIn(boot_param_required, cat_proc_cmdline, msg='Expect intel_iommu=on in /proc/cmdline')
+            self.assertIn(boot_param_required, cat_proc_cmdline, msg='Expect {} in /proc/cmdline'.format(boot_param_required))
             online_cpu_num = int(utils_lib.run_cmd(self, 'cat /proc/cpuinfo | grep processor | wc -l'))
             self.assertEqual(online_cpu_num, cpus, msg='Check online cpus numbers equal to nr_cpus in kernel command line. Expect: %s, Actual: %s' % (cpus, online_cpu_num))
     
@@ -1441,6 +1508,13 @@ class TestLifeCycle(unittest.TestCase):
                 utils_lib.run_cmd(self, cmd, msg='Remove {}'.format(arg))
                 reboot_require = True
 
+        if "test_boot_sev_snp" in self.id():
+            if self.vm and self.vm.provider == 'aws':
+                if self.vm.is_exist() and self.vm.sev_snp_enabled:
+                    self.vm.delete()
+                if self.vm.create():
+                    self.vm.create()
+                utils_lib.init_connection(self, timeout=self.ssh_timeout)
         if reboot_require:
             utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test to restore setting')
             time.sleep(10)
