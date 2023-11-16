@@ -2531,11 +2531,16 @@ swap:
         }
         CONFIG='''\
 chpasswd:
-  list:
-    - test1:{test1}
-    - test2:{test2}
-    - test3:{test3}
-    - test4:{test4}'''.format(**pw_config_dict)
+  users:
+    - name: test1
+      password: {test1}
+    - name: test2
+      password: {test2}
+    - name: test3
+      password: {test3}
+    - name: test4
+      password: {test4}
+      type: text'''.format(**pw_config_dict)
         utils_lib.run_cmd(self,"echo '''%s''' | sudo tee /etc/cloud/cloud.cfg.d/test_hash_passwords.cfg" % CONFIG)
         utils_lib.run_cmd(self, "sudo rm -f /var/lib/cloud/instance/sem/config_set_passwords /var/log/cloud-init*.log")
         output = utils_lib.run_cmd(self, "sudo cloud-init single --name set_passwords")
