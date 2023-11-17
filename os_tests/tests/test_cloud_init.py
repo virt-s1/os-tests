@@ -3293,6 +3293,77 @@ EOF
         """
         utils_lib.run_cmd(self, 'ls -dl /run/cloud-init/')
         utils_lib.run_cmd(self, 'sudo rpm -V cloud-init', expect_not_kw='/run/cloud-init')
+    
+    def test_cloudinit_create_vm_ipv6only(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        title:
+            CLOUDINIT-TC: launch an instance with ipv6-only subnet
+        bug_id:
+            bugzilla_2163657        
+        testplan:
+            https://polarion.engineering.redhat.com/polarion/#/project/RHELVIRT/wiki/Cloud-init/        
+        maintainer:
+            xiachen@redhat.com
+        description: |
+            Launch an instance with ipv6-only subnet, cloud-init runs successfully.
+        key_steps: |
+            1. launch the second instance vm[1] with ipv6-only subnet
+            2. the exists vm[0] with ipv4+ipv6 network
+            3. scp the ssh key to vm[0]
+            4. ssh -6 vm[1] from vm[0]
+        expected_result: |
+            cloud-init runs successfully, and the instance is accessable.
+        """   
+        #the case is aws specific now, will update it or add other cases for other platforms, e.g. openstack
+        if not utils_lib.is_aws(self):
+            self.skipTest('skip run as this case is aws specific.')
+        out = utils_lib.run_cmd(self, 'rpm -q cloud-init', expect_ret=0)
+        #support version is 23.4+
+        cloudinit_ver = re.findall('\d+.\d',out)[0]
+        if float(cloudinit_ver) < 23.4:
+            self.skipTest('This feature is not supported before cloud-init 23.4')
+        #check ipv6 of vm[0], using google ipv6 address 2001:4860:4860::8888
+        cmd = "sudo ping {} -c 3 -I {}".format("2001:4860:4860::8888", "eth0")
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='ping google')
+        #create publick key of user
+        cmd1 = "cat /home/{}/.ssh/id_rsa.pub".format(self.vm.vm_username)
+        out = utils_lib.run_cmd(self, cmd1, msg='check if there is a public key')
+        if 'No such file' in out:
+            cmd = "ssh-keygen -f ~/.ssh/id_rsa -N ''"
+            utils_lib.run_cmd(self, cmd)
+            out = utils_lib.run_cmd(self, cmd1, expect_ret=0, expect_not_kw="No such file", msg='get a public key from vm[0]')
+
+        if len(self.vms) > 1 and not self.vms[1].exists():
+            self.vms[1].user_data = """\
+#cloud-config
+ssh_authorized_keys: 
+    - {}
+""".format(out)
+            self.log.info('Use IPv6only subnet: {} to create instance'.format(self.vms[1].subnet_id))
+            if self.vms[1].subnet_id is None:
+               self.fail("please provide the subnet of ipv6 only!")
+            self.vms[1].create(enable_ipv6only=True)
+            time.sleep(60)
+            #from node1 to access node2
+            remote_ip = self.vms[1].ipv6_address
+            cmd1 = "ip addr show"
+            cmd = "ssh -6 -o StrictHostKeyChecking=no {}@{} '{}'".format(self.vms[1].vm_username, remote_ip, cmd1)
+            #check if login vm[1] successfully and get its ip address
+            utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=remote_ip, msg='login vm[1] and get network information from vm[1]')
+            #check cloud-init status is done
+            cmd1 = "sudo cloud-init status"
+            cmd = "ssh -6 -o StrictHostKeyChecking=no {}@{} '{}'".format(self.vms[1].vm_username, remote_ip, cmd1)
+            utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='status: done', msg='Get cloud-init status')
+            #find keywords from cloud-init.log and make sure it is created by EphemeralIPv6Network
+            cmd1 = "sudo cat /var/log/cloud-init.log"
+            cmd = "ssh -6 -o StrictHostKeyChecking=no {}@{} '{}'".format(self.vms[1].vm_username, remote_ip, cmd1)
+            utils_lib.run_cmd(self,
+                    cmd,
+                    expect_ret=0,
+                    expect_kw='Failed to bring up EphemeralIPv4Network, SUCCESS: found local data from DataSourceEc2Local',
+                    msg='check /var/log/cloud-init.log')       
 
     def tearDown(self):
         utils_lib.finish_case(self)
@@ -3328,6 +3399,8 @@ EOF
             time.sleep(1)
             utils_lib.run_cmd(self, "sudo umount -l /var/tmp")
             utils_lib.run_cmd(self, "sudo sed -i '/noexec/d' /etc/fstab", msg='delete old config in fstab')
+        if "test_cloudinit_create_vm_ipv6only" in self.id():
+            self.vms[1].delete()
         #utils_lib.finish_case(self)
 
 if __name__ == '__main__':

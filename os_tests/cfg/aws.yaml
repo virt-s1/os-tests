@@ -7,8 +7,11 @@ Cloud:
 profile_name : default
 ami_id : 
 region : 
+#subnet_id_ipv6 is an id of subnet which contains both ipv4 and ipv6
 subnet_id_ipv6 : 
 subnet_id_ipv4 : 
+#subnet_id_ipv6only is an id of subnet which only contains ipv6
+subnet_id_ipv6only :
 security_group_ids : 
 #placement_group_id :
 placement_group_name : 
