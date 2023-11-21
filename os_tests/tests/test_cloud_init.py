@@ -3370,6 +3370,75 @@ ssh_authorized_keys:
                     expect_kw='Failed to bring up EphemeralIPv4Network, SUCCESS: found local data from DataSourceEc2Local',
                     msg='check /var/log/cloud-init.log')       
 
+    def test_cloudinit_support_nm_keyfile(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        component:
+            cloudinit
+        bugzilla_id:
+            bugzilla_2219528
+        is_customer_case:
+            False
+        testplan:
+            https://polarion.engineering.redhat.com/polarion/#/project/RHELVIRT/workitem?id=VIRT-299282
+        maintainer:
+            huzhao@redhat.com
+        description:
+            Verify cloud-init supports configuring network by NM keyfiles
+        key_steps: |
+            Set the network-manager as selected renderer  
+        expect_result:
+            Verify it can config network successfully
+        """
+        out = utils_lib.run_cmd(self, 'rpm -q cloud-init', expect_ret=0)
+        cloudinit_ver = re.findall('\d+.\d',out)[0]
+        if float(cloudinit_ver) < 23.1:
+            self.skipTest('Skip run this case, this feature is not supported before cloud-init 23.1')
+        # Check the active renderers
+        cmd = 'sudo cp /etc/cloud/cloud.cfg /etc/cloud/cloud.bak'
+        utils_lib.run_cmd(self, cmd, msg='backup /etc/cloud/cloud.cfg')
+        cmd = 'sudo grep network-manager /etc/cloud/cloud.cfg'
+        utils_lib.run_cmd(self,
+                    cmd,
+                    expect_ret=0,
+                    expect_kw="renderers:,sysconfig,network-manager",
+                    msg="check renderers in cloud.cfg")
+        cmd = "sudo grep 'Selected renderer' /var/log/cloud-init.log"
+        utils_lib.run_cmd(self,
+                    cmd,
+                    expect_ret=0,
+                    expect_kw="Selected renderer 'sysconfig' from priority list",
+                    msg="check the active renderer")        
+        config_file = utils_lib.run_cmd(self, "sudo nmcli -f NAME,FILENAME c show | awk '{print $3}' | sed -n '2p'")
+        # Modify cloud.cfg to make network-manager as the active renderer        
+        cmd = "sudo sed -i '/renderers/ s/sysconfig/network-manager/' /etc/cloud/cloud.cfg"
+        utils_lib.run_cmd(self, cmd, msg='Modify cloud.cfg to make network-manager as active renderer')
+        # Use NM to config network
+        utils_lib.run_cmd(self, 'sudo rm -f {}'.format(config_file))
+        utils_lib.run_cmd(self, 'sudo rm -f /var/log/cloud-init.log')
+        utils_lib.run_cmd(self, 'sudo cloud-init clean')
+        self._reboot_inside_vm()
+        cmd = "sudo grep 'Selected renderer' /var/log/cloud-init.log"
+        utils_lib.run_cmd(self,
+                    cmd,
+                    expect_ret=0,
+                    expect_kw="Selected renderer 'network-manager' from priority list",
+                    msg="The active renderer should be network-manager")
+        cmd = "sudo nmcli -f NAME,FILENAME c show | awk '{print $3}' | sed -n '2p'"
+        config_file = utils_lib.run_cmd(self, cmd)
+        utils_lib.run_cmd(self,
+                    cmd,
+                    expect_ret=0,
+                    expect_kw="nmconnection",
+                    msg="NM keyfile should be active")
+        interface_name = utils_lib.run_cmd(self, "sudo nmcli -f NAME,FILENAME c show | awk '{print $2}' | sed -n '2p'")
+        utils_lib.run_cmd(self,
+                    "sudo ip address show {}".format(interface_name),
+                    expect_ret=0,
+                    expect_kw=",UP,",
+                    msg="The network {} is up".format(interface_name))
+
     def tearDown(self):
         utils_lib.finish_case(self)
         if 'test_cloudinit_sshd_keypair' in self.id():
@@ -3406,6 +3475,15 @@ ssh_authorized_keys:
             utils_lib.run_cmd(self, "sudo sed -i '/noexec/d' /etc/fstab", msg='delete old config in fstab')
         if "test_cloudinit_create_vm_ipv6only" in self.id():
             self.vms[1].delete()
+        if "test_cloudinit_support_nm_keyfile" in self.id():
+            out = utils_lib.run_cmd(self, 'rpm -q cloud-init', expect_ret=0)
+            cloudinit_ver = re.findall('\d+.\d',out)[0]
+            if float(cloudinit_ver) > 22.4:
+                utils_lib.run_cmd(self, 'sudo mv /etc/cloud/cloud.bak /etc/cloud/cloud.cfg')
+                config_file = utils_lib.run_cmd(self, "sudo nmcli -f NAME,FILENAME c show | awk '{print $3}' | sed -n '2p'")
+                utils_lib.run_cmd(self, 'sudo rm -f {}'.format(config_file))
+                utils_lib.run_cmd(self, 'sudo cloud-init clean')
+                self._reboot_inside_vm()
         #utils_lib.finish_case(self)
 
 if __name__ == '__main__':
