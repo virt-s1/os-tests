@@ -32,6 +32,7 @@ class EC2VM(VMResource):
         super().__init__(params)
         self.id = None
         self.ipv4 = None
+        self.ipv6 = None
         self.vm_username = params.get('remote_user')
         if vendor == "amzn2_x86":
             self.ami_id = params.get('amzn2_ami_id_x86')
@@ -52,6 +53,7 @@ class EC2VM(VMResource):
         else:
             self.instance_type = params.get('instance_type')
         self.subnet_id = params.get('subnet_id_ipv6') or params.get('subnet_id_ipv4')
+        self.subnet_id_ipv6only = params.get('subnet_id_ipv6only')
         LOG.info('Use subnet: {}'.format(self.subnet_id))
         self.security_group_ids = params.get('security_group_ids')
         self.placement_group_name = params.get('placement_group_name')
@@ -91,7 +93,7 @@ class EC2VM(VMResource):
         if self.is_exist():
             LOG.info("Instance ID: {}".format(self.ec2_instance.id))
 
-    def create(self, wait=True, enable_efa=True, enable_hibernation=False, enable_enclave=False, enable_sev_snp=False):
+    def create(self, wait=True, enable_efa=True, enable_hibernation=False, enable_enclave=False, enable_sev_snp=False, enable_ipv6only=False):
         # enable_efa is option to enable or disable efa when create vms
         # if vm does not support efa, it will be disabled
         self.is_created = False
@@ -197,9 +199,17 @@ class EC2VM(VMResource):
         if enable_enclave:
             LOG.info("try to create instance with enclave enabled")
             vm_kwargs["EnclaveOptions"]["Enabled"] = True 
+            
         if enable_sev_snp or self.sev_snp_enable_cfg:
             LOG.info("try to create instance with sev-snp enabled")
             vm_kwargs["CpuOptions"]={"AmdSevSnp":'enabled'}
+            
+        if enable_ipv6only:
+            LOG.info("try to create an instance with ipv6 only subnet")
+            vm_kwargs["NetworkInterfaces"][0]["AssociatePublicIpAddress"] = False
+            vm_kwargs["NetworkInterfaces"][0]["SubnetId"] = self.subnet_id_ipv6only
+            vm_kwargs["MetadataOptions"]["HttpProtocolIpv6"] = 'enabled'
+            
         if not self.additionalinfo:
             LOG.info("Create instance {}".format(vm_kwargs))
             try:
@@ -255,10 +265,15 @@ class EC2VM(VMResource):
     @utils_lib.wait_for(not_ret='', ck_not_ret=True, timeout=120)
     def floating_ip(self):
         self.ec2_instance.reload()
-        self.ipv4 = self.ec2_instance.public_dns_name or ''
-        if not self.ipv4:
-            LOG.info("No public ip available yet! Try to reload it!")
-        LOG.info("instance: {} public ip is: {}".format(self.id, self.ipv4))
+        self.ipv4 = self.ec2_instance.public_dns_name or '' 
+        self.ipv6 = self.ipv6_address       
+        if self.ipv4:
+            LOG.info("instance: {} public ip is: {}".format(self.id, self.ipv4)) 
+            return self.ipv4
+        if self.ipv6:    
+            LOG.info("instance: {} public ipv6 is: {}".format(self.id, self.ipv6))
+            return self.ipv6
+        LOG.info("No public ip available yet! Try to reload it!")
         return self.ipv4
 
     @property
