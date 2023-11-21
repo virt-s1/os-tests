@@ -261,6 +261,10 @@ def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=N
                 test_instance.log.info("vm cannot connect in {} times, restart it".format(vm.dead_count))
                 vm.stop()
                 vm.start()
+            if vm.dead_count == 3:
+                test_instance.log.info("vm cannot connect in {} times, re-create it".format(vm.dead_count))
+                vm.delete()
+                vm.create()
         test_instance.fail("Cannot make ssh connection to remote, please check")
     if vm:
         vm.dead_count = 0
@@ -820,8 +824,10 @@ def is_sev_enabled(test_instance):
             return True
         else:
             return False
+    elif test_instance.vm.provider == 'aws':
+        return test_instance.vm.sev_snp_enabled
     else:
-        raise NotImplementedError
+        test_instance.skipTest("Skip as unable to determine sev status")
     return False
 
 def is_arch(test_instance, arch="", action=None):
