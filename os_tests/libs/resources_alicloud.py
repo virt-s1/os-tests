@@ -627,7 +627,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
             self.stop(wait=True)
         self.ecs.delete_instance(self.instance_id)
         if wait:
-            for count in utils_misc.iterate_timeout(
+            for count in utils_lib.iterate_timeout(
                     300, "Timed out waiting for server to get deleted.",
                     wait=10):
                 if not self.exists():
@@ -678,7 +678,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
             raise Exception("No enough NICs. Need: %s; Exists: %s" %
                             (nic_count, len(nics_list)))
         if wait:
-            for count in utils_misc.iterate_timeout(
+            for count in utils_lib.iterate_timeout(
                     300, "Timed out waiting for nics to be attached.",
                     wait=20):
                 attached_count = len(self.query_nics()) - origin_count
@@ -707,7 +707,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
             for nic_id in nic_ids:
                 self.ecs.detach_nic(self.instance_id, nic_id)
             if wait:
-                for count in utils_misc.iterate_timeout(
+                for count in utils_lib.iterate_timeout(
                         300, "Timed out waiting for nics to be detached",
                         wait=20):
                     detached_count = origin_count - len(self.query_nics())
@@ -782,7 +782,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         for nic in nics:
             self.delete_nic(nic['NetworkInterfaceId'])
         if wait:
-            for count in utils_misc.iterate_timeout(
+            for count in utils_lib.iterate_timeout(
                     300, "Timed out waiting for nics to be deleted.", wait=1):
                 remaining = len(
                     self.ecs.describe_nics(nic_name=nic_name).get(
@@ -809,7 +809,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         output = self.ecs.create_disk()
         diskid = output.get("DiskId").encode("ascii")
         if wait:
-            for count in utils_misc.iterate_timeout(
+            for count in utils_lib.iterate_timeout(
                     300, "Timed out waiting for cloud disk to be created.",
                     wait=5):
                 if self.query_cloud_disks(
@@ -823,7 +823,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         disk_id = disk_id.encode('ascii')
         self.ecs.delete_disk(disk_id)
         if wait:
-            for count in utils_misc.iterate_timeout(
+            for count in utils_lib.iterate_timeout(
                     300, "Timed out waiting for cloud disk to be deleted",
                     wait=5):
                 res = self.query_cloud_disks(disk_id=disk_id)
@@ -851,7 +851,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         disk_id = disk_id.encode("ascii")
         output = self.ecs.attach_disk(self.instance_id, disk_id)
         if wait:
-            for count in utils_misc.iterate_timeout(
+            for count in utils_lib.iterate_timeout(
                     300,
                     "Timed out waiting for cloud disk to be attached.",
                     wait=5):
@@ -865,7 +865,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         disk_id = disk_id.encode("ascii")
         output = self.ecs.detach_disk(self.instance_id, disk_id)
         if wait:
-            for count in utils_misc.iterate_timeout(
+            for count in utils_lib.iterate_timeout(
                     300,
                     "Timed out waiting for cloud disk to be detached.",
                     wait=5):
