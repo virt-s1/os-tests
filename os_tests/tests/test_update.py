@@ -73,6 +73,17 @@ class TestUpgrade(unittest.TestCase):
                 utils_lib.run_cmd(self,
                                 "sudo rmmod '{}'".format(mod_list),
                                 expect_ret=0, msg="Remove driver")
+    def _remove_package(self):
+        cmd = "sudo rpm -qa|grep kernel-devel"
+        ret = utils_lib.run_cmd(self,
+                                cmd,
+                                ret_status=True,
+                                msg='Check if there is kernel-devel package')
+        if ret == 0:
+            utils_lib.run_cmd(self,
+                            "sudo bash -c 'yum remove `{}` -y'".format(cmd),
+                            expect_ret=0,
+                            msg='Remove kernel-devel package since DNF cannot produce a valid upgrade transaction when multiple kernel-devel packages are installed.')
 
     def test_leapp_upgrade_rhui(self):
         """
@@ -154,7 +165,7 @@ class TestUpgrade(unittest.TestCase):
                         expect_ret=0,
                         msg='check current rhel release')
         x_version = self.rhel_x_version
-        cmd = "sudo rpm -qa|grep rhui"
+        cmd = "sudo rpm -qa|grep 'rhui\|client-rhel'"
         ret = utils_lib.run_cmd(self, 
                                 cmd,
                                 ret_status=True,
@@ -162,7 +173,10 @@ class TestUpgrade(unittest.TestCase):
         if ret != 0:
             self.skipTest('Skip test since there is no rhui client')
         #Install leapp packages:
-        platform = os.getenv('INFRA_PROVIDER')
+        if os.getenv('INFRA_PROVIDER') == 'ali':
+            platform = "alibaba"
+        else:
+            platform = os.getenv('INFRA_PROVIDER')
         if x_version == 7:
             cmd = "sudo yum-config-manager --enable rhui-client-config-server-7"
             utils_lib.run_cmd(self,
@@ -181,24 +195,26 @@ class TestUpgrade(unittest.TestCase):
                         msg='Install leapp-rhui-{} packages for upgrade testing'.format(platform))
         #Prepare for upgrade
         self._remove_driver()
-        cmd = "sudo subscription-manager config --rhsmcertd.auto_registration=1 --rhsm.manage_repos=0 --rhsmcertd.auto_registration_interval=1"
-        utils_lib.run_cmd(self,
-                        cmd,
-                        expect_ret=0,
-                        msg='Configure auto registration to get leapp utility metadata')
-        utils_lib.run_cmd(self,
-                        "sudo systemctl restart rhsmcertd",
-                        expect_ret=0, msg='Restart rhsmcertd service')
-        time.sleep(300)
-        utils_lib.run_cmd(self,
-                        "sudo subscription-manager status",
-                        expect_kw='Content Access Mode',
-                        msg='Check auto registration is enabled')
+        #Remove the following steps since leapp data files are now a part of the leapp-repository package, don't need to manually download these files.
+        #cmd = "sudo subscription-manager config --rhsmcertd.auto_registration=1 --rhsm.manage_repos=0 --rhsmcertd.auto_registration_interval=1"
+        #utils_lib.run_cmd(self,
+        #                cmd,
+        #                expect_ret=0,
+        #                msg='Configure auto registration to get leapp utility metadata')
+        #utils_lib.run_cmd(self,
+        #                "sudo systemctl restart rhsmcertd",
+        #                expect_ret=0, msg='Restart rhsmcertd service')
+        #time.sleep(300)
+        #utils_lib.run_cmd(self,
+        #                "sudo subscription-manager status",
+        #                expect_kw='Content Access Mode',
+        #                msg='Check auto registration is enabled')
         self._config_PermitRootLogin()
+        self._remove_package()
         #Do preupgrade
         ret = utils_lib.run_cmd(self,
                                 "sudo leapp preupgrade --debug --no-rhsm",
-                                ret_status=True, timeout=600,
+                                ret_status=True, timeout=1200,
                                 msg='Preupgrade test for leapp upgrade')
         if ret != 0:
             self._confirm_answer_file()
@@ -206,10 +222,10 @@ class TestUpgrade(unittest.TestCase):
                             "sudo cat /var/log/leapp/leapp-report.txt",
                             expect_ret=0, msg='Check leapp report')
             utils_lib.run_cmd(self, "sudo leapp preupgrade --debug --no-rhsm",
-            expect_ret=0, timeout=600, msg='Retry preupgrade')
+            expect_ret=0, timeout=1200, msg='Retry preupgrade')
         utils_lib.run_cmd(self,
                         "sudo leapp upgrade --debug --no-rhsm",
-                        expect_ret=0, timeout=600,
+                        expect_ret=0, timeout=1200,
                         msg='Do leapp upgrade via RHUI')
         utils_lib.run_cmd(self,
                         "sudo reboot",
@@ -588,7 +604,7 @@ class TestUpgrade(unittest.TestCase):
         reg_cmd = "sudo subscription-manager register --username {0} --password {1} --force".format(
             self.params.get('subscription_username'),
             self.params.get('subscription_password')) 
-        utils_lib.run_cmd(self, reg_cmd, is_log_cmd=False, expect_ret=0)
+        utils_lib.run_cmd(self, reg_cmd, timeout=600, is_log_cmd=False, expect_ret=0)
         #Configure manage_repos to 1 to enable rhsm repo
         cmd = "sed -i 's/manage_repos = 0/manage_repos = 1/g' /etc/rhsm/rhsm.conf"
         utils_lib.run_cmd(self,
@@ -629,15 +645,17 @@ class TestUpgrade(unittest.TestCase):
         #Prepare for upgrade
         self._remove_driver()
         self._config_PermitRootLogin()
-        cmd = "sudo yum remove kernel-devel"
+        self._remove_package()
+        #Enable yum plugins
+        cmd = "sed -i 's/^plugins=0/plugins=1/' '/etc/yum.conf'; sed -i 's/^enabled.*/enabled=1/' '/etc/yum/pluginconf.d/subscription-manager.conf'; sed -i 's/^enabled=0/enabled=1/' '/etc/yum/pluginconf.d/product-id.conf'"
         utils_lib.run_cmd(self,
-                        cmd,
+                        "sudo bash -c \"{}\"".format(cmd),
                         expect_ret=0,
-                        msg='Remove kernel-devel packages incase it blocks leapp upgrade')
+                        msg='Enable yum plugins')
         #Do preupgrade
         ret = utils_lib.run_cmd(self,
                                 "sudo leapp preupgrade --debug",
-                                ret_status=True, timeout=600,
+                                ret_status=True, timeout=1800,
                                 msg='Preupgrade test for leapp upgrade')
         if ret != 0:
             self._confirm_answer_file()
@@ -645,10 +663,10 @@ class TestUpgrade(unittest.TestCase):
                             "sudo cat /var/log/leapp/leapp-report.txt",
                             expect_ret=0, msg='Check leapp report')
             utils_lib.run_cmd(self, "sudo leapp preupgrade --debug",
-            expect_ret=0, timeout=600, msg='Retry preupgrade')
+            expect_ret=0, timeout=1800, msg='Retry preupgrade')
         utils_lib.run_cmd(self,
                         "sudo leapp upgrade --debug",
-                        expect_ret=0, timeout=1200,
+                        expect_ret=0, timeout=7200,
                         msg='Do leapp upgrade via rhsm')
         utils_lib.run_cmd(self,
                         "sudo reboot",
