@@ -662,9 +662,9 @@
     },
     "msg_75": {
         "content": "smpboot: do_boot_cpu failed(-1) to wakeup CPU#0",
-        "analyze": "known issue fixed by errata",
+        "analyze": "known issue was fixed by errata",
         "branch": "rhel",
-        "status": "closed",
+        "status": "fixed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1929266",
         "path": "journal, dmesg",
         "trigger": "starting cpuhotplug"
@@ -1418,9 +1418,9 @@
     },
     "msg_159": {
         "content": ".*insights-client-boot.service.*Unit uses MemoryLimit=.* please use MemoryMax= instead. Support for MemoryLimit= will be removed soon.*",
-        "analyze": "known issue",
+        "analyze": "Known issue was fixed already.",
         "branch": "rhel9",
-        "status": "active",
+        "status": "fixed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2155468",
         "path": "journal,systemctl",
         "trigger": ""
@@ -1875,5 +1875,14 @@
         "path": "journal",
         "trigger": "",
         "addedby": "xiliang@redhat.com"
+    },
+    "msg_209": {
+        "content": ".*insights-register.service.* Unit uses MemoryLimit=.* please use MemoryMax= instead. Support for MemoryLimit= will be removed soon.*",
+        "analyze": "Known issue.",
+        "branch": "rhel9",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-17009",
+        "path": "journal,systemctl",
+        "trigger": ""
     }
 }

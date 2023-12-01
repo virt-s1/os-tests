@@ -1512,7 +1512,6 @@ class TestLifeCycle(unittest.TestCase):
             if self.vm and self.vm.provider == 'aws':
                 if self.vm.is_exist() and self.vm.sev_snp_enabled:
                     self.vm.delete()
-                if self.vm.create():
                     self.vm.create()
                 utils_lib.init_connection(self, timeout=self.ssh_timeout)
         if reboot_require:
