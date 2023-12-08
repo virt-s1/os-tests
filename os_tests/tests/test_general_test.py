@@ -367,7 +367,6 @@ int main(int argc, char *argv[])
         redis_src = self.utils_dir + '/redis_8124.c'
         redis_src_tmp = '/tmp/redis_8124.c'
         if self.params.get('remote_node') is not None:
-            self.log.info('Copy {} to remote'.format(redis_src))
             self.SSH.put_file(local_file=redis_src, rmt_file=redis_src_tmp)
         else:
             cmd = "sudo cp -f {} {}".format(redis_src, redis_src_tmp)

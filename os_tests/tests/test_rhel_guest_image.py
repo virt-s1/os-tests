@@ -473,7 +473,6 @@ class TestGuestImage(unittest.TestCase):
         data_file = "selinux.el%s.lst" % product_id.split('.')[0]
         src_path = self.data_dir + '/guest-images/' + data_file
         dest_path = "/tmp/" + data_file
-        self.log.info("Copy {} to remote".format(src_path))
         self.SSH.put_file(local_file=src_path, rmt_file=dest_path)
         cmd = "sudo restorecon -R -v -n / -e /mnt -e /proc -e /sys \
 -e /tmp -e /var/tmp -e /run >{0}".format(selinux_now)
@@ -607,7 +606,6 @@ class TestGuestImage(unittest.TestCase):
                     f_name_l = f.replace('%', '/')
                 src_path = src_dir + f
                 dest_path = '/tmp/' + f_name
-                self.log.info("Copy {} to remote".format(src_path))
                 self.SSH.put_file(local_file=src_path, rmt_file=dest_path)
                 cmd = "grep -xv '^[[:space:]][[:space:]]*$' %s | diff \
 -wB - %s" % (f_name_l, "/tmp/" + f_name)

@@ -17,7 +17,6 @@ class TestRHELCert(unittest.TestCase):
         utils_lib.run_cmd(self, "sudo bash -c 'cd /var/log;tar -zcf {} rhcert/runs/'".format(rmt_file))
         utils_lib.run_cmd(self, "sudo chmod 777 {}".format(rmt_file))
         local_file='{}/attachments/{}'.format(self.log_dir,debug_run_file)
-        self.log.info('retrive {} from remote to {}'.format(rmt_file,local_file))
         self.SSH.get_file(rmt_file=rmt_file,local_file=local_file)
 
     def _wait_cert_done(self, timeout=600, interval=30, prefix=''):
@@ -53,7 +52,6 @@ class TestRHELCert(unittest.TestCase):
             self.fail("xml format result expected")
         result_path = re.findall("/.*xml", out)[0]
         local_file='{}/attachments/{}_{}_{}'.format(self.log_dir,self.id().split('.')[-1],prefix.replace('/','_'),os.path.basename(result_path))
-        self.log.info('retrive {} from remote to {}'.format(result_path,local_file))
         self.SSH.get_file(rmt_file=result_path,local_file=local_file)
         cmd = 'sudo bash -c "rm -rf /var/rhcert/*"'
         utils_lib.run_cmd(self,cmd, msg='cleanup the test result')

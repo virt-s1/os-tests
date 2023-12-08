@@ -34,7 +34,6 @@ class TestStorage(unittest.TestCase):
             blktests_rpm_tmp = '/tmp/blktests-master.x86_64.rpm'
         if not utils_lib.is_pkg_installed(self, pkg_name='blktests',is_install=False) and 'blktests' in self.id():
             if self.params['remote_node']:
-                self.log.info('Copy {} to remote'.format(blktests_rpm))
                 self.SSH.put_file(local_file=blktests_rpm, rmt_file=blktests_rpm_tmp)
                 blktests_rpm = blktests_rpm_tmp
         if 'blktests' in self.id():

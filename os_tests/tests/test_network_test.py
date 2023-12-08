@@ -1654,7 +1654,6 @@ COMMIT
             cmd = 'ls -l {}'.format(check_file_tmp)
             ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='check if {} exists'.format(check_file))
             if ret != 0:
-                self.log.info('Copy {} to remote'.format(check_file))
                 self.SSH.put_file(local_file=check_file, rmt_file=check_file_tmp)
         else:
             cmd = 'sudo cp -f {} {}'.format(check_file,check_file_tmp)
@@ -1787,7 +1786,6 @@ COMMIT
                 cmd = 'ls -l {}'.format(config_file_tmp)
                 ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='check if {} exists'.format(config_file))
                 if ret != 0:
-                    self.log.info('Copy {} to remote node'.format(config_file))
                     self.SSH.put_file(local_file=config_file, rmt_file=config_file_tmp)
             else:
                 cmd = 'sudo cp -f {} {}'.format(config_file,config_file_tmp)
@@ -1913,7 +1911,6 @@ COMMIT
                 cmd = 'ls -l {}'.format(config_file_tmp)
                 ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='check if {} exists'.format(config_file))
                 if ret != 0:
-                    self.log.info('Copy {} to remote node'.format(config_file))
                     self.SSH.put_file(local_file=config_file, rmt_file=config_file_tmp)
             else:
                 cmd = 'sudo cp -f {} {}'.format(config_file,config_file_tmp)

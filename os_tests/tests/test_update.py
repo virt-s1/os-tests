@@ -336,7 +336,6 @@ class TestUpgrade(unittest.TestCase):
         src_path = src_dir + rhel_repo
         tmp_path = "/tmp/" + rhel_repo
         dest_path_repo = "/etc/yum.repos.d/" + rhel_repo
-        self.log.info("Copy {} to remote".format(src_path))
         self.SSH.put_file(local_file=src_path, rmt_file=tmp_path)
         utils_lib.run_cmd(self, 
                         "sudo cp %s %s" % (tmp_path,dest_path_repo),
@@ -416,7 +415,6 @@ class TestUpgrade(unittest.TestCase):
         tmp_path_leapp = '/tmp/' + leapp_target_repo
         dest_dir_leapp = '/etc/leapp/files/'
         dest_path_leapp = dest_dir_leapp + leapp_target_repo
-        self.log.info("Copy {} to remote".format(src_path))
         self.SSH.put_file(local_file=src_path, rmt_file=tmp_path_leapp)
         if os.getenv('INFRA_PROVIDER') in ['azure','google','aws','ali']:
             cmd = "sudo sed -i '/gpgcheck=0/a\proxy=http://127.0.0.1:8080/' {}".format(tmp_path_leapp)
@@ -439,7 +437,6 @@ class TestUpgrade(unittest.TestCase):
 #                src_path = src_dir + f
 #                tmp_path = '/tmp/' + f
 #                dest_path = dest_dir + f
-#                self.log.info("Copy {} to remote".format(src_path))
 #                self.SSH.put_file(local_file=src_path, rmt_file=tmp_path)
 #                utils_lib.run_cmd(self, 
 #                                "sudo cp %s %s" % (tmp_path,dest_path), 
