@@ -40,7 +40,6 @@ class TestLTP(unittest.TestCase):
         ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='Check if it is ltp version with smoketest')
         if not utils_lib.is_pkg_installed(self, pkg_name='ltp',is_install=False) or ret != 0:
             if self.params.get('remote_node') is not None:
-                self.log.info('Copy {} to remote'.format(ltp_rpm))
                 self.SSH.put_file(local_file=ltp_rpm, rmt_file=ltp_rpm_tmp)
                 ltp_rpm = ltp_rpm_tmp
         if ret != 0:
