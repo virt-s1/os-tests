@@ -216,14 +216,13 @@ class OpenShiftVM(VMResource):
             return False
 
     def _get_status(self):
-        running = subprocess.Popen(
-            'oc get vm %s -o custom-columns=:.spec.running --no-headers' %
+        status = subprocess.Popen(
+            'oc get vm %s -o custom-columns=:.status.printableStatus --no-headers' %
             self.vm_name,
             shell=True,
             stdout=subprocess.PIPE,
             stderr=FNULL).communicate()[0].decode("utf-8").rstrip('\n')
-        if (running == "false"):
-            return "SHUTOFF"
+        return status
         running = subprocess.Popen(
             'oc get vmi %s -o custom-columns=:.status.phase --no-headers' %
             self.vm_name,
@@ -251,10 +250,10 @@ class OpenShiftVM(VMResource):
         return self._get_status() == "Running"
 
     def is_stopped(self):
-        return self._get_status() == "SHUTOFF"
+        return self._get_status() == "Stopped"
 
     def is_paused(self):
-        return self._get_status() == "PAUSED"
+        return self._get_status() == "Paused"
 
     def show(self):
         return self.data
