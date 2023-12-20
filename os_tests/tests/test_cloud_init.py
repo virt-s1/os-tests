@@ -1607,8 +1607,8 @@ EOF""".format(device, size), expect_ret=0)
         while output=='status: running':
             time.sleep(20) # waiting for cloud-init done
             output = utils_lib.run_cmd(self, cmd).rstrip('\n')        
-        # check cloud-init status is done        
-        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='status: done', msg='Get cloud-init status')
+        # check cloud-init status is done
+        utils_lib.run_cmd(self, cmd, expect_kw='status: done', msg='Get cloud-init status')
         # check cloud-init services status are active
         service_list = ['cloud-init-local',
                         'cloud-init',
@@ -2777,7 +2777,12 @@ chpasswd:
         debug_want:
             N/A
         """
-        module_list = 'puppet,chef,salt-minion,mcollective,package-update-upgrade-install,power-state-change'
+        out = utils_lib.run_cmd(self, 'rpm -q cloud-init', expect_ret=0)
+        cloudinit_ver = re.findall('\d+.\d',out)[0]
+        if float(cloudinit_ver) < 23.4:
+            module_list = 'puppet,chef,salt-minion,mcollective,package-update-upgrade-install,power-state-change'
+        else:
+            module_list = 'puppet,chef,salt_minion,mcollective,package_update_upgrade_install,power_state_change'
         cmd = "sed -n '/cloud_final_modules:/,/system_info:/p' /etc/cloud/cloud.cfg"
         utils_lib.run_cmd(self,
                           cmd,
