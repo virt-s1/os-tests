@@ -3324,52 +3324,96 @@ EOF
         #the case is aws specific now, will update it or add other cases for other platforms, e.g. openstack
         if not utils_lib.is_aws(self):
             self.skipTest('skip run as this case is aws specific.')
-        out = utils_lib.run_cmd(self, 'rpm -q cloud-init', expect_ret=0)
-        #support version is 23.4+
-        cloudinit_ver = re.findall('\d+.\d',out)[0]
-        if float(cloudinit_ver) < 23.4:
-            self.skipTest('This feature is not supported before cloud-init 23.4')
-        #check ipv6 of vm[0], using google ipv6 address 2001:4860:4860::8888
-        cmd = "sudo ping {} -c 3 -I {}".format("2001:4860:4860::8888", "eth0")
-        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='ping google')
-        #create publick key of user
-        cmd1 = "cat /home/{}/.ssh/id_rsa.pub".format(self.vm.vm_username)
-        out = utils_lib.run_cmd(self, cmd1, msg='check if there is a public key')
-        if 'No such file' in out:
-            cmd = "ssh-keygen -f ~/.ssh/id_rsa -N ''"
-            utils_lib.run_cmd(self, cmd)
-            out = utils_lib.run_cmd(self, cmd1, expect_ret=0, expect_not_kw="No such file", msg='get a public key from vm[0]')
+        #get cloud-init rpm version
+        support_cases = self.vm.support_cases
+        main_support_versions = ["cloud-init-23.4.el8","cloud-init-23.4.el9"] # upstream cloud-init-23.4
+        backport_versions = None #
+        package_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
+        version = version_util.get_version(package_ver,'cloud-init-')
+        if version_util.is_support(version,"test_cloudinit_create_vm_ipv6only",support_cases,main_support_versions,backport_versions):
+            #check ipv6 of vm[0], using google ipv6 address 2001:4860:4860::8888
+            cmd = "sudo ping {} -c 3 -I {}".format("2001:4860:4860::8888", "eth0")
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='ping google')
+            #create publick key of user
+            cmd1 = "cat /home/{}/.ssh/id_rsa.pub".format(self.vm.vm_username)
+            out = utils_lib.run_cmd(self, cmd1, msg='check if there is a public key')
+            if 'No such file' in out:
+                cmd = "ssh-keygen -f ~/.ssh/id_rsa -N ''"
+                utils_lib.run_cmd(self, cmd)
+                out = utils_lib.run_cmd(self, cmd1, expect_ret=0, expect_not_kw="No such file", msg='get a public key from vm[0]')
 
-        if len(self.vms) > 1 and not self.vms[1].exists():
-            self.vms[1].user_data = """\
+            if len(self.vms) > 1 and not self.vms[1].exists():
+                self.vms[1].user_data = """\
 #cloud-config
 ssh_authorized_keys: 
     - {}
 """.format(out)
-            self.log.info('Use IPv6only subnet: {} to create instance'.format(self.vms[1].subnet_id))
-            if self.vms[1].subnet_id is None:
-               self.fail("please provide the subnet of ipv6 only!")
-            self.vms[1].create(enable_ipv6only=True)
-            time.sleep(60)
-            #from node1 to access node2
-            remote_ip = self.vms[1].ipv6_address
-            cmd1 = "ip addr show"
-            cmd = "ssh -6 -o StrictHostKeyChecking=no {}@{} '{}'".format(self.vms[1].vm_username, remote_ip, cmd1)
-            #check if login vm[1] successfully and get its ip address
-            utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=remote_ip, msg='login vm[1] and get network information from vm[1]')
-            #check cloud-init status is done
-            cmd1 = "sudo cloud-init status"
-            cmd = "ssh -6 -o StrictHostKeyChecking=no {}@{} '{}'".format(self.vms[1].vm_username, remote_ip, cmd1)
-            utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='status: done', msg='Get cloud-init status')
-            #find keywords from cloud-init.log and make sure it is created by EphemeralIPv6Network
-            cmd1 = "sudo cat /var/log/cloud-init.log"
-            cmd = "ssh -6 -o StrictHostKeyChecking=no {}@{} '{}'".format(self.vms[1].vm_username, remote_ip, cmd1)
-            utils_lib.run_cmd(self,
+                self.log.info('Use IPv6only subnet: {} to create instance'.format(self.vms[1].subnet_id_ipv6only))
+                if self.vms[1].subnet_id is None:
+                    self.fail("please provide the subnet of ipv6 only!")
+                self.vms[1].create(enable_ipv6only=True)
+                time.sleep(60)
+                #from node1 to access node2
+                remote_ip = self.vms[1].ipv6_address
+                cmd1 = "ip addr show"
+                cmd = "ssh -6 -o StrictHostKeyChecking=no {}@{} '{}'".format(self.vms[1].vm_username, remote_ip, cmd1)
+                #check if login vm[1] successfully and get its ip address
+                utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=remote_ip, msg='login vm[1] and get network information from vm[1]')
+                #check cloud-init status is done
+                cmd1 = "sudo cloud-init status"
+                cmd = "ssh -6 -o StrictHostKeyChecking=no {}@{} '{}'".format(self.vms[1].vm_username, remote_ip, cmd1)
+                # cloud-init status, ret is 0 or 2 when status is done
+                utils_lib.run_cmd(self, cmd, expect_kw='status: done', msg='Get cloud-init status')
+                #find keywords from cloud-init.log and make sure it is created by EphemeralIPv6Network
+                cmd1 = "sudo cat /var/log/cloud-init.log"
+                cmd = "ssh -6 -o StrictHostKeyChecking=no {}@{} '{}'".format(self.vms[1].vm_username, remote_ip, cmd1)
+                utils_lib.run_cmd(self,
                     cmd,
                     expect_ret=0,
-                    expect_kw='Failed to bring up EphemeralIPv4Network, SUCCESS: found local data from DataSourceEc2Local',
+                    expect_kw='Crawl of metadata service using link-local ipv6, SUCCESS: found local data from DataSourceEc2Local',
                     msg='check /var/log/cloud-init.log')       
 
+    def test_cloudinit_nmactivator_sysconfig(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        component:
+            cloudinit
+        Jira_id:
+            RHEL-17610
+        is_customer_case:
+            False
+        testplan:
+            https://polarion.engineering.redhat.com/polarion/#/project/RHELVIRT/workitem?id=VIRT-300243
+        maintainer:
+            xiachen@redhat.com
+        description:
+            NetworkManagerActivator brings up interface successfully when using sysconfig renderer
+        key_steps: |
+            run on Alicloud, sysconfig is renderer and no local datasource 
+        expect_result:
+            NetworkManagerActivator brings up interface successfully 
+        """
+        #the case is alicloud specific now
+        if not utils_lib.is_ali(self):
+            self.skipTest('skip run as this case is alicloud specific.')
+        #get cloud-init rpm version
+        support_cases = self.vm.support_cases
+        main_support_versions = None #["cloud-init-23.4+"], upstream cloud-init-23.4.1
+        backport_versions = ["cloud-init-23.1.1-11.el8_9.1","cloud-init-23.1.1-12.el9_3"]
+        package_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
+        version = version_util.get_version(package_ver,'cloud-init-')
+        if version_util.is_support(version,"test_cloudinit_nmactivator_sysconfig",support_cases,main_support_versions,backport_versions):
+            # check cloud-init status is done and services are active
+            self._check_cloudinit_done_and_service_isactive()
+            utils_lib.run_cmd(self,
+                    'sudo cat /var/log/cloud-init.log',
+                    expect_ret=0,
+                    expect_not_kw='Stderr: Error: unknown connection',
+                    msg='check /var/log/cloud-init.log')
+        else:
+            self.skipTest("Skip test_cloudinit_nmactivator_sysconfig because it does not support "+package_ver)
+        
     def test_cloudinit_support_nm_keyfile(self):
         """
         case_tag:
