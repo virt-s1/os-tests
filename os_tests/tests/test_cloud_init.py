@@ -3444,6 +3444,35 @@ ssh_authorized_keys:
                     expect_kw=",UP,",
                     msg="The network {} is up".format(interface_name))
 
+    def test_cloudinit_status(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        component:
+            cloudinit
+        is_customer_case:
+            False
+        testplan:
+            https://polarion.engineering.redhat.com/polarion/#/project/RHELVIRT/workitem?id=VIRT-300252
+        maintainer:
+            huzhao@redhat.com
+        description:
+            Check cloud-init status and return code
+        """
+        # if cloud-init status is running, waiting
+        cmd = 'sudo cloud-init status'
+        status=utils_lib.run_cmd(self, cmd).rstrip('\n')        
+        while status=='status: running':
+            time.sleep(20) # waiting for cloud-init done
+            status = utils_lib.run_cmd(self, cmd).rstrip('\n')        
+        # check cloud-init status is done
+        ret = utils_lib.run_cmd(self, cmd, expect_kw='status: done', ret_status=True, msg='cloud-init status should be done')        
+        # check cloud-init status return code is 0. If not 0, print recoverable_errors
+        if ret != 0:
+            debugcmd = 'cloud-init status --format json | jq .recoverable_errors'
+            output = utils_lib.run_cmd(self, debugcmd)
+            self.fail("The cloud-init status return code is {}, The recoverable_errors are:\n{}".format(ret, output))   
+
     def tearDown(self):
         utils_lib.finish_case(self)
         if 'test_cloudinit_sshd_keypair' in self.id():
