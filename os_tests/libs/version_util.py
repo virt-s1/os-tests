@@ -17,6 +17,10 @@ def comparetolist(current_version,support_versions):
 def get_version(rpmversion,prestr):
     #split .noarch  .x86_64
     version = rpmversion.rsplit(".", 1)[0]
+    #split scratch build e.g. root202304050631
+    scratch_v = rpmversion.rsplit(".", 2)[1]
+    if len(scratch_v) > 12:
+       version = rpmversion.rsplit(".", 2)[0]
     ver = version.split(prestr)[1]
     return ver
 
