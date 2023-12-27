@@ -460,6 +460,7 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         key_steps: |
             # sudo echo 'DenyUsers'>>/etc/ssh/sshd_config
             # sudo cloud-init clean
+            # reboot (rerun cloud-init)
             # sudo grep 'SSH credentials failed' /var/log/cloud-init.log
         expect_result: 
             No 'SSH credentials failed' found
@@ -476,15 +477,8 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         utils_lib.run_cmd(self, cmd, msg='append empty DenyUsers filed')
         cmd = "sudo cloud-init clean"
         utils_lib.run_cmd(self, cmd, msg='clean cloud-init')
-        data_source_cmd = '''cat /run/cloud-init/instance-data.json | grep -E '"platform' | grep -v Linux'''
-        data_source = utils_lib.run_cmd(self, data_source_cmd, msg='check data source type')
-        if re.search('configdrive', data_source):
-            utils_lib.run_cmd(self, 'sudo cloud-init init --local')
-        cmd = "sudo cloud-init init"
-        utils_lib.run_cmd(self, cmd, msg='init cloud-init again')
-        if re.search('configdrive', data_source):
-            utils_lib.run_cmd(self, 'sudo cloud-init modules --mode config')
-            utils_lib.run_cmd(self, 'sudo cloud-init modules --mode final')
+        #reboot to rerun cloud-init
+        self._reboot_inside_vm()
         cmd = 'sudo cp -f /etc/ssh/sshd_config.bak /etc/ssh/sshd_config'
         utils_lib.run_cmd(self, cmd, msg='restore /etc/ssh/sshd_config')  
         utils_lib.run_cmd(self,
@@ -1602,12 +1596,13 @@ EOF""".format(device, size), expect_ret=0)
 
     def _check_cloudinit_done_and_service_isactive(self):
         # if cloud-init status is running, waiting
-        cmd = 'sudo cloud-init status'
-        output=utils_lib.run_cmd(self, cmd).rstrip('\n')
-        while output=='status: running':
-            time.sleep(20) # waiting for cloud-init done
-            output = utils_lib.run_cmd(self, cmd).rstrip('\n')        
+        # set timeout to prevent the infinite loop when loud-init is kept in running status
+        for count in utils_lib.iterate_timeout(
+            600, "check cloud-init status", wait=20):
+            res = utils_lib.run_cmd(self, "sudo cloud-init status")
+            if not re.search('status: running', res): break    
         # check cloud-init status is done
+        cmd = 'sudo cloud-init status'
         utils_lib.run_cmd(self, cmd, expect_kw='status: done', msg='Get cloud-init status')
         # check cloud-init services status are active
         service_list = ['cloud-init-local',
@@ -2856,7 +2851,7 @@ chpasswd:
                       output,
                       msg=" Unexpected location or permission -> {0}".format(output))
 
-    def test_cloud_init_config_ipv6(self):
+    def test_cloudinit_config_ipv6(self):
         '''
         case_tag:
             cloudinit
@@ -2897,7 +2892,7 @@ chpasswd:
             cmd = 'cat /etc/sysconfig/network-scripts/ifcfg-eth0'
             utils_lib.run_cmd(self, cmd, expect_kw='IPV6INIT=yes')
 
-    def test_cloud_init_lineoverwrite(self):
+    def test_cloudinit_lineoverwrite(self):
         '''
         case_tag:
             cloudinit
@@ -2967,7 +2962,7 @@ chpasswd:
         if "NOZEROCONF=yes" not in output:
             self.fail("NOZEROCONF=yes is expected")
 
-    def test_cloud_init_userdata(self):
+    def test_cloudinit_userdata(self):
         '''
         case_tag:
             cloudinit
@@ -3488,7 +3483,7 @@ ssh_authorized_keys:
                     expect_kw=",UP,",
                     msg="The network {} is up".format(interface_name))
 
-    def test_cloudinit_status(self):
+    def test_check_cloudinit_status(self):
         """
         case_tag:
             cloudinit,cloudinit_tier2
@@ -3504,12 +3499,13 @@ ssh_authorized_keys:
             Check cloud-init status and return code
         """
         # if cloud-init status is running, waiting
-        cmd = 'sudo cloud-init status'
-        status=utils_lib.run_cmd(self, cmd).rstrip('\n')        
-        while status=='status: running':
-            time.sleep(20) # waiting for cloud-init done
-            status = utils_lib.run_cmd(self, cmd).rstrip('\n')        
+        # set timeout to prevent the infinite loop when loud-init is kept in running status
+        for count in utils_lib.iterate_timeout(
+            600, "check cloud-init status", wait=20):
+            res = utils_lib.run_cmd(self, "sudo cloud-init status")
+            if not re.search('status: running', res): break  
         # check cloud-init status is done
+        cmd = 'sudo cloud-init status'
         ret = utils_lib.run_cmd(self, cmd, expect_kw='status: done', ret_status=True, msg='cloud-init status should be done')        
         # check cloud-init status return code is 0. If not 0, print recoverable_errors
         if ret != 0:
@@ -3520,10 +3516,11 @@ ssh_authorized_keys:
     def tearDown(self):
         utils_lib.finish_case(self)
         if 'test_cloudinit_sshd_keypair' in self.id():
-            cmd = 'cp -f ~/.ssh/authorized_keys.bak ~/.ssh/authorized_keys'
-            utils_lib.run_cmd(self, cmd, msg='restore .ssh/authorized_keys')
-            cmd= 'sudo systemctl restart  sshd'
-            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='restart sshd service')
+            self.vm.delete(wait=True)
+            self.vm.create(wait=True)
+            self.vm.start(wait=True)
+            time.sleep(30)
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
         if 'test_cloudinit_no_networkmanager' in self.id():
             if float(self.rhel_x_version) < 9.0:
                 NM_check = utils_lib.run_cmd(self, "rpm -q NetworkManager", ret_status=True)
