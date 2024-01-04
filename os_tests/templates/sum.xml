@@ -3,6 +3,9 @@
   <testsuite name="os-tests" time="{{ result.run_time }}" tests="{{ result.total }}" errors="{{ result.case_error }}" skipped="{{ result.case_skip }}" failures="{{ result.case_fail }}" nodeinfo="{{ result.node_info }}">
   {% for row in result.table_rows %}
   <testcase classname="{{ row[6] }}" name="{{ row[1] }}" time="{{ row[4] }}">
+    <properties>
+        <property name="attachment" value="attachments/{{ row[6] }}.{{ row[1] }}/{{ row[1] }}.debug" />
+    </properties>
     {% if row[2] == 'FAIL' %}
     <failure>{{ row[3] }}</failure>
     {% endif %}
@@ -10,7 +13,7 @@
     <error>{{ row[3] }}</error>
     {% endif %}
     {% if row[2] == 'SKIP' %}
-    <skipped />
+    <skipped>{{ row[3] }}</skipped>
     {% endif %}
     <time>{{ row[4] }}</time>
   </testcase>
