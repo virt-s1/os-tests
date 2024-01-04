@@ -7,7 +7,7 @@ class TestAzureUpgradeCheck(unittest.TestCase):
     def setUp(self):
         utils_lib.init_case(self)
         if not utils_lib.is_azure(self):
-            self.skipTest('Only run for azure leapp checking.')
+            self.skipTest('Only run for azure upgrade test.')
 
     @property
     def rhel_x_version(self):
@@ -252,7 +252,8 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         '''
         cmd = "ls -l /dev/disk/azure"
         utils_lib.run_cmd(self, cmd, expect_kw='root', msg="Verify root in /dev/disk/azure")
-        utils_lib.run_cmd(self, cmd, expect_kw='resource', msg="Verify resource in /dev/disk/azure")
+        if utils_lib.run_cmd(self, "df|grep mnt", ret_status=True) == 0:
+            utils_lib.run_cmd(self, cmd, expect_kw='resource', msg="Verify resource in /dev/disk/azure")
 
 #    def test_check_image_generation(self):
 #        '''

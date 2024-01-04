@@ -884,6 +884,7 @@ def is_azure(test_instance, action=None):
         azure: return True
         other: return False
     '''
+    output = run_cmd(test_instance, "[[ -f /usr/sbin/route ]] || sudo yum install -y net-tools")
     output = run_cmd(test_instance, "/usr/sbin/route -n")
     if 'not found' in output:
         return False
