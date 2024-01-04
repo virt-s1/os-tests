@@ -467,6 +467,9 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         debug_want:
             Please attach /var/log/cloud-init.log
         '''
+        product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
+        if float(product_id) >= 9.0:
+            self.skipTest('sshd does not allow empty value from RHEL-9, cloudinit has no chance to hit the key value empty senario.')
         cmd = 'cp ~/.ssh/authorized_keys ~/.ssh/authorized_keys.bak'
         utils_lib.run_cmd(self, cmd, msg='backup .ssh/authorized_keys')
         cmd = 'sudo cp -f /etc/ssh/sshd_config /etc/ssh/sshd_config.bak'
@@ -3516,11 +3519,13 @@ ssh_authorized_keys:
     def tearDown(self):
         utils_lib.finish_case(self)
         if 'test_cloudinit_sshd_keypair' in self.id():
-            self.vm.delete(wait=True)
-            self.vm.create(wait=True)
-            self.vm.start(wait=True)
-            time.sleep(30)
-            utils_lib.init_connection(self, timeout=self.ssh_timeout)
+            product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
+            if float(product_id) < 9.0:
+                self.vm.delete(wait=True)
+                self.vm.create(wait=True)
+                self.vm.start(wait=True)
+                time.sleep(30)
+                utils_lib.init_connection(self, timeout=self.ssh_timeout)
         if 'test_cloudinit_no_networkmanager' in self.id():
             if float(self.rhel_x_version) < 9.0:
                 NM_check = utils_lib.run_cmd(self, "rpm -q NetworkManager", ret_status=True)

@@ -1134,6 +1134,9 @@ if __name__ == "__main__":
                'sudo insmod ${NITRO_CLI_INSTALL_DIR}/lib/modules/extra/nitro_enclaves/nitro_enclaves.ko',
                '${NITRO_CLI_INSTALL_DIR}/lib/modules/$(uname -r)/extra/nitro_enclaves/nitro_enclaves.ko']
         utils_lib.run_cmd(self, 'sudo dnf groupinstall "Development Tools" -y', msg='install development tools', timeout=300)
+        utils_lib.is_pkg_installed(self, pkg_name='iptables')
+        utils_lib.is_pkg_installed(self, pkg_name='libcgroup')
+        utils_lib.is_pkg_installed(self, pkg_name='container-selinux')
         cmds = [ "sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo",
                  "sudo dnf config-manager --set-disable 'rh*'",
                  "sudo dnf install -y docker-ce docker-ce-cli containerd.io --allowerasing",
@@ -1414,7 +1417,7 @@ if __name__ == "__main__":
         if "test_z_nitro_enclaves" in self.id():
             # delete enclave enabled vm, because 3rd party docker installed
             if self.vm and self.vm.provider == 'aws':
-                if self.vm.is_exist() and self.vm.enclave_enabled:
+                if self.vm.is_exist() and self.vm.enclave_enabled and not self.params.get('no_cleanup'):
                     self.vm.delete()
                     if not self.vm.create():
                         self.vm.create()
