@@ -153,7 +153,7 @@ ssh_pwauth: False
                     server=server, wait=self.create_timeout)
             else:
                 server = self.conn.compute.wait_for_server(server)
-            if auto_ip and self.floating_network_id != '':
+            if auto_ip and self.floating_network_id != '' and self.floating_network_id is not None:
                 f_ip = self.conn.network.create_ip(
                     floating_network_id=self.floating_network_id)
                 self.conn.compute.add_floating_ip_to_server(

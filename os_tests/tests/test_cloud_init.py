@@ -3512,7 +3512,7 @@ ssh_authorized_keys:
         ret = utils_lib.run_cmd(self, cmd, expect_kw='status: done', ret_status=True, msg='cloud-init status should be done')        
         # check cloud-init status return code is 0. If not 0, print recoverable_errors
         if ret != 0:
-            debugcmd = 'cloud-init status --format json | jq .recoverable_errors'
+            debugcmd = 'cloud-init status --format json'
             output = utils_lib.run_cmd(self, debugcmd)
             self.fail("The cloud-init status return code is {}, The recoverable_errors are:\n{}".format(ret, output))   
 
@@ -3523,7 +3523,8 @@ ssh_authorized_keys:
             if float(product_id) < 9.0:
                 self.vm.delete(wait=True)
                 self.vm.create(wait=True)
-                self.vm.start(wait=True)
+                if self.vm.is_stopped():
+                    self.vm.start(wait=True)
                 time.sleep(30)
                 utils_lib.init_connection(self, timeout=self.ssh_timeout)
         if 'test_cloudinit_no_networkmanager' in self.id():
