@@ -1884,5 +1884,15 @@
         "link": "https://issues.redhat.com/browse/RHEL-17009",
         "path": "journal,systemctl",
         "trigger": ""
+    },
+    "msg_210": {
+        "content": ".*/usr/lib/systemd/system/cloud-.* Unknown lvalue 'ConditionEnvironment' in section 'Unit'",
+        "analyze": "Known issue.",
+        "branch": "rhel8",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-21290",
+        "path": "journal,systemctl",
+        "trigger": "",
+        "addedby": "libhe@redhat.com"
     }
 }
