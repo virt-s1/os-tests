@@ -358,6 +358,67 @@ class TestLifeCycle(unittest.TestCase):
                     expect_ret=0, msg='check whether sev-snp loaded')
         utils_lib.check_log(self, "error,warn,fail,CallTrace", rmt_redirect_stdout=True)
 
+    def test_boot_mem_encrypt_on(self):
+        """
+        case_name:
+            test_boot_mem_encrypt_on
+        case_tags:
+            lifecycle
+        case_status:
+            approved
+        title:
+            Check system can boot up with mem_encryp on
+        importance:
+            medium
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            automated
+        linked_work_items:
+            polarion_XXXX
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_lifecycle.py
+        setup_teardown:
+            N/A
+        environment:
+            N/A
+        component:
+            component
+        bug_id:
+            https://issues.redhat.com/browse/RHEL-15176
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        test_type:
+            functional
+        test_level:
+            Component
+        maintainer:
+            libhe@redhat.com
+        description: |
+            Check system can boot up with mem_encryp on 
+        key_steps: |
+            - add mem_encryp=on to kernel cmdline and reboot system
+        expected_result: |
+            - system can boot up successfully without any error
+            - mem_encryp option is enabled
+        debug_want: |
+            dmesg
+        """
+        utils_lib.run_cmd(self,
+                    r'sudo rm -rf /var/crash/*',
+                    expect_ret=0,
+                    msg='clean /var/crash firstly')
+        cmd = 'sudo grubby --update-kernel=ALL --args="mem_encrypt=on"'
+        utils_lib.run_cmd(self, cmd, msg='Append mem_encrypt=on to command line!', timeout=600)
+        utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
+        time.sleep(10)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='mem_encrypt=on')
+        utils_lib.run_cmd(self, 'dmesg | grep -i mem_encrypt', expect_kw='=on')
+        utils_lib.check_log(self, "error,warn,fail,CallTrace", skip_words='ftrace', rmt_redirect_stdout=True)
+
     def test_reboot_resolve_content(self):
         """
         case_tag:
@@ -1477,7 +1538,7 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.finish_case(self)
         reboot_require = False
         addon_args = ["hpet_mmap=1", "mitigations=auto,nosmt", "usbcore.quirks=quirks=0781:5580:bk,0a5c:5834:gij",
-        "nr_cpus=1","nr_cpus=2", "nr_cpus=4", "nr_cpus=5", "intel_iommu=on", "fips=1"]
+        "nr_cpus=1","nr_cpus=2", "nr_cpus=4", "nr_cpus=5", "intel_iommu=on", "fips=1","mem_encrypt=on"]
         cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline')
         if cmdline:
             for arg in addon_args:
@@ -1524,6 +1585,6 @@ class TestLifeCycle(unittest.TestCase):
             utils_lib.run_cmd(self, "sudo systemctl stop kdump",expect_ret=0, msg='stop kdump')
             utils_lib.run_cmd(self, "sudo cp -f /tmp/kdump.conf /etc", expect_ret=0, msg='restore default kdump cfg')
             utils_lib.run_cmd(self, "sudo systemctl start kdump", expect_ret=0, msg='start kdump')
-
+            
 if __name__ == '__main__':
     unittest.main()
