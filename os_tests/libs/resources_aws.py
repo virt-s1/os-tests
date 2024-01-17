@@ -266,7 +266,11 @@ class EC2VM(VMResource):
     def floating_ip(self):
         self.ec2_instance.reload()
         self.ipv4 = self.ec2_instance.public_dns_name or '' 
-        self.ipv6 = self.ipv6_address       
+        subnet = self.resource.Subnet(self.subnet_id)
+        if subnet.ipv6_cidr_block_association_set:
+            self.ipv6 = self.ipv6_address
+        else:
+            LOG.info("current {} does not support ipv6".format(self.subnet_id))   
         if self.ipv4:
             LOG.info("instance: {} public ip is: {}".format(self.id, self.ipv4)) 
             return self.ipv4
@@ -507,17 +511,17 @@ class EC2VM(VMResource):
             state = 'unknown'
             self.ec2_instance.reload()
             state = self.ec2_instance.state['Name']
-            LOG.info("instance:{} is in {}".format(self.id,state))
         except Exception as err:
-            return state
+            LOG.info("Exception found:{}".format(err))
+            pass
+        LOG.info("instance:{} state: {}".format(self.id,state))
         return state
 
     def is_exist(self):
         try:
             LOG.info("check if instance exists")
-            if 'terminated' in self.get_state():
+            if self.get_state() in ['terminated', 'unknown']:
                 return False
-            self.ec2_instance.reload()
             return True
         except Exception as exc:
             LOG.info("{}".format(exc))
