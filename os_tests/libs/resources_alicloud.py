@@ -9,7 +9,7 @@ import sys
 try:
     from aliyunsdkcore.client import AcsClient
     from aliyunsdkecs.request.v20140526 import DescribeInstancesRequest
-    from aliyunsdkecs.request.v20140526 import CreateInstanceRequest
+    from aliyunsdkecs.request.v20140526 import RunInstancesRequest
     from aliyunsdkecs.request.v20140526 import StartInstanceRequest
     from aliyunsdkecs.request.v20140526 import StopInstanceRequest
     from aliyunsdkecs.request.v20140526 import RebootInstanceRequest
@@ -165,8 +165,8 @@ class AlibabaSDK(object):
         request = self._add_params(request, key_list, self.vm_params)
         return self._send_request(request)
 
-    def create_instance(self, authentication="publickey"):
-        request = CreateInstanceRequest.CreateInstanceRequest()
+    def run_instances(self, authentication="publickey"):
+        request = RunInstancesRequest.RunInstancesRequest()
         key_list = [
             "InstanceChargeType", "ImageId", "InstanceType",
             "InternetChargeType", "SecurityGroupId", "VSwitchId",
@@ -184,6 +184,8 @@ class AlibabaSDK(object):
         elif authentication == "password":
             key_list.append("Password")
         request = self._add_params(request, key_list, self.vm_params)
+        # Support ecs-user in RunInstances API from RHEL8.9/9.3
+        # request.set_ImageOptions({"LoginAsNonRoot":True})
         response = self._send_request(request)
         if isinstance(response, Exception):
             raise response
@@ -555,7 +557,7 @@ class AlibabaVM(VMResource):
                 return True
 
             # Exceptions (detect wrong status to save time)
-            if status == 'Running' and current_status not in ('Stopping',
+            if status == 'Running' and current_status not in ('Pending','Stopping',
                                                               'Starting'):
                 logging.error('While waiting for the server to get Running, \
 its status cannot be {0} rather than Stopping or Starting.'.format(
@@ -573,7 +575,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         """
         return 'ebm' in self.flavor
 
-    def create(self, wait=False):
+    def create(self, wait=True):
         """
         This helps to create a VM
         """
@@ -581,21 +583,19 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         authentication = "publickey"
         if self.keypair is None:
             authentication = "password"
-        self.ecs.create_instance(authentication=authentication)
+        self.ecs.run_instances(authentication=authentication)
+        time.sleep(40)
         if wait:
-            time.sleep(10)
-            self.wait_for_status(status="Stopped")
+            self.wait_for_status(status="Running")
         self._data = None
-        self.ecs.allocate_public_ip_address(self.instance_id)
-        time.sleep(5)
 
-    def start(self, wait=False):
+    def start(self, wait=True):
         """
         This helps to start a VM
         """
         logging.info("Start VM")
         self.ecs.start_instance(self.instance_id)
-        time.sleep(60)
+        time.sleep(40)
         if wait:
             self.wait_for_status(status="Running")
 
