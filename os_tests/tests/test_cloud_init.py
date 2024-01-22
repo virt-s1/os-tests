@@ -3550,10 +3550,11 @@ ssh_authorized_keys:
                 time.sleep(30)
                 utils_lib.init_connection(self, timeout=self.ssh_timeout)
         if "test_cloudinit_mount_with_noexec_option" in self.id():
-            utils_lib.run_cmd(self, "sudo umount -l /tmp")
-            time.sleep(1)
-            utils_lib.run_cmd(self, "sudo umount -l /var/tmp")
-            utils_lib.run_cmd(self, "sudo sed -i '/noexec/d' /etc/fstab", msg='delete old config in fstab')
+            #Delete the vm because that the reboot log is different from the first boot log, which effects other cases
+            self.vm.delete(wait=True)
+            self.vm.create(wait=True)
+            time.sleep(30)
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
         if "test_cloudinit_create_vm_ipv6only" in self.id():
             self.vms[1].delete()
         if "test_cloudinit_support_nm_keyfile" in self.id():
