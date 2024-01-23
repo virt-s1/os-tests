@@ -3402,7 +3402,7 @@ ssh_authorized_keys:
             self.skipTest('skip run as this case is alicloud specific.')
         #get cloud-init rpm version
         support_cases = self.vm.support_cases
-        main_support_versions = None #["cloud-init-23.4+"], upstream cloud-init-23.4.1
+        main_support_versions = ["cloud-init-23.4-2.el8","cloud-init-23.4-3.el9"] #upstream cloud-init-23.4.1
         backport_versions = ["cloud-init-23.1.1-11.el8_9.1","cloud-init-23.1.1-12.el9_3"]
         package_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
         version = version_util.get_version(package_ver,'cloud-init-')
