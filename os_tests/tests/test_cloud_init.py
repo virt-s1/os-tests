@@ -1028,7 +1028,7 @@ EOF""".format(device, size), expect_ret=0)
         maintainer:
             huzhao@redhat.com
         description:
-            RHEL-286739 - CLOUDINIT-TC: Check the datasource on openstack, aws, nutanix, Ali
+            RHEL-286739 - CLOUDINIT-TC: Check the datasource on openstack, aws, nutanix, ali
         key_steps: |     
             1. Launch instance with cloud-init installed
             2. Check the datasource is correct
@@ -1037,21 +1037,28 @@ EOF""".format(device, size), expect_ret=0)
         datasource={'openstack':'OpenStack',
                     'aws':'Ec2',
                     'nutanix':'ConfigDrive',
-                    'Ali':'AliYun'}
+                    'ali':'AliYun'}
         if self.vm.provider not in datasource.keys():
             self.skipTest('skip run as no such provider in datasource list')
         for provider,name in datasource.items():
             if self.vm.provider == provider:
                 utils_lib.run_cmd(self,
-                                  'cat /run/cloud-init/cloud.cfg',
-                                  expect_ret=0,
-                                  expect_kw='{}, None'.format(name),
-                                  msg='check if the datasource is correct')
-                utils_lib.run_cmd(self,
-                                  'cat /run/cloud-init/ds-identify.log | grep datasource',
-                                  expect_ret=0,
-                                  expect_kw='Found single datasource: {}'.format(name),
-                                  msg='check if found the datasource')
+                                'cat /run/cloud-init/cloud.cfg',
+                                expect_ret=0,
+                                expect_kw='{}, None'.format(name),
+                                msg='check if the datasource is correct')
+                if provider == 'ali':
+                    utils_lib.run_cmd(self,
+                                    'cat /run/cloud-init/ds-identify.log | grep datasource',
+                                    expect_ret=0,
+                                    expect_kw="single entry in datasource_list \({}\) use that.".format(name),
+                                    msg='check if found the datasource')
+                else:
+                    utils_lib.run_cmd(self,
+                                    'cat /run/cloud-init/ds-identify.log | grep datasource',
+                                    expect_ret=0,
+                                    expect_kw='Found single datasource: {}'.format(name),
+                                    msg='check if found the datasource')
 
     def test_cloudinit_check_instance_data_json(self):         
         """
