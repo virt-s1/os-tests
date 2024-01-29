@@ -941,6 +941,56 @@ grep -i pci|grep n1' % boot_pci
                         expect_ret=0)
         utils_lib.check_log(self, "error,warn,fail,trace,Trace", log_cmd='dmesg -T', cursor=self.dmesg_cursor)
 
+    def test_sys_read_capability(self):
+        """
+        case_name:
+            test_sys_read_capability
+        case_tags:
+            kernel
+        case_status:
+            approved
+        title:
+            check capability under /sys is readable
+        importance:
+            low
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+           automated
+        linked_work_items:
+            jira_RHEL-22993
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_general_test.py
+        setup_teardown:
+            N/A
+        environment:
+            N/A
+        component:
+            component
+        bug_id:
+            jira_RHEL-22993
+        is_customer_case:
+            True
+        testplan:
+            N/A
+        test_type:
+            functional
+        test_level:
+            Component
+        maintainer:
+            xiliang@redhat.com
+        description: |
+            check capability under /sys is readable
+        key_steps: |
+            - find /sys -name *capabili* -type f -exec cat {} \;
+        expected_result: |
+            No crash or panic
+        debug_want: |
+            dmesg or console output
+        """
+        cmd = 'sudo bash -c "find /sys -name *capabili* -type f -exec echo {} \; -exec cat {} \;"'
+        utils_lib.run_cmd(self, cmd, msg="test all capability files are readable and no panic found")
+
     def test_xenfs_write_inability(self):
         """
         case_name:
