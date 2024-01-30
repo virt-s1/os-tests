@@ -120,6 +120,9 @@ class AlibabaSDK(object):
         self.vm_params["Size"] = params['Disk'].get('cloud_disk_size')
         self.vm_params["NetworkInterfaceName"] = params['NIC'].get('nic_name')
 
+        self.run_uuid = params.get('run_uuid')
+        self.user_data = '#!/bin/bash\nmkdir -p /tmp/userdata_{}'.format(self.run_uuid)
+
         # Assign SystemDiskCategory and DiskCategory
         self.vm_params["SystemDiskCategory"] = self.select_disk_category(
             'SystemDisk')
@@ -187,6 +190,9 @@ class AlibabaSDK(object):
         # Support ecs-user in RunInstances API from RHEL8.9/9.3
         if self.vm_params["Username"] == "ecs-user":
             request.set_ImageOptions({"LoginAsNonRoot":True})
+        if self.user_data:
+            x = base64.b64encode(self.user_data.encode())
+            request.set_UserData(x.decode("ascii"))
         response = self._send_request(request)
         if isinstance(response, Exception):
             raise response
@@ -493,7 +499,6 @@ class AlibabaVM(VMResource):
         # VM parameters
         self.keypair = params['VM'].get('keypair')
         self.vm_name = params['VM'].get('vm_name').replace('_', '-')
-        self.user_data = None
         self.nic_name = params['NIC'].get('nic_name')
 
         self.flavor = params['Flavor'].get('name')
