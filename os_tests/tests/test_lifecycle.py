@@ -1191,7 +1191,7 @@ class TestLifeCycle(unittest.TestCase):
         case_name:
             test_hibernate_resume
         case_file:
-            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_vm_operation.py
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_lifecycle.py
         component:
             kernel
         bugzilla_id:
@@ -1230,11 +1230,11 @@ class TestLifeCycle(unittest.TestCase):
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
             product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
             if float(product_id) >= 8.0 and float(product_id) < 9.0:
-                pkg_url='https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/e/ec2-hibinit-agent-1.0.4-1.el8.noarch.rpm'
+                pkg_url='https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/e/ec2-hibinit-agent-1.0.5-1.el8.noarch.rpm'
             elif float(product_id) < 8.0:
                 self.skipTest('not supported earlier than rhel8')
             else:
-                pkg_url = "https://dl.fedoraproject.org/pub/fedora/linux/releases/34/Everything/x86_64/os/Packages/e/ec2-hibinit-agent-1.0.3-5.fc34.noarch.rpm"
+                pkg_url = "https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/Packages/e/ec2-hibinit-agent-1.0.5-1.el9.noarch.rpm"
             utils_lib.pkg_install(self, pkg_name='ec2-hibinit-agent', pkg_url=pkg_url, force=True)
             cmd = 'sudo systemctl is-enabled hibinit-agent.service'
             output = utils_lib.run_cmd(self, cmd)
