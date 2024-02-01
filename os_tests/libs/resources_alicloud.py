@@ -189,7 +189,8 @@ class AlibabaSDK(object):
         request = self._add_params(request, key_list, self.vm_params)
         # Support ecs-user in RunInstances API from RHEL8.9/9.3
         if self.vm_params["Username"] == "ecs-user":
-            request.set_ImageOptions({"LoginAsNonRoot":True})
+            if self.describe_images().get("Images").get("Image")[0].get("LoginAsNonRootSupported"):
+                request.set_ImageOptions({"LoginAsNonRoot":True})
         if self.user_data:
             x = base64.b64encode(self.user_data.encode())
             request.set_UserData(x.decode("ascii"))
