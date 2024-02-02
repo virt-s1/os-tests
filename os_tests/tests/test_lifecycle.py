@@ -406,6 +406,7 @@ class TestLifeCycle(unittest.TestCase):
         debug_want: |
             dmesg
         """
+        utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_kw="AMD", msg="Not support in non-AMD cpu")
         utils_lib.run_cmd(self,
                     r'sudo rm -rf /var/crash/*',
                     expect_ret=0,
