@@ -1117,7 +1117,9 @@ if __name__ == "__main__":
     def test_z_nitro_enclaves(self):
         '''
         case_name:
-            test_check_nitro_enclaves
+            test_check_nitro_enclaves,vm_delete
+        case_tags:
+            vm_delete
         case_priority:
             1
         component:

@@ -281,7 +281,7 @@ cat secret.dec'''
     def test_deploy_vtpm_vm_basic_validation(self):
         """
         case_tag:
-            VTPM,VTPM_tier1
+            VTPM,VTPM_tier1,vm_delete
         case_name:
             test_deploy_vtpm_vm_basic_validation
         case_file:
