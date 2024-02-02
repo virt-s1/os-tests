@@ -661,7 +661,8 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         self.vm.ssh_pubkey=save_ssh_pubkey
         self.vm.delete()
         self.vm.create(wait=True)
-        self.vm.start(wait=True)
+        if self.vm.is_stopped():
+            self.vm.start(wait=True)
         time.sleep(30)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
@@ -752,7 +753,8 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
             #tear down
             self.vm.delete(wait=True)
             self.vm.create(wait=True)
-            self.vm.start(wait=True)
+            if self.vm.is_stopped():
+                self.vm.start(wait=True)
             time.sleep(30)
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
         else:
@@ -969,7 +971,8 @@ EOF""".format(device, size), expect_ret=0)
             self.skipTest("Skip this test case as no vm inited")
         self.vm.delete(wait=True)
         self.vm.create(single_nic=False, wait=True)
-        self.vm.start(wait=True)
+        if self.vm.is_stopped():
+            self.vm.start(wait=True)
         time.sleep(30)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         ip_list_vm = utils_lib.run_cmd(self,
@@ -986,7 +989,8 @@ EOF""".format(device, size), expect_ret=0)
         #tear down
         self.vm.delete(wait=True)
         self.vm.create(wait=True)
-        self.vm.start(wait=True)
+        if self.vm.is_stopped():
+            self.vm.start(wait=True)
         time.sleep(30)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
