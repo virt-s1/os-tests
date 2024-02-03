@@ -3340,7 +3340,7 @@ EOF
             self.skipTest('skip run as this case is aws specific.')
         #get cloud-init rpm version
         support_cases = self.vm.support_cases
-        main_support_versions = ["cloud-init-23.4.el8","cloud-init-23.4.el9"] # upstream cloud-init-23.4
+        main_support_versions = ["23.4.el8","23.4.el9"] # upstream cloud-init-23.4
         backport_versions = None #
         package_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
         version = version_util.get_version(package_ver,'cloud-init-')
@@ -3356,7 +3356,10 @@ EOF
                 utils_lib.run_cmd(self, cmd)
                 out = utils_lib.run_cmd(self, cmd1, expect_ret=0, expect_not_kw="No such file", msg='get a public key from vm[0]')
 
-            if len(self.vms) > 1 and not self.vms[1].exists():
+            if len(self.vms) > 1:
+                if self.vms[1].exists():
+                    self.vms[1].delete()
+                    time.sleep(30)
                 self.vms[1].user_data = """\
 #cloud-config
 ssh_authorized_keys: 
@@ -3369,6 +3372,13 @@ ssh_authorized_keys:
                 time.sleep(60)
                 #from node1 to access node2
                 remote_ip = self.vms[1].ipv6_address
+                cmd1 = "sudo ping {} -c 3 -I {}".format("2001:4860:4860::8888", "eth0")
+                cmd = "ssh -6 -o StrictHostKeyChecking=no {}@{} '{}'".format(self.vms[1].vm_username, remote_ip, cmd1)
+                #check if login vm[1] successfully
+                for count in utils_lib.iterate_timeout(600, "check vm[1] login", wait=20):
+                    ret = utils_lib.run_cmd(self, cmd, ret_status=True)
+                    if ret==0: break  
+    
                 cmd1 = "ip addr show"
                 cmd = "ssh -6 -o StrictHostKeyChecking=no {}@{} '{}'".format(self.vms[1].vm_username, remote_ip, cmd1)
                 #check if login vm[1] successfully and get its ip address
@@ -3385,7 +3395,12 @@ ssh_authorized_keys:
                     cmd,
                     expect_ret=0,
                     expect_kw='Crawl of metadata service using link-local ipv6, SUCCESS: found local data from DataSourceEc2Local',
-                    msg='check /var/log/cloud-init.log')       
+                    msg='check /var/log/cloud-init.log')      
+            else:
+                self.fail("self.vms length <=1, could not create vms[1], please check!")
+        else:
+            self.skipTest("Skip test_cloudinit_create_vm_ipv6only because it does not support "+package_ver)
+                
 
     def test_cloudinit_nmactivator_sysconfig(self):
         """
@@ -3413,8 +3428,8 @@ ssh_authorized_keys:
             self.skipTest('skip run as this case is alicloud specific.')
         #get cloud-init rpm version
         support_cases = self.vm.support_cases
-        main_support_versions = ["cloud-init-23.4-2.el8","cloud-init-23.4-3.el9"] #upstream cloud-init-23.4.1
-        backport_versions = ["cloud-init-23.1.1-11.el8_9.1","cloud-init-23.1.1-12.el9_3"]
+        main_support_versions = ["23.4-2.el8","23.4-3.el9"] #upstream cloud-init-23.4.1
+        backport_versions = ["23.1.1-11.el8_9.1","23.1.1-12.el9_3"]
         package_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
         version = version_util.get_version(package_ver,'cloud-init-')
         if version_util.is_support(version,"test_cloudinit_nmactivator_sysconfig",support_cases,main_support_versions,backport_versions):
@@ -3564,10 +3579,15 @@ ssh_authorized_keys:
             #Delete the vm because that the reboot log is different from the first boot log, which effects other cases
             self.vm.delete(wait=True)
             self.vm.create(wait=True)
+            if self.vm.is_stopped():
+                self.vm.start(wait=True)
             time.sleep(30)
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
         if "test_cloudinit_create_vm_ipv6only" in self.id():
-            self.vms[1].delete()
+            if utils_lib.is_aws(self):
+                if len(self.vms) > 1 and self.vms[1].exists():
+                    self.vms[1].delete()
+                    time.sleep(30)
         if "test_cloudinit_support_nm_keyfile" in self.id():
             out = utils_lib.run_cmd(self, 'rpm -q cloud-init', expect_ret=0)
             cloudinit_ver = re.findall('\d+.\d',out)[0]
