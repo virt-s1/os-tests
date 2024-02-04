@@ -1894,5 +1894,25 @@
         "path": "journal,systemctl",
         "trigger": "",
         "addedby": "libhe@redhat.com"
+    },
+    "msg_211": {
+        "content": ".*arm-cmn ARMHC700:00: invalid device node type: 0x202.*",
+        "analyze": "Known issue.",
+        "branch": "rhel8,rhel9",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-23994",
+        "path": "journal,dmesg",
+        "trigger": "",
+        "addedby": "libhe@redhat.com"
+    },
+    "msg_212": {
+        "content": ".*pcie_pme: probe of 0003:00:00.0:pcie001 failed with error -22.*",
+        "analyze": "Known issue.",
+        "branch": "rhel8,rhel9",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-23995",
+        "path": "journal,dmesg",
+        "trigger": "",
+        "addedby": "libhe@redhat.com"
     }
 }
