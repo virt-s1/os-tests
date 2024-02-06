@@ -55,10 +55,10 @@
     },
     "msg_7": {
         "content": "random: 7 urandom warning(s) missed due to ratelimiting",
-        "analyze": "Frequently seeing, no ec2 specified",
+        "analyze": "These messages are common at boot as there is not enough entropy at boot for servers.",
         "branch": "rhel8",
         "status": "active",
-        "link": "",
+        "link": "https://access.redhat.com/solutions/5019311",
         "path": "dmesg or journal",
         "trigger": ""
     },
@@ -1772,9 +1772,9 @@
         "content": ".*rhc-worker-playbook.worker.*",
         "analyze": "known avc log",
         "branch": "rhel",
-        "status": "active",
-        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2188231",
-        "path": "journal",
+        "status": "fixed",
+        "link": "https://issues.redhat.com/browse/RHEL-14277",
+        "path": "journal,ausearch",
         "trigger": ""
     },
     "msg_199": {
@@ -1828,9 +1828,9 @@
     },
     "msg_204": {
         "content": ".*Upgrade.*OUT OF SPEC.*",
-        "analyze": "dmidecode known issue",
+        "analyze": "dmidecode known issue fixed in RHEL-9.4",
         "branch": "rhel",
-        "status": "active",
+        "status": "fixed",
         "link": "https://issues.redhat.com/browse/RHEL-9007",
         "path": "dmidecode",
         "trigger": "EPYC",
@@ -1838,9 +1838,9 @@
     },
     "msg_205": {
         "content": ".*Upgrade.*OUT OF SPEC.*",
-        "analyze": "dmidecode known issue",
+        "analyze": "dmidecode known issue fixed in RHEL-8.10",
         "branch": "rhel",
-        "status": "active",
+        "status": "fixed",
         "link": "https://issues.redhat.com/browse/RHEL-15487",
         "path": "dmidecode",
         "trigger": "Xeon",
@@ -1848,9 +1848,9 @@
     },
     "msg_206": {
         "content": ".*Family:.*OUT OF SPEC.*",
-        "analyze": "dmidecode known issue",
+        "analyze": "dmidecode known issue fixed in RHEL-9.4",
         "branch": "rhel",
-        "status": "active",
+        "status": "fixed",
         "link": "https://issues.redhat.com/browse/RHEL-15884",
         "path": "dmidecode",
         "trigger": "Graviton",
@@ -1878,9 +1878,9 @@
     },
     "msg_209": {
         "content": ".*insights-register.service.* Unit uses MemoryLimit=.* please use MemoryMax= instead. Support for MemoryLimit= will be removed soon.*",
-        "analyze": "Known issue.",
+        "analyze": "Known issue fixed in RHEL-9.4.",
         "branch": "rhel9",
-        "status": "active",
+        "status": "fixed",
         "link": "https://issues.redhat.com/browse/RHEL-17009",
         "path": "journal,systemctl",
         "trigger": ""
@@ -1914,5 +1914,15 @@
         "path": "journal,dmesg",
         "trigger": "",
         "addedby": "libhe@redhat.com"
+    },
+    "msg_213": {
+        "content": ".*type=PROCTITLE msg=audit.* proctitle=/usr/sbin/NetworkManager --no-daemon.*",
+        "analyze": "Known selinux issue.",
+        "branch": "rhel8,rhel9",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-24253",
+        "path": "journal,ausearch",
+        "trigger": "",
+        "addedby": "xiliang@redhat.com"
     }
 }
