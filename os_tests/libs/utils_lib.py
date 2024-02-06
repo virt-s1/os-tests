@@ -1840,7 +1840,7 @@ def imds_tracer_tool(test_instance=None, log_check=True, timeout=610, interval=3
         is_pkg_installed(test_instance, pkg_name="git", cancel_case=is_return)
         is_cmd_exist(test_instance, 'python3')
         run_cmd(test_instance, 'sudo rm -rf aws-imds-packet-analyzer')
-        run_cmd(test_instance, 'git clone https://github.com/aws/aws-imds-packet-analyzer.git')
+        run_cmd(test_instance, 'git clone --branch xiliang https://github.com/liangxiao1/aws-imds-packet-analyzer.git')
         run_cmd(test_instance, 'cd aws-imds-packet-analyzer; sudo ./activate-tracer-service.sh')
         time.sleep(30)
         ret = run_cmd(test_instance, 'systemctl status imds_tracer_tool.service', ret_status=True)
