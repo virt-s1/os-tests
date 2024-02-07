@@ -1924,5 +1924,15 @@
         "path": "journal,ausearch",
         "trigger": "",
         "addedby": "xiliang@redhat.com"
+    },
+    "msg_214": {
+        "content": ".*sfc .*(unnamed net_device) (uninitialized): ERROR: PTP requires MSI-X and 1 additional interruptvector. PTP disabled.*",
+        "analyze": "The sfc driver allocates too many MSXI vectors for the NIC and the maximum is 32 so there isn't any vector available for PTP which requires one.",
+        "branch": "rhel8,rhel9",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/6712951",
+        "path": "journal,dmesg",
+        "trigger": "",
+        "addedby": "xiliang@redhat.com"
     }
 }
