@@ -878,11 +878,11 @@ RUN touch /tmp/test.txt
             cmd = 'sudo find /sys/devices -name *nvme*n1p1*'
             tmp_root = utils_lib.run_cmd(self, cmd, msg="get boot nvme pci")
             boot_pci = tmp_root.split('/')[-2]
-            cmd = 'sudo find /sys/devices -name *nvme*|grep -v %s|\
+            cmd = 'sudo find /sys/devices -name *nvme*|grep -v %s|grep -v "p[0-9]"|\
 grep -i pci|grep n1' % boot_pci
-            ret = utils_lib.run_cmd(self, cmd, msg="get test pci", ret_status=True)
+            ret = utils_lib.run_cmd(self, cmd, msg="get test pci excluding exists partions", ret_status=True)
             if int(ret) == 0:
-                tmp_pci = utils_lib.run_cmd(self, cmd, msg="get test pci")
+                tmp_pci = utils_lib.run_cmd(self, cmd, msg="get test nvme pci")
                 if len(tmp_pci) > 0:
                     tmp_pci = tmp_pci.split('/')[-4]
                 else:
