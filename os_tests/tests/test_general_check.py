@@ -303,7 +303,10 @@ available_clocksource'
         debug_want:
             dmesg log
         """
-        utils_lib.check_log(self, 'unable', log_cmd='dmesg')
+        skip_words = ''
+        if utils_lib.is_azure(self):
+            skip_words = "Unable to allocate enough contiguous physical memory on Gen 1 VM. Using MMIO instead."
+        utils_lib.check_log(self, 'unable', log_cmd='dmesg', skip_words=skip_words)
 
     def test_check_dmesg_calltrace(self):
         """
