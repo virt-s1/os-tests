@@ -1934,5 +1934,15 @@
         "path": "journal,dmesg",
         "trigger": "",
         "addedby": "xiliang@redhat.com"
+    },
+    "msg_215": {
+        "content": ".*jitterentropy:.*Initialization failed with host not compliant with requirements:.*2.*",
+        "analyze": "Not a bug, A race condition between calibrating the TSC clock source and initializing the jitterentropy crypto code.",
+        "branch": "rhel8,rhel9",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/4384951",
+        "path": "journal,dmesg",
+        "trigger": "",
+        "addedby": "xiliang@redhat.com"
     }
 }
