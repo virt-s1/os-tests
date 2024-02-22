@@ -7,7 +7,7 @@ class TestVtpm(unittest.TestCase):
     def setUp(self):
         utils_lib.init_case(self)
         #check platform version
-        if  self.vm.provider == 'nutanix':
+        if  self.vm and self.vm.provider == 'nutanix':
             ahv_version = utils_lib.send_ssh_cmd(self.vm.host_ip, self.vm.host_username, self.vm.host_password, \
                         "cat /etc/nutanix-release")[1]
             ahv_match = 'el\d+.nutanix.(\d{8})'
@@ -44,7 +44,7 @@ cat secret.dec'''
 
     def _check_vtpm_log_and_version(self, rmt_node=None):
         if rmt_node == None:
-            rmt_node = self.vm.floating_ip
+            rmt_node = self.params['remote_node'] or self.vm.floating_ip
         self.log.info("Check vtpm device info, dmesg log and version info.")
         for cmd, key_word, msg in zip(['ls /dev/tpm*','dmesg | grep TPM',\
             'cat /sys/class/tpm/tpm0/tpm_version_major'], \
@@ -54,7 +54,7 @@ cat secret.dec'''
 
     def _test_vtpm_encryption_decryption(self, rmt_node=None):
         if rmt_node == None:
-            rmt_node = self.vm.floating_ip
+            rmt_node = self.params['remote_node'] or self.vm.floating_ip
         self.log.info('Test encryption/decryption with TPM2')
         utils_lib.is_pkg_installed(self,"tpm2-tools")
         self.log.info("Run vtpm test script")
@@ -229,7 +229,7 @@ cat secret.dec'''
 
     def _basic_validation(self, rmt_node=None):
         if rmt_node == None:
-            rmt_node = self.vm.floating_ip
+            rmt_node = self.params['remote_node'] or self.vm.floating_ip
         self._check_vtpm_log_and_version()
         #basic validation
         for cmd in ["clevis", "tpm2-abrmd", "tpm2-tools"]:
@@ -311,6 +311,77 @@ cat secret.dec'''
             self.vms.append(new_vm)
         new_vm_ip = self.vms[1]['vm_nics'][0]['ip_address']
         self._basic_validation(rmt_node=new_vm_ip)
+
+    def test_tpm2_gettime(self):
+        """
+        case_name:
+            test_tpm2_gettime
+        case_tags:
+            tpm2-tools,tpm
+        case_status:
+            approved
+        title:
+            Get the current time and clock from the TPM in a signed form.
+        importance:
+            low
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            automated
+        linked_work_items:
+            jira_RHEL-23069
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_vtpm.py
+        setup_teardown:
+            tpm enabled
+        environment:
+            N/A
+        component:
+            component
+        bug_id:
+            jira_RHEL-23069
+        is_customer_case:
+            True
+        testplan:
+            N/A
+        test_type:
+            functional
+        test_level:
+            Component
+        maintainer:
+            xiliang@redhat.com
+        description: |
+            Get the current time and clock from the TPM in a signed form.
+            https://tpm2-tools.readthedocs.io/en/latest/man/tpm2_gettime.1/
+        key_steps: |
+            tpm2_createprimary -C e -c primary.ctx
+            tpm2_create -G rsa -u rsa.pub -r rsa.priv -C primary.ctx
+            tpm2_load -C primary.ctx -u rsa.pub -r rsa.priv -c rsa.ctx
+            tpm2_gettime -c rsa.ctx -o attest.sig --attestation attest.data
+        expected_result: |
+            get time successfully
+        debug_want: |
+            dmesg|grep -i tpm
+        """
+        cmd = 'dmesg|grep -i tpm'
+        utils_lib.run_cmd(self, cmd)
+        cmd = 'ls -l /dev/tpm*'
+        ret = utils_lib.run_cmd(self, cmd, ret_status=True)
+        if ret != 0:
+            self.skipTest("No tpm device found!")
+        utils_lib.is_cmd_exist(self, cmd='tpm2_gettime', cancel_case=True)
+        cmd = 'systemctl enable --now tpm2-abrmd.service'
+        utils_lib.run_cmd(self, cmd)
+        cmd = 'systemctl status tpm2-abrmd.service'
+        utils_lib.run_cmd(self, cmd, expect_ret=0)
+        cmd_list = [
+            'sudo tpm2_createprimary -C e -c primary.ctx',
+            'sudo tpm2_create -G rsa -u rsa.pub -r rsa.priv -C primary.ctx',
+            'sudo tpm2_load -C primary.ctx -u rsa.pub -r rsa.priv -c rsa.ctx',
+            'sudo tpm2_gettime -c rsa.ctx -o attest.sig --attestation attest.data'
+        ]
+        for cmd in cmd_list:
+            utils_lib.run_cmd(self, cmd, expect_ret=0)
 
     def tearDown(self):
         utils_lib.check_log(self, "error,warn,fail,Call trace,Call Trace", log_cmd='dmesg -T', cursor=self.cursor)
