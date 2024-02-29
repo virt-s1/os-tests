@@ -22,7 +22,7 @@ class TestUpgrade(unittest.TestCase):
                                         cmd,
                                         expect_ret=0,
                                         msg='cat /var/log/leapp/answerfile')
-        p = re.compile(r'[[](.*?)[]]', re.S)
+        p = re.compile(r'[\[](.*?)[]]', re.S)
         confirm_sections = re.findall(p,answer_file)
         for confirm_section in confirm_sections:
             cmd = "sudo leapp answer --section %s.confirm=True" % confirm_section
@@ -390,7 +390,7 @@ class TestUpgrade(unittest.TestCase):
                                                  "sudo uname -r",
                                                  expect_ret=0,
                                                  msg='Check kernel version after updated')
-        if utils_lib.is_arch(self, 'aarch64') and utils_lib.is_aws(self):
+        if utils_lib.is_aws(self):
             if kernel_version != kernel_version_updated:
                 cmd = "sudo yum -y remove --oldinstallonly --setopt installonl_limit=1 kernel"       
                 utils_lib.run_cmd(self,

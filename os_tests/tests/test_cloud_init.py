@@ -440,7 +440,7 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
     def test_cloudinit_sshd_keypair(self):
         '''
         case_tag:
-            cloudinit,cloudinit_tier2
+            cloudinit,cloudinit_tier2,vm_delete,cloudinit_clean
         case_file:
             https://github.com/liangxiao1/os-tests/blob/master/os_tests/tests/test_cloud_init.py
         description:
@@ -595,7 +595,7 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
     def test_cloudinit_login_with_password(self):
         """
         case_tag:
-            cloudinit,cloudinit_tier1
+            cloudinit,cloudinit_tier1,vm_delete,cloudinit_clean
         case_name:
             test_cloudinit_login_with_password
         case_file:
@@ -700,7 +700,7 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
     def test_cloudinit_check_previous_hostname(self):
         """
         case_tag:
-            cloudinit,cloudinit_tier2
+            cloudinit,cloudinit_tier2,vm_delete,cloudinit_clean
         case_name:
             test_cloudinit_check_previous_hostname
         case_file:
@@ -942,7 +942,7 @@ EOF""".format(device, size), expect_ret=0)
     def test_cloudinit_provision_vm_with_multiple_nics(self):
         """
         case_tag:
-            cloudinit,cloudinit_tier2
+            cloudinit,cloudinit_tier2,vm_delete
         case_name:
             test_cloudinit_provision_vm_with_multiple_nics
         case_file:
@@ -1630,7 +1630,7 @@ EOF""".format(device, size), expect_ret=0)
     def test_cloudinit_create_vm_config_drive(self):        
         """
         case_tag:
-            cloudinit,cloudinit_tier2
+            cloudinit,cloudinit_tier2,vm_delete
         case_priority:
             2
         component:
@@ -1688,7 +1688,7 @@ EOF""".format(device, size), expect_ret=0)
     def test_cloudinit_login_with_password_userdata(self):
         """
         case_tag:
-            cloudinit,cloudinit_tier1
+            cloudinit,cloudinit_tier1,vm_delete
         case_priority:
             1
         component:
@@ -1830,7 +1830,7 @@ ssh_pwauth: True
     def test_cloudinit_boot_time(self):        
         """
         case_tag:
-            cloudinit,cloudinit_tier2
+            cloudinit,cloudinit_tier2,vm_delete
         case_priority:
             2
         component:
@@ -1916,7 +1916,7 @@ ssh_pwauth: True
     def test_cloudinit_disable_cloudinit(self):        
         """
         case_tag:
-            cloudinit,cloudinit_tier2
+            cloudinit,cloudinit_tier2,vm_delete,cloudinit_clean
         case_priority:
             2
         component:
@@ -1976,7 +1976,7 @@ ssh_pwauth: True
     def test_cloudinit_create_vm_two_nics(self):
         """
         case_tag:
-            cloudinit,cloudinit_tier2
+            cloudinit,cloudinit_tier2,vm_delete
         case_priority:
             2
         component:
@@ -2022,7 +2022,7 @@ ssh_pwauth: True
     def test_cloudinit_create_vm_stateless_ipv6(self):
         """
         case_tag:
-            cloudinit,cloudinit_tier2
+            cloudinit,cloudinit_tier2,vm_delete
         case_priority:
             2
         component:
@@ -2069,7 +2069,7 @@ ssh_pwauth: True
     def test_cloudinit_create_vm_stateful_ipv6(self):
         """
         case_tag:
-            cloudinit,cloudinit_tier2
+            cloudinit,cloudinit_tier2,vm_delete
         case_priority:
             2
         component:
@@ -2115,7 +2115,7 @@ ssh_pwauth: True
     def test_cloudinit_auto_install_package_with_subscription_manager(self):
         """
         case_tag:
-            cloudinit,cloudinit_tier2
+            cloudinit,cloudinit_tier2,vm_delete
         case_priority:
             2
         component:
@@ -2210,7 +2210,7 @@ packages:
     def test_cloudinit_verify_rh_subscription_enablerepo_disablerepo(self):
         """
         case_tag:
-            cloudinit,cloudinit_tier2
+            cloudinit,cloudinit_tier2,vm_delete
         case_priority:
             2
         component:
@@ -2646,7 +2646,7 @@ chpasswd:
     def test_cloudinit_mount_with_noexec_option(self):
         """
         case_tag:
-            cloudinit,cloudinit_tier2
+            cloudinit,cloudinit_tier2,vm_delete,cloudinit_clean
         case_name:
             test_cloudinit_mount_with_noexec_option
         case_file:
@@ -2690,7 +2690,7 @@ chpasswd:
     def test_cloudinit_no_networkmanager(self):
         """
         case_tag:
-            cloudinit,cloudinit_tier2
+            cloudinit,cloudinit_tier2,cloudinit_clean
         case_name:
             test_cloudinit_no_networkmanager
         case_file:
@@ -2909,7 +2909,7 @@ chpasswd:
     def test_cloudinit_lineoverwrite(self):
         '''
         case_tag:
-            cloudinit
+            cloudinit,cloudinit_clean
         description: |
             This is a specific case of openstack, because the cloud guest images need to have "NOZEROCONF=yes" in /etc/sysconfig/network so that it works well as an openstack guest. (Bug 983611 - Cloud guest images needs to have "NOZEROCONF=yes" in /etc/sysconfig/network)
             cloud-init removed user configuration in /etc/sysconfig/network and rewrite the default configuration in every prevision before cloud-init-18.2-4.el7, after this version, certain lines in network configuration isn't removed after re-provision. linked case RHEL-152730
@@ -3062,7 +3062,7 @@ chpasswd:
     def test_cloudinit_package_upgrade(self):
         '''
         case_tag:
-            cloudinit,cloudinit_tier3
+            cloudinit,cloudinit_tier3,vm_delete
         case_name:
             test_cloudinit_package_upgrade
         case_file:
@@ -3165,7 +3165,7 @@ EOF
     def test_cloudinit_os_upgrade(self):
         '''
         case_tag:
-            cloudinit,cloudinit_tier3
+            cloudinit,cloudinit_tier3,vm_delete
         case_name:
             test_cloudinit_os_upgrade
         case_file:
@@ -3446,7 +3446,7 @@ ssh_authorized_keys:
     def test_cloudinit_support_nm_keyfile(self):
         """
         case_tag:
-            cloudinit,cloudinit_tier2
+            cloudinit,cloudinit_tier2,cloudinit_clean
         component:
             cloudinit
         bugzilla_id:

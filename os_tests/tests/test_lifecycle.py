@@ -301,7 +301,7 @@ class TestLifeCycle(unittest.TestCase):
         case_name:
             test_boot_sev_snp
         case_tags:
-            lifecycle
+            lifecycle,vm_delete
         case_status:
             approved
         title:
@@ -1188,7 +1188,7 @@ class TestLifeCycle(unittest.TestCase):
     def test_hibernate_resume(self):
         """
         case_tag:
-            lifecycle
+            lifecycle,vm_delete
         case_name:
             test_hibernate_resume
         case_file:
