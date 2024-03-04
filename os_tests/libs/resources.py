@@ -25,6 +25,8 @@ class BaseResource(metaclass=ABCMeta):
         self.provider = params['Cloud']['provider']
         self.support_cases = params.get('support_cases')
         self.id = 0
+        # store resource messages
+        self.msgs = ''
 
     @abstractmethod
     def show(self):

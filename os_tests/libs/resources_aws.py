@@ -217,6 +217,7 @@ class EC2VM(VMResource):
                 self.is_created = True
             except Exception as err:
                 LOG.error("Failed to create instance with error:{}".format(err))
+                self.msgs = str(err)
                 return False
 
         if self.additionalinfo:
@@ -231,6 +232,7 @@ class EC2VM(VMResource):
                         break
                     except Exception as err:
                         LOG.error("Failed to create instance with error:{}".format(err))
+                        self.msgs = str(err)
                         if 'UnsupportedHibernationConfiguration' in str(err):
                             vm_kwargs["BlockDeviceMappings"][0]['Ebs']['VolumeSize'] = volume_size
                             LOG.info("Increase disk size {}".format(volume_size))
