@@ -1373,10 +1373,10 @@
     },
     "msg_154": {
         "content": ".*sys-module-fuse.device: Failed to enqueue SYSTEMD_WANTS= job, ignoring: Unit sys-fs-fuse-connections.mount not found.*",
-        "analyze": "known issue",
+        "analyze": "known problem if fuse-overlayfs is installed and regenerated initramfs again",
         "branch": "rhel",
         "status": "active",
-        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2154732",
+        "link": "https://issues.redhat.com/browse/RHEL-5714",
         "path": "journal",
         "trigger": ""
     },
