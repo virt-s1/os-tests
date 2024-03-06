@@ -3543,6 +3543,121 @@ ssh_authorized_keys:
             output = utils_lib.run_cmd(self, debugcmd)
             self.fail("The cloud-init status return code is {}, The recoverable_errors are:\n{}".format(ret, output))   
 
+    def test_cloudinit_clean_configs(self):        
+        """
+        case_name:
+            test_cloudinit_clean_configs
+        case_tags:
+            cloudinit,cloudinit_tier2
+        case_status:
+            draft
+        title:
+            Check cloud-init clean configs options
+        importance:
+            medium
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            automated
+        linked_work_items:
+            jira_RHEL-7311
+        automation_field:
+            N/A
+        setup_teardown:
+            N/A
+        environment:
+            N/A
+        component:
+            component
+        bug_id:
+            jira_RHEL-7311
+        is_customer_case:
+            False
+        testplan:
+            https://polarion.engineering.redhat.com/polarion/#/project/RHELVIRT/workitem?id=VIRT-300522
+        test_type:
+            functional
+        test_level:
+            Component
+        maintainer:
+            huzhao@redhat.com
+        description: |
+            Check cloud-init clean --configs option
+            This is a new feature since cloud-init-23.4
+        key_steps: |
+            1. cloud-init clean --configs network
+            2. cloud-init clean --configs ssh_config
+            3. cloud-init clean --configs all
+        expected_result: |
+            1. Can clean some cloud-init generated network config files successfully
+            2. Can clean some cloud-init generated ssh config files successfully
+            3. Can clean both the above two types config files successfully
+        debug_want: |
+            N/A
+        """
+        support_cases = self.vm.support_cases
+        main_support_versions = ["23.4-1.el8","23.4-2.el9"]
+        backport_versions = None
+        package_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
+        version = version_util.get_version(package_ver,'cloud-init-')
+        if version_util.is_support(version,"test_cloudinit_clean_configs",support_cases,main_support_versions,backport_versions):
+            self.log.info(
+                "VIRT-300522 - CLOUDINIT-TC: Check cloud-init clean --configs option")
+            net_config_files = [
+            "/etc/netplan/50-cloud-init.yaml",
+            "/etc/NetworkManager/conf.d/99-cloud-init.conf",
+            "/etc/NetworkManager/conf.d/30-cloud-init-ip6-addr-gen-mode.conf",
+            "/etc/NetworkManager/system-connections/cloud-init-*.nmconnection",
+            "/etc/systemd/network/10-cloud-init-*.network",
+            "/etc/network/interfaces.d/50-cloud-init.cfg",
+            ]
+            ssh_config_files = [
+            "/etc/ssh/sshd_config.d/50-cloud-init.conf",
+            ]
+            # Check cloud-init clean --configs network can clean net_config_files
+            cmd = "sudo cloud-init clean --configs network"
+            utils_lib.run_cmd(self, cmd, expect_ret=0)
+            for file in net_config_files:
+                cmd = "sudo ls %s" % file
+                utils_lib.run_cmd(self,
+                                cmd,
+                                expect_ret=2,
+                                expect_kw='No such file or directory',
+                                msg = "check there is no file %s" % file)
+            # Reboot VM to make the config files re-generated
+            self._reboot_inside_vm()
+            # Check cloud-init clean --configs ssh_config can clean ssh_config_files
+            cmd = "sudo cloud-init clean --configs ssh_config"
+            utils_lib.run_cmd(self, cmd, expect_ret=0)
+            for file in ssh_config_files:
+                cmd = "sudo ls %s" % file
+                utils_lib.run_cmd(self,
+                                cmd,
+                                expect_ret=2,
+                                expect_kw='No such file or directory',
+                                msg = "check there is no file %s" % file)
+            # Reboot VM to make the config files re-generated
+            self._reboot_inside_vm()
+            # Check cloud-init clean --configs all can clean both net_config_files and ssh_config_files
+            cmd = "sudo cloud-init clean --configs all"
+            utils_lib.run_cmd(self, cmd, expect_ret=0)
+            for file in net_config_files:
+                cmd = "sudo ls %s" % file
+                utils_lib.run_cmd(self,
+                                cmd,
+                                expect_ret=2,
+                                expect_kw='No such file or directory',
+                                msg = "check there is no file %s" % file)
+            for file in ssh_config_files:
+                cmd = "sudo ls %s" % file
+                utils_lib.run_cmd(self,
+                                cmd,
+                                expect_ret=2,
+                                expect_kw='No such file or directory',
+                                msg = "check there is no file %s" % file)
+        else:
+            self.skipTest("Skip test_cloudinit_clean_configs because it does not support "+package_ver)
+    
     def tearDown(self):
         utils_lib.finish_case(self)
         if 'test_cloudinit_sshd_keypair' in self.id():
@@ -3597,6 +3712,14 @@ ssh_authorized_keys:
                 config_file = utils_lib.run_cmd(self, "sudo nmcli -f NAME,FILENAME c show | awk '{print $3}' | sed -n '2p'")
                 utils_lib.run_cmd(self, 'sudo rm -f {}'.format(config_file))
                 utils_lib.run_cmd(self, 'sudo cloud-init clean')
+                self._reboot_inside_vm()
+        if "test_cloudinit_clean_configs" in self.id():            
+            support_cases = self.vm.support_cases
+            main_support_versions = ["23.4-1.el8","23.4-2.el9"]
+            backport_versions = None
+            package_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
+            version = version_util.get_version(package_ver,'cloud-init-')
+            if version_util.is_support(version,"test_cloudinit_clean_configs",support_cases,main_support_versions,backport_versions):
                 self._reboot_inside_vm()
         #utils_lib.finish_case(self)
 
