@@ -381,7 +381,7 @@ cat secret.dec'''
             'sudo tpm2_gettime -c rsa.ctx -o attest.sig --attestation attest.data'
         ]
         for cmd in cmd_list:
-            utils_lib.run_cmd(self, cmd, expect_ret=0)
+            utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='ERROR,WARNING')
 
     def tearDown(self):
         utils_lib.check_log(self, "error,warn,fail,Call trace,Call Trace", log_cmd='dmesg -T', cursor=self.cursor)

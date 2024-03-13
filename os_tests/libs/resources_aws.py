@@ -48,8 +48,8 @@ class EC2VM(VMResource):
             self.vm_username = params.get('ubuntu_ssh_user')
         else:
             self.ami_id = params.get('ami_id')
-        if params.get('instance_type') and '|' in params.get('instance_type'):
-            self.instance_type = params.get('instance_type').split('|')[0]
+        if params.get('instance_type') and ',' in params.get('instance_type'):
+            self.instance_type = params.get('instance_type').split(',')[0]
         else:
             self.instance_type = params.get('instance_type')
         self.subnet_id = params.get('subnet_id_ipv6') or params.get('subnet_id_ipv4')
@@ -131,9 +131,11 @@ class EC2VM(VMResource):
             if not self.hibernation_support:
                 LOG.info("instance do not support hibernation")
                 return False
-            # extend disk size to 20 in case no space to create swap
             self.volume_size = 50
             LOG.info('hibernation_support enabled, change volume size to {}'.format(self.volume_size))
+        if enable_enclave and self.volume_size < 50:
+            LOG.info('create with enclave enabled, change volume size to {}'.format(self.volume_size))
+            self.volume_size = 50
         vm_kwargs = {
             'BlockDeviceMappings':[
                 {
@@ -177,7 +179,7 @@ class EC2VM(VMResource):
                 'Configured': enable_hibernation
             },
             'EnclaveOptions': {
-                'Enabled': False
+                'Enabled': enable_enclave
             },
             'MetadataOptions':{
                 'HttpTokens': self.httptokens,
@@ -196,9 +198,6 @@ class EC2VM(VMResource):
                 LOG.info("placement groups are not supported by the {} instance type.".format(not_support_placement))
             else:
                 vm_kwargs["Placement"] = {"GroupName":self.placement_group_name}
-        if enable_enclave:
-            LOG.info("try to create instance with enclave enabled")
-            vm_kwargs["EnclaveOptions"]["Enabled"] = True 
             
         if enable_sev_snp or self.sev_snp_enable_cfg:
             LOG.info("try to create instance with sev-snp enabled")
