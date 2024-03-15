@@ -115,51 +115,51 @@ class TestRHELCert(unittest.TestCase):
                 utils_lib.is_pkg_installed(self, timeout=600, pkg_name=rpm_pkg)
             cmd = 'sudo yum install -y redhat-certification redhat-certification-hardware redhat-certification-cloud'
             utils_lib.run_cmd(self, cmd, timeout=600, rmt_node=self.params['remote_nodes'][-1])
-            cmd = 'sudo bash -c "mkdir -p /var/www/rhcert/export/var/crash"'
-            utils_lib.run_cmd(self, cmd, rmt_node=self.params['remote_nodes'][-1])
-            cmd = 'sudo bash -c "chmod -R 777 /var/www/rhcert/export/"'
-            utils_lib.run_cmd(self, cmd, rmt_node=self.params['remote_nodes'][-1])
-            cmd = "ip link show|grep mtu|grep -v lo|awk -F':' '{print $2}'"
-            output = utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1])
-            self.active_nic  = "eth0"
-            self.log.info("Test which nic connects to public")
-            nic_found = False
+        cmd = 'sudo bash -c "mkdir -p /var/www/rhcert/export/var/crash"'
+        utils_lib.run_cmd(self, cmd, rmt_node=self.params['remote_nodes'][-1])
+        cmd = 'sudo bash -c "chmod -R 777 /var/www/rhcert/export/"'
+        utils_lib.run_cmd(self, cmd, rmt_node=self.params['remote_nodes'][-1])
+        cmd = "ip link show|grep mtu|grep -v lo|awk -F':' '{print $2}'"
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1])
+        self.active_nic  = "eth0"
+        self.log.info("Test which nic connects to public")
+        nic_found = False
+        for net in output.split('\n'):
+            if len(net) < 3:
+                continue
+            cmd = "sudo ping {} -c 6 -I {}".format(self.params.get('ping_server'), net)
+            ret = utils_lib.run_cmd(self, cmd, ret_status=True, rmt_node=self.params['remote_nodes'][-1])
+            if ret == 0:
+                self.active_nic  = net
+                nic_found = True
+                break
+        if not nic_found:
             for net in output.split('\n'):
-                if len(net) < 3:
-                    continue
-                cmd = "sudo ping {} -c 6 -I {}".format(self.params.get('ping_server'), net)
-                ret = utils_lib.run_cmd(self, cmd, ret_status=True, rmt_node=self.params['remote_nodes'][-1])
-                if ret == 0:
+                #man systemd.net-naming-scheme
+                if net.startswith(('eth','en')):
                     self.active_nic  = net
-                    nic_found = True
                     break
-            if not nic_found:
-                for net in output.split('\n'):
-                    #man systemd.net-naming-scheme
-                    if net.startswith(('eth','en')):
-                        self.active_nic  = net
-                        break
-            self.log.info("Pick up nic {}".format(self.active_nic ))
-            cmd = "ip addr show {}".format(self.active_nic )
-            output = utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1], msg='try to get {} ipv4 address'.format(self.active_nic ))
-            self.rmt_ipv4 = re.findall('[\d.]{7,16}', output)[0]
-            cmd = 'sudo bash -c "rhcertd start"'
-            utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1], msg="start rhcertd on test server")
+        self.log.info("Pick up nic {}".format(self.active_nic ))
+        cmd = "ip addr show {}".format(self.active_nic )
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1], msg='try to get {} ipv4 address'.format(self.active_nic ))
+        self.rmt_ipv4 = re.findall('[\d.]{7,16}', output)[0]
+        cmd = 'sudo bash -c "rhcertd start"'
+        utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1], msg="start rhcertd on test server")
+        cmd = 'sudo cat /root/.ssh/id_rsa.pub'
+        out = utils_lib.run_cmd(self, cmd, msg='check if root login is enabled')
+        if 'No such file' in out:
+            cmd = 'sudo bash -c "echo |ssh-keygen -t rsa"'
+            out = utils_lib.run_cmd(self, cmd)
             cmd = 'sudo cat /root/.ssh/id_rsa.pub'
-            out = utils_lib.run_cmd(self, cmd, msg='check if root login is enabled')
+            out = utils_lib.run_cmd(self, cmd)
             if 'No such file' in out:
-                cmd = 'sudo bash -c "echo |ssh-keygen -t rsa"'
-                out = utils_lib.run_cmd(self, cmd)
-                cmd = 'sudo cat /root/.ssh/id_rsa.pub'
-                out = utils_lib.run_cmd(self, cmd)
-                if 'No such file' in out:
-                    self.log.info('Cannot get pub key from hut')
-            cmd = 'sudo bash -c "echo \'{}\' >> /root/.ssh/authorized_keys"'.format(out)
-            utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1], msg='add pub key to test server')
-            cmd = 'sudo bash -c "ssh -o StrictHostKeyChecking=no root@{} ip addr"'.format(self.rmt_ipv4)
-            utils_lib.run_cmd(self, cmd, msg="test cmd execution on remote without password")
-            cmd = 'sudo bash -c "systemctl disable --now firewalld"'.format(out)
-            utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1], msg='disable firewalld')
+                self.log.info('Cannot get pub key from hut')
+        cmd = 'sudo bash -c "echo \'{}\' >> /root/.ssh/authorized_keys"'.format(out)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1], msg='add pub key to test server')
+        cmd = 'sudo bash -c "ssh -o StrictHostKeyChecking=no root@{} ip addr"'.format(self.rmt_ipv4)
+        utils_lib.run_cmd(self, cmd, msg="test cmd execution on remote without password")
+        cmd = 'sudo bash -c "systemctl disable --now firewalld"'.format(out)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1], msg='disable firewalld')
 
         if self.id().endswith(('test_rhcert_pcie_nvme','test_rhcert_non_interactive')):
             if os.getenv('INFRA_PROVIDER') == 'aws':
