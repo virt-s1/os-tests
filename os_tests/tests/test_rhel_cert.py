@@ -59,19 +59,62 @@ class TestRHELCert(unittest.TestCase):
 
     def setUp(self):
         utils_lib.init_case(self)
-        utils_lib.is_cmd_exist(self, cmd='rhcert-cli', cancel_case=True)
-        cmd = 'sudo bash -c "rm -rf /var/rhcert/*"'
-        utils_lib.run_cmd(self,cmd, msg='cleanup prior test result')
-        if self.id().endswith(('test_rhcert_kdump','test_rhcert_kdump_aws_arm_irqpoll','test_rhcert_ethernet')):
-            if not self.is_rmt:
-                self.skipTest('only run on remote')
-            if len(self.vms) < 2 and len(self.params.get('remote_nodes')) < 2:
-                self.skipTest('2 nodes required!')
-            if len(self.vms) > 1 and not self.vms[1].exists():
-                self.vms[1].create()
-                self.params['remote_nodes'].append(self.vms[1].floating_ip)
-            
-            utils_lib.init_connection(self, timeout=self.ssh_timeout, rmt_node=self.params['remote_nodes'][-1])
+        if not self.is_rmt:
+            self.skipTest('only run on remote')
+        if len(self.vms) < 2 and len(self.params.get('remote_nodes')) < 2:
+            self.skipTest('2 nodes required!')
+        if len(self.vms) > 1:
+           if not self.vms[1].exists():
+               self.vms[1].create()
+           utils_lib.init_connection(self, timeout=self.ssh_timeout, rmt_node=self.vms[1].floating_ip)
+           self.params['remote_nodes'].append(self.vms[1].floating_ip)
+               #if len(self.vms) > 1 and not self.vms[1].exists():
+               #self.vms[1].create()
+               #self.params['remote_nodes'].append(self.vms[1].floating_ip)
+        #utils_lib.init_connection(self, timeout=self.ssh_timeout, rmt_node=self.params['remote_nodes'][-1])
+        #Install redhat certification packages
+        cmd = 'sudo rpm -qa | grep redhat-certification'
+        ret1 = utils_lib.run_cmd(self, cmd, ret_status=True)
+        ret2 = utils_lib.run_cmd(self, cmd, rmt_node=self.params['remote_nodes'][-1], ret_status=True)
+        if ret1 == 0 and ret2 == 0:
+            cmd = 'sudo bash -c "rm -rf /var/rhcert/*"'
+            utils_lib.run_cmd(self, cmd, msg='cleanup prior test result')
+        else:
+            if os.getenv('INFRA_PROVIDER') == 'ali':
+                #Register to rhsm
+                self.log.info("Register to rhsm")
+                reg_cmd = "sudo subscription-manager register --username {0} --password {1} --force".format(
+                    self.params.get('subscription_username'),
+                    self.params.get('subscription_password'))
+                utils_lib.run_cmd(self, reg_cmd, timeout=600, is_log_cmd=False, expect_ret=0)
+                utils_lib.run_cmd(self, reg_cmd, timeout=600,
+                            rmt_node=self.params['remote_nodes'][-1],
+                            is_log_cmd=False,
+                            expect_ret=0)
+            if os.getenv('INFRA_PROVIDER') == 'aws':
+                #Enable auto registration
+                cmds_autoreg = [ "sudo subscription-manager config --rhsmcertd.auto_registration=1 --rhsm.manage_repos=0 --rhsmcertd.auto_registration_interval=1", "sudo systemctl restart rhsmcertd" ]
+                for cmd in cmds_autoreg:
+                    utils_lib.run_cmd(self, cmd, timeout=600, expect_ret=0)
+                    utils_lib.run_cmd(self, cmd, timeout=600, rmt_node=self.params['remote_nodes'][-1], expect_ret=0)
+                time.sleep(180)
+            cmds_enablerepo = [ "sudo subscription-manager status",
+                                "sudo sleep 10",
+                                "sudo subscription-manager config --rhsm.manage_repos=1",
+                                "sudo sleep 10",
+                                "sudo dnf repolist all | grep cert",
+                                "sudo sleep 10",
+                                "sudo subscription-manager repos --enable cert-1-for-rhel*",
+                                "sudo sleep 10",
+                                "sudo subscription-manager repos --enable *baseos-debug-rpms" ]
+            for cmd in cmds_enablerepo:
+                utils_lib.run_cmd(self, cmd, timeout=600, expect_ret=0)
+                utils_lib.run_cmd(self, cmd, timeout=600, rmt_node=self.params['remote_nodes'][-1], expect_ret=0)
+            rpm_pkgs_rhcert = ["redhat-certification", "redhat-certification-hardware", "redhat-certification-backend", "redhat-certification-cloud"]
+            for rpm_pkg in rpm_pkgs_rhcert:
+                utils_lib.is_pkg_installed(self, timeout=600, pkg_name=rpm_pkg)
+            cmd = 'sudo yum install -y redhat-certification redhat-certification-hardware redhat-certification-cloud'
+            utils_lib.run_cmd(self, cmd, timeout=600, rmt_node=self.params['remote_nodes'][-1])
             cmd = 'sudo bash -c "mkdir -p /var/www/rhcert/export/var/crash"'
             utils_lib.run_cmd(self, cmd, rmt_node=self.params['remote_nodes'][-1])
             cmd = 'sudo bash -c "chmod -R 777 /var/www/rhcert/export/"'
@@ -111,7 +154,7 @@ class TestRHELCert(unittest.TestCase):
                 out = utils_lib.run_cmd(self, cmd)
                 if 'No such file' in out:
                     self.log.info('Cannot get pub key from hut')
-            cmd = 'sudo bash -c "echo \'{}\'>/root/.ssh/authorized_keys"'.format(out)
+            cmd = 'sudo bash -c "echo \'{}\' >> /root/.ssh/authorized_keys"'.format(out)
             utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1], msg='add pub key to test server')
             cmd = 'sudo bash -c "ssh -o StrictHostKeyChecking=no root@{} ip addr"'.format(self.rmt_ipv4)
             utils_lib.run_cmd(self, cmd, msg="test cmd execution on remote without password")
@@ -119,7 +162,8 @@ class TestRHELCert(unittest.TestCase):
             utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1], msg='disable firewalld')
 
         if self.id().endswith(('test_rhcert_pcie_nvme','test_rhcert_non_interactive')):
-            if 'aws' in self.vm.provider:
+            if os.getenv('INFRA_PROVIDER') == 'aws':
+            #if 'aws' in self.vm.provider:
                 root_id = self.vm.get_volume()
                 root_vol = None
                 for disk in self.disks:

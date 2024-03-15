@@ -511,6 +511,7 @@ class AlibabaVM(VMResource):
         self.nic_count = params['Flavor'].get('nic_count')
         self.disk_quantity = params['Flavor'].get('disk_quantity')
         self.private_ip_quantity = params['Flavor'].get('private_ip_quantity')
+        self.net_bandwidth = params['Flavor'].get('net_bandwidth')
 
         # Secondary ip list
         self.secondary_ip_list = []
