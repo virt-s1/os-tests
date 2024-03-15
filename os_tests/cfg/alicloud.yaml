@@ -2,43 +2,41 @@
 # Please copy it to other place that you want to edit
 # Not recommend you edit it directly in case leaking sensitive information.
 Cloud:
-    provider: alibaba
+    provider: ali
 Credential:
-    access_key_id: LTAIxxxxxxxxxxxx
-    secretaccess_key: HOBIxxxxxxxxxxxxxxxxxxxxxxxxxx
-Subscription:
-    username:
-    password:
+    access_key_id: xxxxxxxxxxxxxxxx
+    secretaccess_key: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 VM:
-    rhel_ver: '8.1'
-    username: root
-    password: RedHatQE@7
-    keypair: cheshi-docker
-    vm_name: cheshi-avocado-cloud-d00
-    az: cn-qingdao-c
-    region: cn-qingdao
+    rhel_ver: '8.9'
+    username: 
+    password: 
+    keypair: 
+    vm_name: xxxx
+    az: cn-hangzhou-a
+    region: cn-hangzhou
 Image:
-    name: redhat_8_1_x64_20G_alibase_20200110_copied.vhd
-    id: m-m5eeytldeh1323qpaxs7
+    name: 
+    id: 
 Network:
     VSwitch:
-        id: vsw-m5edmrxkpghe3xh5w8rvm
+        id: 
 SecurityGroup:
-    id: sg-m5ej0zywmf2jtdlbw3bb
+    id: 
 Disk:
-    cloud_disk_count: 16
-    cloud_disk_name: avocado_cloud_disk_d00
-    cloud_disk_size: 100
+    cloud_disk_count: 
+    cloud_disk_name: 
+    cloud_disk_size: 
 NIC:
-    nic_name: avocado_cloud_nic_d00
+    nic_name: nic_d00
 Flavor:
     name: ecs.xxx
     cpu: 2
     memory: 8.0
-    nic_count: 3
-    disk_quantity: 9
-    private_ip_quantity: 3
+    nic_count: 1
+    disk_quantity: 1
+    private_ip_quantity: 1
     arch: x86_64
+    net_bandwidth: 10
 # Add case name into support cases if support versions are undefined when testing fixed scratch build
 # For example ["case1","case2"]
 support_cases: None
