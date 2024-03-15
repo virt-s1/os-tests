@@ -57,10 +57,56 @@ class TestLifeCycle(unittest.TestCase):
                 utils_lib.run_cmd(self, cmd, expect_ret=0)
 
     def test_boot_debugkernel(self):
-        '''
-        polarion_id:
-        bz: 1703366
-        '''
+        """
+        case_name:
+            test_boot_debugkernel
+        case_tags:
+            kernel
+        case_status:
+            approved
+        title:
+            check system can boot with debug kernel without call trace and memleaks found
+        importance:
+            medium
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            automated
+        linked_work_items:
+            N/A
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_lifecycle.py
+        setup_teardown:
+            N/A
+        environment:
+            N/A
+        component:
+            component
+        bug_id:
+            bugzilla_1703366
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        test_type:
+            functional
+        test_level:
+           Component
+        maintainer:
+            xiliang@redhat.com
+        description: |
+            check system can boot with debug kernel without call trace and memleaks found
+        key_steps: |
+            - set debug kernel as default boot entry
+            - append "kmemleak=on"
+            - reboot system
+        expected_result: |
+            - system can boot up successfully
+            - no call trace during boot
+            - no memory leaks found
+        debug_want: |
+            - dmesg or console output
+        """
         self.default_boot_kernel  = utils_lib.run_cmd(self, "sudo grubby --default-kernel", expect_ret=0)
         self.default_cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline')
         if self.vm and self.vm.provider == 'nutanix' and self.vm.is_secure_boot:
