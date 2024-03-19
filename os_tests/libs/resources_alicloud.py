@@ -29,6 +29,7 @@ try:
     from aliyunsdkecs.request.v20140526 import DeleteDiskRequest
     from aliyunsdkecs.request.v20140526 import AttachDiskRequest
     from aliyunsdkecs.request.v20140526 import DetachDiskRequest
+    from aliyunsdkecs.request.v20140526 import ResizeDiskRequest
     from aliyunsdkecs.request.v20140526 import CreateNetworkInterfaceRequest
     from aliyunsdkecs.request.v20140526 import AttachNetworkInterfaceRequest
     from aliyunsdkecs.request.v20140526 import DescribeNetworkInterfacesRequest
@@ -362,14 +363,15 @@ class AlibabaSDK(object):
         return self._send_request(request)
 
     # Disk
-    def describe_disks(self, diskids=None):
+    def describe_disks(self, diskids=None, disk_type="all"):
         """Describe cloud disks.
 
         diskids should be a string like '"id1","id2","id3"'.
         """
         request = DescribeDisksRequest.DescribeDisksRequest()
-        key_list = ["ZoneId", "DiskName", "Category", "PageSize"]
-        self.vm_params.setdefault("Category", self.vm_params['DiskCategory'])
+        key_list = ["ZoneId", "DiskType", "PageSize"]
+        #self.vm_params.setdefault("Category", self.vm_params['DiskCategory'])
+        self.vm_params["DiskType"] = disk_type
         self.vm_params.setdefault("PageSize", "100")
         if diskids:
             key_list.append("DiskIds")
@@ -405,6 +407,15 @@ class AlibabaSDK(object):
         key_list = ["InstanceId", "DiskId"]
         self.vm_params["InstanceId"] = instance_id
         self.vm_params["DiskId"] = diskid
+        request = self._add_params(request, key_list, self.vm_params)
+        return self._send_request(request)
+
+    def resize_disk(self, disk_id, new_size, type="online"):
+        request = ResizeDiskRequest.ResizeDiskRequest()
+        key_list = ["DiskId", "Type", "NewSize"]
+        self.vm_params["DiskId"] = disk_id
+        self.vm_params["Type"] = type
+        self.vm_params["NewSize"] = new_size
         request = self._add_params(request, key_list, self.vm_params)
         return self._send_request(request)
 
@@ -511,7 +522,7 @@ class AlibabaVM(VMResource):
         self.nic_count = params['Flavor'].get('nic_count')
         self.disk_quantity = params['Flavor'].get('disk_quantity')
         self.private_ip_quantity = params['Flavor'].get('private_ip_quantity')
-        self.net_bandwidth = params['Flavor'].get('net_bandwidth')
+        self.net_bandwidth = params['Flavor'].get('net_bandwidth') or 64
 
         # Secondary ip list
         self.secondary_ip_list = []
@@ -846,10 +857,10 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
             self.delete_cloud_disk(disk['DiskId'], wait)
 
     def query_cloud_disks(self, disk_id=None, **args):
-        logging.info("Describe cloud disks")
+        logging.info("Query cloud disks")
         if disk_id is not None:
             disk_id = disk_id.encode("ascii")
-        output = self.ecs.describe_disks(diskids=disk_id)
+        output = self.ecs.describe_disks(diskids=disk_id, disk_type="data")
         if output:
             return output.get("Disks").get("Disk")
         return output
@@ -925,6 +936,14 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
             logging.error("Failed to get console log! %s" % err)
             return False, err
 
+    def get_system_disk(self):
+        system_disks_list = self.ecs.describe_disks(disk_type="system").get("Disks").get("Disk")
+        for system_disk in system_disks_list:
+            if system_disk.get('InstanceId') == self.instance_id:
+                disk_id = system_disk.get('DiskId')
+                size = system_disk.get('Size')
+                return disk_id, size
+
     def disk_count(self):
         raise NotImplementedError
 
@@ -957,3 +976,51 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
 
     def unpause(self):
         raise NotImplementedError
+
+class AlibabaVolume(StorageResource):
+    '''
+    Volume class
+    '''
+    def __init__(self, params):
+        super(AlibabaVolume, self).__init__(params)
+        logging.info('Init AlibabaVolume resource')
+        self.vm = AlibabaVM(params)
+        self.id = None
+        self.size = 100
+
+    def is_free(self):
+        if self.get_state() == u"Available":
+            return True
+        else:
+            return False
+
+    def create(self):
+        raise NotImplementedError
+
+    def delete(self):
+        raise NotImplementedError
+
+    def show(self):
+        raise NotImplementedError
+
+    def get_state(self):
+        if self.id is None:
+            return "unknown"
+        return self.vm.ecs.describe_disks(diskids=self.id).get("Disks").get("Disk")[0].get("Status")
+
+    def is_exist(self):
+        if self.id is None:
+            return False
+        disks_list = self.vm.ecs.describe_disks().get("Disks").get("Disk")
+        for disk in disks_list:
+            if disk.get('DiskId') == self.id:
+                return True
+        return False
+
+    def modify_disk_size(self, os_disk_size=40, expand_num=10):
+        """
+        expand the disk with size in G
+        do no decrease the size because xfs not supported
+        """
+        os_disk_size = self.size
+        return self.vm.ecs.resize_disk(disk_id=self.id, new_size=os_disk_size + expand_num)

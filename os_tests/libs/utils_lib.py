@@ -102,12 +102,13 @@ def init_provider(params=None):
         from .resources_openstack import OpenstackVM
         vms.append(OpenstackVM(params))
     if 'ali' in provider:
-        from .resources_alicloud import AlibabaVM
+        from .resources_alicloud import AlibabaVM,AlibabaVolume
         vms.append(AlibabaVM(params))
         vm1 = AlibabaVM(params)
         vm1.vm_name += '-vm1'
         vm1.ecs.vm_params["InstanceName"] = vm1.ecs.vm_params["HostName"] = vm1.vm_name
         vms.append(vm1)
+        disks.append(AlibabaVolume(params))
     if 'nutanix' in provider:
         from .resources_nutanix import NutanixVM,NutanixVolume
         vms.append(NutanixVM(params))

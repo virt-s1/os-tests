@@ -19,7 +19,7 @@ class TestRHELCert(unittest.TestCase):
         local_file='{}/attachments/{}'.format(self.log_dir,debug_run_file)
         self.SSH.get_file(rmt_file=rmt_file,local_file=local_file)
 
-    def _wait_cert_done(self, timeout=600, interval=30, prefix=''):
+    def _wait_cert_done(self, timeout=1200, interval=30, prefix=''):
         timeout = timeout
         interval = interval
         prefix = str(prefix)
@@ -56,6 +56,38 @@ class TestRHELCert(unittest.TestCase):
         cmd = 'sudo bash -c "rm -rf /var/rhcert/*"'
         utils_lib.run_cmd(self,cmd, msg='cleanup the test result')
         return True
+
+    def _parted_swap_partition(self, root_vol):
+        swap_start = root_vol.size + 3
+        swap_end = root_vol.size + 8
+        if not root_vol.modify_disk_size(expand_num=10):
+            self.fail("cannot extend disk size")
+        parts = utils_lib.run_cmd(self, "lsblk -r -o NAME,TYPE|grep part|sort|awk -F' ' '{print $1}'")
+        tmp_parts_list = parts.split('\n')
+        parts_list = [ i for i in tmp_parts_list if i ]
+        parts_list.sort()
+        new_part = parts_list[-1][:-1] + str(len(parts_list) + 1)
+        disks = utils_lib.run_cmd(self, "lsblk -d -o NAME")
+        root_disk = '/dev/nvme0n1'
+        for disk in disks.split('\n'):
+            if disk and disk in parts:
+                root_disk = '/dev/{}'.format(disk)
+                break
+        self.log.info("boot disk:{}, new part:{}".format(root_disk,new_part))
+        part_count = utils_lib.run_cmd(self, "lsblk|grep part|wc -l")
+        part_count = int(part_count.strip('\n')) + 1
+        cmds = ['sudo sgdisk {} -e'.format(root_disk),
+            'sudo parted -s {} print'.format(root_disk),
+            'sudo parted -s {} mkpart swap xfs {}G {}G'.format(root_disk,swap_start,swap_end),
+            'sudo parted -s {} print'.format(root_disk),
+            'lsblk',
+            'swapoff -a',
+            'sudo mkswap /dev/{}'.format(new_part),
+            'sudo swapon /dev/{}'.format(new_part),
+            'sudo cat /proc/swaps',
+            'sudo cat /proc/partitions']
+        for cmd in cmds:
+            utils_lib.run_cmd(self,cmd, expect_ret=0, timeout=180)
 
     def setUp(self):
         utils_lib.init_case(self)
@@ -173,36 +205,20 @@ class TestRHELCert(unittest.TestCase):
                 if not root_vol:
                     self.fail("No free disk to pick up")
                 root_vol.load(root_id)
-                swap_start = root_vol.size + 3
-                swap_end = root_vol.size + 8
-                if not root_vol.modify_disk_size(expand_num=10):
-                    self.fail("cannot extend disk size")
-                parts = utils_lib.run_cmd(self, "lsblk -r -o NAME,TYPE|grep part|sort|awk -F' ' '{print $1}'")
-                tmp_parts_list = parts.split('\n')
-                parts_list = [ i for i in tmp_parts_list if i ]
-                parts_list.sort()
-                new_part = parts_list[-1][:-1] + str(len(parts_list) + 1)
-                disks = utils_lib.run_cmd(self, "lsblk -d -o NAME")
-                root_disk = '/dev/nvme0n1'
-                for disk in disks.split('\n'):
-                    if disk and disk in parts:
-                        root_disk = '/dev/{}'.format(disk)
+                self._parted_swap_partition(root_vol)
+
+            if os.getenv('INFRA_PROVIDER') == 'ali':
+                root_vol = None
+                for disk in self.disks:
+                    if not disk.is_exist():
+                        root_vol = disk
                         break
-                self.log.info("boot disk:{}, new part:{}".format(root_disk,new_part))
-                part_count = utils_lib.run_cmd(self, "lsblk|grep part|wc -l")
-                part_count = int(part_count.strip('\n')) + 1
-                cmds = ['sudo sgdisk {} -e'.format(root_disk),
-                    'sudo parted -s {} print'.format(root_disk),
-                    'sudo parted -s {} mkpart swap xfs {}G {}G'.format(root_disk,swap_start,swap_end),
-                    'sudo parted -s {} print'.format(root_disk),
-                    'lsblk',
-                    'swapoff -a',
-                    'sudo mkswap /dev/{}'.format(new_part),
-                    'sudo swapon /dev/{}'.format(new_part),
-                    'sudo cat /proc/swaps',
-                    'sudo cat /proc/partitions']
-                for cmd in cmds:
-                    utils_lib.run_cmd(self,cmd, expect_ret=0, timeout=180)
+                if not root_vol:
+                    self.fail("No free disk to pick up")
+                root_id,root_size = self.vm.get_system_disk()
+                root_vol.id = root_id
+                root_vol.size = root_size
+                self._parted_swap_partition(root_vol)
  
     def test_rhcert_non_interactive(self):
         """
