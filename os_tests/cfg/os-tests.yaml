@@ -30,3 +30,5 @@ remote_keyfile:
 remote_password:
 subscription_username:
 subscription_password:
+# enable case result auto check, it calls the baseline_log.json data.
+enable_auto_result_check: True

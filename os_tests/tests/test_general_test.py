@@ -1159,6 +1159,8 @@ if __name__ == "__main__":
             21.$nitro-cli terminate-enclave --enclave-id $EnclaveID
         expected_result:
             Enclave can be started and terminated successfully.
+        debug_want: |
+            /var/log/nitro_enclaves/nitro_enclaves.log
         '''
         if self.vm and self.vm.provider == 'aws':
             if self.vm.is_exist():
@@ -1221,6 +1223,7 @@ if __name__ == "__main__":
         utils_lib.run_cmd(self,
                           'nitro-cli build-enclave --docker-dir /usr/share/nitro_enclaves/examples/hello --docker-uri hello:latest --output-file hello.eif',
                           msg='build enclave')
+        utils_lib.run_cmd(self, 'sudo cat /var/log/nitro_enclaves/nitro_enclaves.log', msg='attach this files content when build fail')
         utils_lib.run_cmd(self,
                           'sudo nitro-cli run-enclave --cpu-count 2 --memory 512 --enclave-cid 16 --eif-path hello.eif --debug-mode',
                           expect_kw='Started', msg='run enclave')
