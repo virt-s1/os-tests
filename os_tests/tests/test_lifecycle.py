@@ -320,7 +320,7 @@ class TestLifeCycle(unittest.TestCase):
         time.sleep(10)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='mitigations=auto,nosmt')
-        utils_lib.check_log(self, "error,warn,fail,CallTrace", skip_words='ftrace,Failed to write ATTR', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, "error,warn,fail,CallTrace", skip_words='ftrace,Failed to write ATTR,nofail', rmt_redirect_stdout=True)
 
     def test_boot_usbcore_quirks(self):
         '''
@@ -340,7 +340,7 @@ class TestLifeCycle(unittest.TestCase):
         cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50'
         utils_lib.run_cmd(self, cmd, expect_kw='No such file or directory', msg='make sure there is no core generated')
         #remove trace for "memory used for stack traces" or "Callback from call_rcu_tasks_trace() invoked"
-        utils_lib.check_log(self, "error,warn,fail,CallTrace", rmt_redirect_stdout=True)
+        utils_lib.check_log(self, "error,warn,fail,CallTrace", skip_words='nofail', rmt_redirect_stdout=True)
 
     def test_boot_sev_snp(self):
         """

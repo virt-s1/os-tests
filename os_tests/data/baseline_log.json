@@ -1944,5 +1944,60 @@
         "path": "journal,dmesg",
         "trigger": "",
         "addedby": "xiliang@redhat.com"
+    },
+    "msg_216": {
+        "content": ".*SerdeJsonError.*Error.*missing field .*VirtualSize.*",
+        "analyze": "nitro-cli known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://github.com/softprops/shiplift/pull/331",
+        "path": "/var/log/nitro_enclaves/nitro_enclaves.log",
+        "trigger": "",
+        "cases": "os_tests.tests.test_general_test.TestGeneralTest.test_z_nitro_enclaves",
+        "addedby": "xiliang@redhat.com"
+    },
+    "msg_217": {
+        "content": ".*include/trace/events/preemptirq.h:36 suspicious rcu_dereference_check.* usage!.*",
+        "analyze": "known issue in RHEL",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-22238",
+        "path": "dmesg",
+        "trigger": "",
+        "cases": "os_tests.tests.test_lifecycle.TestLifeCycle.test_boot_debugkernel",
+        "addedby": "xiliang@redhat.com"
+    },
+    "msg_218": {
+        "content": ".*Discovery Log Number of Records.* Generation counter X.*",
+        "analyze": "known issue in blktests, mostly tool issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "dmesg",
+        "trigger": "",
+        "cases": "os_tests.tests.test_storage.TestStorage.test_storage_blktests_nvme",
+        "addedby": "xiliang@redhat.com"
+    },
+    "msg_219": {
+        "content": ".*Warning: Deprecated Driver is detected: qla4xxx will not be maintained in a future major release and may be disabled.*",
+        "analyze": "qla4xxx was decided to deprecate from RHEL-7",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/documentation/de-de/red_hat_enterprise_linux/7/html/7.8_release_notes/deprecated_functionality",
+        "path": "dmesg",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com"
+    },
+    "msg_220": {
+        "content": ".*cs: CPU clock mismatch.*",
+        "analyze": "it is not a regression in test.",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1943474",
+        "path": "fio",
+        "trigger": "",
+        "cases": "os_tests.tests.test_general_test.TestGeneralTest.test_fio_cpuclock",
+        "addedby": "xiliang@redhat.com"
     }
 }

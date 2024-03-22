@@ -413,7 +413,7 @@ def finish_case(test_instance):
 
 def extra_step_parser(test_instance, extra_steps=None):
     if not extra_steps:
-        test_instance.log.info("no extra steps found!")
+        test_instance.log.info("no extra steps detected, you can try case_setup or case_setup to inject more operations before or after case.")
         return True
     test_instance.log.info("extra case steps detected, parse it:{}".format(extra_steps))
     exe_timout = 600
@@ -695,7 +695,7 @@ def run_cmd(test_instance,
             (status, expect_not_ret))
     if expect_kw is not None:
         for key_word in expect_kw.split(','):
-            find_list = re.findall('.*{}.*'.format(key_word), output)
+            find_list = re.findall('{}'.format('.*' in key_word and key_word or ".*{}.*".format(key_word)), output)
             if find_list:
                 test_instance.log.info('expected "{}" found in "{}"'.format(key_word, ''.join(find_list)))
             else:
@@ -705,7 +705,7 @@ def run_cmd(test_instance,
                     test_instance.fail('expected "{}" not found in "{}"'.format(key_word,output))
     if expect_not_kw is not None:
         for key_word in expect_not_kw.split(','):
-            find_list = re.findall('.*{}.*'.format(key_word), output)
+            find_list = re.findall('{}'.format('.*' in key_word and key_word or ".*{}.*".format(key_word)), output)
             if not find_list:
                 test_instance.log.info('Unexpected "{}" not found in output'.format(key_word))
             else:
@@ -1181,14 +1181,9 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl -b 0", expect_ret=
         cursor: where to start to check journal log, only for journal log
         skip_words: skip words as you want, split by ","
     '''
-    # Baseline data file
-    baseline_file = os.path.dirname(os_tests.__file__) + "/data/baseline_log.json"
     # Result dir
     if msg is not None:
         test_instance.log.info(msg)
-    with open(baseline_file,'r') as fh:
-        test_instance.log.info("Loading baseline data file from {}".format(baseline_file))
-        baseline_dict = json.load(fh)
     run_cmd(test_instance, '\n')
 
     check_cmd = log_cmd + '|grep -Ev "{}"'.format(test_instance.id())
@@ -1220,10 +1215,8 @@ def check_log(test_instance, log_keyword, log_cmd="journalctl -b 0", expect_ret=
                       rmt_get_pty=rmt_get_pty)
 
     for keyword in log_keyword.split(','):
-        ret, msg = find_word(test_instance, out, keyword, baseline_dict=baseline_dict, skip_words=skip_words)
-        if not ret and baseline_dict is not None:
-            test_instance.fail("New {} in {} log\n{}".format(keyword, check_cmd, '\n'.join(msg)))
-        elif not ret:
+        ret, msg = find_word(test_instance, out, keyword, skip_words=skip_words)
+        if ret:
             test_instance.fail("Found {} in {} log!\n{}".format(keyword, check_cmd, '\n'.join(msg)))
         else:
             test_instance.log.info("No unexpected {} in {} log!".format(keyword, check_cmd))
@@ -1266,83 +1259,121 @@ def clean_sentence(test_instance, line1, line2):
             return line1, line2
     return line1, line2
 
-def find_word(test_instance, check_str, log_keyword, baseline_dict=None, skip_words=None):
+def find_word(test_instance, check_str, log_keyword=None, baseline_dict=None, skip_words=None, case=None):
     """find words in content
 
     Arguments:
         test_instance {Test instance} -- unittest.TestCase instance
-        check_str {[string]} -- [string to look]
+        check_str {[string]} -- [string content to look]
+        log_keyword {[string]} -- [keyword to look]
         baseline_dict {[dict]} -- [baseline dict to compare]
-        match_word_exact: is macthing word exactly
         skip_words: skip words as you want, split by ","
-
+        case: only check items when cases are same, so users can know which case found it and 
+               also can be used for test result auto checks.
     Returns:
         [Bool] -- [True|False]
     """
-    tmp_list = re.findall('.*%s.*' % log_keyword, check_str, flags=re.I)
-    if len(tmp_list) == 0:
-        test_instance.log.info("No %s found!", log_keyword)
-        return True, []
-    else:
-        test_instance.log.info("%s found!", log_keyword)
-    if skip_words is not None:
-        for skip_word in skip_words.split(','):
-            tmp_list = [x for x in tmp_list if skip_word not in x]
-    if len(tmp_list) == 0:
-        test_instance.log.info("No {} found after skipped {}!".format(log_keyword, skip_words))
-        return True, []
-    unknow_log = list(set(deepcopy(tmp_list)))
+    if not baseline_dict:
+        # Baseline data file
+        baseline_file = os.path.dirname(os_tests.__file__) + "/data/baseline_log.json"
+        with open(baseline_file,'r') as fh:
+            test_instance.log.info("Loading baseline data file from {}".format(baseline_file))
+            baseline_dict = json.load(fh)
+    log_keywords = []
+    kw_from_case = False
+    if log_keyword and ',' in log_keyword:
+        log_keywords.extend(log_keyword.split(','))
+    elif log_keyword:
+        log_keywords.append(log_keyword)
+    elif log_keyword is None and case:
+        msg_ids = []
+        for key in baseline_dict.keys():
+            if baseline_dict[key].get('cases'):
+                if case in baseline_dict[key].get('cases'):
+                    log_keywords.append(baseline_dict[key].get('content'))
+                    msg_ids.append(key)
+        test_instance.log.info("fetched rules from {} matching case:{}".format(msg_ids,case))
+        kw_from_case = True
+        if not log_keywords:
+            # if checking keywords not found or is empty, we consider this fail is new.
+            return True, []
+    new_fail_found = False
+    remain_items = []
+    all_items = []
+    for kw in log_keywords:
+        tmp_list = re.findall('.*' in kw and kw or ".*{}.*".format(kw), check_str, flags=re.I)
+        if len(tmp_list) == 0:
+            test_instance.log.info("No %s found!", kw)
+            continue
+        else:
+            test_instance.log.info("%s found!", kw)
+        if skip_words is not None:
+            for skip_word in skip_words.split(','):
+                tmp_list = [x for x in tmp_list if skip_word not in x]
+        if len(tmp_list) == 0:
+            test_instance.log.info("No {} found after skipped {}!".format(log_keyword, skip_words))
+            continue
+        all_items.extend(tmp_list)
 
-    no_fail = True
-    for line1 in set(tmp_list):
+    if not all_items:
+        # if no items found in checking list, no need to do further checking
+        return new_fail_found or kw_from_case, []
+    remain_items = list(set(deepcopy(all_items)))
+
+    for line1 in set(all_items):
         test_instance.log.info("Checking:{}".format(line1))
         found_it = False
-        if baseline_dict:
-            for basekey in baseline_dict:
-                # this round go through with regex
-                for sub_basekey_content in baseline_dict[basekey]["content"].split(';'):
-                    if sub_basekey_content and re.search(sub_basekey_content, line1):
-                        found_it = True
-                        matched_msg = basekey
-                        test_instance.log.info("regex found in baseline:{}".format(basekey))
-                        break
-            if not found_it:
-                # this round compare the content
-                # compare 2 strings, if similary over pass_rate, consider it as same.
-                pass_rate = 70
-                for basekey in baseline_dict:
-                    line1_tmp = line1
-                    line2_tmp = baseline_dict[basekey]["content"]
-                    line1_tmp, line2_tmp = clean_sentence(test_instance, line1_tmp, line2_tmp)
-                    seq = difflib.SequenceMatcher(
-                        None, a=line1_tmp, b=line2_tmp)
-                    same_rate = seq.ratio() * 100
-                    if same_rate > pass_rate:
-                        test_instance.log.info("content similar rate:{} over {} baseline:{}".format(same_rate,pass_rate,basekey))
-                        matched_msg = basekey
-                        found_it = True
-                        break
-            if found_it:
-                basekey = matched_msg
-                if baseline_dict[basekey]["status"] != 'active':
-                    test_instance.log.info("Found a similar log {} matched in baseline. But it is not active, please check manually".format(basekey))
-                    no_fail = False
-                trigger = baseline_dict[basekey]["trigger"]
-                if trigger and re.search(trigger,check_str,flags=re.I):
-                    test_instance.log.info("Guess it is expected because trigger keywords found '{}'".format(trigger))
-                    unknow_log.remove(line1)
-                elif trigger:
-                    test_instance.log.info("Guess it is unexpected because trigger keywords not found '{}'".format(trigger))
-                    no_fail = False
-                elif not trigger and no_fail:
-                    unknow_log.remove(line1)
-                test_instance.log.info(baseline_dict[basekey])
+        if not baseline_dict:
+            break
+        for basekey in baseline_dict:
+            if case and baseline_dict[basekey].get('cases') and case not in baseline_dict[basekey].get('cases'):
                 continue
-    if unknow_log:
-        test_instance.log.info("Below items are unknow!\n{}".format(unknow_log))
-        no_fail = False
+            # this round go through with regex
+            for sub_basekey_content in baseline_dict[basekey]["content"].split(';'):
+                if sub_basekey_content and re.search(sub_basekey_content, line1):
+                    found_it = True
+                    matched_msg = basekey
+                    test_instance.log.info("regex found in baseline:{}".format(basekey))
+                    break
+        if not found_it:
+            # this round compare the content
+            # compare 2 strings, if similary over pass_rate, consider it as same.
+            pass_rate = 70
+            for basekey in baseline_dict:
+                if case and baseline_dict[basekey].get('cases') and case not in baseline_dict[key].get('cases'):
+                    continue
+                line1_tmp = line1
+                line2_tmp = baseline_dict[basekey]["content"]
+                line1_tmp, line2_tmp = clean_sentence(test_instance, line1_tmp, line2_tmp)
+                seq = difflib.SequenceMatcher(
+                    None, a=line1_tmp, b=line2_tmp)
+                same_rate = seq.ratio() * 100
+                if same_rate > pass_rate:
+                    test_instance.log.info("content similar rate:{} over {} baseline:{}".format(same_rate,pass_rate,basekey))
+                    matched_msg = basekey
+                    found_it = True
+                    break
+        if found_it:
+            basekey = matched_msg
+            if baseline_dict[basekey]["status"] != 'active':
+                test_instance.log.info("Found a similar log {} matched in baseline. But it is not active, please check manually".format(basekey))
+                new_fail_found = True
+            trigger = baseline_dict[basekey]["trigger"]
+            if trigger and re.search(trigger,check_str,flags=re.I):
+                test_instance.log.info("Guess it is expected because trigger keywords found '{}'".format(trigger))
+                remain_items.remove(line1)
+            elif trigger:
+                test_instance.log.info("Guess it is unexpected because trigger keywords not found '{}'".format(trigger))
+                new_fail_found = True
+            elif not trigger and not new_fail_found:
+                remain_items.remove(line1)
+            test_instance.log.info(baseline_dict[basekey])
+            continue
+    if remain_items:
+        test_instance.log.info("Below items are unknow!\n{}".format(remain_items))
+        new_fail_found = True
 
-    return no_fail, unknow_log
+    return new_fail_found, remain_items
 
 def get_product_id(test_instance):
     cmd = "source /etc/os-release ;echo $VERSION_ID"

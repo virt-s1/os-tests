@@ -1,3 +1,4 @@
+from distutils.log import debug
 from unittest import TextTestResult
 from unittest.signals import registerResult
 from . import utils_lib
@@ -9,8 +10,10 @@ import contextlib
 import os
 from jinja2 import Template, FileSystemLoader, Environment, PackageLoader, select_autoescape
 
-
 class Result:
+    '''
+    The class is for test result summary.
+    '''
     def __init__(self):
         self.total = 0
         self.pass_rate = 0
@@ -72,10 +75,11 @@ class _WritelnDecorator(object):
         self.write('\n') # text-mode streams translate to \r\n if needed
 
 class HTMLTestRunner(object):
-    """A test runner class that displays results in textual form.
+    """A test runner class that displays results in html form.
 
-    It prints out the names of tests as they are run, errors as they
-    occur, and a summary of the results at the end of the test run.
+    While printing out the names of tests as they are run, errors as they
+    occur, and a summary of the results at the end of the test run. It 
+    also generates html report for reading and link to related debug logs.
     """
     resultclass = TextTestResult
 
@@ -167,9 +171,20 @@ class HTMLTestRunner(object):
                                     test_result.case_skip += 1
                                 case_status = status
                                 case_reason = reason
-                                with open(debug_log, 'a+') as fh:
-                                    fh.write(reason)
-                                    fh.write('{} - {}'.format(ts.id(), status))
+                                try:
+                                    ts.log.info(reason)
+                                    ts.log.info('{} - {}'.format(ts.id(), status))
+                                except Exception as err:
+                                    with open(debug_log, 'a+') as fh:
+                                        fh.write(reason)
+                                        fh.write('{} - {}'.format(ts.id(), status))
+                                if status in ['ERROR', 'FAIL'] and hasattr(ts, 'log') and ts_finished.params.get('enable_auto_result_check'):
+                                    ts.log.info("-----enable_auto_result_check enabled, auto check result--------")
+                                    src_content = ''
+                                    with open(debug_log, 'r') as fh:
+                                        src_content = fh.read()
+                                    ret, _ = utils_lib.find_word(ts, src_content, case=ts.id())
+                                    case_reason = "{} IS_KNOWN:{} Please check auto analyze details in debug log".format(case_reason, not ret)
                                 break
                     if not case_status:
                         test_result.case_pass += 1
