@@ -1310,12 +1310,12 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         if utils_lib.is_metal(self):
             utils_lib.run_cmd(self,
                         cmd,
-                        expect_kw="microcode updated early",
+                        expect_kw="updated early",
                         msg='microcode should load in bare metal')
         else:
             utils_lib.run_cmd(self,
                         cmd,
-                        expect_not_kw='microcode updated early',
+                        expect_not_kw='updated early',
                         msg='microcode should not load in VMs')
 
     def test_check_nouveau(self):
