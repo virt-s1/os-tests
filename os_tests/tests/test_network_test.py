@@ -2062,6 +2062,70 @@ COMMIT
         cmd = 'dmesg'
         utils_lib.run_cmd(self, cmd, expect_not_kw='Call Trace')
 
+    def test_veth_nic_rx(self):
+        """
+        case_name:
+            test_veth_nic_rx
+        case_tags:
+            network,kernel
+        case_status:
+            approved
+        title:
+            make sure no log spam produced when veth and nic has different rx setting
+        importance:
+            low
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            automated
+        linked_work_items:
+            jira_RHEL-14286
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_network_test.py
+        setup_teardown:
+            N/A
+        environment:
+            N/A
+        component:
+            component
+        bug_id:
+            jira_RHEL-14286
+        is_customer_case:
+            True
+        testplan:
+            N/A
+        test_type:
+            functional
+        test_level:
+           Component
+        maintainer:
+            xiliang@redhat.com
+        description: |
+            make sure no log spam produced when veth and nic has different rx setting
+            # eth0 selects TX queue 8, but real number of TX queues is 8
+        key_steps: |
+            - Create a veth pair and set the number of TX queues to 16.
+            - Create a bridge interface.
+            - Attach one of the veth interfaces to the bridge.
+            - Attach the ena/other interface to the bridge.
+            - run ping.
+        expected_result: |
+            no "eth0 selects TX queue 8, but real number of TX queues is 8" continusly produced
+        debug_want: |
+            dmesg
+        """
+        veth_nic_rx = self.utils_dir + '/veth_nic_rx.sh'
+        veth_nic_rx_run = '/tmp/veth_nic_rx.sh'
+        if self.params.get('remote_node') is not None:
+            self.SSH.put_file(local_file=veth_nic_rx, rmt_file=veth_nic_rx_run)
+        else:
+            cmd = 'sudo cp -f {} {}'.format(veth_nic_rx,veth_nic_rx_run)
+            utils_lib.run_cmd(self, cmd)
+        utils_lib.run_cmd(self,"sudo chmod 755 %s" % veth_nic_rx_run)
+        utils_lib.run_cmd(self,'sudo bash -c "{} {}"'.format(veth_nic_rx_run, self.active_nic), timeout=360, msg='the system might loss connection if the script cannot finish normally.')
+        utils_lib.init_connection(self, timeout=180)
+        utils_lib.run_cmd(self,"dmesg", expect_not_kw="but real number of TX queues")
+
     def tearDown(self):
         utils_lib.finish_case(self)
         if 'test_mtu_min_max_set' in self.id():
