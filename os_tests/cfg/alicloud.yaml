@@ -37,6 +37,8 @@ Flavor:
     private_ip_quantity: 1
     arch: x86_64
     net_bandwidth: 10
+subscription_username:
+subscription_password:
 # Add case name into support cases if support versions are undefined when testing fixed scratch build
 # For example ["case1","case2"]
 support_cases: None
