@@ -1999,5 +1999,49 @@
         "trigger": "",
         "cases": "os_tests.tests.test_general_test.TestGeneralTest.test_fio_cpuclock",
         "addedby": "xiliang@redhat.com"
+    },
+    "msg_221": {
+        "content": ".*block/009 .*check page-cache coherency after BLKDISCARD.*failed.*",
+        "analyze": "known issue in blktests, probably tool issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "dmesg",
+        "trigger": "",
+        "cases": "os_tests.tests.test_storage.TestStorage.test_storage_blktests_block",
+        "addedby": "xiliang@redhat.com"
+    },
+    "msg_222": {
+        "content": ".*Current active profile: virtual-guest.*",
+        "analyze": "known issue in tuned",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-6811",
+        "path": "tuned",
+        "trigger": "",
+        "cases": "os_tests.tests.test_general_check.TestGeneralCheck.test_check_tuned_adm_active",
+        "addedby": "xiliang@redhat.com"
+    },
+    "msg_223": {
+        "content": ".*unchecked MSR access error: WRMSR to.*amd_pmu_cpu_reset.constprop.0.*",
+        "analyze": "known issue in rhel",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-21709",
+        "path": "dmesg",
+        "trigger": "",
+        "cases": "os_tests.tests.test_general_check.TestGeneralCheck.test_check_dmesg_calltrace",
+        "addedby": "xiliang@redhat.com"
+    },
+    "msg_224": {
+        "content": ".*selects TX queue.*, but real number of TX queues is.*",
+        "analyze": "known issue in rhel aws ena driver",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-14286",
+        "path": "dmesg",
+        "trigger": "Elastic Network Adapter",
+        "cases": "os_tests.tests.test_network_test.TestNetworkTest.test_veth_nic_rx",
+        "addedby": "xiliang@redhat.com"
     }
 }
