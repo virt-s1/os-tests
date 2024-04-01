@@ -12,9 +12,6 @@ class TestCloudInit(unittest.TestCase):
         utils_lib.init_case(self)
         cmd = "sudo systemctl is-enabled cloud-init-local"
         utils_lib.run_cmd(self, cmd, cancel_ret='0', msg = "check cloud-init-local is enabled")
-        if 'test_cloudinit_no_networkmanager' in self.id():
-            self.NM_install = utils_lib.run_cmd(self, "rpm -q NetworkManager", ret_status=True)
-            self.network_install = utils_lib.run_cmd(self, "rpm -q network-scripts", ret_status=True)
 
     @property
     def rhel_x_version(self):
@@ -469,6 +466,7 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         '''
         product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
         if float(product_id) >= 9.0:
+            self.skipflag = True
             self.skipTest('sshd does not allow empty value from RHEL-9, cloudinit has no chance to hit the key value empty senario.')
         cmd = 'cp ~/.ssh/authorized_keys ~/.ssh/authorized_keys.bak'
         utils_lib.run_cmd(self, cmd, msg='backup .ssh/authorized_keys')
@@ -621,18 +619,21 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
             N/A
         """
         if not self.vm:
+            self.skipflag = True
             self.skipTest("Skip this test case as no vm inited")
         if self.vm.provider == 'openstack':
+            self.skipflag = True
             self.skipTest('skip run as openstack uses userdata to config the password')
         for attrname in ['ssh_pubkey', 'get_vm_by_filter', 'prism']:
             if not hasattr(self.vm, attrname):
+                self.skipflag = True
                 self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
         if self.vm.exists():
             self.vm.delete()
             time.sleep(30)
-        save_ssh_pubkey = self.vm.ssh_pubkey
-        self.vm.ssh_pubkey = None
-        self.vm.create(wait=True)
+        #save_ssh_pubkey = self.vm.ssh_pubkey
+        #self.vm.ssh_pubkey = None
+        self.vm.create(wait=True,sshkey="DoNotSet")
         #test passwork login to new vm
         NewVM = self.vm.get_vm_by_filter("vm_name", self.vm.vm_name)
         start_task = self.vm.prism.start_vm(NewVM['uuid'])
@@ -658,13 +659,6 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
                          test_login[1].strip(),
                          "Fail to login with password: %s" % format(test_login[1].strip()))
         #teardown
-        self.vm.ssh_pubkey=save_ssh_pubkey
-        self.vm.delete()
-        self.vm.create(wait=True)
-        if self.vm.is_stopped():
-            self.vm.start(wait=True)
-        time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
     def test_cloudinit_verify_hostname(self):
         """
@@ -750,14 +744,9 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
                         expect_ret=0,
                         expect_not_kw='previous-hostname differs',
                     msg='checking /var/log/cloud-init.log')
-            #tear down
-            self.vm.delete(wait=True)
-            self.vm.create(wait=True)
-            if self.vm.is_stopped():
-                self.vm.start(wait=True)
-            time.sleep(30)
-            utils_lib.init_connection(self, timeout=self.ssh_timeout)
+            #teardown
         else:
+            self.skipflag = True
             self.skipTest("Skip test_cloudinit_check_previous_hostname because it does not support "+package_ver)
 
     def _cloudinit_auto_resize_partition(self, label):
@@ -986,7 +975,7 @@ EOF""".format(device, size), expect_ret=0)
         self.assertEqual(
             ip_list_vm, ip_list_host, "The private IP addresses are wrong.\n"
             "Expect: {}\nReal: {}".format(ip_list_host, ip_list_vm))
-        #tear down
+        #teardown
         self.vm.delete(wait=True)
         self.vm.create(wait=True)
         if self.vm.is_stopped():
@@ -1111,6 +1100,10 @@ EOF""".format(device, size), expect_ret=0)
                           expect_ret=0,
                           expect_kw='scope global',
                           msg='check ipv6 scope global address')
+        #On AWS, check ipv6, using google ipv6 address 2001:4860:4860::8888
+        if utils_lib.is_aws(self):
+            cmd = "sudo ping {} -c 3 -I {}".format("2001:4860:4860::8888", "eth0")
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='ping google')
 
     def test_cloudinit_check_random_password_len(self):
         """
@@ -1646,14 +1639,14 @@ EOF""".format(device, size), expect_ret=0)
             3. check data source in /run/cloud-init/cloud.cfg
         """
         if self.vm.provider != 'openstack':
+            self.skipflag = True
             self.skipTest('skip run as this is openstack specific case')
         self.log.info(
             "RHEL-189225 - CLOUDINIT-TC: launch vm with config drive")        
         if self.vm.exists():
             self.vm.delete()
             time.sleep(30)
-        self.vm.config_drive = True
-        self.vm.create()
+        self.vm.create(configdrive=True)
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
@@ -1676,14 +1669,7 @@ EOF""".format(device, size), expect_ret=0)
                           msg='check if ConfigDrive in /run/cloud-init/cloud.cfg')
         # check cloud-init status is done and services are active
         self._check_cloudinit_done_and_service_isactive()
-        #teardown        
-        self.vm.delete()
-        self.vm.config_drive = None
-        self.vm.create()
-        if self.vm.is_stopped():
-            self.vm.start(wait=True)
-        time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        #teardown
 
     def test_cloudinit_login_with_password_userdata(self):
         """
@@ -1703,18 +1689,19 @@ EOF""".format(device, size), expect_ret=0)
             2. Login with password, should have sudo privilege
         """
         if not self.vms:
+            self.skipflag = True
             self.skipTest("No vm found")
         if self.vm.provider == 'nutanix':
+            self.skipflag = True
             self.skipTest('skip run as nutanix test this in case test_cloudinit_login_with_password')
-        for attrname in ['vm_password', 'keypair']:
+        for attrname in ['vm_password']:
             if not hasattr(self.vm, attrname):
+                self.skipflag = True
                 self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
         if self.vm.exists():
             self.vm.delete()
             time.sleep(30)
-        save_userdata = self.vm.user_data
-        save_keypair = self.vm.keypair
-        self.vm.user_data = """\
+        user_data = """\
 #cloud-config
 
 user: {0}
@@ -1722,8 +1709,7 @@ password: {1}
 chpasswd: {{ expire: False }}
 ssh_pwauth: True
 """.format(self.vm.vm_username, self.vm.vm_password)       
-        self.vm.keypair = None
-        self.vm.create()
+        self.vm.create(userdata=user_data,sshkey="DoNotSet")
         time.sleep(30)
         self.params['remote_node'] = self.vm.floating_ip
         test_login = utils_lib.send_ssh_cmd(self.vm.floating_ip, self.vm.vm_username, self.vm.vm_password, "whoami")
@@ -1734,13 +1720,7 @@ ssh_pwauth: True
         self.assertIn("%s ALL=(ALL) NOPASSWD:ALL" % self.vm.vm_username,
                          test_sudo[1].strip(),
                          "No sudo privilege")
-        #teardown        
-        self.vm.delete()
-        self.vm.keypair = save_keypair
-        self.vm.user_data = save_userdata
-        self.vm.create()
-        time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        #teardown
 
     def _reboot_inside_vm(self, sleeptime=10):       
         before = utils_lib.run_cmd(self, 'last reboot --time-format full')
@@ -1931,7 +1911,7 @@ ssh_pwauth: True
                # systemctl disable cloud-{init-local,init,config,final}
             2. Clean the VM and reboot VM
             3. Check the VM status after reboot
-            The cloud-init should not run , and the related services are disabled
+            The cloud-init should not run/started , and the related services are disabled
             4. Recover the VM config(enable cloud-init), reboot VM, check the cloud-init is enabled
         """
         self.log.info("RHEL-287483: CLOUDINIT-TC: check cloud-init disable")
@@ -1950,7 +1930,17 @@ ssh_pwauth: True
         self.assertNotIn("enabled",
                     utils_lib.run_cmd(self, "sudo systemctl is-enabled cloud-{init-local,init,config,final}"),
                     "Fail to disable cloud-init related services!")
-        self.assertIn("status: not run",
+        #cloud-init status changes in 24.1 (Refactor status.py #4864)
+        out = utils_lib.run_cmd(self, 'rpm -q cloud-init', expect_ret=0)
+        cloudinit_ver = re.findall('\d+.\d',out)[0]
+        if float(cloudinit_ver) < 24.1:
+            #before
+            self.assertIn("status: not run",
+                    utils_lib.run_cmd(self, "sudo cloud-init status"),
+                    "cloud-init status is wrong!")
+        else:
+            #cloud-init 24.1+
+            self.assertIn("status: not started",
                     utils_lib.run_cmd(self, "sudo cloud-init status"),
                     "cloud-init status is wrong!")
         self.assertIn("inactive",
@@ -1965,13 +1955,7 @@ ssh_pwauth: True
         self.assertNotIn("disabled",
                     utils_lib.run_cmd(self, "sudo systemctl is-enabled cloud-{init-local,init,config,final}"),
                     "Fail to disable cloud-init related services!")
-        #teardown        
-        self.vm.delete()
-        self.vm.create()
-        if self.vm.is_stopped():
-            self.vm.start(wait=True)
-        time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        #teardown
 
     def test_cloudinit_create_vm_two_nics(self):
         """
@@ -1996,12 +1980,12 @@ ssh_pwauth: True
         # The second nic uses hard code (the second network only contains ipv6, network name provider_net_ipv6_only, ipv6 slaac)
         # if the second nic has ipv4, the ssh login may select it but it could not be connected
         # this solution ensure ssh using eth0 ipv4
-        self.vm.second_nic_id = "10e45d6d-5924-48ee-9f5a-9713f5facc36"
+        second_nic_id = "10e45d6d-5924-48ee-9f5a-9713f5facc36"
         gateway = "2620:52:0:9c::fe"
         if self.vm.exists():
             self.vm.delete()
             time.sleep(30)
-        self.vm.create()
+        self.vm.create(second_nic=second_nic_id)
         time.sleep(30)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
@@ -2039,12 +2023,12 @@ ssh_pwauth: True
         if self.vm.provider != 'openstack':
             self.skipTest('skip run as this case is openstack specific.')
         # The second nic uses hard code (net-ipv6-stateless-test, only subnet ipv6, dhcp-stateless)
-        self.vm.second_nic_id = "21f1d63a-197c-4f36-957a-4c8f4a24bb73"
+        second_nic_id = "21f1d63a-197c-4f36-957a-4c8f4a24bb73"
         gateway = "2020:1:1:1::1"
         if self.vm.exists():
             self.vm.delete()
             time.sleep(30)
-        self.vm.create()
+        self.vm.create(second_nic=second_nic_id)
         time.sleep(30)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
@@ -2086,12 +2070,12 @@ ssh_pwauth: True
         if self.vm.provider != 'openstack':
             self.skipTest('skip run as this case is openstack specific')
         # The second nic uses hard code (net-ipv6-stateful-test, only subnet ipv6, dhcp-stateful)
-        self.vm.second_nic_id = "c0020823-5d4c-444a-aee7-b0fe6b3219cc"
+        second_nic_id = "c0020823-5d4c-444a-aee7-b0fe6b3219cc"
         gateway = "2010:1:1:1::1"
         if self.vm.exists():
             self.vm.delete()
             time.sleep(30)
-        self.vm.create()
+        self.vm.create(second_nic=second_nic_id)
         time.sleep(30)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
@@ -2136,14 +2120,14 @@ ssh_pwauth: True
             3. Verify register with subscription-manager and install package by cloud-init successfully
         """
         if self.vm.provider != 'openstack' and self.vm.provider != 'nutanix':
+            self.skipflag = True
             self.skipTest('skip run as this case need connect rhsm stage server, not suitable for public cloud')
         self.log.info("RHEL-186182 CLOUDINIT-TC:auto install package with subscription manager")
         if self.vm.exists():
             self.vm.delete()
             time.sleep(30)
         package = "dos2unix"        
-        save_userdata = self.vm.user_data
-        self.vm.user_data = """\
+        user_data = """\
 #cloud-config
 
 rh_subscription:
@@ -2157,7 +2141,7 @@ packages:
   - {4}
 """.format(self.vm.subscription_username, self.vm.subscription_password, 
     self.vm.subscription_baseurl, self.vm.subscription_serverurl, package)
-        self.vm.create()
+        self.vm.create(userdata=user_data)
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
@@ -2195,17 +2179,7 @@ packages:
                     expect_ret=0,
                     expect_kw='{}'.format(package),
                     msg="Fail to install package {} by cloud-init".format(package))
-        #teardown        
-        self.vm.delete()
-        if self.vm.provider == 'nutanix':
-            self.vm.user_data = None
-        else:
-            self.vm.user_data = save_userdata
-        self.vm.create()
-        if self.vm.is_stopped():
-            self.vm.start(wait=True)
-        time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        #teardown
 
     def test_cloudinit_verify_rh_subscription_enablerepo_disablerepo(self):
         """
@@ -2231,17 +2205,18 @@ packages:
             3. Verify register with subscription-manager and enabled repos and disabled repos successfully
         """
         if self.vm.provider != 'openstack' and self.vm.provider != 'nutanix':
+            self.skipflag = True
             self.skipTest('skip run as this case need connect rhsm stage server, not suitable for public cloud')
         rhel_ver = utils_lib.run_cmd(self, "sudo cat /etc/redhat-release").rstrip('\n')
         rhel_ver = float(re.search('release\s+(\d+.\d+)\s+', rhel_ver).group(1))
         if rhel_ver >= 9.0 or rhel_ver < 8.0:
+            self.skipflag = True
             self.skipTest('skip run as this case is only test rhel-8')        
         self.log.info("RHEL-189134 - CLOUDINIT-TC: Verify rh_subscription enable-repo and disable-repo")
         if self.vm.exists():
             self.vm.delete()
             time.sleep(30)
-        save_userdata = self.vm.user_data
-        self.vm.user_data = """\
+        user_data = """\
 #cloud-config
 
 rh_subscription:
@@ -2254,7 +2229,7 @@ rh_subscription:
   disable-repo: ['rhel-8-for-x86_64-appstream-beta-rpms']
 """.format(self.vm.subscription_username, self.vm.subscription_password, 
     self.vm.subscription_baseurl, self.vm.subscription_serverurl)
-        self.vm.create()
+        self.vm.create(userdata=user_data)
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
@@ -2296,17 +2271,7 @@ rh_subscription:
             "Repo of {} is not enabled".format(enable_repo_2))
         self.assertNotIn(disable_repo, repolist,
             "Repo of {} is not disabled".format(disable_repo))
-        #teardown        
-        self.vm.delete()
-        if self.vm.provider == 'nutanix':
-            self.vm.user_data = None
-        else:
-            self.vm.user_data = save_userdata
-        self.vm.create()
-        if self.vm.is_stopped():
-            self.vm.start(wait=True)
-        time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        #teardown
 
     def _verify_rh_subscription(self, config):
         utils_lib.run_cmd(self,"sudo subscription-manager unregister")
@@ -2350,6 +2315,7 @@ rh_subscription:
         """
         # skip this case for public cloud, will update the case when it's suitable for public cloud
         if self.vm.provider != 'openstack' and self.vm.provider != 'nutanix':
+            self.skipflag = True
             self.skipTest('skip run as this case need connect rhsm stage server, not suitable for public cloud')
         CONFIG='''rh_subscription:
     username: {}
@@ -2392,7 +2358,7 @@ rh_subscription:
         if test_disk:
             self.log.info('Test disk is found: {}'.format(test_disk))
         else:
-             self.skipTest("No free disk for testing.")
+            self.skipTest("No free disk for testing.")
         return '/dev/' + test_disk
 
     def test_cloudinit_swapon_with_xfs_filesystem(self):
@@ -2425,7 +2391,7 @@ rh_subscription:
               maxsize: 2G
             3. Check the swap, verify /datadisk/swap.img exists, verify no error logs in cloud-init.log
             expect_result:
-                register with subscription-manager successfully.
+                ?.
         debug_want:
             N/A
         """
@@ -2714,7 +2680,10 @@ chpasswd:
         debug_want:
             N/A
         """
+        self.NM_install = utils_lib.run_cmd(self, "rpm -q NetworkManager", ret_status=True)
+        self.network_install = utils_lib.run_cmd(self, "rpm -q network-scripts", ret_status=True)
         if float(self.rhel_x_version) >= 9.0:
+            self.skipflag = True
             self.skipTest('skip run this case, network-script is not be supported by rhel 9 any more')
         pkg_install_check = utils_lib.is_pkg_installed(self,"network-scripts")
         if not pkg_install_check and self.vm.provider == 'openstack':
@@ -2726,7 +2695,8 @@ chpasswd:
                 self.vm.subscription_baseurl)
             utils_lib.run_cmd(self, reg_cmd)
             utils_lib.run_cmd(self, "sudo subscription-manager attach --auto")
-        utils_lib.is_pkg_installed(self,"network-scripts",cancel_case=True)
+        if not utils_lib.is_pkg_installed(self,"network-scripts"):#It should not cancel case when unable install network-scripts, it should be failure.
+            self.fail("Unable to install network-scripts, please check!")
         utils_lib.run_cmd(self, "sudo /usr/lib/systemd/systemd-sysv-install enable network")
         # Remove ifcfg files other than eth0 and lo
         utils_lib.run_cmd(self, "sudo rm -f $(find /etc/sysconfig/network-scripts/ifcfg-*|grep -vE '(eth0|lo)')")
@@ -3337,6 +3307,7 @@ EOF
         """   
         #the case is aws specific now, will update it or add other cases for other platforms, e.g. openstack
         if not utils_lib.is_aws(self):
+            self.skipflag = True
             self.skipTest('skip run as this case is aws specific.')
         #get cloud-init rpm version
         support_cases = self.vm.support_cases
@@ -3360,7 +3331,7 @@ EOF
                 if self.vms[1].exists():
                     self.vms[1].delete()
                     time.sleep(30)
-                self.vms[1].user_data = """\
+                user_data = """\
 #cloud-config
 ssh_authorized_keys: 
     - {}
@@ -3368,7 +3339,7 @@ ssh_authorized_keys:
                 self.log.info('Use IPv6only subnet: {} to create instance'.format(self.vms[1].subnet_id_ipv6only))
                 if self.vms[1].subnet_id is None:
                     self.fail("please provide the subnet of ipv6 only!")
-                if not self.vms[1].create(enable_ipv6only=True) and 'Xen-backed' in self.vms[1].msgs:
+                if not self.vms[1].create(enable_ipv6only=True, userdata=user_data) and 'Xen-backed' in self.vms[1].msgs:
                     self.skipTest(self.vms[1].msgs)
                 time.sleep(60)
                 #from node1 to access node2
@@ -3400,6 +3371,7 @@ ssh_authorized_keys:
             else:
                 self.fail("self.vms length <=1, could not create vms[1], please check!")
         else:
+            self.skipflag = True
             self.skipTest("Skip test_cloudinit_create_vm_ipv6only because it does not support "+package_ver)
                 
 
@@ -3468,6 +3440,7 @@ ssh_authorized_keys:
         out = utils_lib.run_cmd(self, 'rpm -q cloud-init', expect_ret=0)
         cloudinit_ver = re.findall('\d+.\d',out)[0]
         if float(cloudinit_ver) < 23.1:
+            self.skipflag = True
             self.skipTest('Skip run this case, this feature is not supported before cloud-init 23.1')
         # Check the active renderers
         cmd = 'sudo cp /etc/cloud/cloud.cfg /etc/cloud/cloud.bak'
@@ -3656,72 +3629,46 @@ ssh_authorized_keys:
                                 expect_kw='No such file or directory',
                                 msg = "check there is no file %s" % file)
         else:
+            self.skipflag = True
             self.skipTest("Skip test_cloudinit_clean_configs because it does not support "+package_ver)
     
     def tearDown(self):
         utils_lib.finish_case(self)
-        if 'test_cloudinit_sshd_keypair' in self.id():
-            product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
-            if float(product_id) < 9.0:
-                self.vm.delete(wait=True)
-                self.vm.create(wait=True)
-                if self.vm.is_stopped():
-                    self.vm.start(wait=True)
-                time.sleep(30)
-                utils_lib.init_connection(self, timeout=self.ssh_timeout)
-        if 'test_cloudinit_no_networkmanager' in self.id():
-            if float(self.rhel_x_version) < 9.0:
-                NM_check = utils_lib.run_cmd(self, "rpm -q NetworkManager", ret_status=True)
-                network_check = utils_lib.run_cmd(self, "rpm -q network-scripts", ret_status=True)
-                if self.NM_install == 0 and NM_check == 1:
-                    utils_lib.run_cmd(self, "sudo yum install -y NetworkManager", msg='Restore NM config')
-                    utils_lib.run_cmd(self, "sudo systemctl start NetworkManager")
-                    utils_lib.run_cmd(self, "sudo systemctl enable NetworkManager")
-                if self.network_install == 1 and network_check == 0:
-                    utils_lib.run_cmd(self, "sudo yum remove -y network-scripts", msg='Restore network-scripts config')
-                if self.vm.provider == 'openstack':
-                    utils_lib.run_cmd(self, "sudo subscription-manager unregister")
-        case_list = ['test_cloudinit_create_vm_two_nics',
-                     'test_cloudinit_create_vm_stateless_ipv6',
-                     'test_cloudinit_create_vm_stateful_ipv6']
-        for case_name in case_list:
-            if case_name in self.id() and self.vm.provider == 'openstack':
-                self.vm.delete()
-                self.vm.second_nic_id = None
-                self.vm.create()
-                time.sleep(30)
-                utils_lib.init_connection(self, timeout=self.ssh_timeout)
-        if "test_cloudinit_mount_with_noexec_option" in self.id():
-            #Delete the vm because that the reboot log is different from the first boot log, which effects other cases
+        casegroup = ('test_cloudinit_no_networkmanager',
+                     'test_cloudinit_auto_register_with_subscription_manager',
+                     'test_cloudinit_auto_install_package_with_subscription_manager',
+                     'test_cloudinit_verify_rh_subscription_enablerepo_disablerepo')
+        if self.id().endswith(casegroup) and not self.skipflag:
+            utils_lib.run_cmd(self, "sudo subscription-manager unregister")
+
+        casegroup = ('test_cloudinit_create_vm_config_drive',
+                     'test_cloudinit_check_previous_hostname',
+                     'test_cloudinit_login_with_password',
+                     'test_cloudinit_login_with_password_userdata',
+                     'test_cloudinit_sshd_keypair',
+                     'test_cloudinit_no_networkmanager',
+                     'test_cloudinit_mount_with_noexec_option',
+                     'test_cloudinit_disable_cloudinit',
+                     'test_cloudinit_auto_install_package_with_subscription_manager',
+                     'test_cloudinit_verify_rh_subscription_enablerepo_disablerepo')
+        if self.id().endswith(casegroup) and not self.skipflag:
             self.vm.delete(wait=True)
-            self.vm.create(wait=True)
-            if self.vm.is_stopped():
-                self.vm.start(wait=True)
-            time.sleep(30)
-            utils_lib.init_connection(self, timeout=self.ssh_timeout)
-        if "test_cloudinit_create_vm_ipv6only" in self.id():
-            if utils_lib.is_aws(self):
-                if len(self.vms) > 1 and self.vms[1].exists():
-                    self.vms[1].delete()
-                    time.sleep(30)
-        if "test_cloudinit_support_nm_keyfile" in self.id():
-            out = utils_lib.run_cmd(self, 'rpm -q cloud-init', expect_ret=0)
-            cloudinit_ver = re.findall('\d+.\d',out)[0]
-            if float(cloudinit_ver) > 22.4:
-                utils_lib.run_cmd(self, 'sudo mv /etc/cloud/cloud.bak /etc/cloud/cloud.cfg')
-                config_file = utils_lib.run_cmd(self, "sudo nmcli -f NAME,FILENAME c show | awk '{print $3}' | sed -n '2p'")
-                utils_lib.run_cmd(self, 'sudo rm -f {}'.format(config_file))
-                utils_lib.run_cmd(self, 'sudo cloud-init clean')
-                self._reboot_inside_vm()
-        if "test_cloudinit_clean_configs" in self.id():            
-            support_cases = self.vm.support_cases
-            main_support_versions = ["23.4-1.el8","23.4-2.el9"]
-            backport_versions = None
-            package_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
-            version = version_util.get_version(package_ver,'cloud-init-')
-            if version_util.is_support(version,"test_cloudinit_clean_configs",support_cases,main_support_versions,backport_versions):
-                self._reboot_inside_vm()
-        #utils_lib.finish_case(self)
+            #self.vm.create(wait=True) # remove this line of create cannot save time because init_case still create one
+            #time.sleep(30)
+            #utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        if "test_cloudinit_create_vm_ipv6only" in self.id() and not self.skipflag:
+            if len(self.vms) > 1 and self.vms[1].exists():
+                self.vms[1].delete()
+                time.sleep(30)
+        if "test_cloudinit_support_nm_keyfile" in self.id() and not self.skipflag:
+            utils_lib.run_cmd(self, 'sudo mv /etc/cloud/cloud.bak /etc/cloud/cloud.cfg')
+            config_file = utils_lib.run_cmd(self, "sudo nmcli -f NAME,FILENAME c show | awk '{print $3}' | sed -n '2p'")
+            utils_lib.run_cmd(self, 'sudo rm -f {}'.format(config_file))
+            utils_lib.run_cmd(self, 'sudo cloud-init clean')
+            self._reboot_inside_vm()          
+        if "test_cloudinit_clean_configs" in self.id() and not self.skipflag:
+            self._reboot_inside_vm()
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -17,6 +17,7 @@ security_group_ids :
 placement_group_name : 
 ssh_key_name : 
 username: ec2-user
+vm_password:
 # optional, default is os_tests_aws
 tagname : os_tests_aws
 # optional(imdsv1 and v2)|required(imdsv2 only)

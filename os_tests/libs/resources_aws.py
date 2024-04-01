@@ -65,7 +65,7 @@ class EC2VM(VMResource):
         self.ssh_key_name = params.get('ssh_key_name')
         self.ssh_key_path = params.get('ssh_key_path')
         LOG.info("AMI picked vendor:{} ami:{} key:{}".format(vendor, self.ami_id, self.ssh_key_name))
-        self.vm_password = None
+        self.vm_password = params.get('vm_password')
         self.ssh_conn = None
         self.volume_id = None
         # load instance spec while cannot retrive it automatically
@@ -93,7 +93,7 @@ class EC2VM(VMResource):
         if self.is_exist():
             LOG.info("Instance ID: {}".format(self.ec2_instance.id))
 
-    def create(self, wait=True, enable_efa=True, enable_hibernation=False, enable_enclave=False, enable_sev_snp=False, enable_ipv6only=False):
+    def create(self, wait=True, enable_efa=True, enable_hibernation=False, enable_enclave=False, enable_sev_snp=False, enable_ipv6only=False, userdata=None, sshkey=None):
         # enable_efa is option to enable or disable efa when create vms
         # if vm does not support efa, it will be disabled
         self.is_created = False
@@ -150,7 +150,6 @@ class EC2VM(VMResource):
             ],
             "ImageId":self.ami_id,
             "InstanceType":self.instance_type,
-            "KeyName":self.ssh_key_name,
             "MaxCount":1,
             "MinCount":1,
             "NetworkInterfaces":[
@@ -184,9 +183,14 @@ class EC2VM(VMResource):
             'MetadataOptions':{
                 'HttpTokens': self.httptokens,
                 'InstanceMetadataTags': 'enabled'
-            },
-            "UserData":self.user_data
+            }
         }
+        sshkey= sshkey or self.ssh_key_name
+        if sshkey and sshkey != "DoNotSet" :
+            vm_kwargs['KeyName'] = sshkey
+        userdata= userdata or self.user_data
+        if userdata:
+            vm_kwargs['UserData'] = userdata
         if self.efa_support:
             if enable_efa:
                 vm_kwargs["NetworkInterfaces"][0]["InterfaceType"] = 'efa'

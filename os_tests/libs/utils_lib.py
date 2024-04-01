@@ -357,6 +357,7 @@ def init_case(test_instance):
     test_instance.log.info("-"*80)
     test_instance.ssh_timeout = 180
     test_instance.default_boot_index = None
+    test_instance.skipflag = False
     if test_instance.vm:
         if test_instance.vm.dead_count > 4:
             test_instance.fail("cannot connect to vm over 4 times, skip retry")

@@ -50,9 +50,6 @@ class OpenstackVM(VMResource):
         self.size = params['Flavor'].get('size')
         self.keypair = params['VM'].get('keypair')
         self.run_uuid = params.get('run_uuid')
-        #self.user_data = "#!/bin/bash\nmkdir /tmp/userdata_{}".format(self.run_uuid)        
-        self.config_drive = None
-        self.second_nic_id = None
 
         # VM creation timeout
         self.create_timeout = kwargs.get("create_timeout")
@@ -119,7 +116,7 @@ ssh_pwauth: False
     def ipv6_address(self):
         raise NotImplementedError
 
-    def create(self, wait=False, auto_ip=True):
+    def create(self, wait=False, auto_ip=True, userdata=None, sshkey=None, configdrive=False, second_nic=None):
         #https://docs.openstack.org/api-ref/compute/?expanded=create-server-detail
         try:
             image_id = self.conn.compute.find_image(self.image_name).id
@@ -131,20 +128,22 @@ ssh_pwauth: False
             'name': self.vm_name,
             'image_id': image_id,
             'flavor_id': self.flavor_id,
+            'config_drive': configdrive,
             'networks': [{
                 "uuid": self.network_id
             }]
         }
-        if self.keypair:
-            args['key_name'] = self.keypair
-        if self.user_data:
-            x = base64.b64encode(self.user_data.encode())
+        sshkey= sshkey or self.keypair
+        if sshkey and sshkey != "DoNotSet" :
+            args['key_name'] = sshkey
+        userdata = userdata or self.user_data
+        if userdata:
+            x = base64.b64encode(userdata.encode())
             args['user_data'] = x.decode("ascii")
-        if self.config_drive:
-            args['config_drive'] = True
-        if self.second_nic_id:
-            args['networks'].append({"uuid": self.second_nic_id})
+        if second_nic:
+            args['networks'].append({"uuid": second_nic})
 
+        LOG.info("Create instance {}".format(args))
         server = self.conn.compute.create_server(**args)
 
         if wait:
@@ -168,7 +167,7 @@ ssh_pwauth: False
                 self.conn.network.delete_ip(f_ip_id)
         except InvalidRequest as err:
             LOG.info(err)
-
+        LOG.info("Deleting instance: %s" % self.data.id)
         self.conn.compute.delete_server(self.data.id)
 
         if wait:
