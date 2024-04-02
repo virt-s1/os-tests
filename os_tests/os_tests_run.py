@@ -153,8 +153,9 @@ def main():
                 if i.id:
                     log.info(i.id)
             break
-        if hasattr(res, 'exists') and res.exists():
-            res.delete()
+        if hasattr(res, 'exists'):
+            if res.exists():
+                res.delete()
         elif hasattr(res, 'is_exist') and res.is_exist():
             res.delete()
 if __name__ == "__main__":

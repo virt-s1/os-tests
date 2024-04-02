@@ -800,12 +800,16 @@ class NutanixVM(VMResource):
                 logging.error("progress status of task is Failed")
                 break
 
-    def create(self, single_nic=True, wait=True, vm_name=None):
+    def create(self, single_nic=True, wait=True, vm_name=None, userdata=None, sshkey=None):
         logging.info("Create VM, single_nic is " + str(single_nic))
+        sshkey= sshkey or self.ssh_pubkey
+        if sshkey == "DoNotSet" :
+            sshkey = None
+        userdata = userdata or self.user_data
         self.prism.vm_user_data = self.vm_user_data
-        self.prism.user_data = self.user_data
+        self.prism.user_data = userdata
         self.prism.vm_custom_file = self.vm_custom_file
-        res = self.prism.create_vm(self.ssh_pubkey, single_nic, vm_name)
+        res = self.prism.create_vm(sshkey, single_nic, vm_name)
         if wait:
             self.wait_for_status(
                 res['task_uuid'], 60,
