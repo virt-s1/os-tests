@@ -351,7 +351,7 @@ class TestNetworkTest(unittest.TestCase):
             3. # xdp-loader unload -a
             4. # xdp-filter load --mode skb $nic
         expected_result: |
-            1. xdp data found
+            xdp data found
             eg. # ethtool -S eth0 |grep xdp
                   queue_0_rx_xdp_aborted: 0
                   queue_0_rx_xdp_drop: 0
@@ -359,7 +359,6 @@ class TestNetworkTest(unittest.TestCase):
                   queue_0_rx_xdp_tx: 0
                   queue_0_rx_xdp_invalid: 0
                   queue_0_rx_xdp_redirect: 0
-            2. xdp-loader works on x86_64 platform
         debug_want: |
             1. # uname -r
             2. # ethtool -i $nic
@@ -380,7 +379,9 @@ class TestNetworkTest(unittest.TestCase):
         else:
             cmd = "ethtool -S {}|grep xdp".format(self.active_nic )
             utils_lib.run_cmd(self, cmd, cancel_ret='0', msg='Check if have xdp support')
-        if float(product_id) > 8.3 and utils_lib.is_arch(self, arch='x86_64'):
+        if float(product_id) < 9.0 and utils_lib.is_arch(self, arch='aarch64'):
+            self.log.info("xdp-tools does not supports aarch64 before rhel-9")
+        else:
             utils_lib.is_cmd_exist(self, 'xdp-loader')
             self.log.info('please attach debug log with -vv appended when report xdp-tools issue')
             cmd = 'sudo xdp-loader status'
@@ -2125,6 +2126,205 @@ COMMIT
         utils_lib.run_cmd(self,'sudo bash -c "{} {}"'.format(veth_nic_rx_run, self.active_nic), timeout=360, msg='the system might loss connection if the script cannot finish normally.')
         utils_lib.init_connection(self, timeout=180)
         utils_lib.run_cmd(self,"dmesg", expect_not_kw="but real number of TX queues")
+
+    def test_xdp_tools_run_tests(self):
+        """
+        case_name:
+            test_xdp_tools_run_tests
+        case_tags:
+            network
+        case_status:
+            approved
+        title:
+            call /usr/share/xdp-tools/run_tests.sh to sanity test xdp module
+        importance:
+            low
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            automated
+        linked_work_items:
+            n/a
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_network_test.py
+        setup_teardown:
+            n/a
+        environment:
+            n/a
+        component:
+            kernel
+        bug_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            n/a
+        test_type:
+            functional
+        test_level:
+            component
+        maintainer:
+            xiliang@redhat.com
+        description: |
+            call /usr/share/xdp-tools/run_tests.sh to sanity test xdp module
+        key_steps: |
+            # yum install -y xdp-tools wireshark-cli tcpdump nmap-ncat
+            # ethtool -L eth0 combined 2
+            # ip link set eth0 mtu 2000
+            # nc -6 -l 5000 -v
+            # xdp-trafficgen tcp -p 5000 -i eth0 2600:1f14:5b3:ec11:5dd6:bdce:172c:f322
+        expected_result: |
+            all tests pass
+            #/usr/share/xdp-tools/run_tests.sh
+            Running all tests from /usr/share/xdp-tools/tests
+                Running tests from /usr/share/xdp-tools/tests/xdp-bench/test-xdp-bench.sh
+                 [test_drop]                   PASS
+                 [test_pass]                   PASS
+                 [test_tx]                     PASS
+                 [test_xdp_load_bytes]         PASS
+            ........
+            ........
+
+        debug_want: |
+            1. # uname -r
+            2. # ethtool -i $nic
+            3. # rpm -q xdp-tools (if fail at xdp-tools)
+            4. # xdp-loader $cmd -vv
+        """
+        product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
+        if float(product_id) < 9.0 and utils_lib.is_arch(self, arch='aarch64'):
+            self.skipTest("xdp-tools does not supports aarch64 before rhel-9")
+        utils_lib.is_pkg_installed(self, pkg_name='xdp-tools', is_install=True, cancel_case=True)
+        utils_lib.is_pkg_installed(self, pkg_name='wireshark-cli', is_install=True, cancel_case=True)
+        utils_lib.is_pkg_installed(self, pkg_name='tcpdump', is_install=True, cancel_case=True)
+        utils_lib.is_pkg_installed(self, pkg_name='nmap-ncat', is_install=True, cancel_case=True)
+
+        utils_lib.run_cmd(self, 'sudo /usr/share/xdp-tools/run_tests.sh', expect_not_kw='fail,FAIL', timeout=900)
+
+    def test_xdp_tools_xdp_trafficgen(self):
+        """
+        case_name:
+            test_xdp_tools_xdp_trafficgen
+        case_tags:
+            network
+        case_status:
+            approved
+        title:
+            Use xdp-trafficgen to test xdp over 2 nodes
+        importance:
+            low
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            automated
+        linked_work_items:
+            n/a
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_network_test.py
+        setup_teardown:
+            n/a
+        environment:
+            n/a
+        component:
+            kernel
+        bug_id:
+            jira_RHEL-28811
+        is_customer_case:
+            False
+        testplan:
+            n/a
+        test_type:
+            functional
+        test_level:
+            component
+        maintainer:
+            xiliang@redhat.com
+        description: |
+            Use xdp-trafficgen to test xdp over 2 nodes
+        key_steps: |
+            # yum install -y xdp-tools wireshark-cli tcpdump nmap-ncat
+            # ethtool -L eth0 combined 2
+            # ip link set eth0 mtu 2000
+            # nc -6 -l 5000 -v
+            # xdp-trafficgen tcp -p 5000 -i eth0 2600:1f14:5b3:ec11:5dd6:bdce:172c:f322
+        expected_result: |
+            there is xdp traffic between 2 nodes
+            eg. [root@ip-10-116-1-146 ec2-user]# timeout 60 xdp-trafficgen tcp -p 5000 -i eth0 2600:1f14:5b3:ec11:a63:5c40:1ab4:bc45
+              Connected to 2600:1f14:5b3:ec11:a63:5c40:1ab4:bc45 port 5000 from 2600:1f14:5b3:ec11:43ad:1e65:2e34:41fa port 45492
+              lo->eth0                        0 err/s             2,648 xmit/s       
+              lo->eth0                        0 err/s                37 xmit/s       
+              lo->eth0                        0 err/s                 0 xmit/s         
+        debug_want: |
+            1. # uname -r
+            2. # ethtool -i $nic
+            3. # rpm -q xdp-tools (if fail at xdp-tools)
+            4. # xdp-loader $cmd -vv
+        """
+        product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
+        if float(product_id) < 9.0 and utils_lib.is_arch(self, arch='aarch64'):
+            self.skipTest("xdp-tools does not supports aarch64 before rhel-9")
+        if not self.vm:
+            self.skipTest('this case requires vms currently')
+        if self.vm and not self.vm.ipv6_address:
+            self.skipTest('only supports with ipv6 assigned')
+
+        if self.vm and self.vm.provider == 'nutanix':
+            if len(self.vm.prism.list_hosts_detail()["entities"])==1:
+                self.skipTest('Need to test between VMs on different hosts')
+            if len(self.vms) == 1:
+                self._create_vm1()
+            vm1_host_uuid = self.vm.prism.get_vm_by_uuid(self.vms[1]['uuid'])['host_uuid']
+            if self.vms[0].vm_host_uuid() == vm1_host_uuid:
+                self.log.info('vm1 host uuid %s is same with vm2: %s, do migration' % (self.vms[0].vm_host_uuid(), vm1_host_uuid))
+                self.vm.migrate()
+            if self.vm.vm1_ip not in self.params['remote_nodes']:
+                self.params['remote_nodes'].append(self.vm.vm1_ip)
+        if len(self.vms) > 1 and self.vm.provider != 'nutanix':
+            if not self.vms[1].exists():
+                self.vms[1].create()
+            if self.vms[1].is_stopped():
+                self.vms[1].start(wait=True)
+            if self.vms[1].floating_ip and self.vms[1].floating_ip not in self.params['remote_nodes']:
+                self.params['remote_nodes'].append(self.vms[1].floating_ip)
+        if len(self.params['remote_nodes']) < 2:
+            self.skipTest("2 nodes required, current IP bucket:{}".format(self.params['remote_nodes']))
+        self.log.info("Current IP bucket:{}".format(self.params['remote_nodes']))
+
+        product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
+        cmd = "sudo ethtool -i {}".format(self.active_nic )
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0)
+        if 'ena' in output:
+            self.log.info('ena driver found!')
+            if float(product_id) > 8.4:
+                cmd = "ethtool -S {}|grep xdp".format(self.active_nic )
+                utils_lib.run_cmd(self, cmd, expect_ret=0,msg='Check if have xdp information')
+            else:
+                self.skipTest('ena driver does not support xdp prior to 8.4')
+        else:
+            cmd = "ethtool -S {}|grep xdp".format(self.active_nic )
+            utils_lib.run_cmd(self, cmd, cancel_ret='0', msg='Check if have xdp support')
+        utils_lib.is_pkg_installed(self, pkg_name='xdp-tools', is_install=True, cancel_case=True)
+        utils_lib.is_pkg_installed(self, pkg_name='wireshark-cli', is_install=True, cancel_case=True)
+        utils_lib.is_pkg_installed(self, pkg_name='tcpdump', is_install=True, cancel_case=True)
+        utils_lib.is_pkg_installed(self, pkg_name='nmap-ncat', is_install=True, cancel_case=True)
+        utils_lib.init_connection(self, timeout=180, rmt_node=self.params['remote_nodes'][-1])
+        utils_lib.is_pkg_installed(self, pkg_name='xdp-tools', is_install=True, cancel_case=True, rmt_node=self.params['remote_nodes'][-1])
+        utils_lib.is_pkg_installed(self, pkg_name='wireshark-cli', is_install=True, cancel_case=True, rmt_node=self.params['remote_nodes'][-1])
+        utils_lib.is_pkg_installed(self, pkg_name='tcpdump', is_install=True, cancel_case=True, rmt_node=self.params['remote_nodes'][-1])
+        utils_lib.is_pkg_installed(self, pkg_name='nmap-ncat', is_install=True, cancel_case=True, rmt_node=self.params['remote_nodes'][-1])
+
+        utils_lib.run_cmd(self, 'sudo ethtool -L {} combined 1'.format(self.active_nic), rmt_node=self.params['remote_nodes'][-1])
+        utils_lib.run_cmd(self, 'sudo ip link set {} mtu 2000'.format(self.active_nic), rmt_node=self.params['remote_nodes'][-1])
+        utils_lib.run_cmd(self, ' sudo xdp-filter load --mode native {}'.format(self.active_nic), rmt_node=self.params['remote_nodes'][-1])
+        srv_cmd = 'sudo bash -c "nc -6 -l 5000 -v >/dev/null 2>&1 &"'
+        utils_lib.run_cmd(self, srv_cmd, rmt_node=self.params['remote_nodes'][-1])
+        srv_addr = self.vms[1].ipv6_address
+        utils_lib.run_cmd(self, 'sudo ethtool -L {} combined 1'.format(self.active_nic))
+        utils_lib.run_cmd(self, 'sudo ip link set {} mtu 2000'.format(self.active_nic))
+        utils_lib.run_cmd(self, 'sudo xdp-filter load --mode native {}'.format(self.active_nic))
+        utils_lib.run_cmd(self, 'sudo timeout 60 xdp-trafficgen tcp -p 5000 -i {} {}'.format(self.active_nic, srv_addr))
+        cmd = "ethtool -S {}|grep xdp".format(self.active_nic )
+        utils_lib.run_cmd(self, cmd, msg='check xdp counter')
 
     def tearDown(self):
         utils_lib.finish_case(self)

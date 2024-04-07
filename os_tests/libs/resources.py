@@ -88,6 +88,7 @@ class VMResource(BaseResource):
         :return: vm's ip or FQDN
         """
 
+    @property
     def ipv6_address(self):
         """
         get vm's floating ipv6

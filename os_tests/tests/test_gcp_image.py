@@ -1171,7 +1171,7 @@ Subsystem       sftp    /usr/libexec/openssh/sftp-server
         self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
 
     def tearDown(self):
-        pass
+        utils_lib.finish_case(self)
 
 if __name__ == '__main__':
     unittest.main()

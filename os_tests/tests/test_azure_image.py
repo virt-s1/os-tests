@@ -1210,7 +1210,7 @@ PasswordAuthentication no
             self.assertEqual(self._get_generation(), 'gen2', "Expected: gen2; Real: gen1")
 
     def tearDown(self):
-        pass
+        utils_lib.finish_case(self)
 
 if __name__ == '__main__':
     unittest.main()

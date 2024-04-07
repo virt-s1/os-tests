@@ -74,6 +74,25 @@ class _WritelnDecorator(object):
             self.write(arg)
         self.write('\n') # text-mode streams translate to \r\n if needed
 
+class HTMLTestResult(TextTestResult):
+    
+    def __init__(self, stream, descriptions, verbosity, *, durations=None):
+        """Construct a TextTestResult. Subclasses should accept **kwargs
+        to ensure compatibility as the interface changes."""
+        super(HTMLTestResult, self).__init__(stream, descriptions, verbosity)
+        self.planned = 0
+
+    def getDescription(self, test):
+        # do not return the docs content to make output clean
+        #doc_first_line = test.shortDescription()
+        #if self.descriptions and doc_first_line:
+        #    return '\n'.join((str(test), doc_first_line))
+        #else:
+        ret = str(test)
+        if self.testsRun:
+            ret = "{} - {}/{}".format(ret, self.testsRun, self.planned )
+        return ret
+
 class HTMLTestRunner(object):
     """A test runner class that displays results in html form.
 
@@ -81,7 +100,7 @@ class HTMLTestRunner(object):
     occur, and a summary of the results at the end of the test run. It 
     also generates html report for reading and link to related debug logs.
     """
-    resultclass = TextTestResult
+    resultclass = HTMLTestResult
 
     def __init__(self, stream=None, descriptions=True, verbosity=1,
                  failfast=False, buffer=False, resultclass=None, warnings=None,
@@ -130,6 +149,7 @@ class HTMLTestRunner(object):
             startTime = time.perf_counter()
             id = 0
             all_case_name = [ ts.id() for ts in test ]
+            result.planned = len(all_case_name)
             for ts in test:
                 logdir = ts.params['results_dir']
                 if not os.path.exists(logdir):

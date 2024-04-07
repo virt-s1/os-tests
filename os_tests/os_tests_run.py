@@ -141,7 +141,8 @@ def main():
             with open(args.dumpdoc,'w') as fh:
                 dump(tmp_yaml_data,fh)
                 log.info("Saved casesdoc to {}".format(args.dumpdoc))
-        log.info('\n'.join([case.id() for case in final_ts]))
+        case_name_list = [ case.id() for case in final_ts ]
+        log.info('\n'.join(["{} - {}/{}".format(case_name,case_name_list.index(case_name)+1,len(case_name_list)) for case_name in case_name_list]))
         log.info("Total case num: %s"%final_ts.countTestCases())
     else:
         HTMLTestRunner(verbosity=2).run(final_ts)

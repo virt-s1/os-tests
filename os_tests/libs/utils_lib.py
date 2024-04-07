@@ -17,6 +17,7 @@ import logging
 import argparse
 from tipset.libs import rmt_ssh
 from functools import wraps
+from itertools import chain
 from yaml import load, dump
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -196,6 +197,7 @@ def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=N
                 test_instance.params['remote_nodes'].append(new_vm_ip)
             test_instance.log.info("set default remote_node to new address {}".format(test_instance.params['remote_node']))
             is_master_vm = True
+    test_instance.log.info("Current IP bucket:{}".format(test_instance.params['remote_nodes']))
     rmt_node = rmt_node or test_instance.params['remote_node'] or None
     if vm:
         if hasattr(vm, 'floating_ip'):
@@ -409,6 +411,9 @@ def finish_case(test_instance):
     Arguments:
         test_instance {Test instance} -- unittest.TestCase instance
     """
+    for case, reason in chain(test_instance._outcome.result.failures,test_instance._outcome.result.errors):
+        if case.id() == test_instance.id():
+             test_instance.log.info(reason)
     extra_case_posts = test_instance.params.get('case_post')
     extra_step_parser(test_instance, extra_steps=extra_case_posts)
 
@@ -1061,7 +1066,7 @@ def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False, rm
     run_cmd(test_instance, "sudo yum install -y {}".format(pkg_name), expect_ret=0, timeout=720, rmt_node=rmt_node, vm=vm)
     return True
 
-def is_pkg_installed(test_instance, pkg_name=None, is_install=True, cancel_case=False, timeout=120):
+def is_pkg_installed(test_instance, pkg_name=None, is_install=True, cancel_case=False, timeout=120,rmt_node=None, vm=None):
     '''
     check cmd exists status, if no, try to install it.
     Arguments:
@@ -1070,20 +1075,20 @@ def is_pkg_installed(test_instance, pkg_name=None, is_install=True, cancel_case=
         is_install {bool} -- try to install it or not
     '''
     cmd = "rpm -q {}".format(pkg_name)
-    ret = run_cmd(test_instance, cmd, ret_status=True)
+    ret = run_cmd(test_instance, cmd, ret_status=True, rmt_node=rmt_node, vm=vm)
     if ret == 0:
         return True
     else:
         test_instance.log.info("No {} found!".format(pkg_name))
         if is_install:
             cmd = 'sudo yum install -y {}'.format(pkg_name)
-            ret = run_cmd(test_instance, cmd, ret_status=True, msg='try to install it', timeout=timeout)
+            ret = run_cmd(test_instance, cmd, ret_status=True, msg='try to install it', timeout=timeout, rmt_node=rmt_node, vm=vm)
             if ret == 0:
                 return True
         if cancel_case: test_instance.skipTest("Unable to install {}".format(pkg_name))
         return False
 
-def pkg_install(test_instance, pkg_name=None, pkg_url=None, force=False):
+def pkg_install(test_instance, pkg_name=None, pkg_url=None, force=False, rmt_node=None, vm=None):
         """
         Install pkg in target system from default repo or pkg_url.
         $pkg_url_$arch is defined in configuration file.
@@ -1097,7 +1102,7 @@ def pkg_install(test_instance, pkg_name=None, pkg_url=None, force=False):
             pkg_name {string} -- pkg name
             pkg_url {string} -- pkg url or location if it is not in default repo
         """
-        if not is_pkg_installed(test_instance, pkg_name=pkg_name, cancel_case=False, is_install=False):
+        if not is_pkg_installed(test_instance, pkg_name=pkg_name, cancel_case=False, is_install=False, rmt_node=rmt_node, vm=vm):
             test_instance.log.info("Try install {} automatically!".format(pkg_name))
             if pkg_url is not None:
                 test_instance.log.info("Install {} from {}".format(pkg_name, pkg_url))
@@ -1105,7 +1110,7 @@ def pkg_install(test_instance, pkg_name=None, pkg_url=None, force=False):
             else:
                 test_instance.log.info("Install {} from default repo".format(pkg_name))
                 cmd = 'sudo yum -y install %s' % pkg_name
-            run_cmd(test_instance, cmd, timeout=1200)
+            run_cmd(test_instance, cmd, timeout=1200, rmt_node=rmt_node, vm=vm)
         elif test_instance.params.get('pkg_reinstall'):
             test_instance.log.info("Try reinstall {} automatically!".format(pkg_name))
             if pkg_url is not None:
@@ -1114,15 +1119,15 @@ def pkg_install(test_instance, pkg_name=None, pkg_url=None, force=False):
             else:
                 test_instance.log.info("Reinstall {} from default repo".format(pkg_name))
                 cmd = 'sudo yum -y reinstall %s' % pkg_name
-            run_cmd(test_instance, cmd, timeout=1200)
+            run_cmd(test_instance, cmd, timeout=1200,rmt_node=rmt_node, vm=vm)
 
-        if not is_pkg_installed(test_instance, pkg_name=pkg_name, cancel_case=False, is_install=False) and pkg_url is not None and force:
+        if not is_pkg_installed(test_instance, pkg_name=pkg_name, cancel_case=False, is_install=False,rmt_node=rmt_node, vm=vm) and pkg_url is not None and force:
             test_instance.log.info('Install without dependences!')
             cmd = 'sudo rpm -ivh %s --nodeps' % pkg_url
             if force:
                 cmd = cmd + " --force"
             run_cmd(test_instance, cmd, timeout=1200)
-        if not is_pkg_installed(test_instance, pkg_name=pkg_name):
+        if not is_pkg_installed(test_instance, pkg_name=pkg_name,rmt_node=rmt_node, vm=vm):
             test_instance.skipTest("Cannot install {} automatically!".format(pkg_name))
 
 def get_memsize(test_instance, action=None):
