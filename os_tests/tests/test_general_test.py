@@ -242,7 +242,7 @@ class TestGeneralTest(unittest.TestCase):
         component:
             fio
         bugzilla_id:
-            1943474
+            1943474,RHEL-15966
         is_customer_case:
             False
         maintainer:
@@ -263,6 +263,13 @@ class TestGeneralTest(unittest.TestCase):
         Perform test and validation of internal CPU clock.
         '''
         utils_lib.run_cmd(self, 'sudo lscpu', cancel_not_kw="aarch64")
+
+        cmd = "grep processor /proc/cpuinfo | wc -l"
+        cpu_counts = int(utils_lib.run_cmd(self, cmd, expect_ret=0,msg = "Get cpu counts"))
+        if int(cpu_counts) >= 128:
+            cmd = "sudo bash -c 'sysctl -w kernel.numa_balancing=0'"
+            utils_lib.run_cmd(self, 'disable the scheduler autonuma balancing feature(RHEL-15966)', expect_ret=0)
+
         utils_lib.is_cmd_exist(self, 'fio')
         cmd = "sudo fio --cpuclock-test"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw="Pass",msg='Perform test and validation of internal CPU clock.', timeout=1200)
