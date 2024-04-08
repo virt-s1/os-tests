@@ -74,6 +74,7 @@ class TestKickstartInstall(unittest.TestCase):
                          "Fail to login with password: %s" % format(test_login[1].strip()))
 
     def tearDown(self):
+        utils_lib.finish_case(self)
         if self.vm and self.vm.provider == 'nutanix':
             self.log.info("Will delete KickstartVM in the script who invokes this case")
 

@@ -911,7 +911,7 @@ class TestGuestImage(unittest.TestCase):
             "Release version mismatch on redhat-release-server -> %s" % output)
 
     def tearDown(self):
-        pass
+        utils_lib.finish_case(self)
 
 
 if __name__ == '__main__':

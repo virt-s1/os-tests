@@ -1586,6 +1586,7 @@ sudo /tmp/%s --no-opengl-files --accept-license --install-compat32-libs --silent
         TestNutanixVM.vm_vgpu_driver = True
 
     def tearDown(self):
+        utils_lib.finish_case(self)
         if "upgrade" in self.id():
             pass
         else:

@@ -384,6 +384,7 @@ cat secret.dec'''
             utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='ERROR,WARNING')
 
     def tearDown(self):
+        utils_lib.finish_case(self)
         utils_lib.check_log(self, "error,warn,fail,Call trace,Call Trace", log_cmd='dmesg -T', cursor=self.cursor)
         if 'test_deploy' in self.id():
             vm1 = self.vm.get_vm_by_filter('vm_name', self.vm.vm_name+'_'+'scriptCreateVtpmVM')

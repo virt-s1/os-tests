@@ -449,7 +449,7 @@ class TestRHELCert(unittest.TestCase):
             self._wait_cert_done(prefix=case)
 
     def tearDown(self):
-        pass
+        utils_lib.finish_case(self)
 
 if __name__ == '__main__':
     unittest.main()
