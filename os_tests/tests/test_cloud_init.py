@@ -3339,8 +3339,11 @@ ssh_authorized_keys:
                 self.log.info('Use IPv6only subnet: {} to create instance'.format(self.vms[1].subnet_id_ipv6only))
                 if self.vms[1].subnet_id is None:
                     self.fail("please provide the subnet of ipv6 only!")
-                if not self.vms[1].create(enable_ipv6only=True, userdata=user_data) and 'Xen-backed' in self.vms[1].msgs:
-                    self.skipTest(self.vms[1].msgs)
+                if not self.vms[1].create(enable_ipv6only=True, userdata=user_data):
+                    if 'Xen-backed' in self.vms[1].msgs:
+                        self.skipTest(self.vms[1].msgs)
+                    else:
+                        self.fail(self.vms[1].msgs)
                 time.sleep(60)
                 #from node1 to access node2
                 remote_ip = self.vms[1].ipv6_address

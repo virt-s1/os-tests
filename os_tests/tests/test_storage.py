@@ -490,6 +490,8 @@ class TestStorage(unittest.TestCase):
         debug_want:
             output from dmesg or journal
         """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
         self._test_take_restore_snapshot(False)
 
     def test_offline_take_restore_snapshot_clone_snapshot(self):
@@ -523,6 +525,8 @@ class TestStorage(unittest.TestCase):
         debug_want:
             output from dmesg or journal
         """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
         self._test_take_restore_snapshot(True)
         cloneVM_set_Memory = 2048
         cloneVM_set_Cores_per_CPU = 1

@@ -209,6 +209,11 @@ class EC2VM(VMResource):
             
         if enable_ipv6only:
             LOG.info("try to create an instance with ipv6 only subnet")
+            subnet = self.resource.Subnet(self.subnet_id_ipv6only)
+            if not subnet.ipv6_native:
+                self.msgs = 'subnet_id_ipv6only {} is not a real ipv6 only subnet'.format(self.subnet_id_ipv6only)
+                LOG.info(self.msgs)
+                return False
             vm_kwargs["NetworkInterfaces"][0]["AssociatePublicIpAddress"] = False
             vm_kwargs["NetworkInterfaces"][0]["SubnetId"] = self.subnet_id_ipv6only
             vm_kwargs["MetadataOptions"]["HttpProtocolIpv6"] = 'enabled'

@@ -2043,5 +2043,16 @@
         "trigger": "Elastic Network Adapter",
         "cases": "os_tests.tests.test_network_test.TestNetworkTest.test_veth_nic_rx",
         "addedby": "xiliang@redhat.com"
+    },
+    "msg_225": {
+        "content": ".*systemd-udevd.*could not read from .*initstate.* No such device.*",
+        "analyze": "known problem and it is harmless",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/5281931, CM#03334254",
+        "path": "journal",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com"
     }
 }
