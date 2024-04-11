@@ -349,6 +349,7 @@ def init_case(test_instance):
     test_instance.log.info("-"*80)
     test_instance.log.info("Code Repo: {}".format(test_instance.params['code_repo']))
     test_instance.log.info("Code Version: v{}".format(os_tests.__version__))
+    test_instance.log.info("Code Date: {}".format(os_tests.__codedate__))
     test_instance.log.info("Case ID: {}".format(test_instance.id()))
     test_instance.log.info("Case Doc: {}".format(eval(test_instance.id()).__doc__))
     test_instance.log.info("Case Params:")

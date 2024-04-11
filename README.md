@@ -2,7 +2,7 @@
 
 ## Introduction
 
-os-tests is a lightweight, portable and customer focus tests collection for Linux OS.
+os-tests is a lightweight, portable and customer focused test collection for Linux OS.
 
 ## Installation
 
@@ -41,10 +41,8 @@ note: the default bin path is "/usr/local/bin" if not in virtual environment.
 
 #### Mode 1 - run on single node
 
-Install and run tests inside the RHEL system directly, fewer cases than Mode 2 and 3, lacking of tests requiring reboot system and instance control access.  
+Install and run tests inside the RHEL system directly, fewer cases than Mode 2 and 3, lacking the tests requiring reboot system and instance control access.  
 `# os-tests`  
-or  
-`# python3 -m unittest -v os_tests.os_tests_run`
 
 #### Mode 2 - run on existing systems remotely
 

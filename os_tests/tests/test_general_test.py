@@ -268,7 +268,7 @@ class TestGeneralTest(unittest.TestCase):
         cpu_counts = int(utils_lib.run_cmd(self, cmd, expect_ret=0,msg = "Get cpu counts"))
         if int(cpu_counts) >= 128:
             cmd = "sudo bash -c 'sysctl -w kernel.numa_balancing=0'"
-            utils_lib.run_cmd(self, 'disable the scheduler autonuma balancing feature(RHEL-15966)', expect_ret=0)
+            utils_lib.run_cmd(self, cmd, msg='disable the scheduler autonuma balancing feature(RHEL-15966)', expect_ret=0)
 
         utils_lib.is_cmd_exist(self, 'fio')
         cmd = "sudo fio --cpuclock-test"
@@ -508,6 +508,7 @@ int main(int argc, char *argv[])
         if float(product_id) < 8.4:
             self.skipTest('skip in earlier than el8.4')
 
+        self.log.info('If your aws/azure account is not linked to Red Hat customer portal, the case will fail.')
         #if utils_lib.is_aws(self):
         #    cmds = ['curl -s http://169.254.169.254/latest/dynamic/instance-identity/rsa2048','curl -s http://169.254.169.254/latest/dynamic/instance-identity/document']
         #    for cmd in cmds:

@@ -2016,15 +2016,11 @@ current_device"
         utils_lib.run_cmd(self, cmd, cancel_not_kw='CentOS,Fedora', msg='Not run in centos,fedora')
         if not utils_lib.is_cmd_exist(self, cmd="insights-client"):
             self.skipTest('No insights-client installation found!')
-        utils_lib.run_cmd(self,
-                    'rpm -q insights-client',
-                    msg="get insights-client version")
-        utils_lib.run_cmd(self,
-                    'insights-client --version',
-                    msg="get insights client version, debug want", timeout=120)
-        utils_lib.run_cmd(self,
-                    'sudo insights-client --register',
-                    msg="try to register system", timeout=120)
+        utils_lib.run_cmd(self, 'rpm -q insights-client', msg="get insights-client version")
+        utils_lib.run_cmd(self, 'insights-client --version', msg="get insights client version, debug want", timeout=120)
+        out = utils_lib.run_cmd(self, 'sudo insights-client --register', msg="try to register system", timeout=120)
+        if 'Unauthorized' in out:
+            self.skipTest("Missing RHSM or basic username/password to register insights.")
         utils_lib.run_cmd(self,
                     'sudo insights-client --status',
                     cancel_kw="System is registered",
@@ -2055,7 +2051,9 @@ current_device"
                     cancel_kw="System is registered",
                     cancel_not_kw="machine is NOT registered",
                     msg="System is not registered yet!")
-        utils_lib.run_cmd(self, 'sudo insights-client --check-result', expect_ret=0, msg="checking system")
+        out = utils_lib.run_cmd(self, 'sudo insights-client --check-result', msg="checking system")
+        if "multiple hosts detected" in out:
+            self.skipTest("unregister and register cannot solve multiple hosts problem, it is backend problem!")
         result_out = utils_lib.run_cmd(self, 'sudo insights-client --show-result', expect_ret=0, msg="show insights result")
         #hit_list = json.loads(out)
         out = utils_lib.run_cmd(self,

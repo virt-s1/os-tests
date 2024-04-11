@@ -332,7 +332,7 @@ class TestNetworkTest(unittest.TestCase):
         component:
             kernel
         bug_id:
-            2038158, 2038056, 2038079, 1908542, 2000400
+            2038158, 2038056, 2038079, 1908542, 2000400, 2128252
         is_customer_case:
             True
         testplan:
@@ -347,7 +347,7 @@ class TestNetworkTest(unittest.TestCase):
             Use ethtool to query the specified network device xdp statistics.
         key_steps: |
             1. # ethtool -S $nic |grep xdp
-            2. # xdp-loader status (xdp-tools is required and it is only support x86_64 for now)
+            2. # xdp-loader status
             3. # xdp-loader unload -a
             4. # xdp-filter load --mode skb $nic
         expected_result: |
@@ -384,18 +384,20 @@ class TestNetworkTest(unittest.TestCase):
         else:
             utils_lib.is_cmd_exist(self, 'xdp-loader')
             self.log.info('please attach debug log with -vv appended when report xdp-tools issue')
-            cmd = 'sudo xdp-loader status'
-            utils_lib.run_cmd(self, cmd, expect_ret=0,msg='Check xdp-loader status')
-            cmd = 'sudo xdp-loader unload -a {}'.format(self.active_nic )
-            utils_lib.run_cmd(self, cmd,msg='unload xdp-filter if have')
-            cmd = 'sudo xdp-filter load --mode skb {}'.format(self.active_nic )
-            utils_lib.run_cmd(self, cmd, expect_ret=0,msg='load xdp-filter')
-            cmd = 'sudo xdp-loader status'
-            utils_lib.run_cmd(self, cmd, expect_ret=0,expect_kw='XDP_PASS',msg='Check xdp-loader status again')
-            cmd = 'sudo xdp-loader unload -a {}'.format(self.active_nic )
-            utils_lib.run_cmd(self, cmd, expect_ret=0,msg='unload xdp-filter')
-            cmd = 'sudo xdp-loader status'
-            utils_lib.run_cmd(self, cmd, expect_ret=0,expect_not_kw='XDP_PASS',msg='Check xdp-loader status again')
+            modes = ['skb']
+            for mode in modes:
+                cmd = 'sudo xdp-loader status'
+                utils_lib.run_cmd(self, cmd, expect_ret=0,msg='Check xdp-loader status')
+                cmd = 'sudo xdp-loader unload -a {}'.format(self.active_nic )
+                utils_lib.run_cmd(self, cmd,msg='unload xdp-filter if have')
+                cmd = 'sudo xdp-filter load --mode {} {}'.format(mode, self.active_nic )
+                utils_lib.run_cmd(self, cmd, expect_ret=0,msg='load xdp-filter with {} mode'.format(mode))
+                cmd = 'sudo xdp-loader status'
+                utils_lib.run_cmd(self, cmd, expect_ret=0,expect_kw='XDP_PASS',msg='Check xdp-loader status again')
+                cmd = 'sudo xdp-loader unload -a {}'.format(self.active_nic )
+                utils_lib.run_cmd(self, cmd, expect_ret=0,msg='unload xdp-filter')
+                cmd = 'sudo xdp-loader status'
+                utils_lib.run_cmd(self, cmd, expect_ret=0,expect_not_kw='XDP_PASS',msg='Check xdp-loader status again')
 
     def test_mtu_min_max_set(self):
         '''
@@ -815,6 +817,8 @@ COMMIT
         debug_want:
             N/A
         """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
         if self.vm.provider == 'nutanix' and self.vm.prism.machine_type == 'q35':
             self.skipTest('e1000 should not be supported by pcie-root-port')
         self._test_add_remove_multi_nics(2, None, None, 'e1000')
@@ -1163,6 +1167,8 @@ COMMIT
         debug_want:
             N/A
         """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
         if self.vm.provider in ['aws']:
             self.skipTest("No need to test on {}".format(self.vm.provider))
         self._test_unload_load_nic_driver('virtio')
@@ -1196,6 +1202,8 @@ COMMIT
         debug_want:
             N/A
         """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
         if self.vm.provider == 'nutanix' and self.vm.prism.machine_type == 'q35':
             self.skipTest('e1000 should not be supported by pcie-root-port')
         if self.vm.provider in ['aws']:
@@ -1542,7 +1550,7 @@ COMMIT
         """
         for attrname in ['host_ip']:
             if not hasattr(self.vm, attrname):
-                self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
+                self.skipTest("no {} for {} vm".format(attrname, os.getenv('INFRA_PROVIDER')))
         #change vm's mtu
         vm_host_ip = self.vm.host_ip
         self.log.info("vm host ip is %s" %vm_host_ip)
@@ -1774,6 +1782,8 @@ COMMIT
             https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instancedata-data-retrieval.html
 
         '''
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
         utils_lib.is_pkg_installed(self, pkg_name='NetworkManager-cloud-setup', is_install=True, cancel_case=True)
         for attrname in ['assign_secondary_ips','remove_secondary_ips']:
             if not hasattr(self.vm, attrname):
@@ -1896,6 +1906,8 @@ COMMIT
             - AWS only(ensure infra assign it): curl 169.254.169.254/latest/meta-data/network/interfaces/macs/$MAC/local-ipv4s
             - AliCloud only: curl 100.100.100.200/latest/meta-data/network/interfaces/macs/$MAC/private-ipv4s
         """
+        if not self.vm:
+            self.skipTest("Skip this test case as no vm inited")
         utils_lib.is_pkg_installed(self, pkg_name='NetworkManager-cloud-setup', is_install=True, cancel_case=True)
         for attrname in ['assign_secondary_ips','remove_secondary_ips']:
             if not hasattr(self.vm, attrname):
@@ -2103,7 +2115,6 @@ COMMIT
             xiliang@redhat.com
         description: |
             make sure no log spam produced when veth and nic has different rx setting
-            # eth0 selects TX queue 8, but real number of TX queues is 8
         key_steps: |
             - Create a veth pair and set the number of TX queues to 16.
             - Create a bridge interface.
@@ -2111,7 +2122,7 @@ COMMIT
             - Attach the ena/other interface to the bridge.
             - run ping.
         expected_result: |
-            no "eth0 selects TX queue 8, but real number of TX queues is 8" continusly produced
+            no "but real number of TX queues" continusly produced
         debug_want: |
             dmesg
         """

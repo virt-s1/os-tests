@@ -192,10 +192,12 @@ class HTMLTestRunner(object):
                                 case_status = status
                                 case_reason = reason
                                 try:
+                                    ts.log.info('{0}case done{0}'.format('-'*20))
                                     ts.log.info(reason)
                                     ts.log.info('{} - {}'.format(ts.id(), status))
                                 except Exception as err:
                                     with open(debug_log, 'a+') as fh:
+                                        fh.write('{0}case done{0}'.format('-'*20))
                                         fh.write(reason)
                                         fh.write('{} - {}'.format(ts.id(), status))
                                 if status in ['ERROR', 'FAIL'] and hasattr(ts, 'log') and ts_finished.params.get('enable_auto_result_check'):
