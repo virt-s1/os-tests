@@ -21,7 +21,7 @@ class TestVtpm(unittest.TestCase):
         if bios_or_uefi == 'BIOS':
             self.skipTest("Only support to run for VM with UEFI boot configuration!")
         #get dmesg cursor
-        self.cursor = utils_lib.get_cmd_cursor(self, cmd='dmesg -T')
+        self.cursor = utils_lib.get_cmd_cursor(self, cmd='sudo dmesg -T')
         #define sh script
         self.tpm_test_sh = '''tpm2_createprimary -c primary.ctx
 tpm2_create -C primary.ctx -Gaes128 -u key.pub -r key.priv
@@ -46,7 +46,7 @@ cat secret.dec'''
         if rmt_node == None:
             rmt_node = self.params['remote_node'] or self.vm.floating_ip
         self.log.info("Check vtpm device info, dmesg log and version info.")
-        for cmd, key_word, msg in zip(['ls /dev/tpm*','dmesg | grep TPM',\
+        for cmd, key_word, msg in zip(['ls /dev/tpm*','sudo dmesg | grep TPM',\
             'cat /sys/class/tpm/tpm0/tpm_version_major'], \
             ['/dev/tpm0,/dev/tpmrm0', 'TPMFinalLog,TPMEventLog,TPM2', '2'], \
             ['check vtpm device info', 'check vtpm log info','check vtpm version info']):
@@ -210,7 +210,7 @@ cat secret.dec'''
             new_vm = self.vm.create_vm_by_acli(self.vm.vm_name+'_'+'scriptCreateVtpmVM', str(self.vm.memory)+'G', '2', self.vm.cpu, 'true', 'true')
             self.vms.append(new_vm)
         new_vm_ip = self.vms[1]['vm_nics'][0]['ip_address']
-        for cmd, key_word_list, msg in zip(['ls /dev/tpm*','dmesg | grep TPM',\
+        for cmd, key_word_list, msg in zip(['ls /dev/tpm*','sudo dmesg | grep TPM',\
             'cat /sys/class/tpm/tpm0/tpm_version_major'], \
             [['/dev/tpm0', '/dev/tpmrm0'], ['TPMFinalLog','TPMEventLog','TPM2'], '2'], \
             ['check vtpm device info', 'check vtpm log info','check vtpm version info']):
@@ -363,7 +363,7 @@ cat secret.dec'''
         debug_want: |
             dmesg|grep -i tpm
         """
-        cmd = 'dmesg|grep -i tpm'
+        cmd = 'sudo dmesg|grep -i tpm'
         utils_lib.run_cmd(self, cmd)
         cmd = 'ls -l /dev/tpm*'
         ret = utils_lib.run_cmd(self, cmd, ret_status=True)
@@ -385,7 +385,7 @@ cat secret.dec'''
 
     def tearDown(self):
         utils_lib.finish_case(self)
-        utils_lib.check_log(self, "error,warn,fail,Call trace,Call Trace", log_cmd='dmesg -T', cursor=self.cursor)
+        utils_lib.check_log(self, "error,warn,fail,Call trace,Call Trace", log_cmd='sudo dmesg -T', cursor=self.cursor)
         if 'test_deploy' in self.id():
             vm1 = self.vm.get_vm_by_filter('vm_name', self.vm.vm_name+'_'+'scriptCreateVtpmVM')
             if vm1 != None:

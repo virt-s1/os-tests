@@ -156,7 +156,7 @@ class TestLifeCycle(unittest.TestCase):
                     expect_ret=0,
                     expect_kw='debug',
                     msg="checking debug kernel booted")
-        utils_lib.run_cmd(self, 'dmesg', expect_ret=0, msg="saving dmesg output")
+        utils_lib.run_cmd(self, 'sudo dmesg', expect_ret=0, msg="saving dmesg output")
         cmd = 'journalctl > /tmp/journalctl.log'
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="saving journalctl output")
         utils_lib.run_cmd(self, 'cat /tmp/journalctl.log', expect_ret=0)
@@ -174,7 +174,7 @@ class TestLifeCycle(unittest.TestCase):
                 self.fail("Bootup is not yet finished after 120s")
             self.log.info("Wait for bootup finish......")
             time.sleep(1)
-        utils_lib.run_cmd(self, "dmesg", expect_not_kw="Call trace,Call Trace")
+        utils_lib.run_cmd(self, "sudo dmesg", expect_not_kw="Call trace,Call Trace")
         if int(mini_mem) <= 32:
             cmd = 'sudo bash -c "echo scan > /sys/kernel/debug/kmemleak"'
             utils_lib.run_cmd(self, cmd, expect_ret=0, timeout=1800)
@@ -256,7 +256,7 @@ class TestLifeCycle(unittest.TestCase):
             time.sleep(10)
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
             utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='fips=1')
-            utils_lib.run_cmd(self, 'dmesg', msg='save dmesg')
+            utils_lib.run_cmd(self, 'sudo dmesg', msg='save dmesg')
             cmd = 'sudo grubby --update-kernel=ALL  --remove-args="fips=1"'
             utils_lib.run_cmd(self, cmd, msg='Disable fips!')
         else:
@@ -274,7 +274,7 @@ class TestLifeCycle(unittest.TestCase):
                         'sudo fips-mode-setup --check',
                         expect_kw='enabled')
             utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='fips=1')
-            utils_lib.run_cmd(self, 'dmesg', msg='save dmesg')
+            utils_lib.run_cmd(self, 'sudo dmesg', msg='save dmesg')
             cmd = 'sudo fips-mode-setup --disable'
             utils_lib.run_cmd(self, cmd, msg='Disable fips!')
 
@@ -294,7 +294,7 @@ class TestLifeCycle(unittest.TestCase):
         time.sleep(10)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='hpet_mmap=1')
-        utils_lib.run_cmd(self, 'dmesg | grep -i hpet', expect_kw='enabled', expect_not_kw='6HPET')
+        utils_lib.run_cmd(self, 'sudo dmesg | grep -i hpet', expect_kw='enabled', expect_not_kw='6HPET')
         cmd = 'sudo cat /sys/devices/system/clocksource/clocksource0/available_clocksource'
         out = utils_lib.run_cmd(self, cmd)
         if 'hpet' in out:
@@ -399,7 +399,7 @@ class TestLifeCycle(unittest.TestCase):
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
         utils_lib.is_sev_enabled(self)
-        utils_lib.run_cmd(self, 'dmesg', expect_kw="SEV-SNP")
+        utils_lib.run_cmd(self, 'sudo dmesg', expect_kw="SEV-SNP")
         utils_lib.run_cmd(self, 'lsmod|grep sev',
                     expect_ret=0, msg='check whether sev-snp loaded')
         utils_lib.check_log(self, "error,warn,fail,CallTrace", rmt_redirect_stdout=True)
@@ -463,7 +463,7 @@ class TestLifeCycle(unittest.TestCase):
         time.sleep(10)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='mem_encrypt=on')
-        utils_lib.run_cmd(self, 'dmesg | grep -i mem_encrypt', expect_kw='=on')
+        utils_lib.run_cmd(self, 'sudo dmesg | grep -i mem_encrypt', expect_kw='=on')
         utils_lib.check_log(self, "error,warn,fail,CallTrace", skip_words='ftrace', rmt_redirect_stdout=True)
 
     def test_reboot_resolve_content(self):
@@ -1352,10 +1352,10 @@ class TestLifeCycle(unittest.TestCase):
         time.sleep(30)
         self.params['remote_node'] = self.vm.floating_ip
         utils_lib.init_connection(self, timeout=1800)
-        utils_lib.run_cmd(self, 'dmesg')
+        utils_lib.run_cmd(self, 'sudo dmesg')
         cmd = 'pgrep -a sleep'
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check sleep process still exists')
-        utils_lib.run_cmd(self, 'dmesg', expect_kw="Restarting tasks", expect_not_kw='Call trace,Call Trace', msg="check the system is resumed")
+        utils_lib.run_cmd(self, 'sudo dmesg', expect_kw="Restarting tasks", expect_not_kw='Call trace,Call Trace', msg="check the system is resumed")
 
     def test_kdump_over_ssh(self):
         """

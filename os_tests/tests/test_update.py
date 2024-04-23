@@ -8,7 +8,7 @@ import json
 class TestUpgrade(unittest.TestCase):
     def setUp(self):
         utils_lib.init_case(self)
-        self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='dmesg -T')
+        self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='sudo dmesg -T')
 
     @property
     def rhel_x_version(self):

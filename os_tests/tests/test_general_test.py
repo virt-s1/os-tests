@@ -9,7 +9,7 @@ from datetime import datetime
 class TestGeneralTest(unittest.TestCase):
     def setUp(self):
         utils_lib.init_case(self)
-        self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='dmesg -T')
+        self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='sudo dmesg -T')
 
     def test_change_clocksource(self):
         """
@@ -45,7 +45,7 @@ class TestGeneralTest(unittest.TestCase):
             utils_lib.run_cmd(self, current_clocksource_cmd, expect_kw=clocksource, msg='Check current clock source')
         cmd = 'sudo bash -c \'echo "" > /sys/devices/system/clocksource/clocksource0/current_clocksource\''
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="restore to default clocksource")
-        utils_lib.run_cmd(self, 'dmesg|tail -30', expect_ret=0)
+        utils_lib.run_cmd(self, 'sudo dmesg|tail -30', expect_ret=0)
 
     def test_change_tracer(self):
         """
@@ -93,7 +93,7 @@ class TestGeneralTest(unittest.TestCase):
                         cmd,
                         expect_kw=tracer,
                         msg='Check current tracer')
-        utils_lib.run_cmd(self, 'dmesg|tail -30', expect_ret=0)
+        utils_lib.run_cmd(self, 'sudo dmesg|tail -30', expect_ret=0)
 
     def test_cpupower_exception(self):
         '''
@@ -200,7 +200,7 @@ class TestGeneralTest(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         cmd = 'lscpu'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='Off-line')
-        utils_lib.run_cmd(self, 'dmesg', expect_ret=0)
+        utils_lib.run_cmd(self, 'sudo dmesg', expect_ret=0)
 
     def test_dracut_f_v(self):
         '''
@@ -948,7 +948,7 @@ grep -i pci|grep n1' % boot_pci
                         'sudo virsh nodedev-reattach %s' % pci_dev_0,
                         msg='reattach pci device',
                         expect_ret=0)
-        utils_lib.check_log(self, "error,warn,fail,trace,Trace", log_cmd='dmesg -T', cursor=self.dmesg_cursor)
+        utils_lib.check_log(self, "error,warn,fail,trace,Trace", log_cmd='sudo dmesg -T', cursor=self.dmesg_cursor)
 
     def test_sys_read_capability(self):
         """
@@ -1044,7 +1044,7 @@ if __name__ == "__main__":
         '''
         utils_lib.run_cmd(self, "echo '%s' > t.py" % script_str, expect_ret=0)
         utils_lib.run_cmd(self, 'sudo python3 t.py')
-        utils_lib.run_cmd(self, "dmesg", expect_not_kw='Call trace,Call Trace')
+        utils_lib.run_cmd(self, "sudo dmesg", expect_not_kw='Call trace,Call Trace')
 
 
     def test_wipefs_cdrom(self):
@@ -1082,7 +1082,7 @@ if __name__ == "__main__":
             part = i.split(" ")[0]
             cmd = "sudo wipefs -a /dev/"+part
             utils_lib.run_cmd(self,cmd,expect_ret=1,msg="erase signature")
-            cmd = "dmesg -T | grep %s" % part
+            cmd = "sudo dmesg -T | grep %s" % part
             utils_lib.check_log(self, "error", log_cmd=cmd, cursor=self.cursor, rmt_redirect_stdout=True)
 
     def test_grub2_mkconfig(self):
@@ -1237,7 +1237,7 @@ if __name__ == "__main__":
                           expect_kw='Started', msg='run enclave')
         EnclaveID = utils_lib.run_cmd(self, 'nitro-cli describe-enclaves |grep EnclaveID', msg='get EnclaveID')
         if "enc" not in EnclaveID:
-            utils_lib.run_cmd(self, 'dmesg|tail -50')
+            utils_lib.run_cmd(self, 'sudo dmesg|tail -50')
             self.fail("No enclave id found")
         EnclaveID = EnclaveID[18:-3]
         utils_lib.run_cmd(self, f'timeout 10 nitro-cli console --enclave-id {EnclaveID}', expect_kw='Successfully',

@@ -191,7 +191,7 @@ at least which ltp not handle')
 
     def tearDown(self):
         utils_lib.finish_case(self)
-        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', cursor=self.cursor, rmt_redirect_stdout=True)
+        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='sudo dmesg -T', cursor=self.cursor, rmt_redirect_stdout=True)
 
 if __name__ == '__main__':
     unittest.main()

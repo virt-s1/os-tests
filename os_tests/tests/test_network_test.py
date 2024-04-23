@@ -11,7 +11,7 @@ from os_tests.libs.resources import UnSupportedAction,UnSupportedStatus
 class TestNetworkTest(unittest.TestCase):
     def setUp(self):
         utils_lib.init_case(self)
-        self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='dmesg -T')
+        self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='sudo dmesg -T')
         cmd = "ip link show|grep mtu|grep -v lo|awk -F':' '{print $2}'"
         output = utils_lib.run_cmd(self, cmd, expect_ret=0)
         self.active_nic  = "eth0"
@@ -166,7 +166,7 @@ class TestNetworkTest(unittest.TestCase):
                 cmd = "sudo ethtool -G {} tx -1".format(self.active_nic )
                 utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg="Check tx cannot set to -1")
 
-        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', \
+        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='sudo dmesg -T', \
             skip_words='ftrace,Adding Red Hat flag eBPF/rawtrace', cursor=self.dmesg_cursor)
 
     def test_ethtool_L(self):
@@ -244,7 +244,7 @@ class TestNetworkTest(unittest.TestCase):
             cmd = "sudo ethtool -L {} {} {}".format(self.active_nic, i, init_val)
             utils_lib.run_cmd(self, cmd,msg='restore it to default setting')
             utils_lib.run_cmd(self, query_cmd, expect_kw=str(init_val))
-        utils_lib.run_cmd(self, 'dmesg')
+        utils_lib.run_cmd(self, 'sudo dmesg')
 
     def test_ethtool_P(self):
         """
@@ -492,7 +492,7 @@ class TestNetworkTest(unittest.TestCase):
                 utils_lib.run_cmd(self, mtu_check, expect_ret=0, expect_not_kw="mtu {}".format(mtu_size))
         cmd = "sudo ping {} -c 10 -I {}".format(self.params.get('ping_server'), self.active_nic ) #add sudo here or it will fail against 8.7
         utils_lib.run_cmd(self, cmd, expect_ret=0, timeout=180)
-        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', cursor=self.dmesg_cursor, skip_words='ftrace')
+        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='sudo dmesg -T', cursor=self.dmesg_cursor, skip_words='ftrace')
 
     def test_persistent_route(self):
         '''
@@ -1436,7 +1436,7 @@ COMMIT
             instance_type = self.vm.instance_type
             if not self.vm.efa_support:
                 self.skipTest('EFA is not supported on the instance ' + instance_type)
-            self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='dmesg -T')
+            self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='sudo dmesg -T')
             cmd = 'sudo modprobe -r efa'
             run_cmd(self, cmd, ret_status=True, msg='unload efa driver')
             cmd = 'lsmod|grep efa'
@@ -1447,7 +1447,7 @@ COMMIT
             run_cmd(self, cmd, ret_status=True, msg='reload efa driver')
             cmd = 'lsmod|grep efa'
             ret = run_cmd(self, cmd, ret_status=True, msg='check if EFA driver is loaded')
-            utils_lib.check_log(self, "error,warn,fail,trace,Trace", log_cmd='dmesg -T', cursor=self.dmesg_cursor)
+            utils_lib.check_log(self, "error,warn,fail,trace,Trace", log_cmd='sudo dmesg -T', cursor=self.dmesg_cursor)
             if ret == 0:
                 self.log.info('efa driver is loaded successfully')
 
@@ -1742,7 +1742,7 @@ COMMIT
         utils_lib.run_cmd(self,cmd)
         self.nic.delete()
         self.assertGreater(nic_num_2,nic_num_1,msg='New added network device not found after attached nic')
-        cmd = 'dmesg'
+        cmd = 'sudo dmesg'
         utils_lib.run_cmd(self, cmd, expect_not_kw='Call Trace')
 
     def test_second_ip_hotplug(self):
@@ -2072,7 +2072,7 @@ COMMIT
             utils_lib.run_cmd(self, 'ip addr show')
 
         self.assertGreater(nic_num_2,nic_num_1,msg='New added network device not found after attached nic')
-        cmd = 'dmesg'
+        cmd = 'sudo dmesg'
         utils_lib.run_cmd(self, cmd, expect_not_kw='Call Trace')
 
     def test_veth_nic_rx(self):
@@ -2136,7 +2136,7 @@ COMMIT
         utils_lib.run_cmd(self,"sudo chmod 755 %s" % veth_nic_rx_run)
         utils_lib.run_cmd(self,'sudo bash -c "{} {}"'.format(veth_nic_rx_run, self.active_nic), timeout=360, msg='the system might loss connection if the script cannot finish normally.')
         utils_lib.init_connection(self, timeout=180)
-        utils_lib.run_cmd(self,"dmesg", expect_not_kw="but real number of TX queues")
+        utils_lib.run_cmd(self,"sudo dmesg", expect_not_kw="but real number of TX queues")
 
     def test_xdp_tools_run_tests(self):
         """
@@ -2271,6 +2271,11 @@ COMMIT
             3. # rpm -q xdp-tools (if fail at xdp-tools)
             4. # xdp-loader $cmd -vv
         """
+        cmd = "sudo ethtool -l {}|grep Combined|uniq".format(self.active_nic )
+        out = utils_lib.run_cmd(self, cmd)
+        queue_count = out.split()[-1]
+        if int(queue_count) < 2:
+            self.skipTest("skip when queue count smaller than 2, current {}".format(queue_count))
         product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
         if float(product_id) < 9.0 and utils_lib.is_arch(self, arch='aarch64'):
             self.skipTest("xdp-tools does not supports aarch64 before rhel-9")
@@ -2358,7 +2363,7 @@ COMMIT
             utils_lib.imds_tracer_tool(self, timeout=10, interval=5, cleanup=True, log_check=False)
         if self.nic and self.nic.is_exist():
             self.nic.delete()
-        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', skip_words='ftrace,rawtrace', cursor=self.dmesg_cursor)
+        utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='sudo dmesg -T', skip_words='ftrace,rawtrace', cursor=self.dmesg_cursor)
 
 if __name__ == '__main__':
     unittest.main()
