@@ -18,7 +18,7 @@ class TestAzureUpgradeCheck(unittest.TestCase):
         '''
         Get genenration from dmesg. Return gen1/gen2.
         '''
-        ret = utils_lib.run_cmd(self, 'dmesg|grep -w EFI', ret_status=True)
+        ret = utils_lib.run_cmd(self, 'sudo dmesg|grep -w EFI', ret_status=True)
         if ret == 0:
             return 'gen2'
         else:
@@ -168,7 +168,7 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
             'Failed to register legacy timer interrupt',
             'trace_clock=local'
         ]
-        utils_lib.run_cmd(self, 'dmesg > /tmp/dmesg.log')
+        utils_lib.run_cmd(self, 'sudo dmesg > /tmp/dmesg.log')
         self._check_log('/tmp/dmesg.log', ignore_list)
 
     def test_check_cloudinit_log(self):

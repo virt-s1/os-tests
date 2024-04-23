@@ -2054,5 +2054,27 @@
         "trigger": "",
         "cases": "",
         "addedby": "xiliang@redhat.com"
+    },
+    "msg_226": {
+        "content": ".*NUMA: Warning: invalid memblk node 64.*",
+        "analyze": "known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-32898",
+        "path": "dmesg,journal",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com"
+    },
+    "msg_227": {
+        "content": ".*UBSAN: Undefined behaviour in drivers/perf/arm-cmn.c.*",
+        "analyze": "known issue in rhel-8 debug kernel",
+        "branch": "rhel8",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-23841",
+        "path": "dmesg,journal",
+        "trigger": "",
+        "cases": "os_tests.tests.test_lifecycle.TestLifeCycle.test_boot_debugkernel",
+        "addedby": "xiliang@redhat.com"
     }
 }

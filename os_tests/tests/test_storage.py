@@ -1024,7 +1024,7 @@ class TestStorage(unittest.TestCase):
            self.log.info('retry after {}s'.format(interval))
            time.sleep(interval)
         time.sleep(5)
-        utils_lib.run_cmd(self, 'dmesg|tail -20', msg="Get the last dmesg")
+        utils_lib.run_cmd(self, 'sudo dmesg|tail -20', msg="Get the last dmesg")
         online_disk_2 = utils_lib.get_disk_online(self)
         if online_disk_2 == online_disk_1:
             self.fail('Online disk count - before:{} after attach:{}'.format(online_disk_1,online_disk_2))
@@ -1042,7 +1042,7 @@ class TestStorage(unittest.TestCase):
               break
            self.log.info('retry after {}s'.format(interval))
            time.sleep(interval)
-        utils_lib.run_cmd(self, 'dmesg|tail -20', msg="Get the last dmesg")
+        utils_lib.run_cmd(self, 'sudo dmesg|tail -20', msg="Get the last dmesg")
         online_disk_2 = utils_lib.get_disk_online(self)
         if online_disk_2 != online_disk_1:
             self.fail('Online disk count - before:{} after detach:{}'.format(online_disk_1,online_disk_2))
@@ -1156,9 +1156,9 @@ class TestStorage(unittest.TestCase):
             if self.is_mounted:
                 utils_lib.run_cmd(self,'sudo umount /mnt')
         if 'blktests' in self.id():
-            utils_lib.check_log(self, "trace", log_cmd='dmesg -T', cursor=self.cursor)
+            utils_lib.check_log(self, "trace", log_cmd='sudo dmesg -T', cursor=self.cursor)
         else:
-            utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='dmesg -T', cursor=self.cursor)
+            utils_lib.check_log(self, "error,warn,fail,trace", log_cmd='sudo dmesg -T', cursor=self.cursor)
         if 'test_multi_disk' in self.id() or 'test_offline_take_restore_snapshot_clone_snapshot' in self.id() \
             or 'test_clone_from_vm' in self.id():
             self.log.info('Delete clone vm in tearDown.')

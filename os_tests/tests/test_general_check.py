@@ -230,7 +230,7 @@ available_clocksource'
         debug_want:
             dmesg
         """
-        utils_lib.check_log(self, 'error', log_cmd='dmesg')
+        utils_lib.check_log(self, 'error', log_cmd='sudo dmesg')
 
     def test_check_dmesg_fail(self):
         """
@@ -255,7 +255,7 @@ available_clocksource'
         debug_want:
             dmesg
         """
-        utils_lib.check_log(self, 'fail', log_cmd='dmesg')
+        utils_lib.check_log(self, 'fail', log_cmd='sudo dmesg')
 
     def test_check_dmesg_warn(self):
         """
@@ -280,7 +280,7 @@ available_clocksource'
         debug_want:
             dmesg
         """
-        utils_lib.check_log(self, 'warn', log_cmd='dmesg')
+        utils_lib.check_log(self, 'warn', log_cmd='sudo dmesg')
 
     def test_check_dmesg_unable(self):
         """
@@ -306,7 +306,7 @@ available_clocksource'
         skip_words = ''
         if utils_lib.is_azure(self):
             skip_words = "Unable to allocate enough contiguous physical memory on Gen 1 VM. Using MMIO instead."
-        utils_lib.check_log(self, 'unable', log_cmd='dmesg', skip_words=skip_words)
+        utils_lib.check_log(self, 'unable', log_cmd='sudo dmesg', skip_words=skip_words)
 
     def test_check_dmesg_calltrace(self):
         """
@@ -329,7 +329,7 @@ available_clocksource'
         debug_want:
             dmesg output
         """
-        utils_lib.run_cmd(self, 'dmesg', expect_ret=0, expect_not_kw='Call trace,Call Trace', msg="Check there is no call trace in dmesg")
+        utils_lib.run_cmd(self, 'sudo dmesg', expect_ret=0, expect_not_kw='Call trace,Call Trace', msg="Check there is no call trace in dmesg")
 
     def test_check_dmesg_unknownsymbol(self):
         """
@@ -359,7 +359,7 @@ available_clocksource'
         debug_want:
             # dmesg
         """
-        utils_lib.check_log(self, 'Unknown symbol,Unknown command line,Unknown,unknown', log_cmd='dmesg')
+        utils_lib.check_log(self, 'Unknown symbol,Unknown command line,Unknown,unknown', log_cmd='sudo dmesg')
 
     def test_check_dmesg_nmi(self):
         '''
@@ -386,9 +386,9 @@ available_clocksource'
         expected_result:
             There is no "NMI received" before and after run 'perf top' in dmesg.
         '''
-        utils_lib.run_cmd(self, 'dmesg', expect_ret=0, expect_not_kw='NMI received', msg="Check there is no 'NMI received' in dmesg before run 'perf top'")
+        utils_lib.run_cmd(self, 'sudo dmesg', expect_ret=0, expect_not_kw='NMI received', msg="Check there is no 'NMI received' in dmesg before run 'perf top'")
         utils_lib.run_cmd(self, 'timeout --foreground 20 perf top ', msg="Run 'perf top' for 20s. ")
-        utils_lib.run_cmd(self, 'dmesg', expect_ret=0, expect_not_kw='NMI received', msg="Check there is no 'NMI received' in dmesg after run 'perf top'")
+        utils_lib.run_cmd(self, 'sudo dmesg', expect_ret=0, expect_not_kw='NMI received', msg="Check there is no 'NMI received' in dmesg after run 'perf top'")
 
 
     def test_check_dmidecode_dump_segfault(self):
@@ -1143,7 +1143,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
             cmds: dmesg, sudo lspci -vvv, lsblk
         '''
         utils_lib.is_cmd_exist(self, cmd='lspci')
-        cmds = ["dmesg", "sudo lspci -vvv", "lsblk"]
+        cmds = ["sudo dmesg", "sudo lspci -vvv", "lsblk"]
         for cmd in cmds:
             utils_lib.run_cmd(self, cmd, msg='retrive debug info')
         lspci_cmd = "lspci|grep 'Non-Volatile memory'|wc -l"
@@ -1306,7 +1306,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
                     msg="Only run in x86 platform")
         utils_lib.run_cmd(self, "rpm -qa|grep microcode",msg='get microcode pkg version')
         utils_lib.run_cmd(self, "rpm -qa|grep linux-firmware",msg='get linux-firmware pkg version')
-        cmd = 'dmesg|grep microcode'
+        cmd = 'sudo dmesg|grep microcode'
         if utils_lib.is_metal(self):
             utils_lib.run_cmd(self,
                         cmd,
@@ -1765,7 +1765,7 @@ in cmdline as bug1859088")
 
         cmd = "grep tsc_deadline_timer /proc/cpuinfo"
         utils_lib.run_cmd(self, cmd, cancel_ret='0', msg="check cpu flag has tsc_deadline_timer")
-        cmd = "dmesg|egrep 'TSC deadline timer enabled|TSC deadline timer available'"
+        cmd = "sudo dmesg|egrep 'TSC deadline timer enabled|TSC deadline timer available'"
         utils_lib.run_cmd(self, cmd, expect_ret=0)
 
         cmd = "sudo cat /sys/devices/system/clockevents/clockevent0/\
@@ -2143,11 +2143,11 @@ current_device"
                 x = int(v.split(".")[0])
                 y = int(v.split(".")[1])
                 if x < 8 or (x == 8 and y >= 8) or (x == 9 and y >= 2) or x > 9:
-                    utils_lib.run_cmd(self, 'dmesg', expect_ret=0,
+                    utils_lib.run_cmd(self, 'sudo dmesg', expect_ret=0,
                                       expect_kw='Memory Encryption Features active: AMD SEV',
                                       msg="Check there is 'Memory Encryption Features active: AMD SEV' in dmesg before run 'perf top'")
                 else:
-                    utils_lib.run_cmd(self, 'dmesg', expect_ret=0,
+                    utils_lib.run_cmd(self, 'sudo dmesg', expect_ret=0,
                                       expect_kw='AMD Memory Encryption Features active: SEV',
                                       msg="Check there is 'AMD Memory Encryption Features active: SEV' in dmesg before run 'perf top'")
             else:

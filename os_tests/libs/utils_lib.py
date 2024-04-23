@@ -1017,7 +1017,7 @@ def is_metal(test_instance, action=None):
         if action == "cancel":
             test_instance.skipTest("Cancel it in non metal system.")
         return False
-    output_dmesg = run_cmd(test_instance, "dmesg", expect_ret=0, is_log_output=False)
+    output_dmesg = run_cmd(test_instance, "sudo dmesg", expect_ret=0, is_log_output=False)
 
     if 'HYP mode not available' in output_dmesg:
         test_instance.log.info("It is a virtual guest.")
@@ -1158,7 +1158,7 @@ def get_disk_online(test_instance):
     test_instance.log.info('Online disks: %s' % count)
     return count
 
-def get_cmd_cursor(test_instance, cmd='dmesg -T', rmt_redirect_stdout=False, rmt_get_pty=False, timeout=60):
+def get_cmd_cursor(test_instance, cmd='sudo dmesg -T', rmt_redirect_stdout=False, rmt_get_pty=False, timeout=60):
     '''
     Get command cursor by last matched line.
     Arguments:
@@ -1329,6 +1329,7 @@ def find_word(test_instance, check_str, log_keyword=None, baseline_dict=None, sk
 
     for line1 in set(all_items):
         test_instance.log.info("Checking:{}".format(line1))
+        new_fail_found = False
         found_it = False
         if not baseline_dict:
             break

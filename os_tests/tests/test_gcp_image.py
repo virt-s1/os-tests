@@ -31,7 +31,7 @@ class TestGCPImage(unittest.TestCase):
     #     '''
     #     Get genenration from dmesg. Return gen1/gen2.
     #     '''
-    #     ret = utils_lib.run_cmd(self, 'dmesg|grep -w EFI', ret_status=True)
+    #     ret = utils_lib.run_cmd(self, 'sudo dmesg|grep -w EFI', ret_status=True)
     #     if ret == 0:
     #         return 'gen2'
     #     else:
@@ -306,7 +306,7 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
         '''
         cmd = "sudo lscpu|grep -i 'NUMA node(s)'|awk -F' ' '{print $NF}'"
         numa_nodes = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='get numa nodes')
-        utils_lib.run_cmd(self, 'dmesg|grep -i numa', expect_ret=0, msg='get numa info')
+        utils_lib.run_cmd(self, 'sudo dmesg|grep -i numa', expect_ret=0, msg='get numa info')
         cmd = "sudo dmesg|grep -i 'No NUMA'|wc -l"
         out = utils_lib.run_cmd(self, cmd, expect_ret=0)
         if int(numa_nodes) > 1:
@@ -617,7 +617,7 @@ grub2-tools,firewalld,chrony,net-tools,rng-tools'''
             'Failed to register legacy timer interrupt',
             'trace_clock=local'
         ]
-        utils_lib.run_cmd(self, 'dmesg > /tmp/dmesg.log')
+        utils_lib.run_cmd(self, 'sudo dmesg > /tmp/dmesg.log')
         self._check_log('/tmp/dmesg.log', ignore_list)
 
     # FIXME reviewed: cloudinit is not exists on GCP
