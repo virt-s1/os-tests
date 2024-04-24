@@ -24,9 +24,13 @@ class EC2VM(VMResource):
         config = Config(retries=dict(max_attempts=10, ))
         self.profile_name = params.get('profile_name')
         if self.profile_name is None:
-            self.profile_name = 'default'
-        LOG.info('Load profile_name: {}'.format(self.profile_name))
-        self.session = boto3.session.Session(profile_name=self.profile_name, region_name=params.get('region'))
+            LOG.info('No profile_name provided, leave boto3 to detect authentication methods')
+            self.session = boto3.session.Session(region_name=params.get("region"))
+        else:
+            LOG.info('Load profile_name: {}'.format(self.profile_name))
+            self.session = boto3.session.Session(
+                profile_name=self.profile_name, region_name=params.get("region")
+            )
         self.resource = self.session.resource('ec2', config=config)
         self.client = self.session.client('ec2', config=config, region_name=params.get('region'))
         super().__init__(params)
@@ -655,9 +659,13 @@ class EC2Volume(StorageResource):
         config = Config(retries=dict(max_attempts=10, ))
         self.profile_name = params.get('profile_name')
         if self.profile_name is None:
-            self.profile_name = 'default'
-        LOG.info('Load profile_name: {}'.format(self.profile_name))
-        self.session = boto3.session.Session(profile_name=self.profile_name, region_name=params.get('region'))
+            LOG.info('No profile_name provided, leave boto3 to detect authentication methods')
+            self.session = boto3.session.Session(region_name=params.get("region"))
+        else:
+            LOG.info('Load profile_name: {}'.format(self.profile_name))
+            self.session = boto3.session.Session(
+                profile_name=self.profile_name, region_name=params.get("region")
+            )
         self.resource = self.session.resource('ec2', config=config, region_name=params.get('region'))
         self.client = self.session.client('ec2', config=config, region_name=params.get('region'))
         self.disksize = 100
@@ -845,9 +853,13 @@ class EC2NIC(NetworkResource):
         config = Config(retries=dict(max_attempts=10, ))
         self.profile_name = params.get('profile_name')
         if self.profile_name is None:
-            self.profile_name = 'default'
-        LOG.info('Load profile_name: {}'.format(self.profile_name))
-        self.session = boto3.session.Session(profile_name=self.profile_name, region_name=params.get('region'))
+            LOG.info('No profile_name provided, leave boto3 to detect authentication methods')
+            self.session = boto3.session.Session(region_name=params.get("region"))
+        else:
+            LOG.info('Load profile_name: {}'.format(self.profile_name))
+            self.session = boto3.session.Session(
+                profile_name=self.profile_name, region_name=params.get("region")
+            )
         self.resource = self.session.resource('ec2', config=config)
         self.client = self.session.client('ec2', config=config, region_name=params.get('region'))
 
