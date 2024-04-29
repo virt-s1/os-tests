@@ -1032,7 +1032,7 @@ def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False, rm
     '''
     check cmd exists status, if no, try to install it.
     Arguments:
-        test_instance {avocado Test instance} -- avocado test instance
+        test_instance {Test instance} -- test instance
         cmd {string} -- checked command
         is_install {bool} -- try to install it or not
     '''
@@ -1067,12 +1067,12 @@ def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False, rm
     run_cmd(test_instance, "sudo yum install -y {}".format(pkg_name), expect_ret=0, timeout=720, rmt_node=rmt_node, vm=vm)
     return True
 
-def is_pkg_installed(test_instance, pkg_name=None, is_install=True, cancel_case=False, timeout=120,rmt_node=None, vm=None):
+def is_pkg_installed(test_instance, pkg_name=None, is_install=True, cancel_case=False, timeout=120, rmt_node=None, vm=None):
     '''
-    check cmd exists status, if no, try to install it.
+    check if package is installed, if no, try to install it.
     Arguments:
-        test_instance {avocado Test instance} -- avocado test instance
-        cmd {string} -- checked command
+        test_instance {Test instance} -- test instance
+        pkg_name {string} -- checked package name
         is_install {bool} -- try to install it or not
     '''
     cmd = "rpm -q {}".format(pkg_name)
@@ -1099,7 +1099,7 @@ def pkg_install(test_instance, pkg_name=None, pkg_url=None, force=False, rmt_nod
         or
         blktests_url_aarch64: https://github.com/liangxiao1/rpmbuild_specs/releases/download/blktests_20201009/blktests-master-20201009.aarch64.rpm
         Arguments:
-            test_instance {avocado Test instance} -- avocado test instance
+            test_instance {Test instance} -- test instance
             pkg_name {string} -- pkg name
             pkg_url {string} -- pkg url or location if it is not in default repo
         """
@@ -1122,14 +1122,85 @@ def pkg_install(test_instance, pkg_name=None, pkg_url=None, force=False, rmt_nod
                 cmd = 'sudo yum -y reinstall %s' % pkg_name
             run_cmd(test_instance, cmd, timeout=1200,rmt_node=rmt_node, vm=vm)
 
-        if not is_pkg_installed(test_instance, pkg_name=pkg_name, cancel_case=False, is_install=False,rmt_node=rmt_node, vm=vm) and pkg_url is not None and force:
+        if not is_pkg_installed(test_instance, pkg_name=pkg_name, cancel_case=False, is_install=False, rmt_node=rmt_node, vm=vm) and pkg_url is not None and force:
             test_instance.log.info('Install without dependences!')
             cmd = 'sudo rpm -ivh %s --nodeps' % pkg_url
             if force:
                 cmd = cmd + " --force"
             run_cmd(test_instance, cmd, timeout=1200)
-        if not is_pkg_installed(test_instance, pkg_name=pkg_name,rmt_node=rmt_node, vm=vm):
+        if not is_pkg_installed(test_instance, pkg_name=pkg_name, rmt_node=rmt_node, vm=vm):
             test_instance.skipTest("Cannot install {} automatically!".format(pkg_name))
+
+def is_rhsm_registered(test_instance, cancel_case=False, timeout=600, rmt_node=None, vm=None):
+    ''' 
+    check if the system is registered to RHSM.
+    Arguments: 
+        test_instance {Test instance} -- test instance
+    ''' 
+    cmd = "sudo subscription-manager status"
+    out = run_cmd(test_instance, cmd, msg='try to check subscription status', rmt_node=rmt_node, vm=vm)
+    if 'Red Hat Enterprise Linux' in out or 'Simple Content Access' in out:
+        return True
+    else:
+        if cancel_case: test_instance.skipTest("Unable to register")
+        return False    
+
+def enable_auto_registration(test_instance, cancel_case=False, timeout=600, rmt_node=None, vm=None):
+    '''
+    Enable auto registration in RHEL on AWS.
+    Arguments:
+        test_instance {Test instance} -- test instance
+    '''
+    test_instance.log.info("enable auto registration")
+    cmds_autoreg = [ "sudo subscription-manager config --rhsmcertd.auto_registration=1 --rhsm.manage_repos=0 --rhsmcertd.auto_registration_interval=1", "sudo systemctl restart rhsmcertd", "sudo systemctl is-active rhsmcertd" ]
+    for cmd in cmds_autoreg:
+        run_cmd(test_instance, cmd, timeout=timeout, expect_ret=0, rmt_node=rmt_node, vm=vm)
+    start_time = time.time()
+    timeout = 300
+    interval = 60
+    while True:
+        cmd = "sudo subscription-manager status"
+        out = run_cmd(test_instance, cmd, msg='try to check subscription status', rmt_node=rmt_node, vm=vm)
+        if 'Red Hat Enterprise Linux' in out or 'Simple Content Access' in out:
+            test_instance.log.info("auto subscription registered completed")
+            break
+        end_time = time.time()
+        if end_time - start_time > timeout:
+            test_instance.fail("timeout({}s) to wait auto subscription registered completed".format(timeout))
+        test_instance.log.info('wait {}s and try to check again, timeout {}s'.format(interval, timeout))
+        time.sleep(interval)
+
+def rhsm_register(test_instance, subscription_username=None, subscription_password=None, cancel_case=False, timeout=600, rmt_node=None, vm=None):
+    """
+    Register to RHSM.
+    Arguments:
+        test_instance {Test instance} -- test instance
+        subscription_username {username} -- RHSM username
+        subscription_password {password} -- RHSM password
+    Note: Do add is_log_cmd=False in cmd.
+    """
+    if not is_rhsm_registered(test_instance, cancel_case=False, rmt_node=rmt_node, vm=vm):
+        if is_aws(test_instance):
+            enable_auto_registration(test_instance, cancel_case=False, rmt_node=rmt_node, vm=vm)
+        else:
+            test_instance.log.info("Register to rhsm")
+            reg_cmd = "sudo subscription-manager register --username {0} --password {1} --force".format(
+                test_instance.params.get('subscription_username'),
+                test_instance.params.get('subscription_password'))
+            run_cmd(test_instance, reg_cmd, is_log_cmd=False, timeout=timeout, expect_ret=0, rmt_node=rmt_node, vm=vm)
+    if is_rhsm_registered(test_instance, cancel_case=False, rmt_node=rmt_node, vm=vm):
+        cmd = "sudo subscription-manager config --rhsm.manage_repos=1"
+        run_cmd(test_instance, cmd, expect_ret=0, msg='enable rhsm repos', rmt_node=rmt_node, vm=vm)
+    else:
+        test_instance.fail("RHSM register failed")
+
+def rhsm_unregister(test_instance, cancel_case=False, rmt_node=None, vm=None):
+    if is_rhsm_registered(test_instance, cancel_case=False, rmt_node=rmt_node, vm=vm):
+        cmd = "sudo subscription-manager unregister"
+        run_cmd(test_instance, cmd, expect_ret=0, msg='rhsm unregister', rmt_node=rmt_node, vm=vm)
+    if not is_rhsm_registered(test_instance, cancel_case=False, rmt_node=rmt_node, vm=vm):
+        cmd = "sudo subscription-manager config --rhsm.manage_repos=0"
+        run_cmd(test_instance, cmd, expect_ret=0, msg='disable rhsm repos', rmt_node=rmt_node, vm=vm)
 
 def get_memsize(test_instance, action=None):
     '''

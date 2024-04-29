@@ -596,18 +596,8 @@ class TestUpgrade(unittest.TestCase):
                         expect_ret=0,
                         msg='check current rhel release')
         x_version = self.rhel_x_version
-        #Register to rhsm
-        self.log.info("Register to rhsm")
-        reg_cmd = "sudo subscription-manager register --username {0} --password {1} --force".format(
-            self.params.get('subscription_username'),
-            self.params.get('subscription_password')) 
-        utils_lib.run_cmd(self, reg_cmd, timeout=600, is_log_cmd=False, expect_ret=0)
-        #Configure manage_repos to 1 to enable rhsm repo
-        cmd = "sed -i 's/manage_repos = 0/manage_repos = 1/g' /etc/rhsm/rhsm.conf"
-        utils_lib.run_cmd(self,
-                        "sudo bash -c \"{}\"".format(cmd),
-                        expect_ret=0,
-                        msg='configure manage_repos')
+        #Register to RHSM
+        utils_lib.rhsm_register(self, cancel_case=True)
         #Update
         utils_lib.run_cmd(self,
                         "sudo yum update -y",
@@ -687,7 +677,6 @@ class TestUpgrade(unittest.TestCase):
         x_version_upgrade = self.rhel_x_version
         if x_version_upgrade != x_version + 1:
             self.FailTest('Leapp upgrade failed since did not upgrade to target release')
-
 
     def tearDown(self):
         utils_lib.finish_case(self)
