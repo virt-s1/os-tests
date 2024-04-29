@@ -122,7 +122,7 @@ class AlibabaSDK(object):
         self.vm_params["NetworkInterfaceName"] = params['NIC'].get('nic_name')
 
         self.run_uuid = params.get('run_uuid')
-        self.user_data = '#!/bin/bash\nmkdir -p /tmp/userdata_{}'.format(self.run_uuid)
+        self.user_data = None
 
         # Assign SystemDiskCategory and DiskCategory
         self.vm_params["SystemDiskCategory"] = self.select_disk_category(
@@ -495,9 +495,8 @@ class AlibabaSDK(object):
         return self._send_request(request)
 
     def get_console_log(self, instance_id):
-        request = GetInstanceConsoleOutputRequest.GetInstanceConsoleOutputRequest(
-        )
-        key_list = ['InstanceId']
+        request = GetInstanceConsoleOutputRequest.GetInstanceConsoleOutputRequest()
+        key_list = ["InstanceId"]
         self.vm_params["InstanceId"] = instance_id
         request = self._add_params(request, key_list, self.vm_params)
         return self._send_request(request)
@@ -523,6 +522,7 @@ class AlibabaVM(VMResource):
         self.disk_quantity = params['Flavor'].get('disk_quantity')
         self.private_ip_quantity = params['Flavor'].get('private_ip_quantity')
         self.net_bandwidth = params['Flavor'].get('net_bandwidth') or 64
+        self.user_data = None
 
         # Secondary ip list
         self.secondary_ip_list = []
@@ -536,6 +536,7 @@ class AlibabaVM(VMResource):
             self.arch = 'x86_64'
 
         self.ecs = AlibabaSDK(params)
+        self.run_uuid = self.ecs.run_uuid
 
     @property
     def data(self):
@@ -594,14 +595,18 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         """
         return 'ebm' in self.flavor
 
-    def create(self, wait=True):
+    def create(self, wait=True, userdata=None, sshkey=None):
         """
         This helps to create a VM
         """
         logging.info("Create VM")
+        sshkey= sshkey or self.keypair
         authentication = "publickey"
-        if self.keypair is None:
+        if sshkey is None or sshkey== "DoNotSet":
             authentication = "password"
+        else:
+            self.ecs.vm_params["KeyPairName"] = sshkey
+        self.ecs.user_data = userdata or self.user_data
         self.ecs.run_instances(authentication=authentication)
         time.sleep(40)
         if wait:
@@ -641,9 +646,9 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         This helps to delete a VM
         The VM can be deleted only if the status is stopped(sdk/cli only)
         """
-        logging.info("Delete VM")
         if not self.is_stopped():
             self.stop(wait=True)
+        logging.info("Delete VM")
         self.ecs.delete_instance(self.instance_id)
         if wait:
             for count in utils_lib.iterate_timeout(
@@ -924,17 +929,26 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         """Modify Instance Type."""
         self.ecs.modify_instance_spec(self.instance_id, new_type)
 
-    def get_console_log(self):
+    def get_console_log(self, silent=False):
         """Get console log."""
-        logging.info('Get console log')
+        ret =None
         try:
-            output = self.ecs.get_console_log(self.instance_id)
-            b64code = output.get('ConsoleOutput')
-            console_output = base64.b64decode(b64code)
-            return True, console_output
+            logging.info("try to retrive console log of {}".format(self.instance_id))
+            #We can get the console log about 5 mins after the vm is created
+            for count in range(20):
+                output = self.ecs.get_console_log(self.instance_id)
+                if isinstance(output,Exception):
+                    raise output
+                b64code = output.get('ConsoleOutput')
+                if len(b64code) > 0: break
+                time.sleep(30)
+            console_bytes = base64.b64decode(b64code)
+            ret = console_bytes.decode("utf-8")
+            if not silent: logging.info(ret)
+            return ret
         except Exception as err:
             logging.error("Failed to get console log! %s" % err)
-            return False, err
+            return err
 
     def get_system_disk(self):
         system_disks_list = self.ecs.describe_disks(disk_type="system").get("Disks").get("Disk")

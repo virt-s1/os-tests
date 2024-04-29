@@ -362,6 +362,17 @@ def init_case(test_instance):
     test_instance.default_boot_index = None
     test_instance.skipflag = False
     if test_instance.vm:
+        test_instance.vm.user_data = """\
+#cloud-config
+runcmd:
+  - [ sh, -xc, "echo $(date) ': hello today!'" ]
+  - [ sh, -xc, "mkdir /tmp/userdata_{0}" ]
+
+password: {1}
+chpasswd:
+  expire: False
+ssh_pwauth: False
+""".format(test_instance.vm.run_uuid, 'R')
         if test_instance.vm.dead_count > 4:
             test_instance.fail("cannot connect to vm over 4 times, skip retry")
         if test_instance.vm.is_metal:

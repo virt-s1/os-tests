@@ -39,6 +39,7 @@ class OpenShiftVM(VMResource):
         self.vcpus = params['Flavor'].get('cpu')
         self.memory = params['Flavor'].get('memory')
         self.user_data = None
+        self.run_uuid = params.get('run_uuid')
         self._port = None
 
         # VM access parameters

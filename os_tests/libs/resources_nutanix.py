@@ -168,11 +168,9 @@ class PrismApi(PrismSession):
             exit(1)
         # Attach ssh keys.
         ssh_key = ''
-        ssh_pwauth = '\nchpasswd:\n  list: |\n    %s:%s\n  expire: false\nssh_pwauth: yes' % (
-            self.vm_username, self.vm_password)
+        ssh_pwauth =''
         if (ssh_pubkey):
             ssh_key = '\nssh_authorized_keys:\n- %s' % ssh_pubkey
-            ssh_pwauth = ''
         # Attach user_data.
         # Since8.9/9.3, logs_go_to_stdout_if_writing_to_console_fails,
         # prompt more graceful and will not affect service cloud-final,
@@ -182,11 +180,8 @@ class PrismApi(PrismSession):
         user_data = '#cloud-config\n'
         user_data_ssh_key = '''\
 disable_root: false
-lock_passwd: false%s%s
-runcmd:\n''' % (
-            ssh_pwauth, ssh_key)
-        user_data += user_data_ssh_key+'- mkdir /tmp/userdata_{}\n'.format(self.run_uuid)
-        user_data += '''- [ sh, -xc, "echo $(date) ': hello today!'" ]'''
+lock_passwd: false%s%s\n''' % (ssh_pwauth, ssh_key)
+        user_data += user_data_ssh_key
         if self.vm_user_data:
             user_data += self.vm_user_data
         if self.user_data != None:
@@ -693,6 +688,7 @@ class NutanixVM(VMResource):
         self.vm1_ip = ''
 
         self.prism = PrismApi(params)
+        self.run_uuid = self.prism.run_uuid
 
     @property
     def is_secure_boot(self):
@@ -1202,7 +1198,7 @@ class NutanixVM(VMResource):
         res = self.prism.get_nics(self.data.get('uuid'))
         return res
 
-    def get_console_log(self):
+    def get_console_log(self, silent=False):
         raise UnSupportedAction('No such operation in nutanix')
     
     def is_exist(self):

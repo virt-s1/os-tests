@@ -6,6 +6,7 @@ import time
 import re
 import json
 import os
+import secrets
 
 class TestCloudInit(unittest.TestCase):
     def setUp(self):
@@ -590,75 +591,6 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
                 (new_fs_size, new_os_disk_size)
         )
 
-    def test_cloudinit_login_with_password(self):
-        """
-        case_tag:
-            cloudinit,cloudinit_tier1,vm_delete,cloudinit_clean
-        case_name:
-            test_cloudinit_login_with_password
-        case_file:
-            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_login_with_password
-        component:
-            cloudinit
-        bugzilla_id:
-            N/A
-        is_customer_case:
-            False
-        testplan:
-            N/A
-        maintainer:
-            minl@redhat.com
-        description: |
-            VM can successfully login after provisioning(with password authentication).
-            Linked case: test_cloudinit_remove_cache_and_reboot_password
-        key_steps:
-            1. Create a VM with only password authentication
-        expect_result:
-            1. Login with password, should have sudo privilege
-        debug_want:
-            N/A
-        """
-        if not self.vm:
-            self.skipflag = True
-            self.skipTest("Skip this test case as no vm inited")
-        if self.vm.provider == 'openstack':
-            self.skipflag = True
-            self.skipTest('skip run as openstack uses userdata to config the password')
-        for attrname in ['ssh_pubkey', 'get_vm_by_filter', 'prism']:
-            if not hasattr(self.vm, attrname):
-                self.skipflag = True
-                self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
-        if self.vm.exists():
-            self.vm.delete()
-            time.sleep(30)
-        #save_ssh_pubkey = self.vm.ssh_pubkey
-        #self.vm.ssh_pubkey = None
-        self.vm.create(wait=True,sshkey="DoNotSet")
-        #test passwork login to new vm
-        NewVM = self.vm.get_vm_by_filter("vm_name", self.vm.vm_name)
-        start_task = self.vm.prism.start_vm(NewVM['uuid'])
-        self.log.info("start task status is %s" % format(start_task))
-        time.sleep(60)
-        for nic in NewVM.get('vm_nics'):
-            if nic['network_uuid'] == self.vm.network_uuid:
-                NewVM_ip = nic['ip_address']
-        test_login = utils_lib.send_ssh_cmd(NewVM_ip, self.vm.vm_username, self.vm.vm_password, "whoami")
-        self.assertEqual(self.vm.vm_username,
-                         test_login[1].strip(),
-                         "Fail to login with password: %s" % format(test_login[1].strip()))
-        test_sudo = utils_lib.send_ssh_cmd(NewVM_ip, self.vm.vm_username, self.vm.vm_password, "sudo cat /etc/sudoers.d/90-cloud-init-users")
-        self.assertIn(self.vm.vm_username,
-                         test_sudo[1].strip(),
-                         "Fail to check login user name: %s" % format(test_sudo[1].strip()))
-        self.log.info("Test case test_cloudinit_remove_cache_and_reboot_password together")
-        cmd = "sudo rm -rf /var/lib/cloud/instances/* \n sudo reboot"
-        utils_lib.send_ssh_cmd(NewVM_ip, self.vm.vm_username, self.vm.vm_password, cmd)
-        time.sleep(40)
-        test_login = utils_lib.send_ssh_cmd(NewVM_ip, self.vm.vm_username, self.vm.vm_password, "whoami")
-        self.assertEqual(self.vm.vm_username,
-                         test_login[1].strip(),
-                         "Fail to login with password: %s" % format(test_login[1].strip()))
-        #teardown
 
     def test_cloudinit_verify_hostname(self):
         """
@@ -1119,9 +1051,7 @@ EOF""".format(device, size), expect_ret=0)
             RHEL-189226 - CLOUDINIT-TC: checking random password and its length
         key_steps:
         """
-        if self.vm.provider != 'openstack':
-            self.skipTest('skip run as this needs to configure user-date, configured on openstack')
-        #security check: random password only output to openstack console log, 
+        #security check: random password only output to console log
         #no password output in cloud-init-output.log and /var/log/messages
         cmd = 'sudo cat /var/log/messages'
         utils_lib.run_cmd(self, 
@@ -1143,16 +1073,24 @@ EOF""".format(device, size), expect_ret=0)
                           expect_kw='-rw-r-----. 1 root adm', 
                           msg='cloud-init-output.log mode should be 640 and group adm')
 
-        #get openstack console log
-        status, output= self.vm.get_console_log()
-        if status and output is not None:
-            self.assertIn("the following 'random' passwords", output, "Failed to get random password from console log")
-            output = output.split("cloud-user:",1)[1]
-            randompass = output.split("\n",1)[0]
-            self.log.info("Get the random password is:"+randompass)
-            self.assertEqual(len(randompass), 20, "Random password length is not 20")
+        #nutanix does not implement get_console_log()
+        #AWS rhel image dev/console to tty0, not ttyS0
+        #libvirt has some problem when using assertIn console log file
+        #alicloud sometimes SDK-Version:2.14.0 ClientException:SDK.HttpError
+        #so we only run below steps on openstack
+        if utils_lib.is_openstack(self):
+            output= self.vm.get_console_log(silent=True)
+            if isinstance(output,Exception):
+                self.fail("Failed to get console log!")
+            if output is not None and len(output) > 0:
+                self.assertIn("the following 'random' passwords", output, "Failed to get random password from console log")
+                username = self.vm.vm_username
+                output = output.split("%s:" % username,1)[1]
+                randompass = output.split("\n",1)[0].strip()
+                self.log.info("Get the random password is:%s" % randompass)
+                self.assertEqual(len(randompass), 20, "Random password length is not 20")
         else:
-            self.fail("Failed to get console log")
+            self.skipTest('Skip checking password in console log, because %s does not support it now' % self.vm.provider)
            
     def test_cloudinit_check_runcmd(self):        
         """
@@ -1168,8 +1106,9 @@ EOF""".format(device, size), expect_ret=0)
             RHEL-186183 - CLOUDINIT-TC:runcmd module:execute commands
         key_steps:
         """
-        if self.vm.provider != 'openstack':
-            self.skipTest('skip run as this needs to configure user-data, configured on openstack')
+        # We will run this case on libvirt when it could customize user-data
+        if self.vm.provider == 'libvirt':
+            self.skipTest('skip run as this needs to configure user-data')
         cmd = 'sudo cat /var/log/messages'
         utils_lib.run_cmd(self, 
                           cmd, 
@@ -1688,16 +1627,13 @@ EOF""".format(device, size), expect_ret=0)
             1. Create a VM with only password authentication
             2. Login with password, should have sudo privilege
         """
-        if not self.vms:
-            self.skipflag = True
-            self.skipTest("No vm found")
-        if self.vm.provider == 'nutanix':
-            self.skipflag = True
-            self.skipTest('skip run as nutanix test this in case test_cloudinit_login_with_password')
-        for attrname in ['vm_password']:
-            if not hasattr(self.vm, attrname):
-                self.skipflag = True
-                self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
+        if self.vm.provider == 'libvirt':
+            self.skipTest('skip run as this needs to configure user-data')
+        password_length = 10
+        vm_password = secrets.token_urlsafe(password_length)
+        vm_username = "test-user"
+        self.log.info(vm_username)
+        self.log.info(vm_password)
         if self.vm.exists():
             self.vm.delete()
             time.sleep(30)
@@ -1708,16 +1644,18 @@ user: {0}
 password: {1}
 chpasswd: {{ expire: False }}
 ssh_pwauth: True
-""".format(self.vm.vm_username, self.vm.vm_password)       
+""".format(vm_username, vm_password)
         self.vm.create(userdata=user_data,sshkey="DoNotSet")
+        if self.vm.is_stopped():
+            self.vm.start(wait=True)
         time.sleep(30)
         self.params['remote_node'] = self.vm.floating_ip
-        test_login = utils_lib.send_ssh_cmd(self.vm.floating_ip, self.vm.vm_username, self.vm.vm_password, "whoami")
-        self.assertEqual(self.vm.vm_username,
+        test_login = utils_lib.send_ssh_cmd(self.vm.floating_ip, vm_username, vm_password, "whoami")
+        self.assertEqual(vm_username,
                          test_login[1].strip(),
                          "Fail to login with password: %s" % format(test_login[1].strip()))        
-        test_sudo = utils_lib.send_ssh_cmd(self.vm.floating_ip, self.vm.vm_username, self.vm.vm_password, "sudo cat /etc/sudoers.d/90-cloud-init-users")
-        self.assertIn("%s ALL=(ALL) NOPASSWD:ALL" % self.vm.vm_username,
+        test_sudo = utils_lib.send_ssh_cmd(self.vm.floating_ip, vm_username, vm_password, "sudo cat /etc/sudoers.d/90-cloud-init-users")
+        self.assertIn("%s ALL=(ALL) NOPASSWD:ALL" % vm_username,
                          test_sudo[1].strip(),
                          "No sudo privilege")
         #teardown
@@ -3439,9 +3377,9 @@ ssh_authorized_keys:
         """
         out = utils_lib.run_cmd(self, 'rpm -q cloud-init', expect_ret=0)
         cloudinit_ver = re.findall('\d+.\d',out)[0]
-        if float(cloudinit_ver) < 23.1:
+        if float(cloudinit_ver) < 23.1 or float(cloudinit_ver) >= 24.1:
             self.skipflag = True
-            self.skipTest('Skip run this case, this feature is not supported before cloud-init 23.1')
+            self.skipTest('Skip run this case, it is not supported before cloud-init 23.1 or after 24.1')
         # Check the active renderers
         cmd = 'sudo cp /etc/cloud/cloud.cfg /etc/cloud/cloud.bak'
         utils_lib.run_cmd(self, cmd, msg='backup /etc/cloud/cloud.cfg')
@@ -3643,7 +3581,6 @@ ssh_authorized_keys:
 
         casegroup = ('test_cloudinit_create_vm_config_drive',
                      'test_cloudinit_check_previous_hostname',
-                     'test_cloudinit_login_with_password',
                      'test_cloudinit_login_with_password_userdata',
                      'test_cloudinit_sshd_keypair',
                      'test_cloudinit_no_networkmanager',
