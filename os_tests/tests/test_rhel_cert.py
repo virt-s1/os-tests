@@ -112,6 +112,7 @@ class TestRHELCert(unittest.TestCase):
             cmd = 'sudo bash -c "rm -rf /var/rhcert/*"'
             utils_lib.run_cmd(self, cmd, msg='cleanup prior test result')
         else:
+            '''
             if os.getenv('INFRA_PROVIDER') == 'ali':
                 #Register to rhsm
                 self.log.info("Register to rhsm")
@@ -130,6 +131,9 @@ class TestRHELCert(unittest.TestCase):
                     utils_lib.run_cmd(self, cmd, timeout=600, expect_ret=0)
                     utils_lib.run_cmd(self, cmd, timeout=600, rmt_node=self.params['remote_nodes'][-1], expect_ret=0)
                 time.sleep(180)
+            '''
+            utils_lib.rhsm_register(self, cancel_case=True)
+            utils_lib.rhsm_register(self, cancel_case=True, rmt_node=self.params['remote_nodes'][-1])
             cmds_enablerepo = [ "sudo subscription-manager status",
                                 "sudo sleep 10",
                                 "sudo subscription-manager config --rhsm.manage_repos=1",
@@ -144,9 +148,8 @@ class TestRHELCert(unittest.TestCase):
                 utils_lib.run_cmd(self, cmd, timeout=600, rmt_node=self.params['remote_nodes'][-1], expect_ret=0)
             rpm_pkgs_rhcert = ["redhat-certification", "redhat-certification-hardware", "redhat-certification-backend", "redhat-certification-cloud"]
             for rpm_pkg in rpm_pkgs_rhcert:
-                utils_lib.is_pkg_installed(self, timeout=600, pkg_name=rpm_pkg)
-            cmd = 'sudo yum install -y redhat-certification redhat-certification-hardware redhat-certification-cloud'
-            utils_lib.run_cmd(self, cmd, timeout=600, rmt_node=self.params['remote_nodes'][-1])
+                utils_lib.is_pkg_installed(self, timeout=600, pkg_name=rpm_pkg, is_install=True, cancel_case=True)
+                utils_lib.is_pkg_installed(self, timeout=600, pkg_name=rpm_pkg, is_install=True, cancel_case=True, rmt_node=self.params['remote_nodes'][-1])
         cmd = 'sudo bash -c "mkdir -p /var/www/rhcert/export/var/crash"'
         utils_lib.run_cmd(self, cmd, rmt_node=self.params['remote_nodes'][-1])
         cmd = 'sudo bash -c "chmod -R 777 /var/www/rhcert/export/"'
