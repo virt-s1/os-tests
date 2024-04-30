@@ -3,6 +3,8 @@ from os_tests.libs import utils_lib
 import sys
 import re
 import os
+import logging
+
 try:
     import libvirt
     import xml.etree.ElementTree as ET
@@ -10,6 +12,8 @@ except ImportError as err:
     print("Please install libvirt-python module if run libvirt test")
     sys.exit(1)
 
+LOG = logging.getLogger('os_tests.os_tests_run')
+logging.basicConfig(level=logging.DEBUG)
 
 class LibvirtVM(VMResource):
 
@@ -38,6 +42,7 @@ class LibvirtVM(VMResource):
 
         self.console_log = '/tmp/console'+self.rhel_ver+'.log'
         self.user_data = None
+        self.run_uuid = params.get('run_uuid')
 
         # VM access parameters
         self.vm_username = params['VM'].get('username')
@@ -135,6 +140,7 @@ secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>")
         root.find("devices").find("serial[@type='pty']").find("log").set(
             "file", self.console_log)
         xmlconfig = ET.tostring(root).decode()
+        LOG.info(xmlconfig)
         dom = self.conn.defineXML(xmlconfig)
         dom.create()
         if wait:
@@ -146,6 +152,7 @@ secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>")
 
     def delete(self, wait=False):
         dom = self.conn.lookupByUUIDString(self.data.get("uuid"))
+        LOG.info("Deleting instance: %s" % self.data.get("uuid"))
         if not self.is_stopped():
             dom.destroy()
         dom.undefineFlags(libvirt.VIR_DOMAIN_UNDEFINE_NVRAM)
@@ -204,6 +211,7 @@ secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>")
         self._data = None
         if self.data is None:
             return False
+        LOG.info("self.data is %s" % self.data)
         count = sum(1 for i in self.data)
         if count > 0:
             return True
@@ -231,11 +239,16 @@ secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>")
     def show(self):
         return self.data
 
-    def get_console_log(self):
-        with open(self.console_log) as f:
-            lines = f.readlines()
-        LOG.info(lines)
-        return lines
+    def get_console_log(self, silent=False):
+        ret = None
+        try:
+            with open(self.console_log) as f:
+                ret = f.readlines()
+            if not silent: LOG.info(ret)
+            return ret
+        except Exception as err:
+            LOG.error("Failed to get console log! %s" % err)
+            return err
 
     def disk_count(self):
         raise NotImplementedError
@@ -297,6 +310,8 @@ dom_xml = """
       <log file='/tmp/console.log' append='off'/>
     </serial>
     <console type='pty'/>
+    <controller type='scsi' model='virtio-scsi'>
+    </controller>
     <channel type='unix'>
        <target type='virtio' name='org.qemu.guest_agent.0'/>
     </channel>

@@ -3,7 +3,6 @@ from os_tests.libs import utils_lib
 import logging
 import time
 import sys
-import logging
 import base64
 try:
     import openstack
@@ -66,17 +65,7 @@ class OpenstackVM(VMResource):
         self.arch = 'x86_64'
         
         # VM creation parameter user_data
-        self.user_data = """\
-#cloud-config
-
-runcmd:
-  - [ sh, -xc, "echo $(date) ': hello today!'" ]
-  - [ sh, -xc, "mkdir /tmp/userdata_{0}" ]
-
-password: {1}
-chpasswd: {{ expire: False }}
-ssh_pwauth: False
-""".format(self.run_uuid, 'R')
+        self.user_data = None
     
         # VM creation parameter for rhsm subscription related cases
         self.subscription_username = params['Subscription'].get('username')
@@ -246,14 +235,17 @@ ssh_pwauth: False
     def show(self):
         return self.data
 
-    def get_console_log(self):
+    def get_console_log(self, silent=False):
+        ret =None
         try:
-            output = self.conn.compute.get_server_console_output(
+            LOG.info("try to retrive console log of {}".format(self.data.id))
+            ret = self.conn.compute.get_server_console_output(
                 self.data.id).get('output')
-            return True, output
+            if not silent: LOG.info(ret)
+            return ret
         except Exception as err:
             LOG.error("Failed to get console log! %s" % err)
-            return False, err
+            return err
 
     @property
     def disk_count(self):

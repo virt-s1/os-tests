@@ -116,6 +116,7 @@ class GCPVM(VMResource):
         self.flavor = params.get('Flavor').get('name')
         self.size = params.get('Flavor').get('size')
         self.user_data = None
+        self.run_uuid = params.get('run_uuid')
 
         # VM access parameters
         self.vm_username = params['VM'].get('username')

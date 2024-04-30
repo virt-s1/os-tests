@@ -80,7 +80,7 @@ class EC2VM(VMResource):
         self.is_created = False
         self.another_ip = None
         self.run_uuid = params.get('run_uuid')
-        self.user_data = '#!/bin/bash\nmkdir -p /tmp/userdata_{}'.format(self.run_uuid)
+        self.user_data = None
         self.hibernation_support = False
         self.enclave_support = False
         self.enclave_enabled = False
@@ -502,22 +502,21 @@ class EC2VM(VMResource):
                 return True
         return False
 
-    def get_console_log(self, silient=False):
+    def get_console_log(self, silent=False):
         ret = None
         try:
             LOG.info("try to retrive console log of {}".format(self.id))
             ret = self.ec2_instance.console_output(Latest=True).get('Output')
-            if not silient: LOG.info(ret)
+            if not silent: LOG.info(ret)
             return ret
         except Exception as err:
             LOG.error("Failed to get console log, try without latest option! {}".format(err))
         try:
             ret = self.ec2_instance.console_output().get('Output')
-            if not silient: LOG.info(ret)
+            if not silent: LOG.info(ret)
             return ret
         except Exception as err:
             LOG.error("Failed to get console log! %s" % err)
-            if not silient: LOG.info(err)
             return err
 
     def get_state(self):
