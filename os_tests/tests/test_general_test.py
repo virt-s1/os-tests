@@ -601,7 +601,7 @@ https://bugzilla.redhat.com/show_bug.cgi?id=2107502")
         bugzilla_id:
             2025479, 1905582
         is_customer_case:
-            False
+            True
         testplan:
             N/A
         maintainer:

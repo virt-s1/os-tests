@@ -367,7 +367,7 @@ def init_case(test_instance):
 #cloud-config
 runcmd:
   - [ sh, -xc, "echo $(date) ': hello today!'" ]
-  - [ sh, -xc, "mkdir /tmp/userdata_{0}" ]
+  - [ sh, -xc, "mkdir -p /tmp/userdata_{0}" ]
 
 password: {1}
 chpasswd:

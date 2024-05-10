@@ -119,7 +119,7 @@ class TestGeneralCheck(unittest.TestCase):
         utils_lib.run_cmd(self, "sudo umount /mnt")
 
         time.sleep(10)
-        cmd = "sudo ausearch -i -m AVC -ts today {}".format(time_start)
+        cmd = "sudo ausearch -i -m AVC -ts today {}".format(time_start.strip('\n'))
         #utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='check if new avc log generated', rmt_get_pty=True)
         utils_lib.check_log(self, 'PROCTITLE', expect_not_ret=0, log_cmd=cmd, rmt_get_pty=True)
 

@@ -1808,9 +1808,9 @@
     },
     "msg_202": {
         "content": ".*IMDSv1.*rhsmcertd-worke.*;.*IMDSv1.*subscription-manager.*",
-        "analyze": "known issue",
+        "analyze": "known issue is fixed in RHEL-8.10",
         "branch": "rhel",
-        "status": "active",
+        "status": "fixed",
         "link": "https://issues.redhat.com/browse/RHEL-9435",
         "path": "journal,/var/log/imds/imds-trace.log",
         "trigger": "",
@@ -1818,9 +1818,9 @@
     },
     "msg_203": {
         "content": ".*IMDSv1.*update-client.*",
-        "analyze": "known issue",
+        "analyze": "known issue is fixed in Q4CY23",
         "branch": "rhel",
-        "status": "active",
+        "status": "fixed",
         "link": "RHUIOPS-177",
         "path": "journal,/var/log/imds/imds-trace.log",
         "trigger": "",
@@ -1868,9 +1868,9 @@
     },
     "msg_208": {
         "content": ".*systemd-udevd.* Failed to send readiness notification, ignoring: Too many open files.*",
-        "analyze": "known systemd issue",
+        "analyze": "known systemd issue is fixed in RHEL-9.4",
         "branch": "rhel",
-        "status": "active",
+        "status": "fixed",
         "link": "https://issues.redhat.com/browse/RHEL-15962, https://github.com/systemd/systemd/pull/29322",
         "path": "journal",
         "trigger": "",
@@ -1887,9 +1887,9 @@
     },
     "msg_210": {
         "content": ".*/usr/lib/systemd/system/cloud-.* Unknown lvalue 'ConditionEnvironment' in section 'Unit'",
-        "analyze": "Known issue.",
+        "analyze": "Known issue is fixed in RHEL-8.10.",
         "branch": "rhel8",
-        "status": "active",
+        "status": "fixed",
         "link": "https://issues.redhat.com/browse/RHEL-21290",
         "path": "journal,systemctl",
         "trigger": "",
@@ -2057,7 +2057,7 @@
     },
     "msg_226": {
         "content": ".*NUMA: Warning: invalid memblk node 64.*",
-        "analyze": "known issue",
+        "analyze": "This is just an informational message the kernel dumps when adding mem blocks to the current NUMA topology.",
         "branch": "rhel",
         "status": "active",
         "link": "https://issues.redhat.com/browse/RHEL-32898",
@@ -2076,5 +2076,73 @@
         "trigger": "",
         "cases": "os_tests.tests.test_lifecycle.TestLifeCycle.test_boot_debugkernel",
         "addedby": "xiliang@redhat.com"
+    },
+    "msg_228": {
+        "content": ".*wmi_bus.*Firmware Bug.* WMAA method block execution control method not found.*",
+        "analyze": "known issue",
+        "branch": "rhel10",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-34134",
+        "path": "dmesg,journal",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com"
+    },
+    "msg_229": {
+        "content": ".*bash: line 1: echo: write error: Input/output error.*",
+        "analyze": "known issue",
+        "branch": "rhel9.5",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-34602",
+        "path": "echo 1 > /sys/devices/system/cpu/cpu1/online",
+        "trigger": "",
+        "cases": "os_tests.tests.test_general_test.TestGeneralTest.test_cpu_hotplug_no_workload",
+        "addedby": "xiliang@redhat.com"
+    },
+    "msg_230": {
+        "content": ".*type=PROCTITLE msg=audit.*proctitle=/usr/sbin/dhcpcd --dumplease --ipv4only eth0.*;.*avc.*denied.*dhcpcd.*",
+        "analyze": "known issue",
+        "branch": "rhel10",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-33081",
+        "path": "ausearch",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com"
+    },
+    "msg_231": {
+        "content": ".*type=PROCTITLE msg=audit.*proctitle=/usr/bin/rpcbind -w -f.*;.*avc.*denied.*rpcbind.*",
+        "analyze": "known issue",
+        "branch": "rhel10",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-35644",
+        "path": "ausearch",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com"
+    },
+    "msg_232": {
+        "content": ".*ACPI: _OSC evaluation for CPUs failed, trying _PDC.*",
+        "analyze": "known issue",
+        "branch": "rhel9",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-35952",
+        "path": "dmesg,journal",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20240510"
+    },
+    "msg_233": {
+        "content": ".*cfg80211: failed to load regulatory.db.*;.*platform regulatory.0: Direct firmware load for regulatory.db failed with error.*",
+        "analyze": "expected when wireless-regdb is not installed",
+        "branch": "rhel10",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-36144",
+        "path": "dmesg,journal",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20240511"
     }
 }

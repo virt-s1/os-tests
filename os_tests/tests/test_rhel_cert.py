@@ -100,10 +100,7 @@ class TestRHELCert(unittest.TestCase):
                self.vms[1].create()
            utils_lib.init_connection(self, timeout=self.ssh_timeout, rmt_node=self.vms[1].floating_ip)
            self.params['remote_nodes'].append(self.vms[1].floating_ip)
-               #if len(self.vms) > 1 and not self.vms[1].exists():
-               #self.vms[1].create()
-               #self.params['remote_nodes'].append(self.vms[1].floating_ip)
-        #utils_lib.init_connection(self, timeout=self.ssh_timeout, rmt_node=self.params['remote_nodes'][-1])
+        utils_lib.init_connection(self, timeout=self.ssh_timeout, rmt_node=self.params['remote_nodes'][-1])
         #Install redhat certification packages
         cmd = 'sudo rpm -qa | grep redhat-certification'
         ret1 = utils_lib.run_cmd(self, cmd, ret_status=True)
@@ -146,7 +143,7 @@ class TestRHELCert(unittest.TestCase):
             for cmd in cmds_enablerepo:
                 utils_lib.run_cmd(self, cmd, timeout=600, expect_ret=0)
                 utils_lib.run_cmd(self, cmd, timeout=600, rmt_node=self.params['remote_nodes'][-1], expect_ret=0)
-            rpm_pkgs_rhcert = ["redhat-certification", "redhat-certification-hardware", "redhat-certification-backend", "redhat-certification-cloud"]
+            rpm_pkgs_rhcert = ["redhat-certification", "redhat-certification-hardware", "redhat-certification-cloud"]
             for rpm_pkg in rpm_pkgs_rhcert:
                 utils_lib.is_pkg_installed(self, timeout=600, pkg_name=rpm_pkg, is_install=True, cancel_case=True)
                 utils_lib.is_pkg_installed(self, timeout=600, pkg_name=rpm_pkg, is_install=True, cancel_case=True, rmt_node=self.params['remote_nodes'][-1])
@@ -401,7 +398,8 @@ class TestRHELCert(unittest.TestCase):
 
     def test_rhcert_ethernet(self):
         
-        net_bandwidth = 50
+        net_bandwidth = self.params.get('net_bandwidth') or 50
+
         if self.vm and hasattr(self.vm, 'net_bandwidth'):
             net_bandwidth = self.vm.net_bandwidth
         if net_bandwidth <= 5:
