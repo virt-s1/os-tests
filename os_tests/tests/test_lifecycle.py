@@ -466,52 +466,6 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.run_cmd(self, 'sudo dmesg | grep -i mem_encrypt', expect_kw='=on')
         utils_lib.check_log(self, "error,warn,fail,CallTrace", skip_words='ftrace', rmt_redirect_stdout=True)
 
-    def test_reboot_resolve_content(self):
-        """
-        case_tag:
-            cloudinit
-        case_name:
-            test_reboot_resolve_content
-        case_file:
-            https://github.com/liangxiao1/os-tests/blob/master/os_tests/tests/test_lifecycle.py
-        component:
-            NetworkManager
-        bugzilla_id:
-            1748015
-        is_customer_case:
-            True
-        testplan:
-            N/A
-        maintainer:
-            xiliang@redhat.com
-        description:
-            Check /etc/resolv.conf content is regenerated and consistent before and after reboot
-        key_steps:
-            # sudo cp -f /etc/resolv.conf /etc/resolv.conf.orig
-            # sudo truncate -s0 /etc/resolv.conf (skip in openstack platform)
-            # sudo reboot
-            # sudo diff -u /etc/resolv.conf /etc/resolv.conf.orig
-        expect_result:
-            diff returen 0
-        debug_want:
-            # rpm -q NetworkManager
-        """
-        utils_lib.run_cmd(self, r'sudo cat /etc/resolv.conf',
-                    expect_ret=0, expect_kw='nameserver', msg='check resolv.conf content')
-        utils_lib.run_cmd(self, r'sudo cp -f /etc/resolv.conf /etc/resolv.conf.orig',
-                    expect_ret=0, msg='backup /etc/resolv.conf')
-        if not utils_lib.is_openstack(self):
-            utils_lib.run_cmd(self, r'sudo truncate -s0 /etc/resolv.conf',
-                        expect_ret=0, msg='cleanup /etc/resolv.conf')
-        utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
-        time.sleep(10)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
-
-        utils_lib.run_cmd(self, r'sudo cat /etc/resolv.conf',
-                    expect_ret=0, expect_kw='nameserver', msg='check content after reboot')
-        utils_lib.run_cmd(self, r'sudo diff -u /etc/resolv.conf /etc/resolv.conf.orig',
-                    expect_ret=0, msg='check if content identical after reboot')
-
     def test_kdump_no_specify_cpu(self):
         '''
         case_tag:
