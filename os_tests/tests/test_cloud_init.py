@@ -1151,7 +1151,9 @@ EOF""".format(device, size), expect_ret=0)
             huzhao@redhat.com
         description: |
             RHEL7-103836 - CLOUDINIT-TC: Default configuration can regenerate sshd keypairs
-            bz: 2013644
+            bz: 2013644 - from aws
+        is_customer_case:
+            True
         key_steps: |
             This auto case only check host key permissions
             expected:  
@@ -1682,6 +1684,10 @@ ssh_pwauth: True
             2
         component:
             cloud-init
+        bug_id:
+            bugzilla_1748015
+        is_customer_case:
+            True
         maintainer:
             huzhao@redhat.com
         description:

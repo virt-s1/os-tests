@@ -5,11 +5,16 @@ if [ -z $1 ]; then
 else
     nic=$1
 fi
+ip link add veth0 type veth peer name veth1
+ethtool -l veth0 |grep TX|awk -F' ' '{print $NF}'
+max_rx_veth=$(ethtool -l veth0 |grep TX|head -1|awk -F' ' '{print $NF}')
+ip link delete veth0
 # run two loops for better reproducer
-for i in {1..2}; do
+for i in {1..3}; do
+    echo "loop $i/3 with veth tx: $max_rx_veth"
     ip link add veth0 type veth peer name veth1
-    ethtool -L veth0 tx 16
-    ethtool -L veth1 tx 16
+    ethtool -L veth0 tx $max_rx_veth
+    ethtool -L veth1 tx $max_rx_veth
 
     nmcli conn add type bridge con-name br1 ifname br1
     nmcli conn modify br1 ipv4.addresses '192.168.1.1/24'
@@ -40,5 +45,5 @@ for i in {1..2}; do
     nmcli connection delete br0
     nmcli connection delete br1
     ip link delete veth0
-    ip link delete veth1
+    echo "+++++++++++++++++++++++++++++++++"
 done

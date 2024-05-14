@@ -2134,7 +2134,7 @@ COMMIT
             cmd = 'sudo cp -f {} {}'.format(veth_nic_rx,veth_nic_rx_run)
             utils_lib.run_cmd(self, cmd)
         utils_lib.run_cmd(self,"sudo chmod 755 %s" % veth_nic_rx_run)
-        utils_lib.run_cmd(self,'sudo bash -c "{} {}"'.format(veth_nic_rx_run, self.active_nic), timeout=360, msg='the system might loss connection if the script cannot finish normally.')
+        utils_lib.run_cmd(self,'sudo bash -c "{} {}"'.format(veth_nic_rx_run, self.active_nic), timeout=500, msg='the system might loss connection if the script cannot finish normally.')
         utils_lib.init_connection(self, timeout=180)
         utils_lib.run_cmd(self,"sudo dmesg", expect_not_kw="but real number of TX queues")
 
