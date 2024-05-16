@@ -599,7 +599,7 @@ https://bugzilla.redhat.com/show_bug.cgi?id=2107502")
         component:
             systemd
         bugzilla_id:
-            2025479, 1905582
+            2025479, 1905582, RHEL-15501
         is_customer_case:
             True
         testplan:
@@ -607,7 +607,7 @@ https://bugzilla.redhat.com/show_bug.cgi?id=2107502")
         maintainer:
             xiliang@redhat.com
         description:
-            The DefaultLimitCORESoft is set to 0 by default.
+            The DefaultLimitCORESoft is set to 0 by default, and it is changed to infinity since rhel-9.5.
             Test systemd-coredump can save process core successfully when process crashed
         key_steps:
             1. # systemctl show | grep CORE
@@ -635,10 +635,14 @@ https://bugzilla.redhat.com/show_bug.cgi?id=2107502")
             free(&x);
         }
         '''
+        product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
         product_name = utils_lib.get_os_release_info(self, field='NAME')
         if 'Red Hat Enterprise Linux' in product_name:
             cmd = 'systemctl show | grep CORE'
-            utils_lib.run_cmd(self, cmd, expect_kw='DefaultLimitCORESoft=0,DefaultLimitCORE=infinity', msg='check default limit core setting')
+            if float(product_id) >= 9.5:
+                utils_lib.run_cmd(self, cmd, expect_kw='DefaultLimitCORESoft=infinity,DefaultLimitCORE=infinity', msg='check default limit core setting')
+            else:
+                utils_lib.run_cmd(self, cmd, expect_kw='DefaultLimitCORESoft=0,DefaultLimitCORE=infinity', msg='check default limit core setting')
         utils_lib.run_cmd(self, 'ulimit -c 0;ulimit -c', expect_ret=0, expect_kw='0', msg='test user can change limit core setting')
         utils_lib.run_cmd(self, 'ulimit -c unlimited;ulimit -c', expect_ret=0, expect_kw='unlimited', msg='test user can change limit core setting')
         utils_lib.run_cmd(self, 'sudo rm -rf /var/lib/systemd/coredump/core.pp*', msg='clean up core files before testing')
