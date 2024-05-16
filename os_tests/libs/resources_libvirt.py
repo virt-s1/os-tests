@@ -89,6 +89,7 @@ class LibvirtVM(VMResource):
     def create(self, wait=True):
         root = ET.fromstring(dom_xml)
         acpi = ET.fromstring("<acpi/>")
+        ccf_assist = ET.fromstring("<ccf-assist state='off'/>")
         if self.arch == "x86_64":
             root.find("os").find("type").set("arch", self.arch)
             root.find("features").insert(0, acpi)
@@ -107,6 +108,7 @@ secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>")
             root.find("os").find("type").set("arch", self.arch)
             root.find("os").find("type").set("machine", "pseries")
             root.find("features").insert(0, acpi)
+            root.find("features").insert(0, ccf_assist)
         elif self.arch == "s390x":
             root.find("os").find("type").set("arch", self.arch)
             root.find("os").find("type").set("machine", "s390-ccw-virtio")
