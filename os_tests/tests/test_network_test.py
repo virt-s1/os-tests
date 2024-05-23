@@ -502,21 +502,21 @@ class TestNetworkTest(unittest.TestCase):
             2
         component:
             NetworkManager
-        bugzilla_id:
-            1971527
-        customer_case_id:
-            02957058
+        bug_id:
+            bugzilla_1971527
+        is_customer_case:
+            True
         polarion_id:
             n/a
         maintainer:
             xiliang@redhat.com
         description:
             check if can add persistent static route
-        key_steps:
+        key_steps: |
             1. # nmcli connection modify 'System eth0' +ipv4.routes "10.8.8.0/24 10.7.9.5"
             2. # nmcli connection down 'System eth0';nmcli connection up 'System eth0'
             3. # ip r
-        expected_result:
+        expected_result: |
             New static route added.
             eg. 10.8.8.0/24 via 10.7.9.5 dev eth0 proto static metric 100
         '''
@@ -525,10 +525,10 @@ class TestNetworkTest(unittest.TestCase):
             utils_lib.run_cmd(self, cmd, msg='get nm-cloud-setup.timer status')
         cmd = 'ip r'
         utils_lib.run_cmd(self, cmd, msg='print route before testing')
-        cmd = "sudo nmcli |grep 'connected to'|grep {}|awk -F'to' '{{print $NF}}'".format(self.active_nic )
+        cmd = "sudo nmcli -f NAME connection show|grep {}|head -1".format(self.active_nic )
         con_name = utils_lib.run_cmd(self, cmd, msg='try to get connection name')
         con_name = con_name.strip('\n')
-        con_name = con_name.lstrip(' ')
+        con_name = con_name.strip(' ')
         cmd = "sudo nmcli connection modify '{}' +ipv4.routes '10.8.8.0/24 {}'".format(con_name, self.ipv4)
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to add static route name')
         utils_lib.run_cmd(self, 'ip r', msg='print route after added')

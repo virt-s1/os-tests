@@ -52,7 +52,7 @@ Install and run tests inside the RHEL system directly, fewer cases than Mode 2 a
 #### Mode 3 - os-tests provision test system by itself  
 
 Require cloud/platform account to provision remote system self, can do full test with control of instance. Eg. device hotplug, snapshot creation, send nmi events......  
-Note: supports alicloud, aws, gcp, openstack, libvirt, nutanix, openshift, openstack for now. Other platforms are in todo list. The config template is under cfg dir.  
+Note: supports alicloud, aws, azure, gcp, openstack, libvirt, nutanix, openshift, openstack for now. Other platforms are in todo list. The config template is under cfg dir.  
 `# os-tests -p cloudinit --user ec2-user --keyfile /home/virtqe_s1.pem --platform_profile aws_env.yaml`
 
 ### More options - [advanced tips](https://github.com/virt-s1/os-tests/blob/master/os_tests/docs/os-tests_advanced_tips.md)
