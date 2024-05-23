@@ -1652,11 +1652,11 @@ ssh_pwauth: True
             self.vm.start(wait=True)
         time.sleep(30)
         self.params['remote_node'] = self.vm.floating_ip
-        test_login = utils_lib.send_ssh_cmd(self.vm.floating_ip, vm_username, vm_password, "whoami")
+        test_login = utils_lib.send_ssh_cmd(self.vm.floating_ip, vm_username, vm_password, "whoami", log=self.log)
         self.assertEqual(vm_username,
                          test_login[1].strip(),
                          "Fail to login with password: %s" % format(test_login[1].strip()))        
-        test_sudo = utils_lib.send_ssh_cmd(self.vm.floating_ip, vm_username, vm_password, "sudo cat /etc/sudoers.d/90-cloud-init-users")
+        test_sudo = utils_lib.send_ssh_cmd(self.vm.floating_ip, vm_username, vm_password, "sudo cat /etc/sudoers.d/90-cloud-init-users", log=self.log)
         self.assertIn("%s ALL=(ALL) NOPASSWD:ALL" % vm_username,
                          test_sudo[1].strip(),
                          "No sudo privilege")

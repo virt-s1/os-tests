@@ -121,7 +121,7 @@ class TestGeneralCheck(unittest.TestCase):
         time.sleep(10)
         cmd = "sudo ausearch -i -m AVC -ts today {}".format(time_start.strip('\n'))
         #utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='check if new avc log generated', rmt_get_pty=True)
-        utils_lib.check_log(self, 'PROCTITLE', expect_not_ret=0, log_cmd=cmd, rmt_get_pty=True)
+        utils_lib.check_log(self, 'PROCTITLE', log_cmd=cmd, rmt_get_pty=True)
 
     def test_check_available_clocksource(self):
         """
@@ -1464,9 +1464,9 @@ in cmdline as bug1859088")
         debug_want:
             /etc/pki/product-default/*.pem
         """
-        check_cmd = "cat /etc/redhat-release"
-        output = utils_lib.run_cmd(self,check_cmd, expect_ret=0, cancel_not_kw='CentOS,Fedora', msg='check release name')
-        product_id = re.findall('\d.\d', output)[0]
+        cmd = "cat /etc/redhat-release"
+        output = utils_lib.run_cmd(self,cmd, expect_ret=0, cancel_not_kw='CentOS,Fedora', msg='check release name')
+        product_id = re.findall('\d+.\d', output)[0]
         self.log.info("Get product id: {}".format(product_id))
         cmd = 'rpm -qa|grep redhat-release'
         utils_lib.run_cmd(self,cmd, cancel_ret='0', msg='get redhat-release-server version')

@@ -81,7 +81,7 @@ def init_provider(params=None):
     vms = []
     disks = []
     nics = []
-    supported_platforms = ['aws', 'openstack', 'ali', 'nutanix', 'google', 'libvirt', 'openshift']
+    supported_platforms = ['aws', 'openstack', 'ali', 'nutanix', 'google', 'libvirt', 'openshift', 'azure']
     provider = params['Cloud']['provider']
     os.environ['INFRA_PROVIDER'] = provider
     if not provider:
@@ -123,6 +123,10 @@ def init_provider(params=None):
     if 'openshift' in provider:
         from .resources_openshift import OpenShiftVM
         vms.append(OpenShiftVM(params))
+    if 'azure' in provider:
+        from .resources_azure import AzureVM
+        # init resources only without create them at very beginning
+        vms.extend([AzureVM(params),AzureVM(params)])
 
     return vms, disks, nics
 
@@ -277,14 +281,19 @@ def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=N
             break
     return True
 
-def send_ssh_cmd(rmt_node, rmt_user, rmt_password, command, timeout=60):
+def send_ssh_cmd(rmt_node, rmt_user, rmt_password, command, timeout=60,log=None):
+    if log is None:
+        LOG_FORMAT = '%(levelname)s:%(message)s'
+        log = logging.getLogger(__name__)
+        logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
     ssh = rmt_ssh.RemoteSSH()
     ssh.rmt_node = rmt_node
     ssh.rmt_user = rmt_user
     ssh.rmt_password = rmt_password
+    ssh.log = log
     ssh.create_connection()
     status, outputs = ssh.remote_excute(command, timeout)
-    logging.info('\n command: %s \n status %s \n outputs %s \n' % (command, status, outputs))
+    log.info('\n command: %s \n status %s \n outputs %s \n' % (command, status, outputs))
     ssh.close()
 
     return [status,outputs]
@@ -560,6 +569,24 @@ def msg_to_syslog(test_instance, cmd='sudo virt-what', msg=None):
     cmd = "sudo bash -c 'echo \"{} \n{}\" > /dev/kmsg'".format(msg, output)
     run_cmd(test_instance, cmd, expect_ret=0)
 
+def run_cmd_local(cmd='', timeout=120, is_log_cmd=True, log=None, is_log_ret=False):
+    if log is None:
+        log = logging.getLogger(__name__)
+    if is_log_cmd:
+        log.info("CMD: {}".format(cmd))
+    status = None
+    output = None
+    ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
+    #ret = subprocess.run(cmd, shell=True, capture_output=True, timeout=timeout, encoding='utf-8')
+    status = ret.returncode
+    if ret.stdout is not None:
+        output = ret.stdout
+    if is_log_ret:
+        log.info('status:{} output:{}'.format(status, output))
+    return status, output
+    #if ret.stderr is not None:
+    #    output = output + ret.stderr
+
 def run_cmd(test_instance,
             cmd,
             expect_ret=None,
@@ -643,15 +670,7 @@ def run_cmd(test_instance,
                 test_instance.log.info("CMD: {} on {}".format(cmd, rmt_node))
             status, output = SSH.remote_excute(cmd, timeout, is_log_cmd, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty)
         else:
-            if is_log_cmd:
-                test_instance.log.info("CMD: {}".format(cmd))
-            ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
-            #ret = subprocess.run(cmd, shell=True, capture_output=True, timeout=timeout, encoding='utf-8')
-            status = ret.returncode
-            if ret.stdout is not None:
-                output = ret.stdout
-            #if ret.stderr is not None:
-            #    output = output + ret.stderr
+            status, output = run_cmd_local(cmd=cmd, timeout=timeout, is_log_cmd=is_log_cmd,log=test_instance.log)
 
     except Exception as err:
         test_instance.log.error("Run cmd failed: {}".format(err))
@@ -671,19 +690,11 @@ def run_cmd(test_instance,
                 status, output = SSH.remote_excute(test_cmd, timeout)
                 status, output = SSH.remote_excute(cmd, timeout, is_log_cmd, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty)
             else:
-                ret = subprocess.run(test_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
-                status = ret.returncode
-                if ret.stdout is not None:
-                   output = ret.stdout
+                status, output = run_cmd_local(cmd=cmd, timeout=timeout, is_log_cmd=is_log_cmd,log=test_instance.log)
                 test_instance.log.info("CMD ret: {} out:{}".format(status, output))
                 if is_log_cmd:
                     test_instance.log.info("Retry to run CMD: {}".format(cmd))
-                status = None
-                output = None
-                ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
-                status = ret.returncode
-                if ret.stdout is not None:
-                   output = ret.stdout
+                status, output = run_cmd_local(cmd=cmd, timeout=timeout, is_log_cmd=is_log_cmd,log=test_instance.log)
         except Exception as err:
             test_instance.log.error("Run cmd failed again {}".format(err))
     if status is None and test_instance.vms:

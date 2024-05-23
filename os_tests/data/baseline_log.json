@@ -823,11 +823,11 @@
         "trigger": ""
     },
     "msg_93": {
-        "content": "/usr/sbin/irqbalance[756]: libcap-ng used by \"/usr/sbin/irqbalance\" failed due to not having CAP_SETPCAP in capng_apply",
+        "content": ".*libcap-ng used by .*/usr/sbin/irqbalance.* failed .* due to not having CAP_SETPCAP in capng_apply.*",
         "analyze": "Known issue fixed by errata",
         "branch": "rhel",
-        "status": "closed",
-        "link": "https://bugzilla.redhat.com/show_bug.cgi?id=1963152",
+        "status": "active",
+        "link": "jira_RHEL-36576,bugzilla_1963152",
         "path": "journal, dmesg",
         "trigger": ""
     },
@@ -2144,5 +2144,29 @@
         "cases": "",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20240511"
+    },
+    "msg_234": {
+        "content": ".*expected.*nameserver.*not found in.*",
+        "analyze": "known issue",
+        "branch": "rhel10",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-36233",
+        "path": "/etc/resolv.conf",
+        "trigger": "",
+        "cases": "os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_check_resolv_conf_reboot",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20240514"
+    },
+    "msg_235": {
+        "content": ".*fsverity_init.*",
+        "analyze": "known issue",
+        "branch": "rhel9,rhel10",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-36258",
+        "path": "cat /sys/kernel/debug/kmemleakf",
+        "trigger": "",
+        "cases": "os_tests.tests.test_lifecycle.TestLifeCycle.test_boot_debugkernel",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20240522"
     }
 }
