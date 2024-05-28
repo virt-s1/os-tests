@@ -1152,6 +1152,7 @@ EOF""".format(device, size), expect_ret=0)
         description: |
             RHEL7-103836 - CLOUDINIT-TC: Default configuration can regenerate sshd keypairs
             bz: 2013644 - from aws
+            RHEL-36456 - [RHEL-10] Group ssh_keys is missing and ssh host key permission is changed in rhel-10
         is_customer_case:
             True
         key_steps: |
@@ -1161,10 +1162,17 @@ EOF""".format(device, size), expect_ret=0)
             -rw-r--r--. root root /etc/ssh/ssh_host_ecdsa_key.pub
             -rw-r--r--. root root /etc/ssh/ssh_host_ed25519_key.pub
             -rw-r--r--. root root /etc/ssh/ssh_host_rsa_key.pub
+            The ssh_host*key permissions are changed since rhel-10 Beta as bug RHEL-36456
+            Before rhel-10 Beta:
             $ ls -l /etc/ssh/ssh_host*key| awk '{print $1,$3,$4,$9}'
             -rw-r-----. root ssh_keys /etc/ssh/ssh_host_ecdsa_key
             -rw-r-----. root ssh_keys /etc/ssh/ssh_host_ed25519_key
             -rw-r-----. root ssh_keys /etc/ssh/ssh_host_rsa_key
+            Since rhel-10 Beta:
+            $ ls -l /etc/ssh/ssh_host*key| awk '{print $1,$3,$4,$9}'
+            -rw-------. root root /etc/ssh/ssh_host_ecdsa_key
+            -rw-------. root root /etc/ssh/ssh_host_ed25519_key
+            -rw-------. root root /etc/ssh/ssh_host_rsa_key
         """
         self.log.info("check host key permissions")
         self.log.info("Public host key permissions should be 644 and owner/group should be root.")
@@ -1175,14 +1183,22 @@ EOF""".format(device, size), expect_ret=0)
                 continue
             self.assertIn('-rw-r--r--. root root', key,
                     msg=" Unexpected permissions -> %s" % key)
-        self.log.info("Private host key permissions should be 640 and owner/group should be root/ssh_keys.")
+        self.log.info("Check the private host key permissions")
         cmd = "ls -l /etc/ssh/ssh_host*key | awk '{print $1,$3,$4,$9}'"
-        private_keys = utils_lib.run_cmd(self, cmd, msg='Get all private host keys').split('\n')  
-        for key in private_keys:
-            if len(key) == 0:
-                continue
-            self.assertIn('-rw-r-----. root ssh_keys', key,
-                    msg=" Unexpected permissions -> %s" % key)
+        private_keys = utils_lib.run_cmd(self, cmd, msg='Get all private host keys').split('\n')
+        group_ssh_keys = utils_lib.run_cmd(self, 'getent group | grep ssh_keys')  
+        if 'ssh_keys' in group_ssh_keys:
+            for key in private_keys:
+                if len(key) == 0:
+                    continue            
+                self.assertIn('-rw-r-----. root ssh_keys', key,
+                        msg=" Unexpected permissions -> %s" % key)
+        else:
+            for key in private_keys:
+                if len(key) == 0:
+                    continue            
+                self.assertIn('-rw-------. root root', key,
+                        msg=" Unexpected permissions -> %s" % key)            
 
     def test_check_cloudinit_fingerprints(self):        
         """
