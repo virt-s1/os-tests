@@ -236,6 +236,37 @@ class TestCloudInit(unittest.TestCase):
                         expect_not_kw='CRITICAL',
                         msg='check /var/log/cloud-init-output.log')
 
+    def test_check_cloudinit_log_attributeerror(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier1
+        case_name:
+            test_check_cloudinit_log_attributeerror
+        case_file:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_cloud_init.py
+        component:
+            cloud-init
+        bugzilla_id:
+        is_customer_case:
+            False
+        maintainer:
+            xiachen@redhat.com
+        description:
+            check if there is AttributeError, TypeError or NameError in log file
+            this case is useful when backport upstream patch, if there is code dependency, it would show these kinds of Error.
+        key_steps:
+            1. check cloud init log file
+        expect_result:
+            no AttributeError, TypeError or NameError in log file
+        debug_want:
+            cloud init log file
+        """
+        utils_lib.run_cmd(self,
+                    'sudo cat /var/log/cloud-init.log',
+                    expect_ret=0,
+                    expect_not_kw='AttributeError,TypeError,NameError',
+                    msg='check /var/log/cloud-init.log')
+
     def test_check_cloudinit_log_warn(self):
         """
         case_tag:
