@@ -4,6 +4,9 @@ from os_tests.libs import utils_lib
 import time
 import os
 import json
+import tempfile
+import string
+import paramiko
 
 class TestUpgrade(unittest.TestCase):
     def setUp(self):
@@ -84,6 +87,158 @@ class TestUpgrade(unittest.TestCase):
                             "sudo bash -c 'yum remove `{}` -y'".format(cmd),
                             expect_ret=0,
                             msg='Remove kernel-devel package since DNF cannot produce a valid upgrade transaction when multiple kernel-devel packages are installed.')
+
+    def _configure_repo(self, repo_type, repo_url_param):
+        repo_urls = self.params.get(repo_url_param)
+        if repo_urls is not None:
+            if self.params.get('proxy_url') is not None:
+                repo_temp = string.Template('''
+[repo$id]
+name=repo$id
+baseurl=$repo_url
+enabled=1
+gpgcheck=0
+proxy=http://127.0.0.1:8080
+            ''')
+            else:
+                repo_temp = string.Template('''
+[repo$id]
+name=repo$id
+baseurl=$repo_url
+enabled=1
+gpgcheck=0
+            ''')
+            fh, tmp_repo_file = tempfile.mkstemp(suffix='_rhel.repo',  dir='/tmp', text=False)
+            id = 0
+            with open(tmp_repo_file, 'a') as fh:
+                for repo_url in self.params.get(repo_url_param).split(','):
+                    repo_str = repo_temp.substitute(id=id, repo_url=repo_url)
+                    self.log.info("Add new repo %s to %s" % (repo_url, tmp_repo_file))
+                    fh.writelines(repo_str)
+                    id += 1      
+            
+            self.log.info("Updated %s" % tmp_repo_file)
+            with open(tmp_repo_file, 'r') as fh:
+                for line in fh.readlines():
+                    self.log.info(line)
+            repo_file_name = "/tmp/{}.repo".format(repo_type)
+            self.SSH.put_file(local_file=tmp_repo_file, rmt_file=repo_file_name)
+            if repo_type == 'dnf_repo':
+                dest_dir = "/etc/yum.repos.d/"
+            if repo_type == 'leapp_target_repo':
+                dest_dir = "/etc/leapp/"
+            dest_repo_path = dest_dir + "{}.repo".format(repo_type)
+            utils_lib.run_cmd(self, 
+                        "sudo cp -r %s %s" % (repo_file_name,dest_repo_path),
+                        expect_ret=0,
+                        msg='Prepare %s' % (repo_type))
+            utils_lib.run_cmd(self, 'ls -l %s' % (dest_repo_path), expect_ret=0)
+            utils_lib.run_cmd(self, 'cat %s' % (dest_repo_path), expect_ret=0)
+            if os.path.exists(repo_file_name):
+               os.unlink(repo_file_name)
+               self.log.info("delete tempfile %s", tmp_dnf_repo_file)
+
+    def test_dnf_update(self):
+        """
+        case_name:
+            test_yum_update
+        case_tags:
+            yum_update
+        case_status:
+            approved
+        title:
+            TestUpdate.test_yum_update
+        importance:
+            critical
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            automated
+        linked_work_items:
+            n/a
+        automation_field:
+            https://github.com/virt-s1/os-tests/tree/master/os_tests/tests/test_update.py
+        setup_teardown:
+            n/a
+        environment:
+            n/a
+        component:
+            system
+        bug_id:
+            n/a
+        is_customer_case:
+            False
+        testplan:
+            n/a
+        test_type:
+            functional
+        test_level:
+            Component
+        maintainer:
+            linl@redhat.com
+        description: |
+            Test the yum update for packages or between minor release.
+        key_steps: |
+            1. Start an instance on public cloud or start a RHEL system.
+            2. On public cloud use the repo default set by RHUI client to do the update.
+            3. You can also setup the internal repo or registerted rhsm to do the update.
+            4. Use command "sudo yum update <package_name> -y" or "sudo yum update -y" to update the packages or system.
+        expected_result: |
+            Packages are updated or system is updated to the latest minor release.
+        debug_want: |
+            n/a
+        """
+        utils_lib.run_cmd(self,
+                        "sudo uname -r",
+                        expect_ret=0,
+                        msg='Check current kernel version')
+        utils_lib.run_cmd(self,
+                        "sudo cat /etc/redhat-release",
+                        expect_ret=0,
+                        msg='check current rhel release')
+        x_version = self.rhel_x_version
+
+        #Prepare dnf_repo for internal update
+        if self.params.get('dnf_repo_url') is not None:
+            self._configure_repo('dnf_repo', 'dnf_repo_url')
+            #prepare dnf update
+            cmd = "sudo yum remove -y $(rpm -qa|grep -v $(uname -r)|grep kernel-core|head -1)"
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Remove kernel-core")
+            utils_lib.run_cmd(self, 'sudo rm -rf /boot/initramfs*rescue*', expect_ret=0)
+            utils_lib.run_cmd(self, 'sudo yum remove -y kernel-debug', expect_ret=0)
+            utils_lib.run_cmd(self, 'sudo yum remove -y kernel-debug-core kernel-debug-modules', expect_ret=0)
+            utils_lib.run_cmd(self, 'sudo yum repolist enabled', expect_ret=0)
+            utils_lib.run_cmd(self, 'sudo yum-config-manager --disable rh*', expect_ret=0)
+            utils_lib.run_cmd(self, 'sudo yum repolist enabled', expect_ret=0)
+            utils_lib.run_cmd(self, 'sudo bash -c "echo "" > /var/log/secure"', expect_ret=0)
+            utils_lib.run_cmd(self, 'sudo  rm -rf /var/log/cloud-init.log', expect_ret=0)
+            utils_lib.run_cmd(self, 'sudo  rm -rf /var/log/cloud-init-output.log', expect_ret=0)
+            utils_lib.run_cmd(self, 'sudo bash -c "echo "minrate=200" >> /etc/yum.conf"', expect_ret=0)
+            utils_lib.run_cmd(self, 'sudo bash -c "echo "timeout=1800" >> /etc/yum.conf"', expect_ret=0)
+
+        #Prepare rhsm for rhsm update
+        if self.params.get('subscription_username') and self.params.get('subscription_password'):
+            utils_lib.rhsm_register(self, cancel_case=True)
+
+        #run dnf update
+        utils_lib.run_cmd(self,
+                        "sudo yum update -y",
+                        expect_ret=0,
+                        timeout=600,
+                        msg='Update system to the latest version for upgrade testing')
+        utils_lib.run_cmd(self,
+                        "sudo reboot",
+                        msg='Reboot system to the latest kernel')
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        utils_lib.run_cmd(self,
+                        "sudo uname -r",
+                        expect_ret=0,
+                        msg='Check kernel version after updated')
+        utils_lib.run_cmd(self,
+                        "sudo cat /etc/redhat-release",
+                        expect_ret=0,
+                        msg='check rhel release after updated')
+
 
     def test_leapp_upgrade_rhui(self):
         """
@@ -193,6 +348,10 @@ class TestUpgrade(unittest.TestCase):
                         cmd,
                         expect_ret=0,
                         msg='Install leapp-rhui-{} packages for upgrade testing'.format(platform))
+        utils_lib.run_cmd(self, 
+                        "sudo yum install -y leapp leapp-upgrade",
+                        expect_ret=0,
+                        msg='Install leapp packages for upgrade testing')
         #Prepare for upgrade
         self._remove_driver()
         #Remove the following steps since leapp data files are now a part of the leapp-repository package, don't need to manually download these files.

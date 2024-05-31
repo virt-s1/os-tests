@@ -73,6 +73,10 @@ def init_args():
                     help='username for RHSM register', required=False)
     parser.add_argument('--subscription_password', dest='subscription_password', default=None, action='store',
                     help='password for RHSM register', required=False)
+    parser.add_argument('--dnf_repo_url', dest='dnf_repo_url', default=None, action='store',
+                    help='specify it when using the internal repos for dnf update, seperated by ","', required=False)
+    parser.add_argument('--leapp_target_repo_url', dest='leapp_target_repo_url', default=None, action='store',
+                    help='specify it when leapp upgrade via custom repo, seperated by ","', required=False)
     args = parser.parse_args()
     return args
 
