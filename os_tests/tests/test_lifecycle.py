@@ -17,8 +17,10 @@ class TestLifeCycle(unittest.TestCase):
             self.ssh_timeout = 1200
             self.SSH.interval = 60
         self.log.info('set ssh connection timeout to {}'.format(self.ssh_timeout))
-
+        if 'fastboot' in self.id():
+            utils_lib.run_cmd(self,'uname -r', cancel_not_kw='el7,el6', msg='Not full support earlier than el8, skip!')
         if 'kdump' in self.id():
+            utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
             if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self) and utils_lib.is_aws(self):
                 self.log.info("aws aarch64 non-metal instance found, remove irqpoll if it is used following https://access.redhat.com/articles/6562431")
                 update_kdump_cfg = False
@@ -502,7 +504,6 @@ class TestLifeCycle(unittest.TestCase):
             # cat /etc/sysconfig/kernel
             # grubby --info DEFAULT
         '''
-        utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
         product_id = utils_lib.get_product_id(self)
         if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self) and float(product_id) < 8.6:
             self.skipTest("Cancel as bug 1654962 in arm guest earlier than 8.6 2082405" )
@@ -558,7 +559,6 @@ class TestLifeCycle(unittest.TestCase):
         debug_want:
             N/A
         """
-        utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
         product_id = utils_lib.get_product_id(self)
         if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self) and float(product_id) < 8.6:
             self.skipTest("Cancel as bug 1654962 in arm guest earlier than 8.6 2082405" )
@@ -626,8 +626,6 @@ class TestLifeCycle(unittest.TestCase):
         pass_criteria: 
             System shutdown and reboot with the specified kernel version, kernel can be loaded via kexec.
         '''
-        utils_lib.run_cmd(self,'uname -r', cancel_not_kw='el7,el6', msg='check if run in prior el8 as it is not fully supoorted in el7 or el6')
-        utils_lib.run_cmd(self,'lscpu',expect_ret=0,cancel_not_kw="Xen",msg="Not run in xen instance as bug 2188233")
         cmd = 'sudo rpm -qa|grep -e "kernel-[0-9]"'
         output = utils_lib.run_cmd(self, cmd, msg='Get kernel version')
         kernels_list = re.findall('kernel.*',output)
@@ -671,8 +669,6 @@ class TestLifeCycle(unittest.TestCase):
         pass_criteria: 
             Kernel can be loaded via kexec, and system will reboot into the loaded kernel via kexec -e without calling shutdown(8).
         '''
-        utils_lib.run_cmd(self,'uname -r', cancel_not_kw='el7,el6', msg='Not full support earlier than el8, skip!')
-        utils_lib.run_cmd(self,'lscpu',expect_ret=0,cancel_not_kw="Xen",msg="Not run in xen instance as bug 2188233")
         cmd = 'sudo rpm -qa|grep -e "kernel-[0-9]"'
         output = utils_lib.run_cmd(self, cmd, msg='Get kernel version')
         kernels_list = re.findall('kernel.*',output)
@@ -1043,7 +1039,6 @@ class TestLifeCycle(unittest.TestCase):
         debug_want:
             N/A
         """
-        utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
         cpu_num = int(utils_lib.run_cmd(self, 'cat /proc/cpuinfo | grep processor | wc -l'))
         if cpu_num <= 2:
             self.skipTest("Skip test case since cpu number is not greater than 2")
@@ -1385,7 +1380,6 @@ class TestLifeCycle(unittest.TestCase):
         #Enable FIPs
         #utils_lib.fips_enable(self)
 
-        utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
         # Check kdump for the system
         product_id = utils_lib.get_product_id(self)
         if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self) and float(product_id) < 8.6:
@@ -1502,7 +1496,6 @@ class TestLifeCycle(unittest.TestCase):
         #Enable FIPs
         #utils_lib.fips_enable(self)
 
-        utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
         # Check kdump for the system
         product_id = utils_lib.get_product_id(self)
         if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self) and float(product_id) < 8.6:
