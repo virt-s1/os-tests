@@ -2435,6 +2435,8 @@ swap:
             crypt_type = '$5$'
         elif hash == 'sha-512':
             crypt_type = '$6$'
+        elif hash == 'yescrypt':  #rhel-10
+            crypt_type = '$y$j9T$'
         else:
             assert False, 'Unhandled hash option: {}'.format(hash)
         # Generate a random salt
@@ -2511,12 +2513,19 @@ chpasswd:
         utils_lib.run_cmd(self,"echo '''%s''' | sudo tee /etc/cloud/cloud.cfg.d/test_hash_passwords.cfg" % CONFIG)
         utils_lib.run_cmd(self, "sudo rm -f /var/lib/cloud/instance/sem/config_set_passwords /var/log/cloud-init*.log")
         output = utils_lib.run_cmd(self, "sudo cloud-init single --name set_passwords")
+        #for rhel-7,8,9
+        default_hash = "sha-512"
         test4_salt = utils_lib.run_cmd(self, "sudo getent shadow test4").split('$')[2]
+        #for rhel-10, the default password hashing scheme is yescrypt
+        if float(self.rhel_x_version) >= 10.0:
+            default_hash = "yescrypt"
+            test4_salt = utils_lib.run_cmd(self, "sudo getent shadow test4").split('$')[3]
+
         shadow_dict = {
             "test1": pw_config_dict['test1'],
             "test2": pw_config_dict['test2'],
             "test3": pw_config_dict['test3'],
-            "test4": "test4:{}:".format(self._generate_password(base_pw, "sha-512", test4_salt)),
+            "test4": "test4:{}:".format(self._generate_password(base_pw, default_hash, test4_salt)),
         }
         for user in shadow_dict:
             real = utils_lib.run_cmd(self, "sudo getent shadow {}".format(user))
