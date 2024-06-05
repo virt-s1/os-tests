@@ -1289,16 +1289,17 @@ EOF""".format(device, size), expect_ret=0)
             3. Use this VM as a template and create a new VM_new based on this VM
             4. Login VM_new and check /etc/fstab, no duplicate swap entry
         """
-        utils_lib.run_cmd(self, "dd if=/dev/zero of=/tmp/swapfile01 bs=1M count=1024")
-        utils_lib.run_cmd(self, "chmod 600 /tmp/swapfile01")
-        utils_lib.run_cmd(self, "mkswap -L swap01 /tmp/swapfile01")
-        cmd = 'echo "/tmp/swapfile01    swap    swap    defaults    0 0" >> /etc/fstab'
+        #rhel 10 /tmp is tmpfs, it has holes when create swap file, so change /tmp to /root
+        utils_lib.run_cmd(self, "sudo dd if=/dev/zero of=/root/swapfile01 bs=1M count=1024")
+        utils_lib.run_cmd(self, "sudo chmod 600 /root/swapfile01")
+        utils_lib.run_cmd(self, "sudo mkswap -L swap01 /root/swapfile01")
+        cmd = 'echo "/root/swapfile01    swap    swap    defaults    0 0" >> /etc/fstab'
         utils_lib.run_cmd(self, "sudo bash -c '{}'".format(cmd))
         old_fstab = utils_lib.run_cmd(self, "cat /etc/fstab")
         utils_lib.run_cmd(self, "sudo swapon -a")
         old_swap = utils_lib.run_cmd(self, "free -m|grep Swap|awk '{print $2}'").rstrip('\n')
 
-        cmd = 'echo -e "mounts:\n  - ["/tmp/swapfile01"]" > /etc/cloud/cloud.cfg.d/cc_mount.cfg'
+        cmd = 'echo -e "mounts:\n  - ["/root/swapfile01"]" > /etc/cloud/cloud.cfg.d/cc_mount.cfg'
         utils_lib.run_cmd(self, "sudo bash -c '{}'".format(cmd))
         utils_lib.run_cmd(self, "sudo rm -rf /var/lib/cloud/instance/sem")
         utils_lib.run_cmd(self, "sudo cloud-init single --name cc_mounts")
@@ -1310,7 +1311,7 @@ EOF""".format(device, size), expect_ret=0)
         utils_lib.run_cmd(self, "sudo swapoff -a")
         utils_lib.run_cmd(self, "sudo rm -rf /etc/cloud/cloud.cfg.d/cc_mount.cfg")
         utils_lib.run_cmd(self, "sudo sed -i '/swapfile01/d' /etc/fstab")
-        utils_lib.run_cmd(self, "sudo rm -rf /tmp/swapfile01")
+        utils_lib.run_cmd(self, "sudo rm -rf /root/swapfile01")
         #utils_lib.run_cmd(self, "exit")
         self.assertNotEqual(old_swap, '0',
             "Swap size is 0 before cloud-init config")
