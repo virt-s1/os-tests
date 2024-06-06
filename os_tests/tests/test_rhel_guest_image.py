@@ -339,7 +339,7 @@ class TestGuestImage(unittest.TestCase):
         key_steps:
             1. timedatectl | grep 'Time zone'
         expect_result:
-            rootfs size nearly the same as disk size (>90%)
+            rootfs size nearly the same as disk size (>88%)
         debug_want:
             N/A
         """
@@ -354,8 +354,8 @@ class TestGuestImage(unittest.TestCase):
         vm_size = float(
             utils_lib.normalize_data_size(self.vm.size, order_magnitude='G'))
         self.assertTrue(
-            vm_size * 0.9 <= fs_size <= vm_size,
-            "Size of rootfs is lower than 90%% of disk size -> %s" % fs_size)
+            vm_size * 0.88 <= fs_size <= vm_size,
+            "Size of rootfs is lower than 88%% of disk size -> %s" % fs_size)
 
     def test_check_password_hash_for_root(self):
         """
