@@ -1770,22 +1770,28 @@ ssh_pwauth: True
                            expect_ret=0,
                            expect_kw=expect_dns_addr,
                            msg='check dns configuration %s in /etc/resolv.conf' % expect_dns_addr)
-        cmd2 = 'cat /etc/NetworkManager/conf.d/99-cloud-init.conf'
-        utils_lib.run_cmd(self,
+        
+        #below steps are workable for sysconfig, not workable for NM
+        cmd = 'nmcli -f NAME,FILENAME c show --active'
+        output = utils_lib.run_cmd(self,
+                          cmd,
+                          expect_ret=0,
+                          msg='check if sysconfig file is active')
+        if 'ifcfg-eth0' in output : 
+            cmd2 = 'cat /etc/NetworkManager/conf.d/99-cloud-init.conf'
+            utils_lib.run_cmd(self,
                           cmd2,
                           expect_ret=0,
                           expect_kw='dns = none',
-                          msg='check dns configuration of NM')
-        utils_lib.run_cmd(self, 'cp /etc/resolv.conf  ~/resolv_bak.conf')
-        cmd1 = 'sudo hostnamectl set-hostname host1.test.domain'                  
-        utils_lib.run_cmd(self, cmd1, expect_ret=0, msg='set hostname')
-        diff = utils_lib.run_cmd(self, "diff ~/resolv_bak.conf /etc/resolv.conf").rstrip('\n')
-        self.assertEqual(diff, '', 
-            "After setting hostname, resolv.conf is changed:\n"+diff)
-        self._reboot_inside_vm()
-        diff = utils_lib.run_cmd(self, "diff ~/resolv_bak.conf /etc/resolv.conf").rstrip('\n')
-        self.assertEqual(diff, '', 
-            "After reboot, resolv.conf is changed:\n"+diff)
+                          msg='check dns configuration of NM')   
+            utils_lib.run_cmd(self, 'cp /etc/resolv.conf  ~/resolv_bak.conf')   
+            cmd1 = 'sudo hostnamectl set-hostname host1.test.domain'                  
+            utils_lib.run_cmd(self, cmd1, expect_ret=0, msg='set hostname')
+            diff = utils_lib.run_cmd(self, "diff ~/resolv_bak.conf /etc/resolv.conf").rstrip('\n')
+            self.assertEqual(diff, '', "After setting hostname, resolv.conf is changed:\n"+diff)
+            self._reboot_inside_vm()
+            diff = utils_lib.run_cmd(self, "diff ~/resolv_bak.conf /etc/resolv.conf").rstrip('\n')
+            self.assertEqual(diff, '', "After reboot, resolv.conf is changed:\n"+diff)
 
     def _get_service_startup_time(self, servicename):
         output = utils_lib.run_cmd(self, "sudo systemd-analyze blame | grep %s | awk '{print $1}'" % servicename).rstrip('\n')
