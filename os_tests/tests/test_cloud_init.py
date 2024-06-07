@@ -973,6 +973,44 @@ EOF""".format(device, size), expect_ret=0)
             sudooutput,
             "No sudo privilege")
 
+    def test_cloudinit_networkconfig_isactive(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier1
+        case_priority:
+            1
+        component:
+            cloud-init
+        maintainer:
+            xiachen@redhat.com
+        description:
+            VIRT-301742 - CLOUDINIT-TC: Check cloud-init network configure file is active
+        key_steps: |
+            1. Create a VM
+            2. Login and check cloud-init network configure file is active
+        """
+        # this case is workable for the default configuration
+        cmd = "sudo grep 'Selected renderer' /var/log/cloud-init.log"
+        output = utils_lib.run_cmd(self,
+                    cmd,
+                    expect_ret=0,
+                    msg="check the active renderer")
+        # for sysconfig renderer
+        cmd = 'nmcli -f NAME,FILENAME c show --active'
+        if "Selected renderer 'sysconfig' from priority list" in output :
+            utils_lib.run_cmd(self,
+                        cmd,
+                        expect_ret=0,
+                        expect_kw='ifcfg-eth0',
+                        msg='check if sysconfig file is active')
+        # for network-manager renderer
+        if "Selected renderer 'network-manager' from priority list" in output :
+            utils_lib.run_cmd(self,
+                        cmd,
+                        expect_ret=0,
+                        expect_kw='cloud-init-eth0.nmconnection',
+                        msg='check if NetworkManager connection file is active')
+
     def test_cloudinit_datasource(self):        
         """
         case_tag:
@@ -1526,13 +1564,17 @@ EOF""".format(device, size), expect_ret=0)
             2. Check /var/log/cloud-init.log
             cloud-init should config static ip route via "ip route append" 
         """
-        cmd = 'sudo cat /var/log/cloud-init.log | grep append'
+        # this case is only workable for dhcient, not for dhcpcd of rhel-10
+        if float(self.rhel_x_version) < 10:
+            cmd = 'sudo cat /var/log/cloud-init.log | grep append'
 
-        utils_lib.run_cmd(self,
+            utils_lib.run_cmd(self,
                           cmd,
                           expect_ret=0,
                           expect_kw="Running command \['ip', '-4', 'route', 'append',",
                           msg="check if using ip route append")
+        else:
+            self.skipTest('skip run as this case is not workable for dhcpcd since rhel-10')
 
     def test_cloudinit_dependency(self):
         """
@@ -1770,22 +1812,22 @@ ssh_pwauth: True
                            expect_ret=0,
                            expect_kw=expect_dns_addr,
                            msg='check dns configuration %s in /etc/resolv.conf' % expect_dns_addr)
-        
+
         #below steps are workable for sysconfig, not workable for NM
         cmd = 'nmcli -f NAME,FILENAME c show --active'
         output = utils_lib.run_cmd(self,
                           cmd,
                           expect_ret=0,
                           msg='check if sysconfig file is active')
-        if 'ifcfg-eth0' in output : 
+        if 'ifcfg-eth0' in output :
             cmd2 = 'cat /etc/NetworkManager/conf.d/99-cloud-init.conf'
             utils_lib.run_cmd(self,
                           cmd2,
                           expect_ret=0,
                           expect_kw='dns = none',
-                          msg='check dns configuration of NM')   
-            utils_lib.run_cmd(self, 'cp /etc/resolv.conf  ~/resolv_bak.conf')   
-            cmd1 = 'sudo hostnamectl set-hostname host1.test.domain'                  
+                          msg='check dns configuration of NM')
+            utils_lib.run_cmd(self, 'cp /etc/resolv.conf  ~/resolv_bak.conf')
+            cmd1 = 'sudo hostnamectl set-hostname host1.test.domain'
             utils_lib.run_cmd(self, cmd1, expect_ret=0, msg='set hostname')
             diff = utils_lib.run_cmd(self, "diff ~/resolv_bak.conf /etc/resolv.conf").rstrip('\n')
             self.assertEqual(diff, '', "After setting hostname, resolv.conf is changed:\n"+diff)
