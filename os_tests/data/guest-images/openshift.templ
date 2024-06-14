@@ -1,4 +1,4 @@
-apiVersion: kubevirt.io/v1alpha3
+apiVersion: kubevirt.io/v1
 kind: VirtualMachine
 metadata:
   name: VM_NAME
@@ -29,7 +29,7 @@ spec:
           interfaces:
             - masquerade: {}
               model: virtio
-              name: nic-0
+              name: default
           networkInterfaceMultiqueue: true
           rng: {}
         machine:
@@ -40,7 +40,7 @@ spec:
       evictionStrategy: LiveMigrate
       hostname: rhel
       networks:
-        - name: nic-0
+        - name: default
           pod: {}
       terminationGracePeriodSeconds: 0
       volumes:
