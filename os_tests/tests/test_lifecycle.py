@@ -528,6 +528,8 @@ class TestLifeCycle(unittest.TestCase):
                     msg='list /var/crash after crash')
         cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='write_sysrq_trigger')
+        cmd = "sudo cat /var/crash/*/kexec-dmesg.log"
+        utils_lib.run_cmd(self, cmd, expect_not_kw='Call trace,Call Trace', msg="Check if new call trace found during saving core")
 
     def test_kdump_each_cpu(self):
         """
@@ -1372,7 +1374,7 @@ class TestLifeCycle(unittest.TestCase):
 
         #Configure kdump over ssh
         utils_lib.run_cmd(self, "sudo systemctl stop kdump", expect_ret=0, msg='stop kdump')
-        utils_lib.run_cmd(self, "sudo cp /etc/kdump.conf /tmp", expect_ret=0, msg='save default kdump cfg')
+        utils_lib.run_cmd(self, "sudo cp /etc/kdump.conf /etc/kdump.conf.orig", msg='save default kdump cfg')
         cmd = 'echo -e "ssh root@{}\nsshkey /root/.ssh/id_rsa\npath /var/crash\ncore_collector makedumpfile -F -l --message-level 7 -d 31" |sudo tee /etc/kdump.conf'.format(self.rmt_ipv4)
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Configure kdump using ssh')
         utils_lib.run_cmd(self, "sudo systemctl restart kdump", expect_ret=0, msg='restart kdump')
@@ -1483,7 +1485,7 @@ class TestLifeCycle(unittest.TestCase):
         #https://access.redhat.com/solutions/1197493
         utils_lib.run_cmd(self, "rpm -q nfs-utils||sudo yum install -y nfs-utils", expect_ret=0, timeout=180)
         utils_lib.run_cmd(self, "sudo systemctl stop kdump", expect_ret=0, msg='stop kdump')
-        utils_lib.run_cmd(self, "sudo cp /etc/kdump.conf /tmp", expect_ret=0, msg='save default kdump cfg')
+        utils_lib.run_cmd(self, "sudo cp /etc/kdump.conf /etc/kdump.conf.orig", msg='save default kdump cfg')
         output = utils_lib.run_cmd(self, 'uname -r', expect_ret=0)
         if 'el7' in output:
            cmd = '''sudo echo -e 'dracut_args --mount \"{}:/var/www/export/kdump /var/crash nfs defaults\"\ncore_collector makedumpfile -l --message-level 7 -d 31' |sudo tee /etc/kdump.conf'''.format(self.rmt_ipv4) 
@@ -1577,7 +1579,7 @@ class TestLifeCycle(unittest.TestCase):
         
         if "test_kdump_over_ssh" in self.id() or "test_kdump_over_nfs" in self.id():
             utils_lib.run_cmd(self, "sudo systemctl stop kdump",expect_ret=0, msg='stop kdump')
-            utils_lib.run_cmd(self, "sudo cp -f /tmp/kdump.conf /etc", expect_ret=0, msg='restore default kdump cfg')
+            utils_lib.run_cmd(self, "sudo mv -f /etc/kdump.conf.orig /etc/kdump.conf", expect_ret=0, msg='restore default kdump cfg')
             utils_lib.run_cmd(self, "sudo systemctl start kdump", expect_ret=0, msg='start kdump')
             
 if __name__ == '__main__':

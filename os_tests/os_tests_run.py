@@ -22,61 +22,52 @@ logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 
 def main():
     args = init_args()
-    cfg_file, cfg_data = get_cfg()
-    cfg_data['run_uuid'] = str(uuid.uuid4())
-    update_cfgs(cfg_data, vars(args))
+    params = get_cfg()
+    params['run_uuid'] = str(uuid.uuid4())
+    tmp_params = {}
+    if args.params_profile:
+        tmp_params = get_cfg(cfg_file=args.params_profile)
+        update_cfgs(params, tmp_params)
     vms, disks, nics, sshs = [], [], [], []
-    if args.platform_profile and not args.is_listcase and not args.verifydoc:
-        _, provider_data = get_cfg(cfg_file=args.platform_profile)
-        update_cfgs(cfg_data, provider_data, update_exists_keys=True)
-        provider_data = update_cfgs(cfg_data, provider_data, keep_base=True)
-        vms, disks, nics = init_provider(params=provider_data)
+    if params.get('Cloud') or args.platform_profile:
+        if args.platform_profile:
+            provider_data = get_cfg(cfg_file=args.platform_profile)
+            update_cfgs(params, provider_data)
+        if not args.is_listcase and not args.verifydoc and not args.dumpdoc:
+            vms, disks, nics = init_provider(params=params)
+    update_cfgs(params, vars(args))
 
     if args.remote_nodes:
-        cfg_data['remote_nodes'] = args.remote_nodes.split(',')
-        cfg_data['remote_node'] =  cfg_data['remote_nodes'][0]
+        params['remote_nodes'] = args.remote_nodes.split(',')
+        params['remote_node'] =  params['remote_nodes'][0]
 
     is_rmt = bool(args.remote_nodes or vms)
 
-    results_dir = cfg_data['results_dir']
-    if os.path.exists(results_dir) and not args.is_listcase:
+    results_dir = params['results_dir']
+    if os.path.exists(results_dir) and not params.get('is_listcase'):
         rmtree(results_dir)
         log.info("saving results to {}".format(results_dir))
     os_tests_dir = os.path.dirname(__file__)
-    skip_patterns = args.skip_pattern
-    test_patterns = args.pattern
-    if args.image is not None:
-        if 'azure' in args.image:
-            log.info("only run azure image checks")
-            if args.pattern:
-                test_patterns = args.pattern
-            else:
-                test_patterns = 'test_azure_image'
-        elif 'gcp' in args.image:
-            log.info("only run gcp image checks")
-            if args.pattern:
-                test_patterns = args.pattern
-            else:
-                test_patterns = 'test_gcp_image'
-        elif 'kvm' in args.image:
-            log.info("only run rhel guest image checks")
-            if args.pattern:
-                test_patterns = args.pattern
-            else:
-                test_patterns = 'test_rhel_guest_image'
-        else:
-            log.info("only azure,gcp and rhel-kvm image check supported for now")
+    skip_patterns = params.get('skip_pattern')
+    test_patterns = params.get('pattern')
+    images_check = {'azure':'test_azure_image', 'gcp':'test_gcp_image',
+                   'kvm':'test_rhel_guest_image','rhel-kvm':'test_rhel_guest_image'}
+    
+    if params.get('image') is not None:
+        if params.get('image') not in images_check.keys():
+            log.info("only {} image check supported for now".format(images_check.keys() ))
             sys.exit(0)
+        test_patterns =  "{}{}{}".format(test_patterns or '', test_patterns and ',' or '',images_check.get(params.get('image')))   
     else:
-        log.info("skip azure,gcp and rhel-kvm image check by default")
-        if skip_patterns and not args.verifydoc:
+        log.info("skip {} image check by default".format(images_check.keys()))
+        if skip_patterns and not params.get('verifydoc'):
             skip_patterns = skip_patterns + ',test_azure_image,test_gcp_image,test_rhel_guest_image'
         else:
-            if not args.verifydoc:
+            if not params.get('verifydoc'):
                 skip_patterns = 'test_azure_image,test_gcp_image,test_rhel_guest_image'
 
     log.info("{}Stage: Run Test{}".format('='*20,'='*20))
-    log.info("Run in mode: is_listcase:{} test_patterns:{} skip_patterns:{}".format(args.is_listcase, test_patterns, skip_patterns))
+    log.info("Run in mode: is_listcase:{} test_patterns:{} skip_patterns:{}".format(params.get('is_listcase'), test_patterns, skip_patterns))
 
     base_dir = os.path.realpath(os_tests.__file__)
     utils_dir = os.path.dirname(base_dir) + '/utils'
@@ -92,8 +83,8 @@ def main():
                 try:
                     for case in ts2._tests:
                         case.is_rmt = is_rmt
-                        case.params = cfg_data
-                        case.run_uuid = cfg_data.get('run_uuid')
+                        case.params = params
+                        case.run_uuid = params.get('run_uuid')
                         case.utils_dir = utils_dir
                         case.data_dir = data_dir
                         case.SSHs = sshs
@@ -105,13 +96,13 @@ def main():
                         case.nics = nics
                         case.nic = case.nics and nics[0] or None
                         if filter_case_doc(case=case, patterns=test_patterns, skip_patterns=skip_patterns,
-                                           filter_field=args.filter_by, strict=args.is_strict, verify_doc=args.verifydoc):
+                                           filter_field=params.get('filter_by'), strict=params.get('is_strict'), verify_doc=params.get('verifydoc')):
                             tests_list.append(case)
                 except Exception as err:
                     log.info("Cannot handle ts discovered:{}".format(ts2))
                     log.info(err)
     # sort cases following the patterns specified order
-    if test_patterns and 'case_name' in args.filter_by:
+    if test_patterns and 'case_name' in params.get('filter_by'):
         sorted_tests = []
         for pattern in test_patterns.split(','):
             for case in tests_list:
@@ -122,8 +113,8 @@ def main():
     if final_ts.countTestCases() == 0:
         log.info("No case found!")
         sys.exit(1)
-    if args.is_listcase or args.verifydoc or args.dumpdoc:
-        if args.dumpdoc:
+    if params.get('is_listcase') or params.get('verifydoc') or params.get('dumpdoc'):
+        if params.get('dumpdoc'):
             tmp_yaml_data = {}
             for case in final_ts:
                 yaml_data = {}
@@ -138,9 +129,9 @@ def main():
                     yaml_data['description'] = src_content
                 yaml_data['case_name'] = case.id()
                 tmp_yaml_data[case.id()] = yaml_data
-            with open(args.dumpdoc,'w') as fh:
+            with open(params.get('dumpdoc'),'w') as fh:
                 dump(tmp_yaml_data,fh)
-                log.info("Saved casesdoc to {}".format(args.dumpdoc))
+                log.info("Saved casesdoc to {}".format(params.get('dumpdoc')))
         case_name_list = [ case.id() for case in final_ts ]
         log.info('\n'.join(["{} - {}/{}".format(case_name,case_name_list.index(case_name)+1,len(case_name_list)) for case_name in case_name_list]))
         log.info("Total case num: %s"%final_ts.countTestCases())
@@ -148,7 +139,7 @@ def main():
         HTMLTestRunner(verbosity=2).run(final_ts)
 
     for res in chain(vms, disks, nics):
-        if args.no_cleanup:
+        if params.get('no_cleanup'):
             log.info("skipped resource cleanup because --no-cleanup found, please release resources manually")
             for i in chain(vms, disks, nics):
                 if i.id:
