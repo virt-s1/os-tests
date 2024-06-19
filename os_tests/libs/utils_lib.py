@@ -59,8 +59,10 @@ def init_args():
                     help='save result to specific directory', required=False)
     parser.add_argument('--image', dest='image', default=None, action='store',
                     help='specify azure to run azure image check only', required=False)
+    parser.add_argument('--params_profile', dest='params_profile', default=None, action='store',
+                    help='params in yaml file, you can also put platform_profile content in this file', required=False)
     parser.add_argument('--platform_profile', dest='platform_profile', default=None, action='store',
-                    help='specify platform profile if enable os-tests provison vms self, only supports aws for now', required=False)
+                    help='specify platform profile if enable os-tests provison vms self, [alicloud, aws, azure, gcp, openstack, libvirt, nutanix, openshift, openstack]', required=False)
     parser.add_argument('--no-cleanup', dest='no_cleanup', action='store_true',
                     help='debug purpose, skip cleanup phase at exit, do not use it in normal test', required=False)
     parser.add_argument('--proxy_url', dest='proxy_url', default=None, action='store',
@@ -152,17 +154,17 @@ def init_provider_from_guest(test_instance):
         provider = 'google'
     os.environ['INFRA_PROVIDER'] = provider
 
-def update_cfgs(base_cfg={}, new_cfg={}, keep_base = False, update_exists_keys = False):
+def update_cfgs(base_cfg={}, new_cfg={}, keep_base = False, only_update_exists_keys = False):
     '''
     update base_cfg according to new_cfg
-    keep_base: yes or no to change base_cfg
-    update_exists_keys: yes or no to update base_cfg if base_cfg has the same key
+    keep_base: True or False to change base_cfg
+    only_update_exists_keys: True or False to update base_cfg if base_cfg has the same key
     '''
     if keep_base:
         tmp_cfg = deepcopy(base_cfg)
     else:
         tmp_cfg = base_cfg
-    if update_exists_keys:
+    if only_update_exists_keys:
         for key in new_cfg.keys():
             if new_cfg.get(key) is not None and key in tmp_cfg.keys():
                 tmp_cfg[key] = new_cfg.get(key)
@@ -302,19 +304,23 @@ def send_ssh_cmd(rmt_node, rmt_user, rmt_password, command, timeout=60,log=None)
 
     return [status,outputs]
 
-def get_cfg(cfg_file = None):
+def get_cfg(cfg_file = None, log=None):
     # Config file
     if not cfg_file:
         cfg_file = os.path.dirname(os_tests.__file__) + "/cfg/os-tests.yaml"
+    if log is None:
+        LOG_FORMAT = '%(levelname)s:%(message)s'
+        log = logging.getLogger(__name__)
+        logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
+    log.info("load/update params from {}".format(cfg_file))
     if not os.path.exists(cfg_file):
-        print("{} config file not found!".format(cfg_file))
+        log.info("{} config file not found!".format(cfg_file))
         sys.exit(1)
-        return cfg_file, None
     keys_data = load_yaml(yaml_file=cfg_file)
     if keys_data.get('remote_nodes'):
         keys_data['remote_nodes'] = keys_data['remote_nodes'].split(',')
         keys_data['remote_node'] =  keys_data['remote_nodes'][0]
-    return cfg_file, keys_data
+    return keys_data
 
 def load_yaml(yaml_file = None, yaml_content = None):
     keys_data = None
@@ -335,7 +341,7 @@ def init_case(test_instance):
         test_instance {Test instance} -- unittest.TestCase instance
     """
     if not hasattr(test_instance,'params'):
-        cfg_file, keys_data = get_cfg()
+        keys_data = get_cfg()
         test_instance.params = keys_data
     results_dir = test_instance.params['results_dir']
     attachment_dir = results_dir + "/attachments"
@@ -367,7 +373,7 @@ def init_case(test_instance):
     test_instance.log.info("Case Doc: {}".format(eval(test_instance.id()).__doc__))
     test_instance.log.info("Case Params:")
     for key in test_instance.params.keys():
-        if key in ['password', 'subscription_username', 'subscription_password']:
+        if key in ['password', 'subscription_username', 'subscription_password'] or 'password' in key:
             test_instance.log.info("key:{}, val:*******".format(key))
         else:
             test_instance.log.info("key:{}, val:{}".format(key, test_instance.params[key]))
@@ -419,13 +425,11 @@ ssh_pwauth: False
         node_info_data['kernel_version'] = run_cmd(test_instance, 'uname -r').rstrip('\n| ')
         node_info_data['product_name'] = run_cmd(test_instance, 'cat /sys/devices/virtual/dmi/id/product_name').rstrip('\n| ')
         node_info_data['sys_vendor'] = run_cmd(test_instance, 'cat /sys/devices/virtual/dmi/id/sys_vendor').rstrip('\n| ')
-        #with open(node_info, 'w+') as fh:
-        #    fh.write("{} {} - {}".format(release_name, release_version, kernel_version))
         with open(node_info, 'w+') as fh:
             dump(node_info_data,fh)
         test_instance.node_info = node_info_data
     else:
-        _, test_instance.node_info = get_cfg(cfg_file=node_info)
+        test_instance.node_info = get_cfg(cfg_file=node_info)
     init_provider_from_guest(test_instance)
     core_file_check(test_instance)
     extra_case_setups = test_instance.params.get('case_setup')

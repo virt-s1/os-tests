@@ -38,20 +38,7 @@ class EC2VM(VMResource):
         self.ipv4 = None
         self.ipv6 = None
         self.vm_username = params.get('remote_user')
-        if vendor == "amzn2_x86":
-            self.ami_id = params.get('amzn2_ami_id_x86')
-            self.vm_username = params.get('amzn2_ssh_user')
-        elif vendor == "amzn2_arm":
-            self.ami_id = params.get('amzn2_ami_id_arm')
-            self.vm_username = params.get('amzn2_ssh_user')
-        elif vendor == "ubuntu_x86":
-            self.ami_id = params.get('ubuntu_ami_id_x86')
-            self.vm_username = params.get('ubuntu_ssh_user')
-        elif vendor == "ubuntu_arm":
-            self.ami_id = params.get('ubuntu_ami_id_arm')
-            self.vm_username = params.get('ubuntu_ssh_user')
-        else:
-            self.ami_id = params.get('ami_id')
+        self.ami_id = params.get('ami_id')
         if params.get('instance_type') and ',' in params.get('instance_type'):
             self.instance_type = params.get('instance_type').split(',')[0]
         else:
@@ -673,10 +660,7 @@ class EC2Volume(StorageResource):
         self.subnet = self.resource.Subnet(self.subnet_id)
         self.zone = self.subnet.availability_zone
         LOG.info('Get zone from subnet {}'.format(self.zone))
-        if params.get('tagname'):
-            self.tag = params.get('tagname')
-        else:
-            self.tag = 'os_tests_storage_ec2'
+        self.tag =  params.get('tagname') or 'os_tests_storage_ec2'
         self.outpostarn = params.get('outpostarn')
         self.type = 'standard'
         self.iops = None
@@ -868,10 +852,7 @@ class EC2NIC(NetworkResource):
 
         self.zone = self.subnet.availability_zone
         LOG.info("Get zone from current instance's subnet {}".format(self.zone))
-        if params.get('tagname'):
-            self.tag = params.get('tagname')
-        else:
-            self.tag = 'os_tests_network_ec2'
+        self.tag = params.get('tagname') or 'os_tests_network_ec2'
         self.outpostarn = params.get('outpostarn')
         self.id = None
         self.security_group_ids = params.get('security_group_ids')

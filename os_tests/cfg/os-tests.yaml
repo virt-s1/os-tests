@@ -1,4 +1,4 @@
-# the default setting can be overwriten in platform profiles
+# the default setting can be overwriten in platform/params profiles or command line options
 code_repo: "https://github.com/virt-s1/os-tests"
 # save debug log to this dir
 results_dir: "/tmp/os_tests_result"
@@ -28,9 +28,48 @@ remote_user: ec2-user
 remote_keyfile: 
 # or password for remote access
 remote_password:
+# username for RHSM register
 subscription_username:
+# password for RHSM register
 subscription_password:
 # enable case result auto check, it calls the baseline_log.json data.
 enable_auto_result_check: True
 # specify the network bandwidth manually, it is optional, set to 100 which is max for most senarios
 net_bandwidth: 100
+# list supported cases without real run
+is_listcase: False
+# filter case by name and run it in specified order, add --strict for matching exactly
+pattern:
+# skip cases
+skip_pattern:
+# match exactly if pattern or skip_pattern specified
+is_strict: False
+# verify or show case doc only
+verifydoc: False
+# dump doc to yaml file
+dumpdoc: False
+# filter case from casedoc: "filter by 'case_name'(default),'case_tag','case_file','component','bugzilla_id',
+#                        'is_customer_case','testplan','maintainer','description','key_steps',
+#                        'expect_result','debug_want'"
+filter_by: 'case_name'
+# specify azure to run azure image check only
+image:
+# params in yaml file
+params_profile: 
+# specify platform profile if enable os-tests provison vms self, [alicloud, aws, azure, gcp, openstack, libvirt, nutanix, openshift, openstack]
+# the file is not required if you put content in params_profile
+platform_profile: 
+# debug purpose, skip cleanup phase at exit, do not use it in normal test
+no_cleanup: False
+# specify it if pkg/repo url is internal only, format IP:PORT
+proxy_url: 
+# fips_enable,fips_disable,debugkernel_enable,debugkernel_disable,commands or a bash file 
+# before running into case steps,can add timeout:XXX if default 600 is not enough for operation done
+case_setup:
+# collect_kmemleak, other args are similar as case_setup, 
+# usually for collecting temporary debug information, can add timeout:XXX if default 600 is not enough for operation done
+case_post:
+# specify it when using the internal repos for dnf update, can pass more seperated by ","
+dnf_repo_url:
+# specify it when leapp upgrade via custom repo, can pass more seperated by ","
+leapp_target_repo_url:

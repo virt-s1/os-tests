@@ -111,7 +111,7 @@ class TestNetworkTest(unittest.TestCase):
             cmd = "sudo ethtool -G {} rx {}".format(self.active_nic , rx)
             output = utils_lib.run_cmd(self, cmd, msg="Set rx")
             if "not supported" not in output:
-                utils_lib.run_cmd(self, query_cmd, expect_kw="RX:\t\t{}".format(rx), msg="Check rx")
+                utils_lib.run_cmd(self, query_cmd, expect_kw="RX:.*{}".format(rx), msg="Check rx")
                 #cmd = "sudo ethtool -G {} rx 0".format(self.active_nic )
                 #utils_lib.run_cmd(self, cmd, expect_kw="Invalid argument", msg="Check rx cannot set to 0")
                 cmd = "sudo ethtool -G {} rx -1".format(self.active_nic )
@@ -126,11 +126,11 @@ class TestNetworkTest(unittest.TestCase):
             cmd = "sudo ethtool -G {} rx-mini {}".format(self.active_nic , rx_mini )
             output = utils_lib.run_cmd(self, cmd, msg="Set rx-mini")
             if "not supported" not in output:
-                out = utils_lib.run_cmd(self, query_cmd, expect_kw="RX Mini:\t{}".format(rx_mini), msg="Check rx-mini")
+                out = utils_lib.run_cmd(self, query_cmd, expect_kw="RX Mini:.*{}".format(rx_mini), msg="Check rx-mini")
                 if "RX Mini:\t0" not in out:
                     cmd = "sudo ethtool -G {} rx-mini 0".format(self.active_nic )
                     utils_lib.run_cmd(self, cmd)
-                    utils_lib.run_cmd(self, query_cmd, expect_kw="RX Mini:\t0", msg="Check rx-mini canset to 0")
+                    utils_lib.run_cmd(self, query_cmd, expect_kw="RX Mini:.*0", msg="Check rx-mini canset to 0")
                 cmd = "sudo ethtool -G {} rx-mini -1".format(self.active_nic )
                 utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg="Check rx cannot rx-mini to -1")
         if max_rx_jumbo is not None and 'n/a' not in max_rx_jumbo and int(max_rx_jumbo) > 0:
@@ -143,7 +143,7 @@ class TestNetworkTest(unittest.TestCase):
             cmd = "sudo ethtool -G {} rx-jumbo {}".format(self.active_nic , rx_jumbo)
             output = utils_lib.run_cmd(self, cmd, msg="Set rx_jumbo")
             if "not supported" not in output:
-                out = utils_lib.run_cmd(self, query_cmd, expect_kw="RX Jumbo:\t{}".format(rx_jumbo), msg="Check rx_jumbo")
+                out = utils_lib.run_cmd(self, query_cmd, expect_kw="RX Jumbo:.*{}".format(rx_jumbo), msg="Check rx_jumbo")
                 if "RX Jumbo:\t0" not in out:
                     cmd = "sudo ethtool -G {} rx-jumbo 0".format(self.active_nic )
                     #utils_lib.run_cmd(self, cmd, expect_kw="Invalid argument", msg="Check rx-jumbo cannot set to 0")
@@ -160,7 +160,7 @@ class TestNetworkTest(unittest.TestCase):
             cmd = "sudo ethtool -G {} tx {}".format(self.active_nic , tx)
             output = utils_lib.run_cmd(self, cmd, msg="Set tx")
             if "not supported" not in output:
-                utils_lib.run_cmd(self, query_cmd, expect_kw="TX:\t\t{}".format(tx), msg="Check tx")
+                utils_lib.run_cmd(self, query_cmd, expect_kw="TX:.*{}".format(tx), msg="Check tx")
                 #cmd = "sudo ethtool -G {} tx 0".format(self.active_nic )
                 #utils_lib.run_cmd(self, cmd, expect_kw="Invalid argument", msg="Check tx cannot set to 0")
                 cmd = "sudo ethtool -G {} tx -1".format(self.active_nic )
@@ -371,7 +371,7 @@ class TestNetworkTest(unittest.TestCase):
         output = utils_lib.run_cmd(self, cmd, expect_ret=0)
         if 'ena' in output:
             self.log.info('ena driver found!')
-            if float(product_id) > 8.4:
+            if float(product_id) > 8.4 or product_id == '8.10':
                 cmd = "ethtool -S {}|grep xdp".format(self.active_nic )
                 utils_lib.run_cmd(self, cmd, expect_ret=0,msg='Check if have xdp information')
             else:
@@ -2311,7 +2311,7 @@ COMMIT
         output = utils_lib.run_cmd(self, cmd, expect_ret=0)
         if 'ena' in output:
             self.log.info('ena driver found!')
-            if float(product_id) > 8.4:
+            if float(product_id) > 8.4 or product_id == '8.10':
                 cmd = "ethtool -S {}|grep xdp".format(self.active_nic )
                 utils_lib.run_cmd(self, cmd, expect_ret=0,msg='Check if have xdp information')
             else:

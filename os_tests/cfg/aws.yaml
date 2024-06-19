@@ -30,12 +30,6 @@ volume_size : 10
 # optional, amazon and ubuntu AMIs for boot preformance comparing
 # specify outpostsarn if test on outposts system
 #outpostarn : arn:aws:outposts:xxxxxx
-amzn2_ami_id_x86 : ami-0a36eb8fadc976275
-amzn2_ami_id_arm : ami-0bdfb42effc4b150f
-amzn2_ssh_user : ec2-user
-ubuntu_ami_id_x86 : ami-07dd19a7900a1f049
-ubuntu_ami_id_arm : ami-03c1b544a7566b3e5
-ubuntu_ssh_user : ubuntu
 # specify allowed ration in test eg. amazon 23s, rhel 40s, (40-23/23)*100 > 70, the test will fail
 boottime_max_ratio : 70
 net_max_ratio : 10
@@ -51,7 +45,5 @@ net_bandwidth: None
 # Add case name into support cases if support versions are undefined when testing fixed scratch build
 # For example ["case1","case2"]
 support_cases: None
-subscription_username:
-subscription_password:
 # Test with amdsevsnp enabled, us-east-2 supports this feature
 amdsevsnp: False

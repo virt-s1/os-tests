@@ -505,7 +505,7 @@ int main(int argc, char *argv[])
         if not (utils_lib.is_aws(self) or utils_lib.is_azure(self)):
             self.skipTest('Auto registeration only supports AWS and Azure platforms for now.')
         product_id = utils_lib.get_product_id(self)
-        if float(product_id) < 8.4:
+        if float(product_id) < 8.4 and product_id != '8.10':
             self.skipTest('skip in earlier than el8.4')
 
         self.log.info('If your aws/azure account is not linked to Red Hat customer portal, the case will fail.')
