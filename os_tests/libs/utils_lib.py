@@ -77,6 +77,8 @@ def init_args():
                     help='specify it when using the internal repos for dnf update, seperated by ","', required=False)
     parser.add_argument('--leapp_target_repo_url', dest='leapp_target_repo_url', default=None, action='store',
                     help='specify it when leapp upgrade via custom repo, seperated by ","', required=False)
+    parser.add_argument('--pkgs', dest='pkgs', default=None, action='store',
+                    help='specify packages names you want to install, seperated by ","', required=False)
     args = parser.parse_args()
     return args
 
@@ -438,7 +440,7 @@ def finish_case(test_instance):
     """
     for case, reason in chain(test_instance._outcome.result.failures,test_instance._outcome.result.errors):
         if case.id() == test_instance.id():
-             test_instance.log.info(reason)
+            test_instance.log.info(reason)
     extra_case_posts = test_instance.params.get('case_post')
     extra_step_parser(test_instance, extra_steps=extra_case_posts)
 
@@ -1093,9 +1095,9 @@ def is_cmd_exist(test_instance, cmd=None, is_install=True, cancel_case=False, rm
     run_cmd(test_instance, "sudo yum install -y {}".format(pkg_name), expect_ret=0, timeout=720, rmt_node=rmt_node, vm=vm)
     return True
 
-def is_pkg_installed(test_instance, pkg_name=None, is_install=True, cancel_case=False, timeout=120, rmt_node=None, vm=None):
+def is_pkg_installed(test_instance, pkg_name=None, is_install=True, cancel_case=False, timeout=1200, rmt_node=None, vm=None):
     '''
-    check if package is installed, if no, try to install it.
+    check if package is installed, if not, try to install it.
     Arguments:
         test_instance {Test instance} -- test instance
         pkg_name {string} -- checked package name
@@ -1146,7 +1148,7 @@ def pkg_install(test_instance, pkg_name=None, pkg_url=None, force=False, rmt_nod
             else:
                 test_instance.log.info("Reinstall {} from default repo".format(pkg_name))
                 cmd = 'sudo yum -y reinstall %s' % pkg_name
-            run_cmd(test_instance, cmd, timeout=1200,rmt_node=rmt_node, vm=vm)
+            run_cmd(test_instance, cmd, timeout=1200, rmt_node=rmt_node, vm=vm)
 
         if not is_pkg_installed(test_instance, pkg_name=pkg_name, cancel_case=False, is_install=False, rmt_node=rmt_node, vm=vm) and pkg_url is not None and force:
             test_instance.log.info('Install without dependences!')

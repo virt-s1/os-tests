@@ -109,26 +109,6 @@ class TestRHELCert(unittest.TestCase):
             cmd = 'sudo bash -c "rm -rf /var/rhcert/*"'
             utils_lib.run_cmd(self, cmd, msg='cleanup prior test result')
         else:
-            '''
-            if os.getenv('INFRA_PROVIDER') == 'ali':
-                #Register to rhsm
-                self.log.info("Register to rhsm")
-                reg_cmd = "sudo subscription-manager register --username {0} --password {1} --force".format(
-                    self.params.get('subscription_username'),
-                    self.params.get('subscription_password'))
-                utils_lib.run_cmd(self, reg_cmd, timeout=600, is_log_cmd=False, expect_ret=0)
-                utils_lib.run_cmd(self, reg_cmd, timeout=600,
-                            rmt_node=self.params['remote_nodes'][-1],
-                            is_log_cmd=False,
-                            expect_ret=0)
-            if os.getenv('INFRA_PROVIDER') == 'aws':
-                #Enable auto registration
-                cmds_autoreg = [ "sudo subscription-manager config --rhsmcertd.auto_registration=1 --rhsm.manage_repos=0 --rhsmcertd.auto_registration_interval=1", "sudo systemctl restart rhsmcertd" ]
-                for cmd in cmds_autoreg:
-                    utils_lib.run_cmd(self, cmd, timeout=600, expect_ret=0)
-                    utils_lib.run_cmd(self, cmd, timeout=600, rmt_node=self.params['remote_nodes'][-1], expect_ret=0)
-                time.sleep(180)
-            '''
             utils_lib.rhsm_register(self, cancel_case=True)
             utils_lib.rhsm_register(self, cancel_case=True, rmt_node=self.params['remote_nodes'][-1])
             cmds_enablerepo = [ "sudo subscription-manager status",
