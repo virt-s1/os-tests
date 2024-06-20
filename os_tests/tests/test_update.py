@@ -12,6 +12,10 @@ class TestUpgrade(unittest.TestCase):
     def setUp(self):
         utils_lib.init_case(self)
         self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='sudo dmesg -T')
+        utils_lib.run_cmd(self,
+                        "sudo uname -r",
+                        expect_ret=0,
+                        msg='Check current kernel version')
 
     @property
     def rhel_x_version(self):
@@ -189,17 +193,13 @@ gpgcheck=0
             n/a
         """
         utils_lib.run_cmd(self,
-                        "sudo uname -r",
-                        expect_ret=0,
-                        msg='Check current kernel version')
-        utils_lib.run_cmd(self,
                         "sudo cat /etc/redhat-release",
                         expect_ret=0,
                         msg='check current rhel release')
         x_version = self.rhel_x_version
 
         #Prepare dnf_repo for internal update
-        if self.params.get('dnf_repo_url') is not None:
+        if self.params.get('dnf_repo_url'):
             self._configure_repo('dnf_repo', 'dnf_repo_url')
             #prepare dnf update
             cmd = "sudo yum remove -y $(rpm -qa|grep -v $(uname -r)|grep kernel-core|head -1)"
@@ -836,6 +836,38 @@ gpgcheck=0
         x_version_upgrade = self.rhel_x_version
         if x_version_upgrade != x_version + 1:
             self.FailTest('Leapp upgrade failed since did not upgrade to target release')
+
+    def test_pkg_install(self):
+        if self.params.get('dnf_repo_url'):
+            self._configure_repo('dnf_repo', 'dnf_repo_url')
+        if self.params.get('pkgs'):
+            pkgs = self.params.get('pkgs')
+            self.log.info("print pkgs %s" % (pkgs))
+            pkgs_list = [pkg.strip() for pkg in pkgs.split(',')]
+            self.log.info("print pkgs %s" % (pkgs))
+            pkg_url = self.params.get('pkg_url')
+            found_kernel_rt = any("kernel-rt" in pkg for pkg in pkgs_list)
+            if found_kernel_rt:
+                utils_lib.rhsm_register(self, cancel_case=True)
+                cmd = "sudo subscription-manager repos --enable *-rt-rpms"
+                utils_lib.run_cmd(self, cmd, msg='Enable rt repos')
+            for pkg in pkgs_list:
+                if not pkg_url:
+                    utils_lib.run_cmd(self,
+                                    "sudo yum list %s --showduplicates" % (pkg),
+                                    expect_ret=0,
+                                    msg='Check available pkg versions')
+                utils_lib.pkg_install(self, pkg_name=pkg, force=False)
+            found_kernel = any("kernel" in pkg for pkg in pkgs_list)
+            if found_kernel:
+                utils_lib.run_cmd(self,
+                                "sudo reboot",
+                                msg='Reboot system to the latest kernel')
+                utils_lib.init_connection(self, timeout=self.ssh_timeout)
+                utils_lib.run_cmd(self,
+                                "sudo uname -r",
+                                expect_ret=0,
+                                msg='Check current kernel version')
 
     def tearDown(self):
         utils_lib.finish_case(self)
