@@ -814,6 +814,7 @@ def getboottime(test_instance):
     Arguments:
         test_instance {Test instance} -- unittest.TestCase instance
     '''
+    test_instance.log.info("Get boot time taken from systemd")
     run_cmd(test_instance, "which systemd-analyze", expect_ret=0)
     time_start = int(time.time())
     while True:

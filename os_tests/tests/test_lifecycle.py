@@ -691,6 +691,87 @@ class TestLifeCycle(unittest.TestCase):
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
             utils_lib.run_cmd(self, 'uname -r', msg='check kernel', expect_ret=0, expect_kw=kernel[7:])
 
+    def test_launch_pingable(self):
+        """
+        case_name:
+            test_launch_pingable
+        case_tags:
+            kernel
+        case_status:
+            approved
+        title:
+            check the time taken between system launch and pingable
+        importance:
+            low
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            automated
+        linked_work_items:
+            jira_RHEL-40816
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_lifecycle.py
+        setup_teardown:
+            firewall or security group allow ping
+        environment:
+            N/A
+        component:
+            component
+        bug_id:
+            jira_RHEL-40816
+        is_customer_case:
+            True
+        testplan:
+            N/A
+        test_type:
+            functional
+        test_level:
+            Component
+        maintainer:
+            xiliang@redhat.com
+        description: |
+            check the time taken between system launch and pingable, kernel might take extra time at very early stage which systemd-analyze does not know.
+        key_steps: |
+            - record the time of create new instance
+            - record the time of instance is pingable
+        expected_result: |
+            should be less than max_boot_time set in configuration. We can update the threshold after we have more data of this case.
+        debug_want: |
+            console output
+        """
+        if not self.vm:
+            self.skipTest('vm not init')
+        if self.vm.exists():
+            self.vm.delete()
+            time.sleep(30)
+        self.vm.create()
+        new_ip = self.vm.floating_ip
+        ping_cmd = "ping -c 1 {} -W 2".format(new_ip)
+        time_start = int(time.time())
+        while True:
+            ret, _ = utils_lib.run_cmd_local(ping_cmd,is_log_ret=True)
+            time_end = int(time.time())
+            time_taken = time_end - time_start
+            if int(ret) == 0:
+                break
+            if time_taken > self.ssh_timeout:
+                try:
+                   self.vm.get_console_log()
+                except NotImplementedError:
+                    self.log.info("{} not implement this func: get_console_log".format(self.vm.provider))
+                self.log.info("Please make sure your network setting allow ping before reporting bugs")
+                self.fail("system is not pingable after {}s".format(self.ssh_timeout))
+            time.sleep(1)
+        self.log.info("time taken between launch and pingable: {}".format(time_taken))
+        
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        utils_lib.getboottime(self)
+        
+        try:
+           self.vm.get_console_log()
+        except NotImplementedError:
+            self.log.info("{} not implement this func: get_console_log".format(self.vm.provider))
+
     def test_check_secure_boot(self):
         """
         case_tag:

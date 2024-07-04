@@ -2273,6 +2273,8 @@ COMMIT
         """
         cmd = "sudo ethtool -l {}|grep Combined|uniq".format(self.active_nic )
         out = utils_lib.run_cmd(self, cmd)
+        if 'not supported' in out:
+            self.skipTest("skip as {}:{}".format(self.active_nic,out))
         queue_count = out.split()[-1]
         if int(queue_count) < 2:
             self.skipTest("skip when queue count smaller than 2, current {}".format(queue_count))

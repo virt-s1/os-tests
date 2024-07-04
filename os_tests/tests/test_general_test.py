@@ -164,7 +164,7 @@ class TestGeneralTest(unittest.TestCase):
         component:
             kernel
         bug_id:
-            bugzilla_2160354,bugzilla_1716271,kcs_4463681
+            jira_RHEL-44982,bugzilla_2160354,bugzilla_1716271,kcs_4463681
         is_customer_case:
             True
         testplan:
