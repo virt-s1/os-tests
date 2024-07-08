@@ -781,7 +781,8 @@ class TestGuestImage(unittest.TestCase):
         """
         enabled_services = ['tuned', 'rhsmcertd']
         product_id = utils_lib.get_product_id(self)
-        if float(product_id) <= 7.0:
+        # TODO: rhsmcertd is disabled in 10-beta
+        if float(product_id) <= 7.0 or float(product_id) == 10.0:
             enabled_services = ['tuned']
         services = enabled_services
         for service in services:
