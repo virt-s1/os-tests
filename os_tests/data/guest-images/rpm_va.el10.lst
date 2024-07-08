@@ -1,0 +1,20 @@
+.M.......  g /var/spool/anacron/cron.daily
+.M.......  g /var/spool/anacron/cron.monthly
+.M.......  g /var/spool/anacron/cron.weekly
+.M.......  c /etc/audit/rules.d/audit.rules
+.M.......    /var/lib/gssproxy/clients
+.M.......    /var/lib/gssproxy/rcache
+.M.......  g /boot/symvers-6.10.0-0.rc4.11.el10.x86_64.xz
+..5....T.  c /etc/dnf/plugins/product-id.conf
+..5....T.  c /etc/dnf/plugins/subscription-manager.conf
+.......T.    /boot/efi/EFI/BOOT/BOOTX64.EFI
+.......T.    /boot/efi/EFI/BOOT/fbx64.efi
+.......T.    /boot/efi/EFI/redhat/BOOTX64.CSV
+.......T.    /boot/efi/EFI/redhat/mmx64.efi
+.......T.    /boot/efi/EFI/redhat/shim.efi
+.......T.    /boot/efi/EFI/redhat/shimx64-redhat.efi
+.......T.    /boot/efi/EFI/redhat/shimx64.efi
+.M.......    /boot/grub2/fonts/unicode.pf2
+.M.......  c /boot/grub2/grub.cfg
+.M.......  c /boot/grub2/grub.cfg
+S.5....T.  c /etc/ssh/sshd_config
