@@ -23,6 +23,8 @@ tagname : os_tests_aws
 # optional(imdsv1 and v2)|required(imdsv2 only)
 httptokens : optional
 # default root volume setting
+# volume_type: 'standard'|'io1'|'io2'|'gp2'|'sc1'|'st1'|'gp3' or other supported
+volume_type : 'gp3'
 volume_size : 10
 # you can pass multipe info seperated by ';', if one cannot start instance, will use anothers
 # "ignore-no-launches=true,target-droplet=$ip;ignore-no-launches=true,target-droplet=$ip"

@@ -24,6 +24,7 @@ class Result:
         self.run_time = 0
         self.table_rows = []
         self.node_info = None
+        self.run_date = time.asctime()
 
     def compute_totals(self):
         self.total = self.case_pass + self.case_error + self.case_fail + self.case_skip

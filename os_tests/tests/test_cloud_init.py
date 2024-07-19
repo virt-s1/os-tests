@@ -152,7 +152,7 @@ class TestCloudInit(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, cancel_ret='0', msg = "Only used in EC2 platform")
         cmd = "sudo rpm -ql cloud-init|grep -w DataSourceEc2.py"
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Get DataSourceEc2.py')
-        cmd = "sudo cat " + output + "|grep IMDSv2"
+        cmd = "sudo cat " + output.strip('\n') + "|grep IMDSv2"
         utils_lib.run_cmd(self, cmd,
                     cancel_kw="Fetching Ec2 IMDSv2 API Token",
                     msg='Check IMDSv2 support')
