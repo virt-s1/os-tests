@@ -162,13 +162,14 @@
         "trigger": ""
     },
     "msg_20": {
-        "content": "pci 0000:00:02.0: BAR 13: failed to assign [io  size 0x10000]",
-        "analyze": "appears in bare metal instance or esx platform, no functional impact",
+        "content": "pci 0000:00:02.0: BAR 13: failed to assign [io  size 0x10000];.*can't assign.* no space.*;.*failed to assign.*",
+        "analyze": "appears in bare metal instance or esx platform, info only if there is no functional impact, check lspci -vvv output",
         "branch": "rhel7,rhel8",
         "status": "active",
-        "link": "https://access.redhat.com/solutions/3144711",
+        "link": "https://access.redhat.com/solutions/3144711,https://issues.redhat.com/browse/RHEL-37527",
         "path": "dmesg or journal",
-        "trigger": ""
+        "trigger": "",
+        "addedby": "xiliang@redhat.com"
     },
     "msg_21": {
         "content": "ipmi_si dmi-ipmi-si.0: Interface detection failed",

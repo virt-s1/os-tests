@@ -1311,6 +1311,8 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
             nouveau is no in lsmod and is in blacklist
         debug_want:
             lsmod
+            sos report
+            boot with rd.debug
         """
         utils_lib.is_aws(self, action='cancel')
         utils_lib.run_cmd(self, 'cat /etc/redhat-release', cancel_not_kw='CentOS', msg='skip this check on centos, rhbz1645772')
