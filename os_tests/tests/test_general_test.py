@@ -1097,8 +1097,8 @@ if __name__ == "__main__":
             test_grub2_mkconfig
         component:
             osbuild-composer
-        bugzilla_id:
-            bz2056251
+        bug_id:
+            jira_RHEL-4386, bugzilla_2056251
         is_customer_case:
             True
         maintainer:
@@ -1110,11 +1110,13 @@ if __name__ == "__main__":
             2.cat /tmp/grub.cfg
         expect_result:
             there are {saved_entry} in grub.cfg
-        debug_want:
+        debug_want: |
             grub.cfg
+            /etc/default/grub
         """
         if utils_lib.is_arch(self, arch='s390x'):
             self.skipTest("Skip grub check on s390x")
+        utils_lib.run_cmd(self,'sudo cat /etc/default/grub',msg="show default grub setting")
         cmd = 'rpm -qa "grub2*"'
         utils_lib.run_cmd(self,cmd,msg="show grub version")
         cmd = 'grub2-mkconfig -h'

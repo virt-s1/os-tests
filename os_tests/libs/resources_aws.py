@@ -76,6 +76,7 @@ class EC2VM(VMResource):
         self.secondary_ip_list = []
         # efa_support default set to False, will query instance property next
         self.efa_support = False
+        self.volume_type = params.get('volume_type') or 'gp3'
         self.volume_size = params.get('volume_size') or 10
         self.subscription_username = params.get('subscription_username')
         self.subscription_password = params.get('subscription_password')
@@ -133,6 +134,7 @@ class EC2VM(VMResource):
                     'DeviceName': self.root_device_name,
                     'Ebs': {
                         'DeleteOnTermination': True,
+                        'VolumeType': self.volume_type,
                         'VolumeSize': self.volume_size,
                         # root disk must be encrypted when hibernation enabled
                         'Encrypted': enable_hibernation
@@ -208,7 +210,11 @@ class EC2VM(VMResource):
             vm_kwargs["NetworkInterfaces"][0]["AssociatePublicIpAddress"] = False
             vm_kwargs["NetworkInterfaces"][0]["SubnetId"] = self.subnet_id_ipv6only
             vm_kwargs["MetadataOptions"]["HttpProtocolIpv6"] = 'enabled'
-            
+
+        if 'io' in self.volume_type:
+            LOG.info("set iops to 3000 when volume type is {}".format(self.volume_type))
+            vm_kwargs["BlockDeviceMappings"][0]['Ebs']['Iops'] = 3000
+
         if not self.additionalinfo:
             LOG.info("Create instance {}".format(vm_kwargs))
             try:
@@ -663,7 +669,6 @@ class EC2Volume(StorageResource):
         self.tag =  params.get('tagname') or 'os_tests_storage_ec2'
         self.outpostarn = params.get('outpostarn')
         self.type = 'standard'
-        self.iops = None
         self.id = None
         self.iops = 3000
         self.size = 100
