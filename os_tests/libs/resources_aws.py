@@ -76,6 +76,7 @@ class EC2VM(VMResource):
         self.secondary_ip_list = []
         # efa_support default set to False, will query instance property next
         self.efa_support = False
+        self.customize_block_device_map = params.get('customize_block_device_map')
         self.volume_type = params.get('volume_type') or 'gp3'
         self.volume_size = params.get('volume_size') or 10
         self.subscription_username = params.get('subscription_username')
@@ -129,18 +130,6 @@ class EC2VM(VMResource):
             LOG.info('create with enclave enabled, change volume size to {}'.format(self.volume_size))
             self.volume_size = 50
         vm_kwargs = {
-            'BlockDeviceMappings':[
-                {
-                    'DeviceName': self.root_device_name,
-                    'Ebs': {
-                        'DeleteOnTermination': True,
-                        'VolumeType': self.volume_type,
-                        'VolumeSize': self.volume_size,
-                        # root disk must be encrypted when hibernation enabled
-                        'Encrypted': enable_hibernation
-                    },
-                },
-            ],
             "ImageId":self.ami_id,
             "InstanceType":self.instance_type,
             "MaxCount":1,
@@ -178,10 +167,24 @@ class EC2VM(VMResource):
                 'InstanceMetadataTags': 'enabled'
             }
         }
+        
         sshkey= sshkey or self.ssh_key_name
         if sshkey and sshkey != "DoNotSet" :
             vm_kwargs['KeyName'] = sshkey
         userdata= userdata or self.user_data
+        if self.customize_block_device_map or enable_hibernation:
+            vm_kwargs['BlockDeviceMappings'] = [
+                    {
+                        'DeviceName': self.root_device_name,
+                        'Ebs': {
+                            'DeleteOnTermination': True,
+                            'VolumeType': self.volume_type,
+                            'VolumeSize': self.volume_size,
+                            # root disk must be encrypted when hibernation enabled
+                            'Encrypted': enable_hibernation
+                        },
+                    },
+                ]
         if userdata:
             vm_kwargs['UserData'] = userdata
         if self.efa_support:

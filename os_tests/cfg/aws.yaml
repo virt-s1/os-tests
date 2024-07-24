@@ -23,6 +23,9 @@ tagname : os_tests_aws
 # optional(imdsv1 and v2)|required(imdsv2 only)
 httptokens : optional
 # default root volume setting
+# set customize_block_device_map to False to leave api to handle block device mapping.
+# when customize_block_device_map is False, volume_type and volume_size will not be used
+customize_block_device_map: True
 # volume_type: 'standard'|'io1'|'io2'|'gp2'|'sc1'|'st1'|'gp3' or other supported
 volume_type : 'gp3'
 volume_size : 10
