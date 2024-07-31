@@ -79,8 +79,12 @@ def init_args():
                     help='specify it when using the internal repos for dnf update, seperated by ","', required=False)
     parser.add_argument('--leapp_target_repo_url', dest='leapp_target_repo_url', default=None, action='store',
                     help='specify it when leapp upgrade via custom repo, seperated by ","', required=False)
+    parser.add_argument('--pkg_repo_url', dest='pkg_repo_url', default=None, action='store',
+                    help='specify it when using repos for package installation, seperated by ","', required=False)
     parser.add_argument('--pkgs', dest='pkgs', default=None, action='store',
                     help='specify packages names you want to install, seperated by ","', required=False)
+    parser.add_argument('--target_version', dest='target_version', default=None, action='store',
+                    help='specify the target version you want to upgrade to, e.g., 9.4', required=False)
     args = parser.parse_args()
     return args
 
