@@ -925,8 +925,8 @@ def is_azure(test_instance, action=None):
         azure: return True
         other: return False
     '''
-    output = run_cmd(test_instance, "[[ -f /usr/sbin/route ]] || sudo yum install -y net-tools")
-    output = run_cmd(test_instance, "/usr/sbin/route -n")
+    output = run_cmd(test_instance, "[[ -f /usr/sbin/route ]] || sudo yum install -y net-tools", expect_ret=0)
+    output = run_cmd(test_instance, "/usr/sbin/route -n", expect_ret=0)
     if 'not found' in output:
         return False
     if '168.63.129.16' in output:

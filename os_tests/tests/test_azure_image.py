@@ -392,7 +392,7 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
 
     def test_check_rhui_cert(self):
         '''
-        Verify /etc/pki/rhui/product/content.crt exists
+        Verify /etc/pki/rhui/product/content-base.crt exists
         Check end time
         '''
         # product_id = utils_lib.get_product_id(self)
@@ -400,7 +400,7 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         #     cmd = 'sudo rpm -q redhat-release-server'
         # else:
         #     cmd = 'sudo rpm -q redhat-release'
-        cmd = "timestamp=$(sudo rct cat-cert /etc/pki/rhui/product/content.crt|grep 'End Date'|awk '{print $3}');date -d $timestamp +%s"
+        cmd = "timestamp=$(sudo rct cat-cert /etc/pki/rhui/product/content-base.crt|grep 'End Date'|awk '{print $3}');date -d $timestamp +%s"
         end_date = utils_lib.run_cmd(self,cmd, msg='get rhui cert end date')
         cmd = 'sudo date +%s'
         now_date = utils_lib.run_cmd(self,cmd, msg='get now date')
