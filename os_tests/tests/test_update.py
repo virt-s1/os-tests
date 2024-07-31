@@ -97,26 +97,28 @@ class TestUpgrade(unittest.TestCase):
         if repo_urls is not None:
             if self.params.get('proxy_url') is not None:
                 repo_temp = string.Template('''
-[repo$id]
-name=repo$id
+[$repo_type$id]
+name=$repo_type$id
 baseurl=$repo_url
 enabled=1
 gpgcheck=0
+sslverify=0
 proxy=http://127.0.0.1:8080
             ''')
             else:
                 repo_temp = string.Template('''
-[repo$id]
-name=repo$id
+[$repo_type$id]
+name=$repo_type$id
 baseurl=$repo_url
 enabled=1
 gpgcheck=0
+sslverify=0
             ''')
             fh, tmp_repo_file = tempfile.mkstemp(suffix='_rhel.repo',  dir='/tmp', text=False)
             id = 0
             with open(tmp_repo_file, 'a') as fh:
                 for repo_url in self.params.get(repo_url_param).split(','):
-                    repo_str = repo_temp.substitute(id=id, repo_url=repo_url)
+                    repo_str = repo_temp.substitute(repo_type=repo_type, id=id, repo_url=repo_url)
                     self.log.info("Add new repo %s to %s" % (repo_url, tmp_repo_file))
                     fh.writelines(repo_str)
                     id += 1      
@@ -129,9 +131,14 @@ gpgcheck=0
             self.SSH.put_file(local_file=tmp_repo_file, rmt_file=repo_file_name)
             if repo_type == 'dnf_repo':
                 dest_dir = "/etc/yum.repos.d/"
+                repo_file = "dnf.repo"
+            if repo_type == 'pkg_repo':
+                dest_dir = "/etc/yum.repos.d/"
+                repo_file = "pkg.repo"
             if repo_type == 'leapp_target_repo':
-                dest_dir = "/etc/leapp/"
-            dest_repo_path = dest_dir + "{}.repo".format(repo_type)
+                dest_dir = "/etc/leapp/files/"
+                repo_file = "leapp_upgrade_repositories.repo"
+            dest_repo_path = dest_dir + repo_file
             utils_lib.run_cmd(self, 
                         "sudo cp -r %s %s" % (repo_file_name,dest_repo_path),
                         expect_ret=0,
@@ -208,8 +215,6 @@ gpgcheck=0
             utils_lib.run_cmd(self, 'sudo yum remove -y kernel-debug', expect_ret=0)
             utils_lib.run_cmd(self, 'sudo yum remove -y kernel-debug-core kernel-debug-modules', expect_ret=0)
             utils_lib.run_cmd(self, 'sudo yum repolist enabled', expect_ret=0)
-            utils_lib.run_cmd(self, 'sudo yum-config-manager --disable rh*', expect_ret=0)
-            utils_lib.run_cmd(self, 'sudo yum repolist enabled', expect_ret=0)
             utils_lib.run_cmd(self, 'sudo bash -c "echo "" > /var/log/secure"', expect_ret=0)
             utils_lib.run_cmd(self, 'sudo  rm -rf /var/log/cloud-init.log', expect_ret=0)
             utils_lib.run_cmd(self, 'sudo  rm -rf /var/log/cloud-init-output.log', expect_ret=0)
@@ -224,7 +229,7 @@ gpgcheck=0
         utils_lib.run_cmd(self,
                         "sudo yum update -y",
                         expect_ret=0,
-                        timeout=600,
+                        timeout=1200,
                         msg='Update system to the latest version for upgrade testing')
         utils_lib.run_cmd(self,
                         "sudo reboot",
@@ -371,20 +376,31 @@ gpgcheck=0
         self._config_PermitRootLogin()
         self._remove_package()
         #Do preupgrade
+        target_version = self.params.get('target_version')
+        if target_version:
+            cmd_preupgrade = "sudo LEAPP_UNSUPPORTED=1 LEAPP_DEVEL_TARGET_RELEASE=%s leapp preupgrade --debug --no-rhsm" % (target_version)
+            cmd_upgrade = "sudo LEAPP_UNSUPPORTED=1 LEAPP_DEVEL_TARGET_RELEASE=%s leapp upgrade --debug --no-rhsm" % (target_version)
+        else:
+            cmd_preupgrade = "sudo leapp preupgrade --debug --no-rhsm"
+            cmd_upgrade = "sudo leapp upgrade --debug --no-rhsm"
         ret = utils_lib.run_cmd(self,
-                                "sudo leapp preupgrade --debug --no-rhsm",
-                                ret_status=True, timeout=1200,
-                                msg='Preupgrade test for leapp upgrade')
+                              cmd_preupgrade,
+                              ret_status=True, timeout=1200,
+                              msg='Preupgrade test for leapp upgrade')
         if ret != 0:
             self._confirm_answer_file()
             utils_lib.run_cmd(self,
                             "sudo cat /var/log/leapp/leapp-report.txt",
-                            expect_ret=0, msg='Check leapp report')
-            utils_lib.run_cmd(self, "sudo leapp preupgrade --debug --no-rhsm",
-            expect_ret=0, timeout=1200, msg='Retry preupgrade')
+                            expect_ret=0, 
+                            msg='Check leapp report')
+            utils_lib.run_cmd(self, 
+                            cmd_preupgrade,
+                            expect_ret=0, 
+                            timeout=1200, 
+                            msg='Retry preupgrade')
         utils_lib.run_cmd(self,
-                        "sudo leapp upgrade --debug --no-rhsm",
-                        expect_ret=0, timeout=1200,
+                        cmd_upgrade,
+                        expect_ret=0, timeout=3600,
                         msg='Do leapp upgrade via RHUI')
         utils_lib.run_cmd(self,
                         "sudo reboot",
@@ -480,6 +496,7 @@ gpgcheck=0
             No issues with the upgraded system.
 
         """
+        #Please run test_dnf_update case to update the system to the latest before this case.
         kernel_version = utils_lib.run_cmd(self,
                                          "sudo uname -r",
                                          expect_ret=0,
@@ -489,27 +506,7 @@ gpgcheck=0
                         expect_ret=0,
                         msg='check current rhel release')
         x_version = self.rhel_x_version
-        #Setup internal repo for update
-        rhel_repo = "rhel-internal.repo"
-        src_dir = self.data_dir + "/leapp-repo-rhel%s/" % x_version
-        src_path = src_dir + rhel_repo
-        tmp_path = "/tmp/" + rhel_repo
-        dest_path_repo = "/etc/yum.repos.d/" + rhel_repo
-        self.SSH.put_file(local_file=src_path, rmt_file=tmp_path)
-        utils_lib.run_cmd(self, 
-                        "sudo cp %s %s" % (tmp_path,dest_path_repo),
-                        expect_ret=0,
-                        msg='Prepare internal repo')
-        utils_lib.run_cmd(self,
-                        "sudo ls /etc/yum.repos.d/",
-                        expect_ret=0,
-                        msg='check repo file')
         if os.getenv('INFRA_PROVIDER') in ['azure','google','aws','ali']:
-            cmd = "sudo sed -i '/gpgcheck=0/a\proxy=http://127.0.0.1:8080/' {}".format(dest_path_repo)
-            utils_lib.run_cmd(self,
-                            cmd,
-                            expect_ret=0,
-                            msg='Add proxy for public clouds')
             cmd = "sudo rpm -qa|grep rhui"
             ret = utils_lib.run_cmd(self,
                                     cmd,
@@ -520,46 +517,6 @@ gpgcheck=0
                                 "sudo bash -c 'yum remove `{}` -y'".format(cmd),
                                 expect_ret=0,
                                 msg='Remove rhui client for upgrading via custom repo')
-        utils_lib.run_cmd(self,
-                        'sudo cat {}'.format(dest_path_repo),
-                        expect_ret=0,
-                        msg='Check internal repo info')
-        for i in range(1,10):
-            ret_val = utils_lib.run_cmd(self,
-                                      "sudo yum update -y",
-                                      ret_status=True,
-                                      timeout=600,
-                                      msg='Update system to the latest version for upgrade testing')
-            if ret_val > 0:
-                self.log.info("Failed to update system, try again! max:20 now:%s" % i)
-                ret_val = utils_lib.run_cmd(self,
-                                          "sudo yum update -y --allowerasing",
-                                          ret_status=True,
-                                          timeout=600,
-                                          msg='Update system to the latest version for upgrade testing')
-                time.sleep(5)
-            if ret_val > 0:
-                continue
-            break
-        utils_lib.run_cmd(self,
-                        "sudo reboot",
-                        msg='Reboot system to the latest kernel')
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
-        kernel_version_updated = utils_lib.run_cmd(self,
-                                                 "sudo uname -r",
-                                                 expect_ret=0,
-                                                 msg='Check kernel version after updated')
-        if utils_lib.is_aws(self):
-            if kernel_version != kernel_version_updated:
-                cmd = "sudo yum -y remove --oldinstallonly --setopt installonl_limit=1 kernel"       
-                utils_lib.run_cmd(self,
-                                cmd,
-                                expect_ret=0,
-                                msg='Remove old kernel packages to avoid no space for boot partition')
-        utils_lib.run_cmd(self,
-                        "sudo cat /etc/redhat-release", 
-                        expect_ret=0, 
-                        msg='check rhel release after updated')
         #Install leapp packages
         utils_lib.run_cmd(self, 
                         "sudo yum install -y leapp leapp-upgrade",
@@ -569,26 +526,8 @@ gpgcheck=0
         #Prepare for leapp upgrade
         self._remove_driver()
         self._config_PermitRootLogin()
-        leapp_target_repo = "leapp_upgrade_repositories.repo"
-        src_path = src_dir + leapp_target_repo
-        tmp_path_leapp = '/tmp/' + leapp_target_repo
-        dest_dir_leapp = '/etc/leapp/files/'
-        dest_path_leapp = dest_dir_leapp + leapp_target_repo
-        self.SSH.put_file(local_file=src_path, rmt_file=tmp_path_leapp)
-        if os.getenv('INFRA_PROVIDER') in ['azure','google','aws','ali']:
-            cmd = "sudo sed -i '/gpgcheck=0/a\proxy=http://127.0.0.1:8080/' {}".format(tmp_path_leapp)
-            utils_lib.run_cmd(self,
-                            cmd,
-                            expect_ret=0,
-                            msg='Add proxy for public clouds')
-        utils_lib.run_cmd(self,
-                        "sudo cp %s %s" % (tmp_path_leapp,dest_path_leapp),
-                        expect_ret=0,
-                        msg='Prepare leapp target repo')            
-        utils_lib.run_cmd(self, 
-                        'sudo cat {}'.format(dest_path_leapp),
-                        expect_ret=0,
-                        msg='Check target repo info')
+        if self.params.get('leapp_target_repo_url'):
+            self._configure_repo('leapp_target_repo', 'leapp_target_repo_url')
 #Don't need to provide leapp data
 #        src_dir = self.data_dir + '/leapp-data/'
 #        if os.path.isdir(src_dir):
@@ -838,8 +777,8 @@ gpgcheck=0
             self.FailTest('Leapp upgrade failed since did not upgrade to target release')
 
     def test_pkg_install(self):
-        if self.params.get('dnf_repo_url'):
-            self._configure_repo('dnf_repo', 'dnf_repo_url')
+        if self.params.get('pkg_repo_url'):
+            self._configure_repo('pkg_repo', 'pkg_repo_url')
         if self.params.get('pkgs'):
             pkgs = self.params.get('pkgs')
             self.log.info("print pkgs %s" % (pkgs))
