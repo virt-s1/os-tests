@@ -3291,6 +3291,54 @@ EOF
         self._check_cloudinit_done_and_service_isactive()
         self.log.info("Reboot successfully after upgrade cloud-init for rhel " + self.base_version)
 
+    def test_cloudinit_create_vm_login_repeatedly(self):
+        '''
+        case_tag:
+            cloudinit,cloudinit_tier3,vm_delete
+        case_name:
+            test_cloudinit_create_vm_login_repeatedly
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_create_vm_login_repeatedly
+        component:
+            cloudinit
+        bugzilla_id: bz# 1803928
+        is_customer_case:
+            True
+        testplan:
+            RHEL-188320
+        maintainer:
+            xiachen@redhat.com
+        description:
+           create vm and login with ssh-key, run 50 times or set the number of cycles (run_loop)
+           because of the race condition issue on openstack, this auto case only run on openstack now
+        key_steps: |
+            1. delete the exist vm
+            2. create vm
+            3. login and check cloud-init stauts
+            4. repreat 50 times
+        debug_want:
+            N/A
+        '''
+        if self.vm.provider != 'openstack':
+            self.skipTest('skip run as this case is openstack specific.')
+        self.log.info("create vm and then login, repeately")
+
+        for x in range(self.vm.run_loop):
+            self.log.info(str(x)+" run: create VM and login")
+            if self.vm.exists():
+                self.vm.delete()
+                time.sleep(30)
+            self.vm.create()
+            time.sleep(30)
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
+            output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
+            self.assertEqual(
+                self.vm.vm_username, output,
+                "Login VM with publickey error: output of cmd `whoami` unexpected -> %s"
+                % output)
+            # checking cloud-init status
+            self._check_cloudinit_done_and_service_isactive()
+
     def test_cloudinit_network_ready(self):
         """
         case_tag:

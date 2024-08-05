@@ -49,6 +49,7 @@ class OpenstackVM(VMResource):
         self.size = params['Flavor'].get('size')
         self.keypair = params['VM'].get('keypair')
         self.run_uuid = params.get('run_uuid')
+        self.run_loop = params.get('run_loop') or 50
 
         # VM creation timeout
         self.create_timeout = kwargs.get("create_timeout")
