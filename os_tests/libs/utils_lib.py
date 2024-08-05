@@ -397,7 +397,6 @@ runcmd:
 password: {1}
 chpasswd:
   expire: False
-ssh_pwauth: False
 """.format(test_instance.vm.run_uuid, 'R')
         if test_instance.vm.dead_count > 4:
             test_instance.fail("cannot connect to vm over 4 times, skip retry")

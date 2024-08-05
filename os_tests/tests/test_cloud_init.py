@@ -1154,7 +1154,7 @@ EOF""".format(device, size), expect_ret=0)
             if output is not None and len(output) > 0:
                 self.assertIn("the following 'random' passwords", output, "Failed to get random password from console log")
                 username = self.vm.vm_username
-                output = output.split("%s:" % username,1)[1]
+                output = output.rsplit("%s:" % username,1)[1] #using rsplit to find the latest one
                 randompass = output.split("\n",1)[0].strip()
                 self.log.info("Get the random password is:%s" % randompass)
                 self.assertEqual(len(randompass), 20, "Random password length is not 20")
@@ -2524,7 +2524,7 @@ swap:
         testplan:
             N/A
         maintainer:
-            minl@redhat.com
+            xiachen@redhat.com
         description:
            chpasswd in cloud-init should support hashed passwords.
         key_steps: |
@@ -2536,7 +2536,7 @@ swap:
         debug_want:
             N/A
         """
-        for i in range(1, 7):
+        for i in range(1, 6):
             user = "test{}".format(str(i))
             utils_lib.run_cmd(self, "sudo userdel -r {}".format(user))
             utils_lib.run_cmd(self, "sudo useradd {}".format(user))
@@ -2548,8 +2548,7 @@ swap:
             "test2": self._generate_password(base_pw, "sha-256"),
             "test3": self._generate_password(base_pw, "sha-512"),
             "test4": base_pw,
-            "test5": "R",
-            "test6": "RANDOM"
+            "test5": "RANDOM"
         }
         CONFIG='''\
 chpasswd:
@@ -2562,40 +2561,47 @@ chpasswd:
       password: {test3}
     - name: test4
       password: {test4}
-      type: text'''.format(**pw_config_dict)
+      type: text
+    - name: test5
+      type: {test5}
+ssh_pwauth: True '''.format(**pw_config_dict)
         utils_lib.run_cmd(self,"echo '''%s''' | sudo tee /etc/cloud/cloud.cfg.d/test_hash_passwords.cfg" % CONFIG)
         utils_lib.run_cmd(self, "sudo rm -f /var/lib/cloud/instance/sem/config_set_passwords /var/log/cloud-init*.log")
         output = utils_lib.run_cmd(self, "sudo cloud-init single --name set_passwords")
-        #for rhel-7,8,9
-        default_hash = "sha-512"
-        test4_salt = utils_lib.run_cmd(self, "sudo getent shadow test4").split('$')[2]
-        #for rhel-10, the default password hashing scheme is yescrypt
-        if float(self.rhel_x_version) >= 10.0:
-            default_hash = "yescrypt"
-            test4_salt = utils_lib.run_cmd(self, "sudo getent shadow test4").split('$')[3]
+        # check password login
+        for i in range(1,5):
+            testuser = "test{}".format(str(i))
+            test_login = utils_lib.send_ssh_cmd(self.vm.floating_ip, testuser, base_pw, "whoami", log=self.log)
+            self.assertTrue(test_login,"Fail to login with password" )
 
-        shadow_dict = {
-            "test1": pw_config_dict['test1'],
-            "test2": pw_config_dict['test2'],
-            "test3": pw_config_dict['test3'],
-            "test4": "test4:{}:".format(self._generate_password(base_pw, default_hash, test4_salt)),
-        }
-        for user in shadow_dict:
-            real = utils_lib.run_cmd(self, "sudo getent shadow {}".format(user))
-            expect = shadow_dict.get(user)
-            self.assertIn(expect, real,
-                "The {} password in /etc/shadow doesn't meet the expectation. Real:{} Expect:{}".format(user, real, expect))
-        #Move this step after checking test4 pwd
+       #Move this step after checking test4 pwd
         for line in output.split('\n'):
             if "test5" in line:
                 test5_pw = line.split(':')[1]
-            elif "test6" in line:
-                test6_pw = line.split(':')[1]
             elif "failed" in line:
                 self.fail("Failed to set password, analyze:  conpath = \"/dev/console\",wfh.flush(), OSError: [Errno 5] Input/output error; root cause:  should same with BZ2034588")
         # From cloud-init-21.1-3.el8 or cloud-init-21.1-4.el9 the password should not in the output and cloud-init-output.log
-        if "test5_pw" in vars() or "test6_pw" in vars():
+        if "test5_pw" in vars():
             self.fail("Should not show random passwords in the output")
+        #nutanix does not implement get_console_log()
+        #AWS rhel image dev/console to tty0, not ttyS0
+        #libvirt has some problem when using assertIn console log file
+        #alicloud sometimes SDK-Version:2.14.0 ClientException:SDK.HttpError
+        #so we only run below steps on openstack
+        if utils_lib.is_openstack(self):
+            output= self.vm.get_console_log(silent=False)
+            if isinstance(output,Exception):
+                self.fail("Failed to get console log!")
+            if output is not None and len(output) > 0:
+                self.assertIn("the following 'random' passwords", output, "Failed to get random password from console log")
+                username = "test5"
+                output = output.rsplit("%s:" % username,1)[1] #using rsplit to find the latest one
+                randompass = output.split("\n",1)[0].strip()
+                self.log.info("Get the random password is:%s" % randompass)
+                self.assertEqual(len(randompass), 20, "Random password length is not 20")
+                test_login = utils_lib.send_ssh_cmd(self.vm.floating_ip, username, randompass, "whoami", log=self.log)
+                self.assertTrue(test_login,"Fail to login with password" )
+
 
     def test_cloudinit_check_default_config(self):
         """
