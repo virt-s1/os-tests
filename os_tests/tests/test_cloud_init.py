@@ -1036,18 +1036,23 @@ EOF""".format(device, size), expect_ret=0)
             self.skipTest('skip run as no such provider in datasource list')
         for provider,name in datasource.items():
             if self.vm.provider == provider:
-                utils_lib.run_cmd(self,
+                if provider == 'ali':
+                    utils_lib.run_cmd(self,
                                 'cat /run/cloud-init/cloud.cfg',
                                 expect_ret=0,
-                                expect_kw='{}, None'.format(name),
+                                expect_kw='{}'.format(name),
                                 msg='check if the datasource is correct')
-                if provider == 'ali':
                     utils_lib.run_cmd(self,
                                     'cat /run/cloud-init/ds-identify.log | grep datasource',
                                     expect_ret=0,
                                     expect_kw="single entry in datasource_list \({}\) use that.".format(name),
                                     msg='check if found the datasource')
                 else:
+                    utils_lib.run_cmd(self,
+                                'cat /run/cloud-init/cloud.cfg',
+                                expect_ret=0,
+                                expect_kw='{}, None'.format(name),
+                                msg='check if the datasource is correct')
                     utils_lib.run_cmd(self,
                                     'cat /run/cloud-init/ds-identify.log | grep datasource',
                                     expect_ret=0,
