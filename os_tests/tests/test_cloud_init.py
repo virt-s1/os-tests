@@ -568,7 +568,7 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
 
         # 1. Install cloud-utils-growpart gdisk
         utils_lib.is_cmd_exist(self, cmd='growpart')
-        utils_lib.is_cmd_exist(self, cmd='gdisk')
+        #utils_lib.is_cmd_exist(self, cmd='gdisk')
         
         # 2. Check os disk and fs capacity
         boot_dev = self._get_boot_temp_devices()
@@ -1594,12 +1594,13 @@ EOF""".format(device, size), expect_ret=0)
         description: |
             RHEL-288482 - CLOUDINIT-TC: Check cloud-init dependency: openssl, gdisk,
             python3-configobj, python3-jinja2, python3-pyserial
+            RHEL-36093 - Remove cloud-init dependency on obsolete gdisk
         key_steps: |
             1. Launch instance with cloud-init installed
             2. Check the cloud-init denpendency
             # rpm -qR cloud-init 
         """       
-        dep_list = 'openssl,gdisk,python3-configobj,python3-jinja2,python3-pyserial'
+        dep_list = 'openssl,python3-configobj,python3-jinja2,python3-pyserial'
         cmd = 'sudo rpm -qR cloud-init'
         utils_lib.run_cmd(self,
                           cmd,
@@ -3331,7 +3332,7 @@ EOF
         '''
         if self.vm.provider != 'openstack':
             self.skipTest('skip run as this case is openstack specific.')
-        self.log.info("create vm and then login, repeately")
+        self.log.info("create vm and then login, repeatedly")
 
         for x in range(self.vm.run_loop):
             self.log.info(str(x)+" run: create VM and login")
@@ -3348,6 +3349,7 @@ EOF
                 % output)
             # checking cloud-init status
             self._check_cloudinit_done_and_service_isactive()
+            self.test_cloudinit_check_resolv_conf_reboot()
 
     def test_cloudinit_network_ready(self):
         """
