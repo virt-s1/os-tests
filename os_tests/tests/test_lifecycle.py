@@ -339,7 +339,7 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
         utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw=option)
-        cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50'
+        cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -100'
         utils_lib.run_cmd(self, cmd, expect_kw='No such file or directory', msg='make sure there is no core generated')
         #remove trace for "memory used for stack traces" or "Callback from call_rcu_tasks_trace() invoked"
         utils_lib.check_log(self, "error,warn,fail,CallTrace", skip_words='nofail', rmt_redirect_stdout=True)
@@ -526,7 +526,7 @@ class TestLifeCycle(unittest.TestCase):
                     r'find /var/crash',
                     expect_ret=0,
                     msg='list /var/crash after crash')
-        cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50'
+        cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -100'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='write_sysrq_trigger')
         cmd = "sudo cat /var/crash/*/kexec-dmesg.log"
         utils_lib.run_cmd(self, cmd, expect_not_kw='Call trace,Call Trace', msg="Check if new call trace found during saving core")
@@ -599,8 +599,7 @@ class TestLifeCycle(unittest.TestCase):
                                           msg="list /var/crash after crash")
             self.assertNotEqual(res_after, res_before,
                                 "Test failed as no crash dump file found")
-
-            cmd = "sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50"
+            cmd = "sudo cat /var/crash/*/vmcore-dmesg.txt|tail -100"
             utils_lib.run_cmd(self, cmd, expect_ret=0,
                               expect_kw="write_sysrq_trigger",
                               msg="Check if crash happened")
@@ -1160,7 +1159,7 @@ class TestLifeCycle(unittest.TestCase):
                     r'find /var/crash',
                     expect_ret=0,
                     msg='list /var/crash after crash')
-        cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50'
+        cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -100'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='write_sysrq_trigger')
 
     def test_kdump_unknown_nmi_panic_disabled(self):
@@ -1260,7 +1259,7 @@ class TestLifeCycle(unittest.TestCase):
                     r'sudo ls /var/crash/',
                     expect_ret=0,
                     msg='list /var/crash after crash')
-        cmd = r'sudo cat /var/crash/1*/vmcore-dmesg.txt|tail -50'
+        cmd = r'sudo cat /var/crash/1*/vmcore-dmesg.txt|tail -100'
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='nmi_panic')
 
     def test_hibernate_resume(self):
@@ -1490,7 +1489,7 @@ class TestLifeCycle(unittest.TestCase):
                     expect_ret=0,
                     rmt_node=self.params['remote_nodes'][-1],
                     msg='list /var/crash after crash')
-        cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -50'
+        cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -100'
         utils_lib.run_cmd(self, cmd, expect_ret=0,rmt_node=self.params['remote_nodes'][-1],expect_kw='write_sysrq_trigger')
 
     def test_kdump_over_nfs(self):
@@ -1605,7 +1604,7 @@ class TestLifeCycle(unittest.TestCase):
                     expect_ret=0,
                     rmt_node=self.params['remote_nodes'][-1],
                     msg='list /var/crash after crash')
-        cmd = r'sudo cat /var/www/export/kdump/var/crash/*/vmcore-dmesg.txt|tail -50'
+        cmd = r'sudo cat /var/www/export/kdump/var/crash/*/vmcore-dmesg.txt|tail -100'
         utils_lib.run_cmd(self, cmd, expect_ret=0,rmt_node=self.params['remote_nodes'][-1],expect_kw='write_sysrq_trigger')
         if self.vm and self.vm.provider == 'aws':
             if not is_port_exist:

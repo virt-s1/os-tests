@@ -277,23 +277,30 @@ class TestRHELCert(unittest.TestCase):
         subtests = []
         #if not utils_lib.is_metal(self):
         subtests.append('hwcert/memory')
+        # case name denpends on cert pkg version, the latest cert tool cannot recognize hwcert/xxx cases
+        subtests.append('memory')
         subtests.append('hwcert/core')
+        subtests.append('core')
         subtests.append('hwcert/profiler_hardware_core')
+        subtests.append('profiler_hardware_core')
         if 'profiler_hardware_core' not in auto_plan:
             subtests.append('hwcert/profiler_software')
+            subtests.append('profiler_software')
         if 'profiler_hardware_uncore' in auto_plan:
             subtests.append('hwcert/profiler_hardware_uncore')
+            subtests.append('profiler_hardware_uncore')
         if 'NVMe' in auto_plan:
             subtests.append('PCIE_NVMe')
         if not utils_lib.is_arch(self, 'aarch64'):
             subtests.append('hwcert/cpuscaling')
+            subtests.append('cpuscaling')
 
         self.log.info("Will run subtests: {}".format(subtests))
         for case in subtests:
             cmd = 'sudo bash -c "yes|rhcert-cli run --test {}"'.format(case)
             out = utils_lib.run_cmd(self,cmd, timeout=7200, msg='run {}'.format(case))
             if "No such test" in out:
-                self.log.info("the case might not in plan and support")
+                self.log.info("the case might not in plan and support:{}".format(case))
                 continue
             self._wait_cert_done(prefix=case)
         #else:

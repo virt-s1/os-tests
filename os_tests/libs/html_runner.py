@@ -1,4 +1,3 @@
-from distutils.log import debug
 from unittest import TextTestResult
 from unittest.signals import registerResult
 from . import utils_lib
