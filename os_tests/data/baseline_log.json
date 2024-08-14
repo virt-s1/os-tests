@@ -2124,7 +2124,7 @@
     },
     "msg_232": {
         "content": ".*ACPI: _OSC evaluation for CPUs failed, trying _PDC.*",
-        "analyze": "known issue",
+        "analyze": "known failure and not a bug",
         "branch": "rhel9",
         "status": "active",
         "link": "https://issues.redhat.com/browse/RHEL-35952",

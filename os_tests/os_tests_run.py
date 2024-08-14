@@ -33,6 +33,7 @@ def main():
         if args.platform_profile:
             provider_data = get_cfg(cfg_file=args.platform_profile)
             update_cfgs(params, provider_data)
+        update_cfgs(params, vars(args))
         if not args.is_listcase and not args.verifydoc and not args.dumpdoc:
             vms, disks, nics = init_provider(params=params)
     update_cfgs(params, vars(args))
