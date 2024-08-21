@@ -1295,7 +1295,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         component:
             kernel
         bugzilla_id:
-            1349927, 1645772
+            1349927, 1645772, jira_COMPOSER-1807
         is_customer_case:
             False
         testplan:
@@ -1303,12 +1303,13 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         maintainer:
             xiliang@redhat.com
         description:
-            check if nouveau is in blacklist and is not loaded in aws
+            we do not want nouveau and amdgpu loaded in aws gpu instances(rhbz#1645772,jira_COMPOSER-1807).
+            osbuild disable them in /usr/lib/modprobe.d/blacklist-nouveau.conf
         key_steps:
             lsmod
             cat /proc/cmdline
         expect_result:
-            nouveau is no in lsmod and is in blacklist
+            nouveau and amigpu are not in lsmod and in blacklist
         debug_want:
             lsmod
             sos report
@@ -1316,18 +1317,9 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         """
         utils_lib.is_aws(self, action='cancel')
         utils_lib.run_cmd(self, 'cat /etc/redhat-release', cancel_not_kw='CentOS', msg='skip this check on centos, rhbz1645772')
-        self.log.info("nouveau is not required in ec2, make sure it is \
-in blacklist and not loaded bug1645772")
-        utils_lib.run_cmd(self,
-                    "lsmod",
-                    expect_ret=0,
-                    expect_not_kw="nouveau",
-                    msg="Checking lsmod")
-        utils_lib.run_cmd(self,
-                    "cat /proc/cmdline",
-                    expect_ret=0,
-                    expect_kw="rd.blacklist=nouveau",
-                    msg="Checking cmdline")
+        cmd = 'find /usr/lib/modprobe.d -name "*.conf" -exec ls -l {} \; -exec cat {} \;'
+        utils_lib.run_cmd(self, cmd)
+        utils_lib.run_cmd(self, "lsmod", expect_ret=0, expect_not_kw="nouveau,amdgpu",msg="checking loaded modules")
 
     def test_check_nvme_io_timeout(self):
         """
@@ -1900,8 +1892,8 @@ current_device"
             test_check_rpm_V_efi
         component:
             efi-rpm-macros
-        bugzilla_id:
-            1845052
+        bug_id:
+            bugzilla_1845052, jira_RHELPLAN-69739, jira_RHEL-54694
         is_customer_case:
             True
         testplan:
