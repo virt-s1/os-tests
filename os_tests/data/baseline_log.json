@@ -914,8 +914,8 @@
         "trigger": ""
     },
     "msg_103": {
-        "content": ".*dracut module.* will not be installed, because command .* could not be found!.*;.*dracut.*Could not find any command of.*",
-        "analyze": "These warnings are safe to be ignored.",
+        "content": ".*dracut.* will not be installed, because command .* could not be found!.*;.*dracut.*Could not find any command of.*",
+        "analyze": "These warnings are safe to be ignored and debug information only.",
         "branch": "rhel",
         "status": "active",
         "link": "https://access.redhat.com/solutions/3683511",
@@ -1142,7 +1142,7 @@
         "content": ".*Failed to insert 'ipmi_si': No such device.*;.*systemd-modules-load.service.*",
         "analyze": "will be fixed in fwupd-1.7.4-1.el8",
         "branch": "rhel",
-        "status": "active",
+        "status": "fixed",
         "link": "https://bugzilla.redhat.com/show_bug.cgi?id=2030993",
         "path": "dmesg,journal",
         "trigger": ""
@@ -2169,5 +2169,41 @@
         "cases": "os_tests.tests.test_lifecycle.TestLifeCycle.test_boot_debugkernel",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20240522"
+    },
+    "msg_236": {
+        "content": ".*watchdog: Delayed init of the lockup detector failed: -19.*",
+        "analyze": "known issue, information only",
+        "branch": "rhel10",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-42759",
+        "path": "dmesg",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20240819"
+    },
+    "msg_237": {
+        "content": ".*systemd-modules-load.*Failed to find module .*_tables.*",
+        "analyze": "known issue",
+        "branch": "rhel10",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-39676",
+        "path": "journal",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20240819"
+    },
+    "msg_238": {
+        "content": ".*/boot/efi/EFI.*",
+        "analyze": "known issue",
+        "branch": "rhel10",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-54694",
+        "path": "rpm -V efi-filesystem",
+        "trigger": "",
+        "cases": "os_tests.tests.test_general_check.TestGeneralCheck.test_check_rpm_V_efi",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20240819"
     }
 }
