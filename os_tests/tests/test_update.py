@@ -12,10 +12,7 @@ class TestUpgrade(unittest.TestCase):
     def setUp(self):
         utils_lib.init_case(self)
         self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='sudo dmesg -T')
-        utils_lib.run_cmd(self,
-                        "sudo uname -r",
-                        expect_ret=0,
-                        msg='Check current kernel version')
+        utils_lib.collect_basic_info(self)
 
     @property
     def rhel_x_version(self):
@@ -92,8 +89,14 @@ class TestUpgrade(unittest.TestCase):
                             expect_ret=0,
                             msg='Remove kernel-devel package since DNF cannot produce a valid upgrade transaction when multiple kernel-devel packages are installed.')
 
+    def _prepare_configure(self):
+        if os.getenv('INFRA_PROVIDER') == 'gcp':
+            cmd = "sudo sed -i 's/^AllowZoneDrifting=.*/AllowZoneDrifting=no/' /etc/firewalld/firewalld.conf"
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Configure firewalld')
+
     def _configure_repo(self, repo_type, repo_url_param):
         repo_urls = self.params.get(repo_url_param)
+        self.log.info("print %s" % repo_type)
         if repo_urls is not None:
             if self.params.get('proxy_url') is not None:
                 repo_temp = string.Template('''
@@ -145,9 +148,20 @@ sslverify=0
                         msg='Prepare %s' % (repo_type))
             utils_lib.run_cmd(self, 'ls -l %s' % (dest_repo_path), expect_ret=0)
             utils_lib.run_cmd(self, 'cat %s' % (dest_repo_path), expect_ret=0)
-            if os.path.exists(repo_file_name):
-               os.unlink(repo_file_name)
-               self.log.info("delete tempfile %s", tmp_dnf_repo_file)
+            if os.path.exists(tmp_repo_file):
+               os.unlink(tmp_repo_file)
+               self.log.info("delete tempfile %s" % (tmp_repo_file))
+
+    def _save_file(self, file_dir, file_name):
+        saved_file = file_dir + file_name
+        if self.params.get('remote_node') is not None:
+            cmd = "sudo cp {} /tmp/".format(saved_file)
+            utils_lib.run_cmd(self, cmd, msg='Prepare for saving {}'.format(saved_file))
+            self.SSH.get_file(rmt_file='/tmp/{}'.format(file_name),
+                            local_file='{}/attachments/{}'.format(self.log_dir, file_name))
+        else:
+            cmd = "sudo cp {} {}/attachments/".format(saved_file, self.log_dir)
+            utils_lib.run_cmd(self, cmd, msg='Save {}'.format(saved_file))
 
     def test_dnf_update(self):
         """
@@ -226,24 +240,46 @@ sslverify=0
             utils_lib.rhsm_register(self, cancel_case=True)
 
         #run dnf update
-        utils_lib.run_cmd(self,
-                        "sudo yum update -y",
-                        expect_ret=0,
-                        timeout=1200,
-                        msg='Update system to the latest version for upgrade testing')
-        utils_lib.run_cmd(self,
-                        "sudo reboot",
-                        msg='Reboot system to the latest kernel')
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
-        utils_lib.run_cmd(self,
-                        "sudo uname -r",
-                        expect_ret=0,
-                        msg='Check kernel version after updated')
-        utils_lib.run_cmd(self,
-                        "sudo cat /etc/redhat-release",
-                        expect_ret=0,
-                        msg='check rhel release after updated')
-
+        cmd = "sudo yum update -y"
+        for i in range(1,10):
+            ret_val = utils_lib.run_cmd(self,
+                                      cmd,
+                                      ret_status=True,
+                                      timeout=600,
+                                      msg='Update system to the latest version for upgrade testing')
+            if ret_val > 0:
+                self.log.info("Failed to update system, try again! max:20 now:%s" % i)
+                ret_val = utils_lib.run_cmd(self,
+                                          cmd,
+                                          ret_status=True,
+                                          timeout=600,
+                                          msg='Update system to the latest version for upgrade testing')
+                time.sleep(5)
+            if ret_val > 0:
+                continue
+            break
+        #save dnf logs
+        file_dir = '/var/log/'
+        file_names = ['dnf.librepo.log', 'dnf.log', 'dnf.rpm.log']
+        for file_name in file_names:
+            self._save_file(file_dir, file_name)
+        cmd = "sudo grep -e 'error' -e 'fail' /var/log/dnf*"
+        utils_lib.run_cmd(self, cmd, msg='Check if there are fail/error in dnf logs')
+        if ret_val != 0:
+            self.FailTest('DNF update failed')
+        else:
+            utils_lib.run_cmd(self,
+                            "sudo reboot",
+                            msg='Reboot system to the latest kernel')
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
+            utils_lib.run_cmd(self,
+                            "sudo uname -r",
+                            expect_ret=0,
+                            msg='Check kernel version after updated')
+            utils_lib.run_cmd(self,
+                            "sudo cat /etc/redhat-release",
+                            expect_ret=0,
+                            msg='check rhel release after updated')
 
     def test_leapp_upgrade_rhui(self):
         """
@@ -316,10 +352,7 @@ sslverify=0
         debug_want:
             n/a
         """
-        utils_lib.run_cmd(self,
-                        "sudo uname -r",
-                        expect_ret=0,
-                        msg='Check current kernel version')
+        #Please run test_dnf_update case to update the system to the latest before this case.
         utils_lib.run_cmd(self, 
                         "sudo cat /etc/redhat-release",
                         expect_ret=0,
@@ -327,9 +360,9 @@ sslverify=0
         x_version = self.rhel_x_version
         cmd = "sudo rpm -qa|grep 'rhui\|client-rhel'"
         ret = utils_lib.run_cmd(self, 
-                                cmd,
-                                ret_status=True,
-                                msg='Check if there is rhui client in system')
+                              cmd,
+                              ret_status=True,
+                              msg='Check if there is rhui client in system')
         if ret != 0:
             self.skipTest('Skip test since there is no rhui client')
         #Install leapp packages:
@@ -348,33 +381,14 @@ sslverify=0
                             cmd,
                             expect_ret=0,
                             msg='Enable repos for leapp packages installation')
-        cmd = "sudo yum install -y leapp-rhui-{}".format(platform)
-        utils_lib.run_cmd(self,
-                        cmd,
-                        expect_ret=0,
-                        msg='Install leapp-rhui-{} packages for upgrade testing'.format(platform))
-        utils_lib.run_cmd(self, 
-                        "sudo yum install -y leapp leapp-upgrade",
-                        expect_ret=0,
-                        msg='Install leapp packages for upgrade testing')
+        utils_lib.is_pkg_installed(self, pkg_name='leapp-rhui-{}'.format(platform), is_install=True, cancel_case=True)
+        utils_lib.is_pkg_installed(self, pkg_name='leapp', is_install=True, cancel_case=True)
+        utils_lib.is_pkg_installed(self, pkg_name='leapp-upgrade', is_install=True, cancel_case=True)
         #Prepare for upgrade
         self._remove_driver()
-        #Remove the following steps since leapp data files are now a part of the leapp-repository package, don't need to manually download these files.
-        #cmd = "sudo subscription-manager config --rhsmcertd.auto_registration=1 --rhsm.manage_repos=0 --rhsmcertd.auto_registration_interval=1"
-        #utils_lib.run_cmd(self,
-        #                cmd,
-        #                expect_ret=0,
-        #                msg='Configure auto registration to get leapp utility metadata')
-        #utils_lib.run_cmd(self,
-        #                "sudo systemctl restart rhsmcertd",
-        #                expect_ret=0, msg='Restart rhsmcertd service')
-        #time.sleep(300)
-        #utils_lib.run_cmd(self,
-        #                "sudo subscription-manager status",
-        #                expect_kw='Content Access Mode',
-        #                msg='Check auto registration is enabled')
         self._config_PermitRootLogin()
         self._remove_package()
+        self._prepare_configure()
         #Do preupgrade
         target_version = self.params.get('target_version')
         if target_version:
@@ -385,7 +399,8 @@ sslverify=0
             cmd_upgrade = "sudo leapp upgrade --debug --no-rhsm"
         ret = utils_lib.run_cmd(self,
                               cmd_preupgrade,
-                              ret_status=True, timeout=1200,
+                              ret_status=True,
+                              timeout=1200,
                               msg='Preupgrade test for leapp upgrade')
         if ret != 0:
             self._confirm_answer_file()
@@ -393,43 +408,61 @@ sslverify=0
                             "sudo cat /var/log/leapp/leapp-report.txt",
                             expect_ret=0, 
                             msg='Check leapp report')
-            utils_lib.run_cmd(self, 
-                            cmd_preupgrade,
-                            expect_ret=0, 
-                            timeout=1200, 
-                            msg='Retry preupgrade')
-        utils_lib.run_cmd(self,
-                        cmd_upgrade,
-                        expect_ret=0, timeout=3600,
-                        msg='Do leapp upgrade via RHUI')
-        utils_lib.run_cmd(self,
-                        "sudo reboot",
-                        msg='Reboot system after leapp upgrade')
-        time.sleep(600)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
-        utils_lib.run_cmd(self,
-                        "sudo uname -r",
-                        expect_ret=0,
-                        msg='Check kernel version after leapp upgrade')
-        utils_lib.run_cmd(self,
-                        "sudo cat /etc/redhat-release",
-                        expect_ret=0,
-                        msg='check rhel release after leapp upgrade')
-        #Perform post-upgrade tasks
-        utils_lib.run_cmd(self,
-                        "sudo rhui-set-release --unset",
-                        expect_ret=0,
-                        msg='use rhui to use the latest RHEL content')
-        cmd = "sudo yum config-manager --save --setopt exclude=''"
-        utils_lib.run_cmd(self,
-                        cmd,
-                        expect_ret=0,
-                        msg='remove all packages from the exclude list')
-        #Check if upgraded to correct version
-        x_version_upgrade = self.rhel_x_version
-        if x_version_upgrade != x_version + 1:
-            self.FailTest('Leapp upgrade failed since did not upgrade to target release')
-
+            ret = utils_lib.run_cmd(self, 
+                                  cmd_preupgrade, 
+                                  ret_status=True, 
+                                  timeout=1200, 
+                                  msg='Retry preupgrade')
+        #save preupgrade log
+        file_dir = '/var/log/leapp/'
+        file_names = ['leapp-preupgrade.log', 'leapp-report.txt']
+        if ret != 0:
+            for file_name in file_names:
+                self._save_file(file_dir, file_name)
+            self.FailTest('Leapp preupgrade via RHUI on {} failed'.format(platform))
+        else:
+            ret = utils_lib.run_cmd(self,
+                                  cmd_upgrade,
+                                  ret_status=True,
+                                  expect_ret=0, 
+                                  timeout=3600,
+                                  msg='Do leapp upgrade via RHUI')
+            #save leapp upgrade logs
+            file_names = ['leapp-upgrade.log', 'leapp-report.txt']
+            for file_name in file_names:
+                self._save_file(file_dir, file_name)
+            if ret !=0:
+                self.FailTest('Leapp upgrade via RHUI on {} failed'.format(platform))
+            else:
+                utils_lib.run_cmd(self,
+                                "sudo reboot",
+                                msg='Reboot system after leapp upgrade')
+                utils_lib.run_cmd(self, 'ls /boot/grub2', msg='Check grub2 configure files')
+                time.sleep(600)
+                utils_lib.init_connection(self, timeout=self.ssh_timeout)
+                utils_lib.run_cmd(self,
+                                "sudo uname -r",
+                                expect_ret=0,
+                                msg='Check kernel version after leapp upgrade')
+                utils_lib.run_cmd(self,
+                                "sudo cat /etc/redhat-release",
+                                expect_ret=0,
+                                msg='check rhel release after leapp upgrade')
+                #Perform post-upgrade tasks
+                utils_lib.run_cmd(self,
+                                "sudo rhui-set-release --unset",
+                                expect_ret=0,
+                                msg='use rhui to use the latest RHEL content')
+                cmd = "sudo yum config-manager --save --setopt exclude=''"
+                utils_lib.run_cmd(self,
+                                cmd,
+                                expect_ret=0,
+                                msg='remove all packages from the exclude list')
+                #Check if upgraded to correct version
+                x_version_upgrade = self.rhel_x_version
+                if x_version_upgrade != x_version + 1:
+                    self.FailTest('Leapp upgrade failed since did not upgrade to target release')
+    
     def test_leapp_upgrade_customrepo(self):
         """
         case_name:
@@ -497,10 +530,6 @@ sslverify=0
 
         """
         #Please run test_dnf_update case to update the system to the latest before this case.
-        kernel_version = utils_lib.run_cmd(self,
-                                         "sudo uname -r",
-                                         expect_ret=0,
-                                         msg='Check current kernel version')             
         utils_lib.run_cmd(self,
                         "sudo cat /etc/redhat-release",
                         expect_ret=0,
@@ -509,110 +538,112 @@ sslverify=0
         if os.getenv('INFRA_PROVIDER') in ['azure','google','aws','ali']:
             cmd = "sudo rpm -qa|grep rhui"
             ret = utils_lib.run_cmd(self,
-                                    cmd,
-                                    ret_status=True,
-                                    msg='Check if there is rhui client in system')
+                                  cmd,
+                                  ret_status=True,
+                                  msg='Check if there is rhui client in system')
             if ret == 0:
                 utils_lib.run_cmd(self,
                                 "sudo bash -c 'yum remove `{}` -y'".format(cmd),
                                 expect_ret=0,
                                 msg='Remove rhui client for upgrading via custom repo')
         #Install leapp packages
-        utils_lib.run_cmd(self, 
-                        "sudo yum install -y leapp leapp-upgrade",
-                        timeout=600,
-                        expect_ret=0,
-                        msg='Install leapp packages for upgrade testing')
+        utils_lib.is_pkg_installed(self, pkg_name='leapp', is_install=True, cancel_case=True)
+        utils_lib.is_pkg_installed(self, pkg_name='leapp-upgrade', is_install=True, cancel_case=True)
         #Prepare for leapp upgrade
         self._remove_driver()
         self._config_PermitRootLogin()
+        self._remove_package()
+        self._prepare_configure()
         if self.params.get('leapp_target_repo_url'):
             self._configure_repo('leapp_target_repo', 'leapp_target_repo_url')
-#Don't need to provide leapp data
-#        src_dir = self.data_dir + '/leapp-data/'
-#        if os.path.isdir(src_dir):
-#            for f in os.listdir(src_dir):
-#                src_path = src_dir + f
-#                tmp_path = '/tmp/' + f
-#                dest_path = dest_dir + f
-#                self.SSH.put_file(local_file=src_path, rmt_file=tmp_path)
-#                utils_lib.run_cmd(self, 
-#                                "sudo cp %s %s" % (tmp_path,dest_path), 
-#                                expect_ret=0, 
-#                                msg='Prepare leapp data')
         #Peform leapp preupgrade via custom repo
+        target_version = self.params.get('target_version')
+        if target_version:
+            cmd_preupgrade = "sudo leapp preupgrade --debug --no-rhsm --target %s" % (target_version)
+            cmd_upgrade = "sudo leapp upgrade --debug --no-rhsm --target %s" % (target_version)
+        else:
+            cmd_preupgrade = "sudo leapp preupgrade --debug --no-rhsm"
+            cmd_upgrade = "sudo leapp upgrade --debug --no-rhsm"
         ret = utils_lib.run_cmd(self,
-                                "sudo leapp preupgrade --debug --no-rhsm",
-                                ret_status=True,
-                                timeout=3000,
-                                msg='Preupgrade test for leapp upgrade')
+                              cmd_preupgrade,
+                              ret_status=True,
+                              timeout=3600,
+                              msg='Preupgrade test for leapp upgrade')
         if ret != 0:
             self._confirm_answer_file()
             utils_lib.run_cmd(self,
                             "sudo cat /var/log/leapp/leapp-report.txt",
                             expect_ret=0,
                             msg='Check leapp report')
-            ret1 = utils_lib.run_cmd(self,
-                                   "sudo leapp preupgrade --debug --no-rhsm",
-                                   expect_ret=0,
-                                   timeout=3000,
-                                   msg='Retry preupgrade')
-            if ret1 !=0:
-                self._confirm_answer_file()
-                utils_lib.run_cmd(self,
-                                "sudo leapp preupgrade --debug --no-rhsm",
-                                expect_ret=0,
-                                timeout=3000,
-                                msg='Retry preupgrade again')
-        #Peform leapp upgrade via custom repo
-        for i in range(1,10):
-            ret_val = utils_lib.run_cmd(self,
-                                      "sudo leapp upgrade --debug --no-rhsm",
-                                      ret_status=True,
-                                      timeout=3000,
-                                      msg='Do leapp upgrade via custom repo')
-            if ret_val > 0:
-                self.log.info("Failed to upgrade system, try again! max:20 now:%s" % i)
+            ret = utils_lib.run_cmd(self,
+                                  cmd_preupgrade,
+                                  ret_status=True,
+                                  timeout=3600,
+                                  msg='Retry preupgrade')
+        #save preupgrade log
+        file_dir = '/var/log/leapp/'
+        file_names = ['leapp-preupgrade.log', 'leapp-report.txt']
+        if ret !=0:
+            for file_name in file_names:
+                self._save_file(file_dir, file_name)
+            self.FailTest('Leapp upgrade via customrepo failed')
+        else:        
+            #Peform leapp upgrade via custom repo
+            for i in range(1,10):
                 ret_val = utils_lib.run_cmd(self,
-                                          "sudo leapp upgrade --debug --no-rhsm",
+                                          cmd_upgrade,
                                           ret_status=True,
                                           timeout=3000,
-                                          msg='Retry leapp upgrade via custom repo')
-                time.sleep(5)
-            if ret_val > 0:
-                continue
-            break
-        utils_lib.run_cmd(self,
-                        "sudo reboot",
-                        msg='Reboot system after leapp upgrade')
-        time.sleep(600)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
-        utils_lib.run_cmd(self,
-                        "sudo uname -r",
-                        expect_ret=0,
-                        msg='Check kernel version after leapp upgrade')
-        utils_lib.run_cmd(self,
-                        "sudo cat /etc/redhat-release",
-                        expect_ret=0,
-                        msg='check rhel release after leapp upgrade')
-        #Check if upgraded to correct version
-        x_version_upgrade = self.rhel_x_version
-        if x_version_upgrade != x_version + 1:
-            self.FailTest('Leapp upgrade failed since did not upgrade to target release')
-        #Perform post-upgrade tasks
-        cmd = "sudo yum config-manager --save --setopt exclude=''"
-        utils_lib.run_cmd(self,
-                        cmd,
-                        expect_ret=0,
-                        msg='Remove all packages from the exclude list')
-        utils_lib.run_cmd(self,
-                        "sudo bash -c 'rpm -e `rpm -qa | grep el{}`'".format(x_version),
-                        expect_ret=0,
-                        msg='Remove packages before upgraded including kernel and leapp packages')
-        utils_lib.run_cmd(self,
-                        "sudo cp %s /etc/yum.repos.d/" % (tmp_path_leapp),
-                        expect_ret=0,
-                        msg='Prepare rhel internal repo for leapp upgraded system')
+                                          msg='Do leapp upgrade via custom repo')
+                if ret_val > 0:
+                    self.log.info("Failed to upgrade system, try again! max:20 now:%s" % i)
+                    ret_val = utils_lib.run_cmd(self,
+                                              cmd_upgrade,
+                                              ret_status=True,
+                                              timeout=3000,
+                                              msg='Retry leapp upgrade via custom repo')
+                    time.sleep(5)
+                if ret_val > 0:
+                    continue
+                break
+            file_names = ['leapp-upgrade.log', 'leapp-report.txt']
+            for file_name in file_names:
+                self._save_file(file_dir, file_name)
+            if ret_val !=0:
+                self.FailTest('Leapp upgrade via customrepo failed')
+            else:
+                utils_lib.run_cmd(self,
+                                "sudo reboot",
+                                msg='Reboot system after leapp upgrade')
+                time.sleep(600)
+                utils_lib.init_connection(self, timeout=self.ssh_timeout)
+                utils_lib.run_cmd(self,
+                                "sudo uname -r",
+                                expect_ret=0,
+                                msg='Check kernel version after leapp upgrade')
+                utils_lib.run_cmd(self,
+                                "sudo cat /etc/redhat-release",
+                                expect_ret=0,
+                                msg='check rhel release after leapp upgrade')
+                #Check if upgraded to correct version
+                x_version_upgrade = self.rhel_x_version
+                if x_version_upgrade != x_version + 1:
+                    self.FailTest('Leapp upgrade failed since did not upgrade to target release')
+                else:
+                    #Perform post-upgrade tasks
+                    cmd = "sudo yum config-manager --save --setopt exclude=''"
+                    utils_lib.run_cmd(self,
+                                    cmd,
+                                    expect_ret=0,
+                                    msg='Remove all packages from the exclude list')
+                    utils_lib.run_cmd(self,
+                                    "sudo bash -c 'rpm -e `rpm -qa | grep el{}`'".format(x_version),
+                                    expect_ret=0,
+                                    msg='Remove packages before upgraded including kernel and leapp packages')
+                    utils_lib.run_cmd(self,
+                                    "sudo cp /tmp/leapp_upgrade_repositories.repo /etc/yum.repos.d/",
+                                    expect_ret=0,
+                                    msg='Prepare rhel internal repo for leapp upgraded system')
 
     def test_leapp_upgrade_rhsm(self):
         """
@@ -685,10 +716,7 @@ sslverify=0
         debug_want:
             n/a
         """
-        utils_lib.run_cmd(self,
-                        "sudo uname -r",
-                        expect_ret=0,
-                        msg='Check current kernel version')
+        #Please run test_dnf_update case to update the system to the latest before this case.
         utils_lib.run_cmd(self,
                         "sudo cat /etc/redhat-release",
                         expect_ret=0,
@@ -696,23 +724,6 @@ sslverify=0
         x_version = self.rhel_x_version
         #Register to RHSM
         utils_lib.rhsm_register(self, cancel_case=True)
-        #Update
-        utils_lib.run_cmd(self,
-                        "sudo yum update -y",
-                        expect_ret=0, timeout=600,
-                        msg='Update system to the latest version for upgrade testing')
-        utils_lib.run_cmd(self,
-                        "sudo reboot",
-                        msg='Reboot system to the latest kernel')
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
-        utils_lib.run_cmd(self,
-                        "sudo uname -r",
-                        expect_ret=0,
-                        msg='Check kernel version after updated')
-        utils_lib.run_cmd(self,
-                        "sudo cat /etc/redhat-release",
-                        expect_ret=0,
-                        msg='check rhel release after updated')
         #Install leapp packages
         if x_version == 7:
             cmd1 = "sudo subscription-manager repos --enable rhel-7-server-rpms"
@@ -722,61 +733,149 @@ sslverify=0
                                 cmd,
                                 expect_ret=0,
                                 msg='Enable repos for leapp packages installation in rhel7')
-        cmd = "sudo yum install -y leapp-upgrade"
-        utils_lib.run_cmd(self,
-                        cmd,
-                        expect_ret=0,
-                        msg='Install leapp packages for upgrade testing')
+        utils_lib.is_pkg_installed(self, pkg_name='leapp', is_install=True, cancel_case=True)
+        utils_lib.is_pkg_installed(self, pkg_name='leapp-upgrade', is_install=True, cancel_case=True)
         #Prepare for upgrade
         self._remove_driver()
         self._config_PermitRootLogin()
         self._remove_package()
+        self._prepare_configure()
         #Enable yum plugins
         cmd = "sed -i 's/^plugins=0/plugins=1/' '/etc/yum.conf'; sed -i 's/^enabled.*/enabled=1/' '/etc/yum/pluginconf.d/subscription-manager.conf'; sed -i 's/^enabled=0/enabled=1/' '/etc/yum/pluginconf.d/product-id.conf'"
         utils_lib.run_cmd(self,
                         "sudo bash -c \"{}\"".format(cmd),
                         expect_ret=0,
                         msg='Enable yum plugins')
-        #Do preupgrade
+        #Do preupgrade via RHSM
+        if target_version:
+            cmd_preupgrade = "sudo leapp preupgrade --debug --target %s" % (target_version)
+            cmd_upgrade = "sudo leapp upgrade --debug --target %s" % (target_version)
+        else:
+            cmd_preupgrade = "sudo leapp preupgrade --debug"
+            cmd_upgrade = "sudo leapp upgrade --debug"        
         ret = utils_lib.run_cmd(self,
-                                "sudo leapp preupgrade --debug",
+                                cmd_preupgrade,
                                 ret_status=True, timeout=1800,
                                 msg='Preupgrade test for leapp upgrade')
         if ret != 0:
             self._confirm_answer_file()
             utils_lib.run_cmd(self,
                             "sudo cat /var/log/leapp/leapp-report.txt",
-                            expect_ret=0, msg='Check leapp report')
-            utils_lib.run_cmd(self, "sudo leapp preupgrade --debug",
-            expect_ret=0, timeout=1800, msg='Retry preupgrade')
-        utils_lib.run_cmd(self,
-                        "sudo leapp upgrade --debug",
-                        expect_ret=0, timeout=7200,
-                        msg='Do leapp upgrade via rhsm')
-        utils_lib.run_cmd(self,
-                        "sudo reboot",
-                        msg='Reboot system after leapp upgrade')
-        time.sleep(600)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
-        utils_lib.run_cmd(self,
-                        "sudo uname -r",
-                        expect_ret=0,
-                        msg='Check kernel version after leapp upgrade')
-        utils_lib.run_cmd(self,
-                        "sudo cat /etc/redhat-release",
-                        expect_ret=0,
-                        msg='check rhel release after leapp upgrade')
-        cmd = "sudo yum config-manager --save --setopt exclude=''"
-        utils_lib.run_cmd(self,
-                        cmd,
-                        expect_ret=0,
-                        msg='remove all packages from the exclude list')
-        #Check if upgraded to correct version
-        x_version_upgrade = self.rhel_x_version
-        if x_version_upgrade != x_version + 1:
-            self.FailTest('Leapp upgrade failed since did not upgrade to target release')
+                            expect_ret=0, 
+                            msg='Check leapp report')
+            ret = utils_lib.run_cmd(self, 
+                            cmd_preupgrade,
+                            ret_status=True, 
+                            timeout=1800, 
+                            msg='Retry preupgrade')
+        #save preupgrade log
+        file_dir = '/var/log/leapp/'
+        file_names = ['leapp-preupgrade.log', 'leapp-report.txt']
+        if ret !=0:
+            for file_name in file_names:
+                self._save_file(file_dir, file_name)
+            self.FailTest('Leapp upgrade via RHSM failed')
+        else:        
+            #Peform leapp upgrade via RHSM
+            for i in range(1,10):
+                ret_val = utils_lib.run_cmd(self,
+                                          cmd_upgrade,
+                                          ret_status=True,
+                                          timeout=3000,
+                                          msg='Do leapp upgrade via RHSM')
+                if ret_val > 0:
+                    self.log.info("Failed to upgrade system, try again! max:20 now:%s" % i)
+                    ret_val = utils_lib.run_cmd(self,
+                                              cmd_upgrade,
+                                              ret_status=True,
+                                              timeout=3000,
+                                              msg='Retry leapp upgrade via RHSM')
+                    time.sleep(5)
+                if ret_val > 0:
+                    continue
+                break
+            file_names = ['leapp-upgrade.log', 'leapp-report.txt']
+            for file_name in file_names:
+                self._save_file(file_dir, file_name)
+            if ret_val !=0:
+                self.FailTest('Leapp upgrade via RHSM failed')
+            else:
+                utils_lib.run_cmd(self,
+                                "sudo reboot",
+                                msg='Reboot system after leapp upgrade')
+                time.sleep(600)
+                utils_lib.init_connection(self, timeout=self.ssh_timeout)
+                utils_lib.run_cmd(self,
+                                "sudo uname -r",
+                                expect_ret=0,
+                                msg='Check kernel version after leapp upgrade')
+                utils_lib.run_cmd(self,
+                                "sudo cat /etc/redhat-release",
+                                expect_ret=0,
+                                msg='check rhel release after leapp upgrade')
+                #Check if upgraded to correct version
+                x_version_upgrade = self.rhel_x_version
+                if x_version_upgrade != x_version + 1:
+                    self.FailTest('Leapp upgrade failed since did not upgrade to target release')
+                else:
+                    #Perform post-upgrade tasks
+                    cmd = "sudo yum config-manager --save --setopt exclude=''"
+                    utils_lib.run_cmd(self,
+                                    cmd,
+                                    expect_ret=0,
+                                    msg='Remove all packages from the exclude list')
+                    utils_lib.run_cmd(self,
+                                    "sudo bash -c 'rpm -e `rpm -qa | grep el{}`'".format(x_version),
+                                    expect_ret=0,
+                                    msg='Remove packages before upgraded including kernel and leapp packages')
 
     def test_pkg_install(self):
+        """
+        case_name:
+            TestUpgrade.test_pkg_install
+        case_tags:
+            pkg_install
+        case_status:
+            Approved
+        title:
+            TestUpgrade.test_pkg_install 
+        importance:
+            High
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            automated
+        linked_work_items:
+            n/a
+        automation_field:
+            https://github.com/virt-s1/os-tests/tree/master/os_tests/tests/test_update.py
+        setup_teardown:
+            n/a
+        environment:
+            n/a
+        component:
+            kernel
+        bug_id:
+            n/a
+        is_customer_case:
+            True
+        testplan:
+            N/A
+        test_type:
+            functional
+        test_level:
+            component
+        maintainer:
+            linl@redhat.com
+        description:
+            Install test packages with by system repo, specified pkg repo or pkg url.
+        key_steps: |
+            1. Specified packages name and version via --pkgs, and packages repo via --pkg_rpeo_url if needed and run the test to isntall packages.
+        expected_result: |
+            Packages are installed.
+        debug_want:
+            n/a
+        """
         if self.params.get('pkg_repo_url'):
             self._configure_repo('pkg_repo', 'pkg_repo_url')
         if self.params.get('pkgs'):
@@ -796,7 +895,7 @@ sslverify=0
                                     "sudo yum list %s --showduplicates" % (pkg),
                                     expect_ret=0,
                                     msg='Check available pkg versions')
-                utils_lib.pkg_install(self, pkg_name=pkg, force=False)
+                utils_lib.is_pkg_installed(self, pkg_name=pkg)
             found_kernel = any("kernel" in pkg for pkg in pkgs_list)
             if found_kernel:
                 utils_lib.run_cmd(self,
@@ -807,6 +906,8 @@ sslverify=0
                                 "sudo uname -r",
                                 expect_ret=0,
                                 msg='Check current kernel version')
+        pkg_repo = '/etc/yum.repos.d/pkg.repo'
+        utils_lib.run_cmd(self, "sudo rm -rf {}".format(pkg_repo), msg='delete pkg_repo')
 
     def tearDown(self):
         utils_lib.finish_case(self)

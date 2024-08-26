@@ -76,13 +76,13 @@ def init_args():
     parser.add_argument('--subscription_password', dest='subscription_password', default=None, action='store',
                     help='password for RHSM register', required=False)
     parser.add_argument('--dnf_repo_url', dest='dnf_repo_url', default=None, action='store',
-                    help='specify it when using the internal repos for dnf update, seperated by ","', required=False)
+                    help='specify it when using customized repos for dnf update, seperated by ","', required=False)
     parser.add_argument('--leapp_target_repo_url', dest='leapp_target_repo_url', default=None, action='store',
                     help='specify it when leapp upgrade via custom repo, seperated by ","', required=False)
     parser.add_argument('--pkg_repo_url', dest='pkg_repo_url', default=None, action='store',
-                    help='specify it when using repos for package installation, seperated by ","', required=False)
+                    help='specify it when using customized repos for package installation, seperated by ","', required=False)
     parser.add_argument('--pkgs', dest='pkgs', default=None, action='store',
-                    help='specify packages names you want to install, seperated by ","', required=False)
+                    help='specify packages names (and version if needed) you want to install, seperated by ","', required=False)
     parser.add_argument('--target_version', dest='target_version', default=None, action='store',
                     help='specify the target version you want to upgrade to, e.g., 9.4', required=False)
     args = parser.parse_args()
@@ -1112,7 +1112,7 @@ def is_pkg_installed(test_instance, pkg_name=None, is_install=True, cancel_case=
         is_install {bool} -- try to install it or not
     '''
     cmd = "rpm -q {}".format(pkg_name)
-    ret = run_cmd(test_instance, cmd, ret_status=True, rmt_node=rmt_node, vm=vm)
+    ret = run_cmd(test_instance, cmd, timeout=1200, ret_status=True, rmt_node=rmt_node, vm=vm)
     if ret == 0:
         return True
     else:
@@ -2018,3 +2018,12 @@ def imds_tracer_tool(test_instance=None, log_check=True, timeout=610, interval=3
         run_cmd(test_instance, 'cd aws-imds-packet-analyzer; sudo ./deactivate-tracer-service.sh') 
         run_cmd(test_instance, 'sudo rm -rf /var/log/imds/imds-trace.log') 
     return True
+
+def collect_basic_info(test_instance=None, rmt_node=None, vm=None):
+    '''
+    Collect baisc information of system.
+    '''
+    run_cmd(test_instance, "sudo rpm -qa | grep -E 'kernel|grub|cloud-init'")
+    run_cmd(test_instance, 'sudo ls /boot/grub2/')
+    run_cmd(test_instance, 'sudo uname -r')
+    run_cmd(test_instance, 'sudo fdisk -l')
