@@ -1808,6 +1808,9 @@ current_device"
                 self.assertIn('xen-hvm', virt_what_output)
             else:
                 self.assertIn('xen-domU', virt_what_output)
+        elif utils_lib.is_azure(self):
+            self.log.info("Found it is a Azure system!")
+            self.assertIn('hyperv', virt_what_output)
         elif 'Microsoft' in lscpu_output and not utils_lib.is_metal(self):
             self.log.info("Found it is a Hyper-V system!")
             self.assertIn('hyperv', virt_what_output)
