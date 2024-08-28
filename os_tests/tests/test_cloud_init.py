@@ -989,6 +989,15 @@ EOF""".format(device, size), expect_ret=0)
             1. Create a VM
             2. Login and check cloud-init network configure file is active
         """
+        # Get active interface name
+        lines = utils_lib.run_cmd(self,
+                    'ip a s',
+                    expect_ret=0,
+                    msg="check the active interface name").split('\n')
+        for line in lines:
+            if 'state UP' in line:
+                active_interface = line.split()[1].strip(':')
+                break
         # this case is workable for the default configuration
         cmd = "sudo grep 'Selected renderer' /var/log/cloud-init.log"
         output = utils_lib.run_cmd(self,
@@ -1001,14 +1010,14 @@ EOF""".format(device, size), expect_ret=0)
             utils_lib.run_cmd(self,
                         cmd,
                         expect_ret=0,
-                        expect_kw='ifcfg-eth0',
+                        expect_kw='ifcfg-{}'.format(active_interface),
                         msg='check if sysconfig file is active')
         # for network-manager renderer
         if "Selected renderer 'network-manager' from priority list" in output :
             utils_lib.run_cmd(self,
                         cmd,
                         expect_ret=0,
-                        expect_kw='cloud-init-eth0.nmconnection',
+                        expect_kw='cloud-init-{}.nmconnection'.format(active_interface),
                         msg='check if NetworkManager connection file is active')
 
     def test_cloudinit_datasource(self):        
