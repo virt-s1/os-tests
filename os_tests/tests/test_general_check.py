@@ -914,8 +914,8 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
             https://github.com/liangxiao1/os-tests/blob/master/os_tests/tests/test_general_check.py
         component:
             systemd
-        bugzilla_id:
-            1871139,2115230
+        bug_id:
+            bugzilla_1871139,bugzilla_2115230,jira_RHEL-56860,jira_RHEL-57001
         customer_case_id:
             yes
         testplan:
@@ -923,7 +923,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         maintainer:
             xiliang@redhat.com
         description:
-            check service has no 'Unknown lvalue' in unit file
+            check service has no 'Unknown lvalue' or 'Unknown key' in unit file
         key_steps:
             # systemd-analyze verify $service
         expect_result:
@@ -933,7 +933,7 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
             - output from 'systemd-analyze verify $service'
         """
         cmd = 'cat {}'.format(self.systemd_analyze_verify_file)
-        utils_lib.check_log(self,'Unknown lvalue',log_cmd=cmd,rmt_redirect_stdout=True)
+        utils_lib.check_log(self,'Unknown lvalue,Unknown key',log_cmd=cmd,rmt_redirect_stdout=True)
 
     def test_check_locale(self):
         '''
@@ -1280,12 +1280,12 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         if utils_lib.is_metal(self):
             utils_lib.run_cmd(self,
                         cmd,
-                        expect_kw="updated early",
+                        expect_kw="pdated early",
                         msg='microcode should load in bare metal')
         else:
             utils_lib.run_cmd(self,
                         cmd,
-                        expect_not_kw='updated early',
+                        expect_not_kw='Updated early,updated early',
                         msg='microcode should not load in VMs')
 
     def test_check_nouveau(self):
