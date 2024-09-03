@@ -155,10 +155,6 @@ class TestUpgrade(unittest.TestCase):
         debug_want: |
             n/a
         """
-        utils_lib.run_cmd(self,
-                        "sudo cat /etc/redhat-release",
-                        expect_ret=0,
-                        msg='check current rhel release')
         x_version = self.rhel_x_version
 
         #Prepare dnf_repo for internal update
@@ -215,14 +211,7 @@ class TestUpgrade(unittest.TestCase):
                             "sudo reboot",
                             msg='Reboot system to the latest kernel')
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
-            utils_lib.run_cmd(self,
-                            "sudo uname -r",
-                            expect_ret=0,
-                            msg='Check kernel version after updated')
-            utils_lib.run_cmd(self,
-                            "sudo cat /etc/redhat-release",
-                            expect_ret=0,
-                            msg='check rhel release after updated')
+            utils_lib.collect_basic_info(self)
 
     def test_leapp_upgrade_rhui(self):
         """
@@ -296,10 +285,6 @@ class TestUpgrade(unittest.TestCase):
             n/a
         """
         #Please run test_dnf_update case to update the system to the latest before this case.
-        utils_lib.run_cmd(self, 
-                        "sudo cat /etc/redhat-release",
-                        expect_ret=0,
-                        msg='check current rhel release')
         x_version = self.rhel_x_version
         cmd = "sudo rpm -qa|grep 'rhui\|client-rhel'"
         ret = utils_lib.run_cmd(self, 
@@ -383,14 +368,7 @@ class TestUpgrade(unittest.TestCase):
                 utils_lib.run_cmd(self, 'ls /boot/grub2', msg='Check grub2 configure files')
                 time.sleep(600)
                 utils_lib.init_connection(self, timeout=self.ssh_timeout)
-                utils_lib.run_cmd(self,
-                                "sudo uname -r",
-                                expect_ret=0,
-                                msg='Check kernel version after leapp upgrade')
-                utils_lib.run_cmd(self,
-                                "sudo cat /etc/redhat-release",
-                                expect_ret=0,
-                                msg='check rhel release after leapp upgrade')
+                utils_lib.collect_basic_info(self)
                 #Perform post-upgrade tasks
                 utils_lib.run_cmd(self,
                                 "sudo rhui-set-release --unset",
@@ -473,10 +451,6 @@ class TestUpgrade(unittest.TestCase):
 
         """
         #Please run test_dnf_update case to update the system to the latest before this case.
-        utils_lib.run_cmd(self,
-                        "sudo cat /etc/redhat-release",
-                        expect_ret=0,
-                        msg='check current rhel release')
         x_version = self.rhel_x_version
         if os.getenv('INFRA_PROVIDER') in ['azure','google','aws','ali']:
             cmd = "sudo rpm -qa|grep rhui"
@@ -561,14 +535,7 @@ class TestUpgrade(unittest.TestCase):
                                 msg='Reboot system after leapp upgrade')
                 time.sleep(600)
                 utils_lib.init_connection(self, timeout=self.ssh_timeout)
-                utils_lib.run_cmd(self,
-                                "sudo uname -r",
-                                expect_ret=0,
-                                msg='Check kernel version after leapp upgrade')
-                utils_lib.run_cmd(self,
-                                "sudo cat /etc/redhat-release",
-                                expect_ret=0,
-                                msg='check rhel release after leapp upgrade')
+                utils_lib.collect_basic_info(self)
                 #Check if upgraded to correct version
                 x_version_upgrade = self.rhel_x_version
                 if x_version_upgrade != x_version + 1:
@@ -661,10 +628,6 @@ class TestUpgrade(unittest.TestCase):
             n/a
         """
         #Please run test_dnf_update case to update the system to the latest before this case.
-        utils_lib.run_cmd(self,
-                        "sudo cat /etc/redhat-release",
-                        expect_ret=0,
-                        msg='check current rhel release')
         x_version = self.rhel_x_version
         #Register to RHSM
         utils_lib.rhsm_register(self, cancel_case=True)
@@ -749,14 +712,7 @@ class TestUpgrade(unittest.TestCase):
                                 msg='Reboot system after leapp upgrade')
                 time.sleep(600)
                 utils_lib.init_connection(self, timeout=self.ssh_timeout)
-                utils_lib.run_cmd(self,
-                                "sudo uname -r",
-                                expect_ret=0,
-                                msg='Check kernel version after leapp upgrade')
-                utils_lib.run_cmd(self,
-                                "sudo cat /etc/redhat-release",
-                                expect_ret=0,
-                                msg='check rhel release after leapp upgrade')
+                utils_lib.collect_basic_info(self)
                 #Check if upgraded to correct version
                 x_version_upgrade = self.rhel_x_version
                 if x_version_upgrade != x_version + 1:

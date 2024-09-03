@@ -15,6 +15,8 @@ import difflib
 import time
 import logging
 import argparse
+import tempfile
+import string
 from tipset.libs import rmt_ssh
 from functools import wraps
 from itertools import chain
