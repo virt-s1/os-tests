@@ -94,64 +94,6 @@ class TestUpgrade(unittest.TestCase):
             cmd = "sudo sed -i 's/^AllowZoneDrifting=.*/AllowZoneDrifting=no/' /etc/firewalld/firewalld.conf"
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Configure firewalld')
 
-    def _configure_repo(self, repo_type, repo_url_param):
-        repo_urls = self.params.get(repo_url_param)
-        self.log.info("print %s" % repo_type)
-        if repo_urls is not None:
-            if self.params.get('proxy_url') is not None:
-                repo_temp = string.Template('''
-[$repo_type$id]
-name=$repo_type$id
-baseurl=$repo_url
-enabled=1
-gpgcheck=0
-sslverify=0
-proxy=http://127.0.0.1:8080
-            ''')
-            else:
-                repo_temp = string.Template('''
-[$repo_type$id]
-name=$repo_type$id
-baseurl=$repo_url
-enabled=1
-gpgcheck=0
-sslverify=0
-            ''')
-            fh, tmp_repo_file = tempfile.mkstemp(suffix='_rhel.repo',  dir='/tmp', text=False)
-            id = 0
-            with open(tmp_repo_file, 'a') as fh:
-                for repo_url in self.params.get(repo_url_param).split(','):
-                    repo_str = repo_temp.substitute(repo_type=repo_type, id=id, repo_url=repo_url)
-                    self.log.info("Add new repo %s to %s" % (repo_url, tmp_repo_file))
-                    fh.writelines(repo_str)
-                    id += 1      
-            
-            self.log.info("Updated %s" % tmp_repo_file)
-            with open(tmp_repo_file, 'r') as fh:
-                for line in fh.readlines():
-                    self.log.info(line)
-            repo_file_name = "/tmp/{}.repo".format(repo_type)
-            self.SSH.put_file(local_file=tmp_repo_file, rmt_file=repo_file_name)
-            if repo_type == 'dnf_repo':
-                dest_dir = "/etc/yum.repos.d/"
-                repo_file = "dnf.repo"
-            if repo_type == 'pkg_repo':
-                dest_dir = "/etc/yum.repos.d/"
-                repo_file = "pkg.repo"
-            if repo_type == 'leapp_target_repo':
-                dest_dir = "/etc/leapp/files/"
-                repo_file = "leapp_upgrade_repositories.repo"
-            dest_repo_path = dest_dir + repo_file
-            utils_lib.run_cmd(self, 
-                        "sudo cp -r %s %s" % (repo_file_name,dest_repo_path),
-                        expect_ret=0,
-                        msg='Prepare %s' % (repo_type))
-            utils_lib.run_cmd(self, 'ls -l %s' % (dest_repo_path), expect_ret=0)
-            utils_lib.run_cmd(self, 'cat %s' % (dest_repo_path), expect_ret=0)
-            if os.path.exists(tmp_repo_file):
-               os.unlink(tmp_repo_file)
-               self.log.info("delete tempfile %s" % (tmp_repo_file))
-
     def _save_file(self, file_dir, file_name):
         saved_file = file_dir + file_name
         if self.params.get('remote_node') is not None:
@@ -220,8 +162,9 @@ sslverify=0
         x_version = self.rhel_x_version
 
         #Prepare dnf_repo for internal update
-        if self.params.get('dnf_repo_url'):
-            self._configure_repo('dnf_repo', 'dnf_repo_url')
+        dnf_repo_url = self.params.get('dnf_repo_url')
+        if dnf_repo_url:
+            utils_lib.configure_repo(self, repo_type='dnf_repo', repo_url_param=dnf_repo_url)        
             #prepare dnf update
             cmd = "sudo yum remove -y $(rpm -qa|grep -v $(uname -r)|grep kernel-core|head -1)"
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Remove kernel-core")
@@ -554,8 +497,9 @@ sslverify=0
         self._config_PermitRootLogin()
         self._remove_package()
         self._prepare_configure()
-        if self.params.get('leapp_target_repo_url'):
-            self._configure_repo('leapp_target_repo', 'leapp_target_repo_url')
+        leapp_target_repo_url = self.params.get('leapp_target_repo_url')
+        if leapp_target_repo_url:
+            utils_lib.configure_repo(self, repo_type='leapp_target_repo', repo_url_param=leapp_target_repo_url)
         #Peform leapp preupgrade via custom repo
         target_version = self.params.get('target_version')
         if target_version:
@@ -876,8 +820,9 @@ sslverify=0
         debug_want:
             n/a
         """
-        if self.params.get('pkg_repo_url'):
-            self._configure_repo('pkg_repo', 'pkg_repo_url')
+        pkg_repo_url = self.params.get('pkg_repo_url')
+        if pkg_repo_url:
+            utils_lib.configure_repo(self, repo_type='pkg_repo', repo_url_param=pkg_repo_url)
         if self.params.get('pkgs'):
             pkgs = self.params.get('pkgs')
             self.log.info("print pkgs %s" % (pkgs))
