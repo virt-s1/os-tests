@@ -1,3 +1,4 @@
 Would relabel /etc/yum.repos.d/eng.repo from system_u:object_r:unlabeled_t:s0 to system_u:object_r:system_conf_t:s0
 Would relabel /etc/yum.repos.d/beaker-AppStream.repo from system_u:object_r:unlabeled_t:s0 to system_u:object_r:system_conf_t:s0
 Would relabel /etc/yum.repos.d/beaker-BaseOS.repo from system_u:object_r:unlabeled_t:s0 to system_u:object_r:system_conf_t:s0
+Would relabel /var/lib/random-seed from system_u:object_r:unlabeled_t:s0 to system_u:object_r:random_seed_t:s0
