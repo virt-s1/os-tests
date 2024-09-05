@@ -15,6 +15,8 @@ import difflib
 import time
 import logging
 import argparse
+import tempfile
+import string
 from tipset.libs import rmt_ssh
 from functools import wraps
 from itertools import chain
@@ -2027,3 +2029,59 @@ def collect_basic_info(test_instance=None, rmt_node=None, vm=None):
     run_cmd(test_instance, 'sudo ls /boot/grub2/')
     run_cmd(test_instance, 'sudo uname -r')
     run_cmd(test_instance, 'sudo fdisk -l')
+
+def configure_repo(test_instance, repo_type=None, repo_url_param=None, rmt_node=None, vm=None):
+    '''
+    Configure custom repo for package install, dnf update, leapp upgrade or build rhel bootc images.
+    '''
+    if repo_url_param is not None:
+        if test_instance.params.get('proxy_url') is not None:
+            repo_temp = string.Template('''
+[$repo_type$id]
+name=$repo_type$id
+baseurl=$repo_url
+enabled=1
+gpgcheck=0
+sslverify=0
+proxy=http://127.0.0.1:8080
+            ''')
+        else:
+            repo_temp = string.Template('''
+[$repo_type$id]
+name=$repo_type$id
+baseurl=$repo_url
+enabled=1
+gpgcheck=0
+sslverify=0
+            ''')
+        fh, tmp_repo_file = tempfile.mkstemp(suffix='_rhel.repo',  dir='/tmp', text=False)
+        id = 0
+        with open(tmp_repo_file, 'a') as fh:
+            for repo_url in repo_url_param.split(','):
+                repo_str = repo_temp.substitute(repo_type=repo_type, id=id, repo_url=repo_url)
+                test_instance.log.info("Add new repo %s to %s" % (repo_url, tmp_repo_file))
+                fh.writelines(repo_str)
+                id += 1      
+            
+        test_instance.log.info("Updated %s" % tmp_repo_file)
+        with open(tmp_repo_file, 'r') as fh:
+            for line in fh.readlines():
+                test_instance.log.info(line)
+        repo_file_name = "/tmp/{}.repo".format(repo_type)
+        test_instance.SSH.put_file(local_file=tmp_repo_file, rmt_file=repo_file_name)
+        if repo_type == 'dnf_repo':
+            dest_dir = "/etc/yum.repos.d/"
+            repo_file = "dnf.repo"
+        if repo_type == 'pkg_repo':
+            dest_dir = "/etc/yum.repos.d/"
+            repo_file = "pkg.repo"
+        if repo_type == 'leapp_target_repo':
+            dest_dir = "/etc/leapp/files/"
+            repo_file = "leapp_upgrade_repositories.repo"
+        dest_repo_path = dest_dir + repo_file
+        run_cmd(test_instance, "sudo cp -r %s %s" % (repo_file_name,dest_repo_path), msg='Prepare %s' % (repo_type))
+        run_cmd(test_instance, 'ls -l %s' % (dest_repo_path))
+        run_cmd(test_instance, 'cat %s' % (dest_repo_path))
+        if os.path.exists(tmp_repo_file):
+            os.unlink(tmp_repo_file)
+            test_instance.log.info("delete tempfile %s" % (tmp_repo_file))
