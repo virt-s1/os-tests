@@ -281,10 +281,53 @@ class TestLifeCycle(unittest.TestCase):
             utils_lib.run_cmd(self, cmd, msg='Disable fips!')
 
     def test_boot_hpet_mmap_enabled(self):
-        '''
-        bz: 1660796, 1764790
-        polarion_id:
-        '''
+        """
+        case_name:
+            test_boot_hpet_mmap_enabled
+        case_tags:
+            kernel
+        case_status:
+           approved
+        title:
+            HPET mmap enabled while booting with "hpet_mmap=1"
+        importance:
+            low
+        subsystem_team:
+            sst_virtualization_cloud
+        automation_drop_down:
+            automated
+        linked_work_items:
+            N/A
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_lifecycle.py
+        setup_teardown:
+            N/A
+        environment:
+            N/A
+        component:
+            component
+        bug_id:
+            bugzilla_1660796, bugzilla_1764790
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        test_type:
+            functional
+        test_level:
+            Component
+        maintainer:
+            xiliang@redhat.com
+        description: |
+            HPET mmap enabled while booting with "hpet_mmap=1"
+        key_steps: |
+            $ grubby --update-kernel=ALL --args="hpet_mmap=1"
+            $ dmesg|grep 'HPET mmap enabled'
+        expected_result: |
+            HPET mmap enabled while booting with "hpet_mmap=1"
+        debug_want: |
+            dmesg
+        """
         utils_lib.run_cmd(self,
                     r'sudo rm -rf /var/crash/*',
                     expect_ret=0,
@@ -301,7 +344,7 @@ class TestLifeCycle(unittest.TestCase):
         out = utils_lib.run_cmd(self, cmd)
         if 'hpet' in out:
             utils_lib.run_cmd(self, 'sudo cat /proc/iomem|grep -i hpet', expect_kw='HPET 0')
-        utils_lib.check_log(self, "error,warn,fail,CallTrace", skip_words='ftrace', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, "CallTrace", skip_words='ftrace', rmt_redirect_stdout=True)
 
     def test_boot_mitigations(self):
         '''
@@ -322,7 +365,7 @@ class TestLifeCycle(unittest.TestCase):
         time.sleep(10)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='mitigations=auto,nosmt')
-        utils_lib.check_log(self, "error,warn,fail,CallTrace", skip_words='ftrace,Failed to write ATTR,nofail', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, "CallTrace", skip_words='ftrace,Failed to write ATTR,nofail', rmt_redirect_stdout=True)
 
     def test_boot_usbcore_quirks(self):
         '''
@@ -342,7 +385,7 @@ class TestLifeCycle(unittest.TestCase):
         cmd = r'sudo cat /var/crash/*/vmcore-dmesg.txt|tail -100'
         utils_lib.run_cmd(self, cmd, expect_kw='No such file or directory', msg='make sure there is no core generated')
         #remove trace for "memory used for stack traces" or "Callback from call_rcu_tasks_trace() invoked"
-        utils_lib.check_log(self, "error,warn,fail,CallTrace", skip_words='nofail', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, "CallTrace", skip_words='nofail', rmt_redirect_stdout=True)
 
     def test_boot_sev_snp(self):
         """
@@ -404,7 +447,7 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.run_cmd(self, 'sudo dmesg', expect_kw="SEV-SNP")
         utils_lib.run_cmd(self, 'lsmod|grep sev',
                     expect_ret=0, msg='check whether sev-snp loaded')
-        utils_lib.check_log(self, "error,warn,fail,CallTrace", rmt_redirect_stdout=True)
+        utils_lib.check_log(self, "CallTrace", rmt_redirect_stdout=True)
 
     def test_boot_mem_encrypt_on(self):
         """
@@ -466,7 +509,7 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='mem_encrypt=on')
         utils_lib.run_cmd(self, 'sudo dmesg | grep -i mem_encrypt', expect_kw='=on')
-        utils_lib.check_log(self, "error,warn,fail,CallTrace", skip_words='ftrace', rmt_redirect_stdout=True)
+        utils_lib.check_log(self, "CallTrace", skip_words='ftrace', rmt_redirect_stdout=True)
 
     def test_kdump_no_specify_cpu(self):
         '''

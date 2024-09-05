@@ -2205,5 +2205,29 @@
         "cases": "os_tests.tests.test_general_check.TestGeneralCheck.test_check_rpm_V_efi",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20240819"
+    },
+    "msg_239": {
+        "content": ".*nm-cloud-setup.service.* Unknown key name 'StartLimitIntervalSec' in section 'Service', ignoring.*",
+        "analyze": "known issue",
+        "branch": "rhel9",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-56860",
+        "path": "journal",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20240902"
+    },
+    "msg_240": {
+        "content": ".*lvm-devices-import.*: Unknown key 'ConditionPathExists' in section .* ignoring.*",
+        "analyze": "known issue",
+        "branch": "rhel10",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-57001",
+        "path": "journal",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20240904"
     }
 }
