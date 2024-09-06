@@ -2053,8 +2053,16 @@ ssh_pwauth: True
             self.vm.vm_username, output,
             "Login VM with publickey error: output of cmd `whoami` unexpected -> %s"
             % output)
-        cmd = 'ip addr show eth1'
-        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=',UP,')
+        # Check there are 2 active interfaces
+        active_num = 0
+        lines = utils_lib.run_cmd(self,
+                    'ip link show',
+                    expect_ret=0,
+                    msg="check the active interfaces").split('\n')
+        for line in lines:
+            if 'state UP' in line:
+                active_num = active_num + 1
+        self.assertEqual(active_num, 2, "There should be 2 active network interfaces")
         cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')        
         cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
         # Check ping gateway successful
@@ -2096,9 +2104,16 @@ ssh_pwauth: True
             self.vm.vm_username, output,
             "Login VM with publickey error: output of cmd `whoami` unexpected -> %s"
             % output)
-        # change command to ip addr because of no net-tool by default in rhel8.4
-        cmd = 'ip addr show eth1'
-        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=',UP,')
+        # Check there are 2 active interfaces
+        active_num = 0
+        lines = utils_lib.run_cmd(self,
+                    'ip link show',
+                    expect_ret=0,
+                    msg="check the active interfaces").split('\n')
+        for line in lines:
+            if 'state UP' in line:
+                active_num = active_num + 1
+        self.assertEqual(active_num, 2, "There should be 2 active network interfaces")
         cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')        
         cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
         if cloudinit_ver < 22.1:
@@ -2143,8 +2158,16 @@ ssh_pwauth: True
             self.vm.vm_username, output,
             "Login VM with publickey error: output of cmd `whoami` unexpected -> %s"
             % output)
-        cmd = 'ip addr show eth1'
-        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=',UP,')
+        # Check there are 2 active interfaces
+        active_num = 0
+        lines = utils_lib.run_cmd(self,
+                    'ip link show',
+                    expect_ret=0,
+                    msg="check the active interfaces").split('\n')
+        for line in lines:
+            if 'state UP' in line:
+                active_num = active_num + 1
+        self.assertEqual(active_num, 2, "There should be 2 active network interfaces")
         cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')        
         cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
         if cloudinit_ver < 22.1:
