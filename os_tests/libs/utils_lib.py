@@ -2082,3 +2082,14 @@ sslverify=0
         if os.path.exists(tmp_repo_file):
             os.unlink(tmp_repo_file)
             test_instance.log.info("delete tempfile %s" % (tmp_repo_file))
+
+def save_file(test_instance, file_dir=None, file_name=None, rmt_node=None, vm=None):
+    saved_file = file_dir + file_name
+    if test_instance.params['remote_nodes'] is not None:
+        cmd = "sudo cp {} /tmp/".format(saved_file)
+        run_cmd(test_instance, cmd, msg='Prepare for saving {}'.format(saved_file))
+        test_instance.SSH.get_file(rmt_file='/tmp/{}'.format(file_name),
+                        local_file='{}/attachments/{}'.format(test_instance.log_dir, file_name))
+    else:
+        cmd = "sudo cp {} {}/attachments/".format(saved_file, test_instance.log_dir)
+        run_cmd(test_instance, cmd, msg='Save {}'.format(saved_file))

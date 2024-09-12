@@ -94,17 +94,6 @@ class TestUpgrade(unittest.TestCase):
             cmd = "sudo sed -i 's/^AllowZoneDrifting=.*/AllowZoneDrifting=no/' /etc/firewalld/firewalld.conf"
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Configure firewalld')
 
-    def _save_file(self, file_dir, file_name):
-        saved_file = file_dir + file_name
-        if self.params.get('remote_node') is not None:
-            cmd = "sudo cp {} /tmp/".format(saved_file)
-            utils_lib.run_cmd(self, cmd, msg='Prepare for saving {}'.format(saved_file))
-            self.SSH.get_file(rmt_file='/tmp/{}'.format(file_name),
-                            local_file='{}/attachments/{}'.format(self.log_dir, file_name))
-        else:
-            cmd = "sudo cp {} {}/attachments/".format(saved_file, self.log_dir)
-            utils_lib.run_cmd(self, cmd, msg='Save {}'.format(saved_file))
-
     def test_dnf_update(self):
         """
         case_name:
@@ -201,7 +190,7 @@ class TestUpgrade(unittest.TestCase):
         file_dir = '/var/log/'
         file_names = ['dnf.librepo.log', 'dnf.log', 'dnf.rpm.log']
         for file_name in file_names:
-            self._save_file(file_dir, file_name)
+            utils_lib.save_file(self, file_dir=file_dir, file_name=file_name)
         cmd = "sudo grep -e 'error' -e 'fail' /var/log/dnf*"
         utils_lib.run_cmd(self, cmd, msg='Check if there are fail/error in dnf logs')
         if ret_val != 0:
@@ -346,7 +335,7 @@ class TestUpgrade(unittest.TestCase):
         file_names = ['leapp-preupgrade.log', 'leapp-report.txt']
         if ret != 0:
             for file_name in file_names:
-                self._save_file(file_dir, file_name)
+                utils_lib.save_file(self, file_dir=file_dir, file_name=file_name)
             self.FailTest('Leapp preupgrade via RHUI on {} failed'.format(platform))
         else:
             ret = utils_lib.run_cmd(self,
@@ -358,7 +347,7 @@ class TestUpgrade(unittest.TestCase):
             #save leapp upgrade logs
             file_names = ['leapp-upgrade.log', 'leapp-report.txt']
             for file_name in file_names:
-                self._save_file(file_dir, file_name)
+                utils_lib.save_file(self, file_dir=file_dir, file_name=file_name)
             if ret !=0:
                 self.FailTest('Leapp upgrade via RHUI on {} failed'.format(platform))
             else:
@@ -503,7 +492,7 @@ class TestUpgrade(unittest.TestCase):
         file_names = ['leapp-preupgrade.log', 'leapp-report.txt']
         if ret !=0:
             for file_name in file_names:
-                self._save_file(file_dir, file_name)
+                utils_lib.save_file(self, file_dir=file_dir, file_name=file_name)
             self.FailTest('Leapp upgrade via customrepo failed')
         else:        
             #Peform leapp upgrade via custom repo
@@ -526,7 +515,7 @@ class TestUpgrade(unittest.TestCase):
                 break
             file_names = ['leapp-upgrade.log', 'leapp-report.txt']
             for file_name in file_names:
-                self._save_file(file_dir, file_name)
+                utils_lib.save_file(self, file_dir=file_dir, file_name=file_name)
             if ret_val !=0:
                 self.FailTest('Leapp upgrade via customrepo failed')
             else:
@@ -680,7 +669,7 @@ class TestUpgrade(unittest.TestCase):
         file_names = ['leapp-preupgrade.log', 'leapp-report.txt']
         if ret !=0:
             for file_name in file_names:
-                self._save_file(file_dir, file_name)
+                utils_lib.save_file(self, file_dir=file_dir, file_name=file_name)
             self.FailTest('Leapp upgrade via RHSM failed')
         else:        
             #Peform leapp upgrade via RHSM
@@ -703,7 +692,7 @@ class TestUpgrade(unittest.TestCase):
                 break
             file_names = ['leapp-upgrade.log', 'leapp-report.txt']
             for file_name in file_names:
-                self._save_file(file_dir, file_name)
+                utils_lib.save_file(self, file_dir=file_dir, file_name=file_name)
             if ret_val !=0:
                 self.FailTest('Leapp upgrade via RHSM failed')
             else:
