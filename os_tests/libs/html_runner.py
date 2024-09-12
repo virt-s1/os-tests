@@ -9,7 +9,7 @@ import contextlib
 import os
 from jinja2 import Template, FileSystemLoader, Environment, PackageLoader, select_autoescape
 
-class Result:
+class ResultSummary:
     '''
     The class is for test result summary.
     '''
@@ -119,6 +119,7 @@ class HTMLTestRunner(object):
         self.buffer = buffer
         self.tb_locals = tb_locals
         self.warnings = warnings
+        self.comment = ''
         if resultclass is not None:
             self.resultclass = resultclass
 
@@ -128,7 +129,7 @@ class HTMLTestRunner(object):
     def run(self, test, logdir=None):
         "Run the given test case or test suite."
         result = self._makeResult()
-        test_result = Result()
+        test_result_summary = ResultSummary()
         registerResult(result)
         result.failfast = self.failfast
         result.buffer = self.buffer
@@ -152,6 +153,7 @@ class HTMLTestRunner(object):
             result.planned = len(all_case_name)
             for ts in test:
                 logdir = ts.params['results_dir']
+                test_result_summary.comment = ts.params.get('comment')
                 if not os.path.exists(logdir):
                     os.makedirs(logdir,exist_ok=True)
                 results_dir = logdir + '/results'
@@ -184,11 +186,11 @@ class HTMLTestRunner(object):
                         for ts_finished, reason in mapped_result[status]:
                             if ts_finished == ts:
                                 if status == 'FAIL':
-                                    test_result.case_fail += 1
+                                    test_result_summary.case_fail += 1
                                 if status == 'ERROR':
-                                    test_result.case_error += 1
+                                    test_result_summary.case_error += 1
                                 if status == 'SKIP':
-                                    test_result.case_skip += 1
+                                    test_result_summary.case_skip += 1
                                 case_status = status
                                 case_reason = reason
                                 try:
@@ -209,19 +211,19 @@ class HTMLTestRunner(object):
                                     case_reason = "{} IS_KNOWN:{} Please check auto analyze details in debug log".format(case_reason, not ret)
                                 break
                     if not case_status:
-                        test_result.case_pass += 1
+                        test_result_summary.case_pass += 1
                         with open(debug_log, 'a+') as fh:
                             fh.write('{} - PASS'.format(ts.id()))
                         case_status = 'PASS'
                         case_reason = ''
-                test_result.table_rows.append([id, ts.id(), case_status, case_reason, ts.duration, debug_log, test_class_name])
+                test_result_summary.table_rows.append([id, ts.id(), case_status, case_reason, ts.duration, debug_log, test_class_name])
                 with open(sum_txt, 'a+') as fh:
                     fh.write('case: {} - {}\n'.format(ts.id(),case_status))
                     if case_reason:
                         fh.write('info: {}\n'.format(case_reason))
             stopTime = time.perf_counter()
         timeTaken = round(stopTime - startTime, 3)
-        test_result.run_time = timeTaken
+        test_result_summary.run_time = timeTaken
         all_case_name.sort()
         id = 0
         for case in all_case_name:
@@ -231,18 +233,18 @@ class HTMLTestRunner(object):
             debug_log = "../attachments/" + case + '.debug'
         if hasattr(result, 'separator2'):
             self.stream.writeln(result.separator2)
-        test_result.compute_totals()
+        test_result_summary.compute_totals()
         node_info_file = "{}/attachments/node_info".format(logdir)
         if os.path.exists(node_info_file):
             with open(node_info_file) as fh:
-                test_result.node_info = fh.read()
+                test_result_summary.node_info = fh.read()
         results_dir = logdir + '/results'
         if not os.path.exists(results_dir):
             os.mkdir(results_dir)
         sum_html = os.path.join(results_dir, "sum.html")
-        generated_report(sum_html, "sum.html", test_result)
+        generated_report(sum_html, "sum.html", test_result_summary)
         sum_junit = os.path.join(results_dir, "sum.xml")
-        generated_report(sum_junit, "sum.xml", test_result)
+        generated_report(sum_junit, "sum.xml", test_result_summary)
         self.stream.writeln("{} generated".format(os.path.realpath(sum_txt)))
         #result.printErrors()
         if hasattr(result, 'separator2'):

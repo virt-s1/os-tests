@@ -22,11 +22,14 @@
   <!-- Table -->
   <table class="table table-bordered">
     <tr>
-    <td>Summary</td><td>Total:<b>{{ result.total }}</b>, PASS:<b class="text-success">{{ result.case_pass }}</b>, FAIL:<b class="text-danger">{{ result.case_fail }}</b>, SKIP:<b class="text-warning">{{ result.case_skip }}</b>, ERROR:<b class="text-danger">{{ result.case_error }}</b> - success rate is <b>{{ '%0.2f' % result.pass_rate|float }}</b>% (excluded SKIP and CANCEL)</tr>
+        <td>Summary</td><td>Total:<b>{{ result.total }}</b>, PASS:<b class="text-success">{{ result.case_pass }}</b>, FAIL:<b class="text-danger">{{ result.case_fail }}</b>, SKIP:<b class="text-warning">{{ result.case_skip }}</b>, ERROR:<b class="text-danger">{{ result.case_error }}</b> - success rate is <b>{{ '%0.2f' % result.pass_rate|float }}</b>% (excluded SKIP and CANCEL) Runtime(sec):{{ '%0.2f' % result.run_time|float }}
+    </tr>
     <tr>
-    <td>RunTime(s)</td><td>{{ '%0.2f' % result.run_time|float }}</td></tr>
+        <td>Node Info</td><td>{{ result.node_info|e }}</td>
+    </tr>
     <tr>
-    <td>Node Info</td><td>{{ result.node_info|e }}</td></tr>
+       <td>Comment</td><td>{{ result.comment|e }}</td>
+    </tr>
   </table>
   <table id="result" class="table table-hover table-bordered">
     <thead>
