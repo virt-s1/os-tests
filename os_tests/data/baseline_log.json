@@ -2229,5 +2229,29 @@
         "cases": "",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20240904"
+    },
+    "msg_241": {
+        "content": ".kernel: audit: type=140.*avc.*denied.*systemd-hwdb.*",
+        "analyze": "known issue",
+        "branch": "rhel10",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-50810",
+        "path": "journal",
+        "trigger": "",
+        "cases": "",
+        "addedby": "linl@redhat.com",
+        "addeddate": "20240912"
+    },
+    "msg_242": {
+        "content": "DataSourceGCE.py[WARNING]: Did not find a fallback interface on gce",
+        "analyze": "known issue",
+        "branch": "rhel8,rhel9",
+        "status": "active",
+        "link": "",
+        "path": "journal",
+        "trigger": "",
+        "cases": "",
+        "addedby": "linl@redhat.com",
+        "addeddate": "20240912"
     }
 }
