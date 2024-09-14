@@ -1003,19 +1003,11 @@ class TestLifeCycle(unittest.TestCase):
     def _start_vm_and_check(self):
         self.vm.start(wait=True)
         time.sleep(60)
-        for _ in range(10):
-            try:
-                utils_lib.init_connection(self, timeout=self.ssh_timeout)
-                output = utils_lib.run_cmd(self, 'whoami').strip()
-                self.assertEqual(self.vm.vm_username,
-                                 output,
-                                 "Start VM error: output of cmd `who` unexpected -> %s" % output)
-                break
-            except Exception as e:
-                self.log.error("SSH connection failed, retrying... Error: {}".format(e))
-                time.sleep(60)
-        else:
-            self.fail("Failed to establish SSH connection after VM restart.")
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        output = utils_lib.run_cmd(self, 'whoami').strip()
+        self.assertEqual(self.vm.vm_username,
+            output,
+            "Start VM error: output of cmd `who` unexpected -> %s" % output)
 
     def test_stop_start_vm(self):
         """
@@ -1047,11 +1039,13 @@ class TestLifeCycle(unittest.TestCase):
         if not self.vm:
             self.skipTest('no vm provider found')
         self.vm.stop(wait=True)
+        self.log.info('Attempting to stop VM...')
         for count in utils_lib.iterate_timeout(
             120, "Timed out waiting for VM to stop."):
             if self.vm.is_stopped():
                 break
             time.sleep(30) 
+        time.sleep(120)
         self.assertTrue(self.vm.is_stopped(),
                         "Stop VM error: VM status is not SHUTOFF")
         self._start_vm_and_check()
@@ -1060,7 +1054,8 @@ class TestLifeCycle(unittest.TestCase):
                 120, "Timed out waiting for VM to stop."):
             if self.vm.is_stopped(): 
                 break
-            time.sleep(30) 
+            time.sleep(30)
+        time.sleep(120) 
         self._start_vm_and_check()
 
     def _update_kernel_args(self, boot_param_required):
