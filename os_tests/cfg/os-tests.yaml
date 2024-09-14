@@ -73,3 +73,5 @@ case_post:
 dnf_repo_url:
 # specify it when leapp upgrade via custom repo, can pass more seperated by ","
 leapp_target_repo_url:
+# add more information about test run
+comment: ""

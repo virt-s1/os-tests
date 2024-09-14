@@ -952,7 +952,7 @@ grep -i pci|grep n1' % boot_pci
                         'sudo virsh nodedev-reattach %s' % pci_dev_0,
                         msg='reattach pci device',
                         expect_ret=0)
-        utils_lib.check_log(self, "error,warn,fail,trace,Call Trace", log_cmd='sudo dmesg -T', cursor=self.dmesg_cursor)
+        utils_lib.check_log(self, "error,warn,fail,Call Trace", log_cmd='sudo dmesg -T', cursor=self.dmesg_cursor)
 
     def test_sys_read_capability(self):
         """

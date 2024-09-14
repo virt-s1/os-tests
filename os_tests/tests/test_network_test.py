@@ -1119,6 +1119,7 @@ COMMIT
             cmd = "dd if=/dev/urandom of={} bs=1M count=500 status=progress".format(testfile_c)
             utils_lib.run_cmd(self,cmd,timeout=300,msg='create a 500M file')
             if i:
+                utils_lib.run_cmd(self,'sudo modprobe sch_netem', msg='manually load sch_netem due to RHEL-52279')
                 cmd = "sudo tc qdisc add dev eth0 root netem corrupt 1%"
                 utils_lib.run_cmd(self,cmd,expect_ret=0,msg='Test again with network corrupt 1%')
                 utils_lib.init_connection(self, timeout=self.ssh_timeout)

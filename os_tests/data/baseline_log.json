@@ -2253,5 +2253,29 @@
         "cases": "",
         "addedby": "linl@redhat.com",
         "addeddate": "20240912"
+    },
+    "msg_243": {
+        "content": ".*sysfs: cannot create duplicate filename.*/devices/cache.*",
+        "analyze": "known issue",
+        "branch": "rhel10",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-55706",
+        "path": "journal",
+        "trigger": "",
+        "cases": "os_tests.tests.test_general_check.TestGeneralCheck.test_check_dmesg_calltrace",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20240909"
+    },
+    "msg_244": {
+        "content": ".*/sys/devices/system/cpu/cpu1/online: No such file or directory.*",
+        "analyze": "known issue",
+        "branch": "rhel9",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-58031",
+        "path": "/sys/devices/system/cpu/cpu1/online",
+        "trigger": "",
+        "cases": "os_tests.tests.test_general_test.TestGeneralTest.test_cpu_hotplug_no_workload",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20240909"
     }
 }
