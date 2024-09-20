@@ -454,8 +454,7 @@ int main(int argc, char *argv[])
             Check there is no process using imdsv1 to access instance metadata
         key_steps: |
             - sudo yum -y install bcc-tools libbpf
-            - git clone --branch xiliang https://github.com/liangxiao1/aws-imds-packet-analyzer.git (with the latest fix)
-              source repo: https://github.com/aws/aws-imds-packet-analyzer.git
+            - git clone https://github.com/aws/aws-imds-packet-analyzer.git (with the latest fix)
             - sudo aws-imds-packet-analyzer/activate-tracer-service.sh
             - sudo cat /var/log/imds/imds-trace.log|grep imdsv1
         expected_result: |

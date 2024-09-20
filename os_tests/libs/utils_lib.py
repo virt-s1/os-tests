@@ -1976,17 +1976,26 @@ def imds_tracer_tool(test_instance=None, log_check=True, timeout=610, interval=3
             return False
         else:
             test_instance.skipTest('only support imdsv2 on aws')
+    is_pkg_installed(test_instance, pkg_name="bcc-tools", cancel_case=is_return, timeout=600)
+    is_pkg_installed(test_instance, pkg_name="libbpf", cancel_case=is_return, timeout=600)
+    is_pkg_installed(test_instance, pkg_name="git", cancel_case=is_return)
+    bpf_test_cmd = "sudo timeout 60 /usr/share/bcc/tools/tcpsubnet"
+    ret = run_cmd(test_instance, bpf_test_cmd, msg='check if bcc-tools work', ret_status=True)
+    if ret != 124:
+        if is_return:
+            test_instance.log.info('please check whether bcc-tools works')
+            return False
+        else:
+            test_instance.fail('bcc-tools does not work')
     ret = run_cmd(test_instance, 'systemctl status imds_tracer_tool.service', ret_status=True)
     if ret != 0:
         if cleanup:
             test_instance.log.info("imds_tracer_tool service is not enabled, no need to cleanup")
             return True
-        is_pkg_installed(test_instance, pkg_name="bcc-tools", cancel_case=is_return, timeout=600)
-        is_pkg_installed(test_instance, pkg_name="libbpf", cancel_case=is_return, timeout=600)
-        is_pkg_installed(test_instance, pkg_name="git", cancel_case=is_return)
         is_cmd_exist(test_instance, 'python3')
         run_cmd(test_instance, 'sudo rm -rf aws-imds-packet-analyzer')
-        run_cmd(test_instance, 'git clone --branch xiliang https://github.com/liangxiao1/aws-imds-packet-analyzer.git')
+        #run_cmd(test_instance, 'git clone --branch xiliang https://github.com/liangxiao1/aws-imds-packet-analyzer.git')
+        run_cmd(test_instance, 'git clone https://github.com/aws/aws-imds-packet-analyzer.git')
         run_cmd(test_instance, 'cd aws-imds-packet-analyzer; sudo ./activate-tracer-service.sh')
         time.sleep(30)
         ret = run_cmd(test_instance, 'systemctl status imds_tracer_tool.service', ret_status=True)

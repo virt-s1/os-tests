@@ -159,7 +159,7 @@ class TestLifeCycle(unittest.TestCase):
                     expect_kw='debug',
                     msg="checking debug kernel booted")
         utils_lib.run_cmd(self, 'sudo dmesg', expect_ret=0, msg="saving dmesg output")
-        cmd = 'journalctl > /tmp/journalctl.log'
+        cmd = 'journalctl -b0 > /tmp/journalctl.log'
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="saving journalctl output")
         utils_lib.run_cmd(self, 'cat /tmp/journalctl.log', expect_ret=0)
         utils_lib.run_cmd(self, "sudo systemd-analyze blame > /tmp/blame.log")
