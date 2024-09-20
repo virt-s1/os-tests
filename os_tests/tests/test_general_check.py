@@ -314,8 +314,8 @@ available_clocksource'
             test_check_dmesg_calltrace
         component:
             kernel
-        bugzilla_id:
-            1777179
+        bug_id:
+            bugzilla_1777179,bugzilla_1627644,bugzilla_2091523,jira_RHEL-21709
         is_customer_case:
             False
         maintainer:
