@@ -663,7 +663,12 @@ class TestGuestImage(unittest.TestCase):
                                    expect_ret=0,
                                    msg="cat /proc/cmdline")
         for line in lines:
+            if line == "net.ifnames=0" and float(product_id) >= 10.0:
+                # Skip the check for net.ifnames=0 if the product is RHEL 10 or higher
+                self.log.info("Skipping check for net.ifnames=0 as it is removed in RHEL 10 and later")
+                continue
             self.assertIn(line, output, "%s is not in boot parameters" % line)
+
         # crashkernel
         product_id = utils_lib.get_product_id(self)
         if float(product_id) >= 9.0:
