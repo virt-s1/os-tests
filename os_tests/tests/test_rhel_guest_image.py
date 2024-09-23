@@ -880,7 +880,7 @@ class TestGuestImage(unittest.TestCase):
                                    msg="cat /etc/redhat-release")
         match = re.search(r"\d+\.?\d+", output).group(0)
         self.assertEqual(
-            self.vm.rhel_ver, match,
+            float(self.vm.rhel_ver), float(match),
             "Release version mismatch in /etc/redhat-release -> %s" % output)
         if float(self.vm.rhel_ver) >= 8.0:
             cmd = "rpm -q redhat-release"
@@ -908,7 +908,7 @@ class TestGuestImage(unittest.TestCase):
                               output).group(1)
 
         self.assertEqual(
-            self.vm.rhel_ver, match,
+            float(self.vm.rhel_ver), float(match),
             "Release version mismatch on redhat-release-server -> %s" % output)
 
     def tearDown(self):
