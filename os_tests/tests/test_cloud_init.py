@@ -533,6 +533,45 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         self.log.info("Detected boot device:{}".format(boot_dev))
         return boot_dev
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') != 'openstack', 'skip as it is the specific case for openstack')
+    def test_cloudutils_growpart_resize_partition_first_boot(self):
+        """
+        case_tag:
+            cloud_utils_growpart
+        case_name:
+            test_cloudutils_growpart_resize_partition_first_boot
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudutils_growpart_resize_partition_first_boot
+        component:
+            cloud_utils_growpart
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            xiachen@redhat.com
+        description:
+            RHEL-188669 - CLOUDINIT-TC:[cloud-utils-growpart]resize partition during VM first boot
+            RHEL-36093 - Remove cloud-init dependency on obsolete gdisk
+        key_steps: |
+            1.  Check os disk and fs capacity
+        expect_result:
+            1. OS disk and fs capacity check right.
+        debug_want:
+            N/A
+        """
+        self.log.info("RHEL-188669: CLOUDINIT-TC:[cloud-utils-growpart]resize partition during VM first boot")
+        device = "/dev/vda"
+        # Partition Table: gpt, partition number is 3 or 4, so change keywords from partition number to xfs
+        file_system = "xfs"
+        # VM flavor m1.medium, size 40G
+        cmd = "sudo parted -s %s print|grep '%s'|awk 'END{print $3}'" %(device, file_system)
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0).rstrip('\n')
+        self.assertEqual(
+            "42.9GB",
+            output,
+            "Fail to resize partition during first boot")
+
     def test_cloudinit_auto_extend_root_partition_and_filesystem(self):
         """
         case_tag:
@@ -550,9 +589,10 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         testplan:
             N/A
         maintainer:
-            minl@redhat.com
+            xiachen@redhat.com
         description:
             RHEL7-103839 - CLOUDINIT-TC: Auto extend root partition and filesystem
+            RHEL-36093 - Remove cloud-init dependency on obsolete gdisk
         key_steps: |
             1. Install cloud-utils-growpart gdisk if not installed(bug 1447177)
             2. Check os disk and fs capacity
@@ -568,6 +608,7 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
 
         # 1. Install cloud-utils-growpart gdisk
         utils_lib.is_cmd_exist(self, cmd='growpart')
+        # after RHEL-36093, we should not install gdisk
         #utils_lib.is_cmd_exist(self, cmd='gdisk')
         
         # 2. Check os disk and fs capacity
@@ -686,7 +727,7 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         """
         #get cloud-init rpm version
         support_cases = self.vm.support_cases
-        main_support_versions = ["23.1.1-2.el8","23.1.1-2.el9"]
+        main_support_versions = ["23.1.1-2.el8","23.1.1-2.el9","24.1.4.el10"]
         backport_versions = None
         package_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
         version = version_util.get_version(package_ver,'cloud-init-')
@@ -716,7 +757,6 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         """
         :param label: msdos/gpt
         """
-        utils_lib.run_cmd(self, "sudo su -")
         utils_lib.run_cmd(self, "which growpart", expect_ret=0, msg="test growpart command.")
         device = "/tmp/testdisk"
         if "/dev" not in device:
@@ -832,7 +872,6 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         debug_want:
             N/A
         """
-        utils_lib.run_cmd(self, "sudo su -")
         utils_lib.run_cmd(self, "which growpart", expect_ret=0, msg="test growpart command.")
         device = "/tmp/testdisk"
         if "/dev" not in device:
@@ -1165,7 +1204,8 @@ EOF""".format(device, size), expect_ret=0)
                 self.assertEqual(len(randompass), 20, "Random password length is not 20")
         else:
             self.skipTest('Skip checking password in console log, because %s does not support it now' % self.vm.provider)
-           
+
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') == 'libvirt', 'skip run as this needs to configure user-data')
     def test_cloudinit_check_runcmd(self):        
         """
         case_tag:
@@ -1181,8 +1221,6 @@ EOF""".format(device, size), expect_ret=0)
         key_steps:
         """
         # We will run this case on libvirt when it could customize user-data
-        if self.vm.provider == 'libvirt':
-            self.skipTest('skip run as this needs to configure user-data')
         cmd = 'sudo cat /var/log/messages'
         utils_lib.run_cmd(self, 
                           cmd, 
@@ -1662,6 +1700,7 @@ EOF""".format(device, size), expect_ret=0)
             cmd = "sudo systemctl is-active %s" % service
             utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='active', msg = "check %s status" % service)
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') != 'openstack', 'skip as it is the specific case for openstack')
     def test_cloudinit_create_vm_config_drive(self):        
         """
         case_tag:
@@ -1680,9 +1719,6 @@ EOF""".format(device, size), expect_ret=0)
             2. Login and check user sudo privilege
             3. check data source in /run/cloud-init/cloud.cfg
         """
-        if self.vm.provider != 'openstack':
-            self.skipflag = True
-            self.skipTest('skip run as this is openstack specific case')
         self.log.info(
             "RHEL-189225 - CLOUDINIT-TC: launch vm with config drive")        
         if self.vm.exists():
@@ -1713,6 +1749,7 @@ EOF""".format(device, size), expect_ret=0)
         self._check_cloudinit_done_and_service_isactive()
         #teardown
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') == 'libvirt', 'skip run as this needs to configure user-data')
     def test_cloudinit_login_with_password_userdata(self):
         """
         case_tag:
@@ -1730,8 +1767,6 @@ EOF""".format(device, size), expect_ret=0)
             1. Create a VM with only password authentication
             2. Login with password, should have sudo privilege
         """
-        if self.vm.provider == 'libvirt':
-            self.skipTest('skip run as this needs to configure user-data')
         password_length = 10
         vm_password = secrets.token_urlsafe(password_length)
         vm_username = "test-user"
@@ -2008,6 +2043,7 @@ ssh_pwauth: True
                     "Fail to disable cloud-init related services!")
         #teardown
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') != 'openstack', 'skip as it is the specific case for openstack')
     def test_cloudinit_create_vm_two_nics(self):
         """
         case_tag:
@@ -2026,8 +2062,7 @@ ssh_pwauth: True
             2. Login and check user
             3. check network config file
         """
-        if self.vm.provider != 'openstack':
-            self.skipTest('skip run as this case is openstack specific which using openstack PSI NIC uuid')        
+        # openstack specific which using openstack PSI NIC uuid'
         # The second nic uses hard code (the second network only contains ipv6, network name provider_net_ipv6_only, ipv6 slaac)
         # if the second nic has ipv4, the ssh login may select it but it could not be connected
         # this solution ensure ssh using eth0 ipv4
@@ -2054,6 +2089,7 @@ ssh_pwauth: True
         # check cloud-init status is done and services are active
         self._check_cloudinit_done_and_service_isactive()
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') != 'openstack', 'skip as it is the specific case for openstack')
     def test_cloudinit_create_vm_stateless_ipv6(self):
         """
         case_tag:
@@ -2071,8 +2107,6 @@ ssh_pwauth: True
             2. Login and check user
             3. check network config file
         """
-        if self.vm.provider != 'openstack':
-            self.skipTest('skip run as this case is openstack specific.')
         # The second nic uses hard code (net-ipv6-stateless-test, only subnet ipv6, dhcp-stateless)
         second_nic_id = "21f1d63a-197c-4f36-957a-4c8f4a24bb73"
         gateway = "2020:1:1:1::1"
@@ -2101,6 +2135,7 @@ ssh_pwauth: True
         # check cloud-init status is done and services are active
         self._check_cloudinit_done_and_service_isactive()
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') != 'openstack', 'skip as it is the specific case for openstack')
     def test_cloudinit_create_vm_stateful_ipv6(self):
         """
         case_tag:
@@ -2118,8 +2153,6 @@ ssh_pwauth: True
             2. Login and check user
             3. check network config file
         """
-        if self.vm.provider != 'openstack':
-            self.skipTest('skip run as this case is openstack specific')
         # The second nic uses hard code (net-ipv6-stateful-test, only subnet ipv6, dhcp-stateful)
         second_nic_id = "c0020823-5d4c-444a-aee7-b0fe6b3219cc"
         gateway = "2010:1:1:1::1"
@@ -2147,6 +2180,7 @@ ssh_pwauth: True
         # check cloud-init status is done and services are active
         self._check_cloudinit_done_and_service_isactive()
 
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['openstack','nutanix'], 'skip run as this case need connect rhsm stage server, not suitable for public cloud')
     def test_cloudinit_auto_install_package_with_subscription_manager(self):
         """
         case_tag:
@@ -2170,9 +2204,6 @@ ssh_pwauth: True
             2. create VM
             3. Verify register with subscription-manager and install package by cloud-init successfully
         """
-        if self.vm.provider != 'openstack' and self.vm.provider != 'nutanix':
-            self.skipflag = True
-            self.skipTest('skip run as this case need connect rhsm stage server, not suitable for public cloud')
         self.log.info("RHEL-186182 CLOUDINIT-TC:auto install package with subscription manager")
         if self.vm.exists():
             self.vm.delete()
@@ -2232,6 +2263,7 @@ packages:
                     msg="Fail to install package {} by cloud-init".format(package))
         #teardown
 
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['openstack','nutanix'], 'skip run as this case need connect rhsm stage server, not suitable for public cloud')
     def test_cloudinit_verify_rh_subscription_enablerepo_disablerepo(self):
         """
         case_tag:
@@ -2255,9 +2287,6 @@ packages:
             2. create VM
             3. Verify register with subscription-manager and enabled repos and disabled repos successfully
         """
-        if self.vm.provider != 'openstack' and self.vm.provider != 'nutanix':
-            self.skipflag = True
-            self.skipTest('skip run as this case need connect rhsm stage server, not suitable for public cloud')
         rhel_ver = utils_lib.run_cmd(self, "sudo cat /etc/redhat-release").rstrip('\n')
         rhel_ver = float(re.search('release\s+(\d+.\d+)\s+', rhel_ver).group(1))
         if rhel_ver >= 9.0 or rhel_ver < 8.0:
@@ -3048,6 +3077,7 @@ ssh_pwauth: True '''.format(**pw_config_dict)
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         utils_lib.run_cmd(self, 'uname -r', msg='Get instance kernel version')
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') != 'aws', 'skip as it is the specific case for aws')
     def test_cloudinit_query_instancemetadatatags(self):
         '''
         case_tag:
@@ -3075,8 +3105,6 @@ ssh_pwauth: True '''.format(**pw_config_dict)
             N/A
         '''
         #support version is 22.1-3
-        if not utils_lib.is_aws(self):
-            self.skipTest('skip run as this case is aws specific.')
         out = utils_lib.run_cmd(self, 'rpm -q cloud-init', expect_ret=0)
         cloudinit_ver = re.findall('\d+.\d',out)[0]
         if float(cloudinit_ver) < 22.1:
@@ -3095,6 +3123,7 @@ ssh_pwauth: True '''.format(**pw_config_dict)
         cmd = "cloud-init query ds.meta_data.tags"
         utils_lib.run_cmd(self, cmd, expect_ret=0)
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') != 'openstack', 'skip as it is the specific case for openstack')
     def test_cloudinit_package_upgrade(self):
         '''
         case_tag:
@@ -3120,8 +3149,6 @@ ssh_pwauth: True '''.format(**pw_config_dict)
         debug_want:
             N/A
         '''
-        if self.vm.provider != 'openstack':
-            self.skipTest('skip run as this case is openstack specific.')
 
         self.log.info("check cloud-init works well after package upgrade")
         #for y stream   self.vm.rhel_ver=8.7  target_v=7  base_v=target_v-1
@@ -3198,6 +3225,7 @@ EOF
         self._check_cloudinit_done_and_service_isactive()
         self.log.info("Reboot successfully after upgrade package" + self.base_version)
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') != 'openstack', 'skip as it is the specific case for openstack')
     def test_cloudinit_os_upgrade(self):
         '''
         case_tag:
@@ -3223,8 +3251,6 @@ EOF
         debug_want:
             N/A
         '''
-        if self.vm.provider != 'openstack':
-            self.skipTest('skip run as this case is openstack specific.')
         self.log.info("check cloud-init works well after OS upgrade")
         #for y stream   self.project=8.7  target_v=7  base_v=target_v-1
         #for z stream   self.project=8.6   target_v=6   base_v=target_v
@@ -3302,6 +3328,7 @@ EOF
         self._check_cloudinit_done_and_service_isactive()
         self.log.info("Reboot successfully after upgrade cloud-init for rhel " + self.base_version)
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') != 'openstack', 'skip as it is the specific case for openstack')
     def test_cloudinit_create_vm_login_repeatedly(self):
         '''
         case_tag:
@@ -3330,8 +3357,6 @@ EOF
         debug_want:
             N/A
         '''
-        if self.vm.provider != 'openstack':
-            self.skipTest('skip run as this case is openstack specific.')
         self.log.info("create vm and then login, repeatedly")
 
         for x in range(self.vm.run_loop):
@@ -3397,7 +3422,8 @@ EOF
         """
         utils_lib.run_cmd(self, 'ls -dl /run/cloud-init/')
         utils_lib.run_cmd(self, 'sudo rpm -V cloud-init', expect_not_kw='/run/cloud-init')
-    
+
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['aws'], 'skip as it is the specific case for aws')
     def test_cloudinit_create_vm_ipv6only(self):
         """
         case_tag:
@@ -3421,12 +3447,9 @@ EOF
             cloud-init runs successfully, and the instance is accessable.
         """   
         #the case is aws specific now, will update it or add other cases for other platforms, e.g. openstack
-        if not utils_lib.is_aws(self):
-            self.skipflag = True
-            self.skipTest('skip run as this case is aws specific.')
         #get cloud-init rpm version
         support_cases = self.vm.support_cases
-        main_support_versions = ["23.4.el8","23.4.el9"] # upstream cloud-init-23.4
+        main_support_versions = ["23.4.el8","23.4.el9","24.1.4.el10"] # upstream cloud-init-23.4
         backport_versions = None #
         package_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
         version = version_util.get_version(package_ver,'cloud-init-')
@@ -3484,7 +3507,7 @@ ssh_authorized_keys:
                 utils_lib.run_cmd(self,
                     cmd,
                     expect_ret=0,
-                    expect_kw='Crawl of metadata service using link-local ipv6, SUCCESS: found local data from DataSourceEc2Local',
+                    expect_kw="Using metadata source: 'http://\[fd00:ec2::254\]', SUCCESS: found local data from DataSourceEc2Local",
                     msg='check /var/log/cloud-init.log')      
             else:
                 self.fail("self.vms length <=1, could not create vms[1], please check!")
@@ -3493,6 +3516,7 @@ ssh_authorized_keys:
             self.skipTest("Skip test_cloudinit_create_vm_ipv6only because it does not support "+package_ver)
                 
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') != 'ali', 'skip as it is the specific case for alicloud')
     def test_cloudinit_nmactivator_sysconfig(self):
         """
         case_tag:
@@ -3515,11 +3539,9 @@ ssh_authorized_keys:
             NetworkManagerActivator brings up interface successfully 
         """
         #the case is alicloud specific now
-        if not utils_lib.is_ali(self):
-            self.skipTest('skip run as this case is alicloud specific.')
         #get cloud-init rpm version
         support_cases = self.vm.support_cases
-        main_support_versions = ["23.4-2.el8","23.4-3.el9"] #upstream cloud-init-23.4.1
+        main_support_versions = ["23.4-2.el8","23.4-3.el9"] #upstream cloud-init-23.4.1, rhel10 not support sysconfig
         backport_versions = ["23.1.1-11.el8_9.1","23.1.1-12.el9_3"]
         package_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
         version = version_util.get_version(package_ver,'cloud-init-')
@@ -3687,7 +3709,7 @@ ssh_authorized_keys:
             N/A
         """
         support_cases = self.vm.support_cases
-        main_support_versions = ["23.4-1.el8","23.4-2.el9"]
+        main_support_versions = ["23.4-1.el8","23.4-2.el9","24.1.4.el10"]
         backport_versions = None
         package_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
         version = version_util.get_version(package_ver,'cloud-init-')
@@ -3768,12 +3790,12 @@ ssh_authorized_keys:
                      'test_cloudinit_disable_cloudinit',
                      'test_cloudinit_auto_install_package_with_subscription_manager',
                      'test_cloudinit_verify_rh_subscription_enablerepo_disablerepo')
-        if self.id().endswith(casegroup) and not self.skipflag:
+        if self.id().endswith(casegroup) and not self.skipflag and not self.params.get('no_cleanup'):
             self.vm.delete(wait=True)
             #self.vm.create(wait=True) # remove this line of create cannot save time because init_case still create one
             #time.sleep(30)
             #utils_lib.init_connection(self, timeout=self.ssh_timeout)
-        if "test_cloudinit_create_vm_ipv6only" in self.id() and not self.skipflag:
+        if "test_cloudinit_create_vm_ipv6only" in self.id() and not self.skipflag and not self.params.get('no_cleanup'):
             if len(self.vms) > 1 and self.vms[1].exists():
                 self.vms[1].delete()
                 time.sleep(30)
