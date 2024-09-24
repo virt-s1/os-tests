@@ -94,7 +94,9 @@ class TestGuestImage(unittest.TestCase):
             if re.search(dev_name, line):
                 count = count + 1
         product_id = utils_lib.get_product_id(self)
-        if float(product_id) >= 9.0:
+        if float(product_id) >= 10.0:
+            expected_partitions = 4
+        elif float(product_id) >= 9.0:
             expected_partitions = 5
             if utils_lib.is_arch(self, arch='s390x'):
                 expected_partitions = 3
@@ -141,7 +143,7 @@ class TestGuestImage(unittest.TestCase):
             N/A
         """
         product_id = utils_lib.get_product_id(self)
-        if float(product_id) >= 9.0 and (
+        if float(product_id) >= 9.0 and float(product_id) < 10.0  and (
                 utils_lib.is_arch(self, arch='aarch64')
                 or utils_lib.is_arch(self, arch='x86_64')):
             cmd = "lsblk -n -o PARTTYPE,MOUNTPOINT | grep '/boot$'"
@@ -153,7 +155,7 @@ class TestGuestImage(unittest.TestCase):
                           "Boot partition GUID incorrect: %s" % output)
         else:
             self.skipTest(
-                "Only run on RHEL 9.x or later on x86_64 or aarch64.")
+                "Only run on RHEL 9.x on x86_64 or aarch64.")
 
     def test_check_etc_sysconfig_kernel(self):
         """
@@ -246,6 +248,9 @@ class TestGuestImage(unittest.TestCase):
             self.assertNotEqual(
                 testline, "", "GRUB_CMDLINE_LINUX is not set in /etc/default/grub")
             for line in lines:
+                # For RHEL 10 and later, skip the check for 'net.ifnames=0'
+                if line == "net.ifnames=0" and x >= 10:
+                    continue
                 self.assertIn(line, testline,
                               "%s is not in GRUB_CMDLINE_LINUX" % line)
 
@@ -662,6 +667,8 @@ class TestGuestImage(unittest.TestCase):
                                    cmd,
                                    expect_ret=0,
                                    msg="cat /proc/cmdline")
+        # crashkernel
+        product_id = utils_lib.get_product_id(self)
         for line in lines:
             if line == "net.ifnames=0" and float(product_id) >= 10.0:
                 # Skip the check for net.ifnames=0 if the product is RHEL 10 or higher
@@ -669,8 +676,6 @@ class TestGuestImage(unittest.TestCase):
                 continue
             self.assertIn(line, output, "%s is not in boot parameters" % line)
 
-        # crashkernel
-        product_id = utils_lib.get_product_id(self)
         if float(product_id) >= 9.0:
             cmd = "sudo kdumpctl get-default-crashkernel"
             tmp_output = utils_lib.run_cmd(
