@@ -67,11 +67,17 @@ class LibvirtVM(VMResource):
         dom = self.conn.lookupByUUIDString(uuid)
         net = dom.interfaceAddresses(
             libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE, 0)
-
+        
+        # Log all network interfaces and addresses
+        LOG.debug(f"Interfaces for VM {self.vm_name}: {net}")
+        
         for k, v in net.items():
+            LOG.debug(f"Interface: {k}, Details: {v}")
             if v["addrs"]:
                 for ipaddr in v["addrs"]:
                     f_ip = ipaddr["addr"]
+                    LOG.info(f"Floating IP found: {f_ip}")
+                    return f_ip
 
         if not f_ip:
             LOG.warning(f"No floating IP found for VM {self.vm_name}. Checking VM status.")
