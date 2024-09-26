@@ -68,7 +68,6 @@ class LibvirtVM(VMResource):
         net = dom.interfaceAddresses(
             libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE, 0)
         
-        # Log all network interfaces and addresses
         LOG.debug(f"Interfaces for VM {self.vm_name}: {net}")
         
         for k, v in net.items():
