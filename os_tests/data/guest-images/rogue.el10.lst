@@ -91,3 +91,7 @@
 /root/.ssh/authorized_keys
 /usr/lib/sysimage/rpm/.rpmdbdirsymlink_created
 /usr/share/glib-2.0/schemas/gschemas.compiled
+/etc/systemd/system/multi-user.target.wants/rpcbind.service
+/etc/systemd/system/sockets.target.wants/rpcbind.socket
+/etc/systemd/system/sysinit.target.wants/systemd-confext.service
+/etc/systemd/system/sysinit.target.wants/systemd-sysext.service

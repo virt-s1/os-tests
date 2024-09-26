@@ -23,4 +23,5 @@ grep -v "/boot/grub2/[^/]*/.*lst" /tmp/rogue >/tmp/rogue.tmp && mv /tmp/rogue.tm
 grep -v "/boot/grub2/[^/]*/.*elf" /tmp/rogue >/tmp/rogue.tmp && mv /tmp/rogue.tmp /tmp/rogue
 grep -v "/boot/loader/entries/.*.conf" /tmp/rogue >/tmp/rogue.tmp && mv /tmp/rogue.tmp /tmp/rogue
 grep -v "/etc/pki/ca-trust/extracted/pem/directory-hash/" /tmp/rogue >/tmp/rogue.tmp && mv /tmp/rogue.tmp /tmp/rogue
+grep -v "/etc/NetworkManager/system-connections/cloud-init-.*.nmconnection" /tmp/rogue >/tmp/rogue.tmp && mv /tmp/rogue.tmp /tmp/rogue
 rm -f /tmp/rpmdb /tmp/rpmdb.tmp /tmp/rogue.tmp
