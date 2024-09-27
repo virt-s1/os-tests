@@ -2289,5 +2289,53 @@
         "cases": "os_tests.tests.test_general_test.TestGeneralTest.test_imds_tracer",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20240918"
+    },
+    "msg_246": {
+        "content": ".*/etc/cron.hourly/0anacron: line 11: /etc/default/anacron: No such file or directory.*",
+        "analyze": "known issue",
+        "branch": "rhel10",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-42706",
+        "path": "",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20240920"
+    },
+    "msg_247": {
+        "content": ".*/usr/sbin/grub2-probe.*failed to get canonical path of .*overlay.*",
+        "analyze": "known issue in bootc image",
+        "branch": "rhel9",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-59866",
+        "path": "",
+        "trigger": "",
+        "cases": "os_tests.tests.test_general_test.TestGeneralTest.test_grub2_mkconfig",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20240924"
+    },
+    "msg_248": {
+        "content": ".*nvidia-persistenced.service.*PIDFile= references a path below legacy directory /var/run/.*",
+        "analyze": "known issue",
+        "branch": "rhelai",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHELAI-1532",
+        "path": "",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20240924"
+    },
+    "msg_249": {
+        "content": ".*fwupd.*SMBIOS BIOS Characteristics Extension Byte 2 is invalid -- UEFI Specification is unsupported, but /sys/firmware/efi exists: System does not support UEFI mode.*",
+        "analyze": "known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-60244",
+        "path": "",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20240926"
     }
 }

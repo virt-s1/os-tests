@@ -35,7 +35,7 @@ subscription_password:
 # enable case result auto check, it calls the baseline_log.json data.
 enable_auto_result_check: True
 # specify the network bandwidth manually, it is optional, set to 100 which is max for most senarios
-net_bandwidth: 100
+net_bandwidth:
 # list supported cases without real run
 is_listcase: False
 # filter case by name and run it in specified order, add --strict for matching exactly

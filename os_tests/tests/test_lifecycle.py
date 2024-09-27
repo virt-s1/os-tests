@@ -269,6 +269,12 @@ class TestLifeCycle(unittest.TestCase):
                 cmd = 'sudo dnf remove kernel-debug -y'
                 utils_lib.run_cmd(self, cmd, msg='remove debug kernel to save space')
                 utils_lib.run_cmd(self, fips_enable_cmd, msg='Enable fips again!', timeout=600)
+            if 'OSTree' in out:
+                cmd = 'sudo fips-mode-setup --enable --no-bootcfg'
+                utils_lib.run_cmd(self, cmd, msg='append no-bootcfg in bootc image')
+                cmd = 'sudo rpm-ostree kargs --append=fips=1'
+                utils_lib.run_cmd(self, cmd, timeout=600, msg='append fips=1 to boot param')
+
             utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
             time.sleep(10)
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
