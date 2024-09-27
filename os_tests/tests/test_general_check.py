@@ -810,8 +810,8 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
             2
         component:
             journal
-        bugzilla_id:
-            1855252
+        bug_id:
+            bugzilla_1855252,jira_RHEL-42706
         customer_case_id:
             
         polarion_id:
