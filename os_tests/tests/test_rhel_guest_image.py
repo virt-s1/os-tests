@@ -96,7 +96,9 @@ class TestGuestImage(unittest.TestCase):
         product_id = utils_lib.get_product_id(self)
         if float(product_id) >= 10.0:
             expected_partitions = 4
-            if utils_lib.is_arch(self, arch='aarch64') or utils_lib.is_arch(self, arch='ppc64le'):
+            if utils_lib.is_arch(self, arch='s390x'):
+                expected_partitions = 2
+            elif utils_lib.is_arch(self, arch='aarch64') or utils_lib.is_arch(self, arch='ppc64le'):
                 expected_partitions = 3
         elif float(product_id) >= 9.0:
             expected_partitions = 5
