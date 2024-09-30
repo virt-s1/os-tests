@@ -317,7 +317,7 @@ class TestUpgrade(unittest.TestCase):
         ret = utils_lib.run_cmd(self,
                               cmd_preupgrade,
                               ret_status=True,
-                              timeout=1200,
+                              timeout=3600,
                               msg='Preupgrade test for leapp upgrade')
         if ret != 0:
             self._confirm_answer_file()
@@ -328,7 +328,7 @@ class TestUpgrade(unittest.TestCase):
             ret = utils_lib.run_cmd(self, 
                                   cmd_preupgrade, 
                                   ret_status=True, 
-                                  timeout=1200, 
+                                  timeout=3600, 
                                   msg='Retry preupgrade')
         #save preupgrade log
         file_dir = '/var/log/leapp/'
@@ -650,9 +650,10 @@ class TestUpgrade(unittest.TestCase):
             cmd_preupgrade = "sudo leapp preupgrade --debug"
             cmd_upgrade = "sudo leapp upgrade --debug"        
         ret = utils_lib.run_cmd(self,
-                                cmd_preupgrade,
-                                ret_status=True, timeout=1800,
-                                msg='Preupgrade test for leapp upgrade')
+                              cmd_preupgrade,
+                              ret_status=True, 
+                              timeout=3600,
+                              msg='Preupgrade test for leapp upgrade')
         if ret != 0:
             self._confirm_answer_file()
             utils_lib.run_cmd(self,
@@ -660,10 +661,10 @@ class TestUpgrade(unittest.TestCase):
                             expect_ret=0, 
                             msg='Check leapp report')
             ret = utils_lib.run_cmd(self, 
-                            cmd_preupgrade,
-                            ret_status=True, 
-                            timeout=1800, 
-                            msg='Retry preupgrade')
+                                  cmd_preupgrade,
+                                  ret_status=True, 
+                                  timeout=3600, 
+                                  msg='Retry preupgrade')
         #save preupgrade log
         file_dir = '/var/log/leapp/'
         file_names = ['leapp-preupgrade.log', 'leapp-report.txt']

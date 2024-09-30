@@ -87,7 +87,24 @@ def init_args():
                     help='specify packages names (and version if needed) you want to install, seperated by ","', required=False)
     parser.add_argument('--target_version', dest='target_version', default=None, action='store',
                     help='specify the target version you want to upgrade to, e.g., 9.4', required=False)
+    parser.add_argument('--disk_image_format', dest='disk_image_format', default=None, action='store',
+                    help='specify the disk image format to build disk image for image mode testing, e.g., 9.4', required=False)
+    parser.add_argument('--containerfile', dest='containerfile', default=None, action='store',
+                    help='specify the path of container file', required=False)
+    parser.add_argument('--bootc_base_image_url', dest='bootc_base_image_url', default=None, action='store',
+                    help='specify the base rhel bootc container image repo', required=False)
+    parser.add_argument('--quay_io_data', dest='quay_io_data', default=None, action='store',
+                    help='specify the login data for quay.io, e.g., username,password,quay.io', required=False)
+    parser.add_argument('--bootc_io_data', dest='bootc_io_data', default=None, action='store',
+                    help='specify the login data for bootc repo, e.g., e.g., username,password,bootc io name', required=False)
+    parser.add_argument('--bootc_base_image_digest', dest='bootc_base_image_digest', default=None, action='store',
+                    help='specify the previous bootc_base_image_digest', required=False)
+    parser.add_argument('--config_toml_file', dest='config_toml_file', default=None, action='store',
+                    help='specify the config_toml for login info of the custom container disk image', required=False)
+    parser.add_argument('--config_toml_info', dest='config_toml_info', default=None, action='store',
+                    help='specify login info of the custom container disk image', required=False)
     args = parser.parse_args()
+args = parser.parse_args()
     return args
 
 def init_provider(params=None):
@@ -381,7 +398,7 @@ def init_case(test_instance):
     test_instance.log.info("Case Doc: {}".format(eval(test_instance.id()).__doc__))
     test_instance.log.info("Case Params:")
     for key in test_instance.params.keys():
-        if key in ['password', 'subscription_username', 'subscription_password'] or 'password' in key:
+        if key in ['password', 'subscription_username', 'subscription_password', 'quay_io_data', 'bootc_io_data', 'config_toml_info'] or 'password' in key:
             test_instance.log.info("key:{}, val:*******".format(key))
         else:
             test_instance.log.info("key:{}, val:{}".format(key, test_instance.params[key]))
@@ -2093,7 +2110,7 @@ sslverify=0
             test_instance.log.info("delete tempfile %s" % (tmp_repo_file))
 
 def save_file(test_instance, file_dir=None, file_name=None, rmt_node=None, vm=None):
-    saved_file = file_dir + file_name
+    saved_file = '{}/{}'.format(file_dir, file_name)
     if test_instance.params['remote_nodes'] is not None:
         cmd = "sudo cp {} /tmp/".format(saved_file)
         run_cmd(test_instance, cmd, msg='Prepare for saving {}'.format(saved_file))
