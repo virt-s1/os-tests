@@ -660,11 +660,7 @@ class TestUpgrade(unittest.TestCase):
                             "sudo cat /var/log/leapp/leapp-report.txt",
                             expect_ret=0, 
                             msg='Check leapp report')
-            ret = utils_lib.run_cmd(self, 
-                                  cmd_preupgrade,
-                                  ret_status=True, 
-                                  timeout=3600, 
-                                  msg='Retry preupgrade')
+            ret = utils_lib.run_cmd(self, cmd_preupgrade, ret_status=True, timeout=3600, msg='Retry preupgrade')
         #save preupgrade log
         file_dir = '/var/log/leapp/'
         file_names = ['leapp-preupgrade.log', 'leapp-report.txt']

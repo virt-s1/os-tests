@@ -104,7 +104,6 @@ def init_args():
     parser.add_argument('--config_toml_info', dest='config_toml_info', default=None, action='store',
                     help='specify login info of the custom container disk image', required=False)
     args = parser.parse_args()
-args = parser.parse_args()
     return args
 
 def init_provider(params=None):
