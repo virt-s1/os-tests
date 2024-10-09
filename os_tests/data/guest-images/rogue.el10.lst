@@ -95,3 +95,4 @@
 /etc/systemd/system/sockets.target.wants/rpcbind.socket
 /etc/systemd/system/sysinit.target.wants/systemd-confext.service
 /etc/systemd/system/sysinit.target.wants/systemd-sysext.service
+/etc/systemd/system/multi-user.target.wants/kdump.service
