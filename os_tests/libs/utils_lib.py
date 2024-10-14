@@ -2111,10 +2111,24 @@ sslverify=0
 def save_file(test_instance, file_dir=None, file_name=None, rmt_node=None, vm=None):
     saved_file = '{}/{}'.format(file_dir, file_name)
     if test_instance.params['remote_nodes'] is not None:
-        cmd = "sudo cp {} /tmp/".format(saved_file)
+        cmd = "sudo cp -f {} /tmp/".format(saved_file)
         run_cmd(test_instance, cmd, msg='Prepare for saving {}'.format(saved_file))
         test_instance.SSH.get_file(rmt_file='/tmp/{}'.format(file_name),
                         local_file='{}/attachments/{}'.format(test_instance.log_dir, file_name))
     else:
-        cmd = "sudo cp {} {}/attachments/".format(saved_file, test_instance.log_dir)
+        cmd = "sudo cp -f {} {}/attachments/".format(saved_file, test_instance.log_dir)
         run_cmd(test_instance, cmd, msg='Save {}'.format(saved_file))
+
+def is_ostree_system(test_instance):
+    '''
+    /run/ostree-booted exists or not
+    '''
+    cmd = "ls -l /run/ostree-booted"
+    ret = run_cmd(test_instance, cmd, msg='check if /run/ostree-booted exists', ret_status=True)
+    if ret == 0:
+        test_instance.log.info("The system is ostree booted.")
+        return True
+    else:
+        test_instance.log.info("The system is not ostree booted.")
+        return False
+        
