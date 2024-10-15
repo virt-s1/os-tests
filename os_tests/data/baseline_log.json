@@ -2337,5 +2337,17 @@
         "cases": "",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20240926"
+    },
+    "msg_250": {
+        "content": ".*Version: (invalid).*",
+        "analyze": "dmidecode known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-61831",
+        "path": "",
+        "trigger": "",
+        "cases": "os_tests.tests.test_general_check.TestGeneralCheck.test_check_dmidecode_outofspec",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20241009"
     }
 }

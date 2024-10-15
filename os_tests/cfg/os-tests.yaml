@@ -75,3 +75,22 @@ dnf_repo_url:
 leapp_target_repo_url:
 # add more information about test run
 comment: ""
+###################################
+# below options are params for building bootc system images
+###################################
+# specify the disk image format to build disk image for image mode testing, e.g., 9.4
+disk_image_format: 
+# specify the path of container file
+containerfile:
+# specify the base rhel bootc container image repo
+bootc_base_image_url:
+# specify the login data for quay.io, e.g., username,password,quay.io
+quay_io_data:
+# specify the login data for bootc repo, e.g., e.g., username,password,bootc io name
+bootc_io_data:
+# specify the previous bootc_base_image_digest
+bootc_base_image_digest:
+# specify the config_toml for login info of the custom container disk image
+config_toml_file:
+# specify login info of the custom container disk image
+config_toml_info:

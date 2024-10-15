@@ -1115,6 +1115,8 @@ if __name__ == "__main__":
         """
         if utils_lib.is_arch(self, arch='s390x'):
             self.skipTest("Skip grub check on s390x")
+        if utils_lib.is_ostree_system(self):
+            self.skipTest("Skip on ostree system, see RHEL-59866")
         utils_lib.run_cmd(self,'sudo cat /etc/default/grub',msg="show default grub setting")
         cmd = 'rpm -qa "grub2*"'
         utils_lib.run_cmd(self,cmd,msg="show grub version")

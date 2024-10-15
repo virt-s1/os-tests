@@ -399,10 +399,12 @@ available_clocksource'
             2
         component:
             dmidecode
-        bugzilla_id:
-            1885823
-        customer_case_id:
-            02939365
+        bug_id:
+            bugzilla_1885823
+        is_customer_case:
+            True
+        attached_customer_cases:
+            3
         polarion_id:
             n/a
         maintainer:
@@ -415,14 +417,10 @@ available_clocksource'
             No segmentation fault found.
         '''
         utils_lib.is_cmd_exist(self, cmd='dmidecode')
-        if self.params.get('remote_node') is not None:
-            binfile = '/tmp/dmidecode_debug.bin'
-            cmd = "sudo dmidecode --dump-bin {}".format(binfile)
-            utils_lib.run_cmd(self, cmd, msg='save dmidecode_debug.bin for debug purpose, please attach it if file bug')
-            self.SSH.get_file(rmt_file=binfile,local_file='{}/attachments/dmidecode_debug.bin'.format(self.log_dir))
-        else:
-            cmd = "sudo dmidecode --dump-bin {}/attachments/dmidecode_debug.bin".format(self.log_dir)
-            utils_lib.run_cmd(self, cmd, msg='save dmidecode_debug.bin for debug purpose, please attach it if file bug')
+        
+        cmd = "sudo dmidecode --dump-bin /tmp/dmidecode_debug.bin"
+        utils_lib.run_cmd(self, cmd, msg='save dmidecode_debug.bin for debug purpose, please attach it if file bug')
+        utils_lib.save_file(self, file_dir='/tmp', file_name='dmidecode_debug.bin')
         cmd = "sudo dmidecode --dump"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw='Segmentation')
 
@@ -432,8 +430,8 @@ available_clocksource'
             test_check_dmidecode_outofspec
         component:
             dmidecode
-        bugzilla_id:
-            1858350
+        bug_id:
+            bugzilla_1858350, jira_RHEL-61831
         maintainer:
             xiliang@redhat.com
         is_customer_case:
@@ -449,8 +447,9 @@ available_clocksource'
             dmidecode_debug.bin
         """
         utils_lib.is_cmd_exist(self, cmd='dmidecode')
-        cmd = "sudo dmidecode --dump-bin {}/attachments/dmidecode_debug.bin".format(self.log_dir)
+        cmd = "sudo dmidecode --dump-bin /tmp/dmidecode_debug.bin"
         utils_lib.run_cmd(self, cmd, msg='save dmidecode_debug.bin for debug purpose, please attach it if file bug')
+        utils_lib.save_file(self, file_dir='/tmp', file_name='dmidecode_debug.bin')
         utils_lib.check_log(self,'OUT OF SPEC', log_cmd='sudo dmidecode', expect_ret=0, msg='Check there is no "OUT OF SPEC" in dmidecode output')
 
     def test_check_cpu_vulnerabilities(self):
@@ -884,11 +883,13 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         case_name:
             test_check_journalctl_invalid
         component:
-            sg3_utils
-        bugzilla_id:
-            1750417
+            journal
+        bug_id:
+            bugzilla_1750417
         is_customer_case:
             True
+        attached_customer_cases:
+            4
         maintainer:
             xiliang@redhat.com
         description:
@@ -900,10 +901,6 @@ itlb_multihit|grep -v 'no microcode'|grep -v retbleed|sed 's/:/^/' | column -t -
         debug_want:
             journal log
         """
-        '''
-        polarion_id:
-        bz:1750417
-        '''
         utils_lib.check_log(self, 'invalid', skip_words="Invalid user,invalid user", rmt_redirect_stdout=True)
 
     def test_check_journalctl_service_unknown_lvalue(self):
@@ -2072,11 +2069,7 @@ current_device"
         sosfile = sosfile.strip('\n')
         cmd = 'sudo chmod 766 {}'.format(sosfile)
         utils_lib.run_cmd(self, cmd, expect_ret=0)
-        if self.params.get('remote_node') is not None:
-            self.SSH.get_file(rmt_file=sosfile,local_file='{}/attachments/{}'.format(self.log_dir,os.path.basename(sosfile)))
-        else:
-            cmd = "cp {} {}/attachments/{}".format(sosfile, self.log_dir,os.path.basename(sosfile) )
-            utils_lib.run_cmd(self, cmd, msg='save {} to {}'.format(sosfile, self.log_dir))
+        utils_lib.save_file(self, file_dir=os.path.dirname(sosfile), file_name=os.path.basename(sosfile))
 
     def test_check_dmesg_sev(self):
         """
