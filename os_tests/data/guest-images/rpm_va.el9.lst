@@ -21,3 +21,4 @@ S.5....T.  c /etc/ssh/sshd_config
 .M.......    /boot/grub2/fonts/unicode.pf2
 .M.......  c /boot/grub2/grub.cfg
 .M.......  c /etc/machine-id
+..5....T.  c /var/lib/powerpc-utils/smt.state
