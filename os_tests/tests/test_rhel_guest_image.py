@@ -537,6 +537,7 @@ class TestGuestImage(unittest.TestCase):
         src_path = self.data_dir + '/guest-images/' + utils_script
         dest_path = '/tmp/' + utils_script
         self.SSH.put_file(local_file=src_path, rmt_file=dest_path)
+        utils_lib.is_pkg_installed(self,"python3")
         cmd = "sudo python3 %s" % dest_path
         output = utils_lib.run_cmd(self,
                                    cmd,
