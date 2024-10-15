@@ -31,7 +31,7 @@ excluded_paths = [
     '/tmp/*', '/var/*', '/home/*', '/root/.bash_history', '/usr/share/mime/*'
 ]
 find_command = ['find', '/', '!', '-type', 'd'] + [item for path in excluded_paths for item in ['! -path', path]]
-result = subprocess.run(find_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+result = subprocess.run(find_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 
 # Write rogue files to rogue.tmp
 with open('/tmp/rogue.tmp', 'w') as rogue_tmp_file:
@@ -47,12 +47,12 @@ except FileNotFoundError:
 with open('/tmp/rogue.tmp', 'r') as rogue_tmp_file, open('/tmp/rogue', 'w') as rogue_file:
     for line in rogue_tmp_file:
         line = line.strip()
-        result = subprocess.run(['rpm', '-qf', line], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        result = subprocess.run(['rpm', '-qf', line], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         if 'is not owned by any package' in result.stdout:
             rogue_file.write(f"{line}\n")
 
 # Perform the kernel filtering based on current kernel versions
-kernel_versions = subprocess.run(['rpm', '-q', 'kernel'], stdout=subprocess.PIPE, text=True).stdout.splitlines()
+kernel_versions = subprocess.run(['rpm', '-q', 'kernel'], stdout=subprocess.PIPE, universal_newlines=True).stdout.splitlines()
 for kernel in kernel_versions:
     kernel_version = '-'.join(kernel.split('-')[1:])  # Extract kernel version
     filter_paths = [
