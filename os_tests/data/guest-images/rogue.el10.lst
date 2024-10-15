@@ -101,3 +101,7 @@
 /etc/alternatives/libnssckbi.so.ppc64le
 /etc/systemd/system/NetworkManager.service.wants/hcn-init.service
 /etc/systemd/system/multi-user.target.wants/rtas_errd.service
+/boot/dtb
+/etc/alternatives/libnssckbi.so
+/etc/yum.repos.d/beaker-AppStream.repo
+/etc/yum.repos.d/beaker-BaseOS.repo
