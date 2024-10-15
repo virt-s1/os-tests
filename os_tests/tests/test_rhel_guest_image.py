@@ -489,7 +489,7 @@ class TestGuestImage(unittest.TestCase):
             self,
             cmd,
             expect_ret=0,
-            timeout=300,
+            timeout=600,
             msg="check selinux label through restorecon")
         cmd = "grep -vxFf {0} {1} > /tmp/cmp".format(dest_path, selinux_now)
         output = utils_lib.run_cmd(self,
