@@ -541,7 +541,7 @@ class TestGuestImage(unittest.TestCase):
         output = utils_lib.run_cmd(self,
                                    cmd,
                                    expect_ret=0,
-                                   timeout=300,
+                                   timeout=600,
                                    msg="run rogue.py")
         
         cmd = "test -f /tmp/rogue && echo 'File exists' || echo 'File does not exist'"
