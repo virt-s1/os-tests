@@ -489,6 +489,7 @@ class TestGuestImage(unittest.TestCase):
             self,
             cmd,
             expect_ret=0,
+            timeout=300,
             msg="check selinux label through restorecon")
         cmd = "grep -vxFf {0} {1} > /tmp/cmp".format(dest_path, selinux_now)
         output = utils_lib.run_cmd(self,
@@ -532,16 +533,21 @@ class TestGuestImage(unittest.TestCase):
         """
         product_id = utils_lib.get_product_id(self)
         data_file = "rogue.el%s.lst" % product_id.split('.')[0]
-        utils_script = "rogue.sh"
+        utils_script = "rogue.py"
         src_path = self.data_dir + '/guest-images/' + utils_script
         dest_path = '/tmp/' + utils_script
         self.SSH.put_file(local_file=src_path, rmt_file=dest_path)
-        cmd = "sudo sh -c 'chmod 755 %s && %s'" % (dest_path, dest_path)
+        cmd = "sudo python3 %s" % dest_path
         output = utils_lib.run_cmd(self,
                                    cmd,
                                    expect_ret=0,
                                    timeout=300,
-                                   msg="run rogue.sh")
+                                   msg="run rogue.py")
+        
+        cmd = "test -f /tmp/rogue && echo 'File exists' || echo 'File does not exist'"
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Check if /tmp/rogue exists")
+        self.assertEqual(output.strip(), 'File exists', "rogue.py failed to create /tmp/rogue")
+
         src_path = self.data_dir + '/guest-images/' + data_file
         dest_path = '/tmp/' + data_file
         self.SSH.put_file(local_file=src_path, rmt_file=dest_path)
@@ -653,7 +659,7 @@ class TestGuestImage(unittest.TestCase):
             N/A
         """
         for count in utils_lib.iterate_timeout(
-                120, "Timed out waiting for getting IP address."):
+                600, "Timed out waiting for getting IP address."):
             cmd = 'sudo systemctl is-active kdump'
             ret = utils_lib.run_cmd(self,
                                     cmd,

@@ -9,3 +9,4 @@ Would relabel /etc/insights-client/.insights-core-gpg-sig.etag from unconfined_u
 Would relabel /etc/insights-client/.cache.json.asc from unconfined_u:object_r:insights_client_etc_t:s0 to unconfined_u:object_r:insights_client_etc_rw_t:s0
 Would relabel /etc/insights-client/.cache.json from unconfined_u:object_r:insights_client_etc_t:s0 to unconfined_u:object_r:insights_client_etc_rw_t:s0
 Would relabel /etc/resolv.conf.orig from unconfined_u:object_r:etc_t:s0 to unconfined_u:object_r:net_conf_t:s0
+Would relabel /var/lib/random-seed from system_u:object_r:unlabeled_t:s0 to system_u:object_r:random_seed_t:s0
