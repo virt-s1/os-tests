@@ -107,25 +107,20 @@ RUN dnf install -y $pkgs && dnf clean all
         if self.params.get('subscription_username') and self.params.get('subscription_password'):
             utils_lib.rhsm_register(self, cancel_case=True)
         utils_lib.is_pkg_installed(self, pkg_name='container-tools', is_install=True, cancel_case=True)
-        
+        #prepare containerfile
         disk_image_format = self.params.get('disk_image_format')
         containerfile = self.params.get('containerfile')
         pkgs = self.params.get('pkgs')
         if pkgs:
             pkgs = pkgs.replace(",", " ")
         bootc_base_image_url = self.params.get('bootc_base_image_url')
-        
-        #prepare containerfile
+        arch = utils_lib.run_cmd(self, 'uname -m', expect_ret=0, msg="Check the architechure")
         if not containerfile:
             if not bootc_base_image_url:
                 self.skipTest("Please sepcify the base rhel bootc container image url.")
-            if disk_image_format == 'ami':
-                default_pkgs = "cloud-init"
+            default_pkgs = "cloud-init"
             if disk_image_format == 'iso':
                 default_pkgs = "cloud-init,hyperv-daemons"
-                #default_bootc_image_configure = ""
-            if disk_image_format == 'qcow2':
-                default_pkgs = "cloud-init"
             if disk_image_format == 'vmdk':
                 default_pkgs = "cloud-init,open-vm-tools"
             if disk_image_format == 'vhdx':
@@ -135,7 +130,7 @@ RUN dnf install -y $pkgs && dnf clean all
             if pkgs:
                 pkgs = default_pkgs.replace(',',' ') + " " + pkgs
             else:
-                pkgs = default_pkgs        
+                pkgs = default_pkgs.replace(',',' ')
         self.log.info("print %s" % pkgs)
         self._prepare_containerfile(containerfile, bootc_base_image_url, pkgs)
         dnf_repo_url = self.params.get('dnf_repo_url')
@@ -159,7 +154,7 @@ RUN dnf install -y $pkgs && dnf clean all
         bootc_base_image = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Fetch bootc base image repo')
         cmd = "sudo podman rmi {} -f".format(bootc_base_image)
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="remove old bootc base image")
-        cmd = "sudo podman pull {}".format(bootc_base_image)
+        cmd = "sudo podman pull {} --arch {}".format(bootc_base_image, arch)
         utils_lib.run_cmd(self, cmd, expect_ret=0, timeout = 1200, msg="pull bootc base image")
         cmd = "sudo podman images"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Check all container images")
@@ -191,7 +186,7 @@ RUN dnf install -y $pkgs && dnf clean all
             bootc_custom_image = "quay.io/{}/{}:{}".format(quay_io_data.split(',')[0], bootc_custom_image_name, bootc_custom_image_tag)
         else:
             bootc_custom_image = "localhost/{}:{}".format(bootc_custom_image_name, bootc_custom_image_tag)
-        cmd = "sudo podman build -t {} .".format(bootc_custom_image)
+        cmd = "sudo podman build -t {} . --arch {}".format(bootc_custom_image, arch)
         utils_lib.run_cmd(self, cmd, expect_ret=0, timeout = 1200, msg="Build bootc custom image")
         
         #Create bootable disks with custom bootc images
@@ -224,7 +219,7 @@ RUN dnf install -y $pkgs && dnf clean all
                 cmd = "sudo grep region .aws/config | awk '{print $(3)}'| tr -d '\n'"
                 aws_region = utils_lib.run_cmd(self, cmd, msg='Check aws region')
                 if not aws_region:
-                    FailTest('Please configure awscli')
+                    self.FailTest('Please configure awscli')
                 else:
                     cmd = "sudo podman run --rm -it --privileged --pull=newer -v /root/.aws:/root/.aws:ro \
 --env AWS_PROFILE=default -v /var/lib/containers/storage:/var/lib/containers/storage {} --local --type ami \
@@ -242,7 +237,7 @@ RUN dnf install -y $pkgs && dnf clean all
                 self.log.info("AMI name:{} ID:{} based on bootc image {} compose-id:{} Digest:{} is uploaded \
 to AWS {}".format(ami_name, ami_id, bootc_base_image, bootc_base_image_compose_id, bootc_base_image_digest, aws_region))
             else:
-                FailTest('Failed to upload AMI')
+                self.FailTest('Failed to upload AMI')
         else:
             config_toml_file = self.params.get('config_toml_file')
             config_toml_info = self.params.get('config_toml_info')
@@ -290,9 +285,6 @@ label=type:unconfined_t -v ./config.toml:/config.toml -v ./{}:/output -v \
             manifest_file = 'manifest{}'.format(output_dir.replace('output',''))
             cmd = "sudo mv {}/manifest-{}.json {}".format(output_dir, disk_image_type, manifest_file)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='move manifest-{}.json to {}'.format(disk_image_type, manifest_file))
-        #qcow2_disk = 'disk.qcow2'.format(output_dir.replace('output',''), disk_image_type)
-        #qcow2_disk = 'disk.qcow2'
-        #iso_disk = 'install.iso'
             utils_lib.is_cmd_exist(self,"qemu-img")
             if disk_image_format == 'vhdx':
                 cmd = "sudo qemu-img convert -O vhdx {}/qcow2/disk.qcow2 {}/qcow2/disk.vhdx".format(output_dir, output_dir)
