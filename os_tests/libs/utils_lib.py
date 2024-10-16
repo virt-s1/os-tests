@@ -96,13 +96,15 @@ def init_args():
     parser.add_argument('--quay_io_data', dest='quay_io_data', default=None, action='store',
                     help='specify the login data for quay.io, e.g., username,password,quay.io', required=False)
     parser.add_argument('--bootc_io_data', dest='bootc_io_data', default=None, action='store',
-                    help='specify the login data for bootc repo, e.g., e.g., username,password,bootc io name', required=False)
+                    help='specify the login data for bootc repo, e.g., username,password,bootc io name', required=False)
     parser.add_argument('--bootc_base_image_digest', dest='bootc_base_image_digest', default=None, action='store',
                     help='specify the previous bootc_base_image_digest', required=False)
     parser.add_argument('--config_toml_file', dest='config_toml_file', default=None, action='store',
                     help='specify the config_toml for login info of the custom container disk image', required=False)
     parser.add_argument('--config_toml_info', dest='config_toml_info', default=None, action='store',
                     help='specify login info of the custom container disk image', required=False)
+    parser.add_argument('--aws_info', dest='aws_info', default=None, action='store',
+                    help='specify the aws configure information, e.g., AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,aws-region,aws-bucket', required=False)
     args = parser.parse_args()
     return args
 
@@ -397,7 +399,7 @@ def init_case(test_instance):
     test_instance.log.info("Case Doc: {}".format(eval(test_instance.id()).__doc__))
     test_instance.log.info("Case Params:")
     for key in test_instance.params.keys():
-        if key in ['password', 'subscription_username', 'subscription_password', 'quay_io_data', 'bootc_io_data', 'config_toml_info'] or 'password' in key:
+        if key in ['password', 'subscription_username', 'subscription_password', 'quay_io_data', 'bootc_io_data', 'config_toml_info', 'aws_info'] or 'password' in key:
             test_instance.log.info("key:{}, val:*******".format(key))
         else:
             test_instance.log.info("key:{}, val:{}".format(key, test_instance.params[key]))
