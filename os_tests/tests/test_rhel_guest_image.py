@@ -538,13 +538,22 @@ class TestGuestImage(unittest.TestCase):
         dest_path = '/tmp/' + utils_script
         self.SSH.put_file(local_file=src_path, rmt_file=dest_path)
         utils_lib.is_pkg_installed(self,"python3")
-        cmd = "sudo python3 %s" % dest_path
-        output = utils_lib.run_cmd(self,
+        cmd = "which python3"
+        ret = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Check if python3 exist")
+        if ret:
+            cmd = "sudo python3 %s" % dest_path
+            output = utils_lib.run_cmd(self,
                                    cmd,
                                    expect_ret=0,
                                    timeout=1200,
                                    msg="run rogue.py")
-        
+        else:
+            cmd = "sudo sh -c 'chmod 755 %s && %s'" % (dest_path, dest_path)
+            output = utils_lib.run_cmd(self,
+                                   cmd,
+                                   expect_ret=0,
+                                   timeout=600,
+                                   msg="run rogue.sh")
         cmd = "test -f /tmp/rogue && echo 'File exists' || echo 'File does not exist'"
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Check if /tmp/rogue exists")
         self.assertEqual(output.strip(), 'File exists', "rogue.py failed to create /tmp/rogue")
