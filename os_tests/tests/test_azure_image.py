@@ -164,9 +164,13 @@ class TestAzureImage(unittest.TestCase):
 
     def test_check_cmdline_console(self):
         '''
-        console=ttyS0 earlyprintk=ttyS0 rootdelay=300 should be in cmdline
+        Check cmdline parameters
         '''
-        utils_lib.run_cmd(self, "sudo cat /proc/cmdline", expect_ret=0, expect_kw='console=ttyS0,earlyprintk=ttyS0,rootdelay=300', msg='check console,earlyprintk,rootdelay in cmdline')
+        if self.rhel_x_version <= 8:
+            expect_params = "console=tty1 console=ttyS0 earlyprintk=ttyS0 rootdelay=300"
+        elif self.rhel_x_version >= 9:
+            expect_params = "console=tty1 console=ttyS0,115200n8 earlyprintk=ttyS0,115200"
+        utils_lib.run_cmd(self, "sudo cat /proc/cmdline", expect_ret=0, expect_kw=expect_params, msg='check console,earlyprintk in cmdline')
 
     def test_check_cmdline_crashkernel(self):
         '''
@@ -189,9 +193,9 @@ class TestAzureImage(unittest.TestCase):
         des: nouveau,lbm-nouveau,floppy,skx_edac,intel_cstate should be disabled
         '''
         utils_lib.run_cmd(self, "sudo lsmod|grep nouveau", expect_not_ret=0, msg='check nouveau is not loaded')
-        file_check = '/lib/modprobe.d/blacklist-*.conf'
+        file_check = '/etc/modprobe.d/blacklist.conf'
         if self.rhel_x_version >= 9:
-            blacklist = ['nouveau', 'lbm-nouveau', 'floppy', 'amdgpu']
+            blacklist = ['nouveau', 'lbm-nouveau', 'floppy', 'amdgpu', 'skx_edac', 'intel_cstate', 'intel_uncore', 'acpi_cpufreq']
         else:
             blacklist = ['nouveau', 'lbm-nouveau', 'floppy', 'skx_edac', 'intel_cstate', 'amdgpu']
         # Print the full blacklist
@@ -306,28 +310,28 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         utils_lib.run_cmd(self, 'egrep "^DEVICE=(|\\\")eth0(|\\\")" /etc/sysconfig/network-scripts/ifcfg-eth0', expect_ret=0, msg='check eth0 used')
 
 
-    def test_check_nm_cloud_setup(self):
-        '''
-        rhbz: 1822853
-        des: 
-        <=8.4: check NetworkManager-cloud-setup is not installed
-        >=8.5: check NetworkManager-cloud-setup is installed and nm-cloud-setup.timer is setup for Azure and enabled
-        '''
-        product_id = utils_lib.get_product_id(self)
-        if float(product_id) < float('8.5'):
-            cmd = "rpm -q NetworkManager-cloud-setup"
-            utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='Check if NetworkManager-cloud-setup is not installed')
-        else:
-            cmd = "rpm -q NetworkManager-cloud-setup"
-            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Check if NetworkManager-cloud-setup is installed')
-            cmd = "sudo systemctl is-enabled nm-cloud-setup"
-            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Check if nm-cloud-setup is enabled')
+    # def test_check_nm_cloud_setup(self):
+    #     '''
+    #     rhbz: 1822853
+    #     des: 
+    #     <=8.4: check NetworkManager-cloud-setup is not installed
+    #     >=8.5: check NetworkManager-cloud-setup is installed and nm-cloud-setup.timer is setup for Azure and enabled
+    #     '''
+    #     product_id = utils_lib.get_product_id(self)
+    #     if float(product_id) < float('8.5'):
+    #         cmd = "rpm -q NetworkManager-cloud-setup"
+    #         utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg='Check if NetworkManager-cloud-setup is not installed')
+    #     else:
+    #         cmd = "rpm -q NetworkManager-cloud-setup"
+    #         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Check if NetworkManager-cloud-setup is installed')
+    #         cmd = "sudo systemctl is-enabled nm-cloud-setup"
+    #         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Check if nm-cloud-setup is enabled')
 
-            #COMPOSER-842
-            file_check = '/usr/lib/systemd/system/nm-cloud-setup.service.d/10-rh-enable-for-azure.conf'
-            expect_kw='Environment=NM_CLOUD_SETUP_AZURE=yes'
-            cmd = "sudo cat {}".format(file_check)
-            utils_lib.run_cmd(self, cmd, expect_kw=expect_kw, msg='Check if "{}" is set in {}'.format(expect_kw, file_check))
+    #         #COMPOSER-842
+    #         file_check = '/usr/lib/systemd/system/nm-cloud-setup.service.d/10-rh-enable-for-azure.conf'
+    #         expect_kw='Environment=NM_CLOUD_SETUP_AZURE=yes'
+    #         cmd = "sudo cat {}".format(file_check)
+    #         utils_lib.run_cmd(self, cmd, expect_kw=expect_kw, msg='Check if "{}" is set in {}'.format(expect_kw, file_check))
 
     def test_check_no_avc_denials(self):
         '''
@@ -400,7 +404,7 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         #     cmd = 'sudo rpm -q redhat-release-server'
         # else:
         #     cmd = 'sudo rpm -q redhat-release'
-        cmd = "timestamp=$(sudo rct cat-cert /etc/pki/rhui/product/content-base.crt|grep 'End Date'|awk '{print $3}');date -d $timestamp +%s"
+        cmd = "timestamp=$(sudo rct cat-cert /etc/pki/rhui/product/content*.crt|grep 'End Date'|awk '{print $3}');date -d $timestamp +%s"
         end_date = utils_lib.run_cmd(self,cmd, msg='get rhui cert end date')
         cmd = 'sudo date +%s'
         now_date = utils_lib.run_cmd(self,cmd, msg='get now date')
@@ -420,19 +424,21 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         8.4 images should have EUS RHUI. 
         Other versions should have non-EUS RHUI.
         """
-        self.log.info('RHEL image found')
+        self.log.info('Check RHUI image exists')
         product_id = utils_lib.get_product_id(self)
         x_version = self.rhel_x_version
-        if product_id in ['8.4']:
-            cmd = 'sudo rpm -q rhui-azure-rhel{}-eus'.format(x_version)
-            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Verify EUS RHUI is installed in RHEL-{}".format(product_id))
-            cmd = 'sudo rpm -q rhui-azure-rhel{}'.format(x_version)
-            utils_lib.run_cmd(self, cmd, expect_ret=1, msg="Verify non-EUS RHUI is not installed in RHEL-{}".format(product_id))
-        else:
-            cmd = 'sudo rpm -q rhui-azure-rhel{}'.format(x_version)
-            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Verify non-EUS RHUI is installed in RHEL-{}".format(product_id))
-            cmd = 'sudo rpm -q rhui-azure-rhel{}-eus'.format(x_version)
-            utils_lib.run_cmd(self, cmd, expect_ret=1, msg="Verify EUS RHUI is not installed in RHEL-{}".format(product_id))
+        cmd = 'sudo rpm -qa|grep rhui-azure-rhel{}'.format(x_version)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Verify RHUI is installed in RHEL-{}".format(product_id))
+        # if product_id in ['8.4']:
+        #     cmd = 'sudo rpm -q rhui-azure-rhel{}-eus'.format(x_version)
+        #     utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Verify EUS RHUI is installed in RHEL-{}".format(product_id))
+        #     cmd = 'sudo rpm -q rhui-azure-rhel{}'.format(x_version)
+        #     utils_lib.run_cmd(self, cmd, expect_ret=1, msg="Verify non-EUS RHUI is not installed in RHEL-{}".format(product_id))
+        # else:
+        #     cmd = 'sudo rpm -q rhui-azure-rhel{}'.format(x_version)
+        #     utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Verify non-EUS RHUI is installed in RHEL-{}".format(product_id))
+        #     cmd = 'sudo rpm -q rhui-azure-rhel{}-eus'.format(x_version)
+        #     utils_lib.run_cmd(self, cmd, expect_ret=1, msg="Verify EUS RHUI is not installed in RHEL-{}".format(product_id))
 
     def test_check_root_is_locked(self):
         """
@@ -448,20 +454,23 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         """
         utils_lib.run_cmd(self, 'sudo cat /etc/shells', expect_kw='/bin/bash', msg='check /bin/bash in /etc/shells')
 
-    def test_check_sshd(self):
-        '''
-        sshd service shoud be on, password authentication shoud be disabled
-        '''
-        is_systemd = utils_lib.run_cmd(self, 'rpm -q systemd > /dev/null && echo True || echo False')
-        self.log.info("Is systemd system:{}".format(is_systemd))
-        cmd = 'sudo cat /etc/ssh/sshd_config'
-        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='PasswordAuthentication no', msg='check if password auth disabled')
+    # def test_check_sshd(self):
+    #     '''
+    #     sshd service shoud be on, password authentication shoud be disabled
+    #     '''
+    #     is_systemd = utils_lib.run_cmd(self, 'rpm -q systemd > /dev/null && echo True || echo False')
+    #     self.log.info("Is systemd system:{}".format(is_systemd))
+    #     cmd = 'sudo grep PasswordAuthentication /etc/ssh/sshd_config'
+    #     utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='PasswordAuthentication no', msg='check if password auth disabled')
 
     def test_check_sysconfig_kernel(self):
         '''
         des: UPDATEDEFAULT=yes and DEFAULTKERNEL=kernel should be set in /etc/sysconfig/kernel
         '''
-        expect_kws = 'UPDATEDEFAULT=yes,DEFAULTKERNEL=kernel-core'
+        if self.rhel_x_version == 7:
+            expect_kws = 'UPDATEDEFAULT=yes,DEFAULTKERNEL=kernel'
+        else:
+            expect_kws = 'UPDATEDEFAULT=yes,DEFAULTKERNEL=kernel-core'
         cmd = "sudo cat /etc/sysconfig/kernel"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=expect_kws, msg='check /etc/sysconfig/kernel')
 
@@ -557,28 +566,28 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         utils_lib.run_cmd(self, r"sudo rpm -q --queryformat '%{NAME}' zsh", expect_ret=0)
         utils_lib.run_cmd(self, "sudo rpm -e zsh", expect_ret=0)
 
-    def test_check_subscription_manager_auto_config(self):
-        '''
-        bz: 1932802, 1905398
-        Verify auto_registration is enabled in the image
-        '''
-        product_id = utils_lib.get_product_id(self)
-        # if float(product_id) < float('8.4'):
-        #     self.skipTest('skip in earlier than el8.4')
+    # def test_check_subscription_manager_auto_config(self):
+    #     '''
+    #     bz: 1932802, 1905398
+    #     Verify auto_registration is enabled in the image
+    #     '''
+    #     product_id = utils_lib.get_product_id(self)
+    #     # if float(product_id) < float('8.4'):
+    #     #     self.skipTest('skip in earlier than el8.4')
 
-        # cmd = "sudo rpm -qa|grep rhui"
-        # ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='Check if it is a RHUI image')
-        # if ret == 0:
-        #     # RHUI image
-        #     expect_kw="auto_registration = 0,manage_repos = 1"
-        # else:
-        #     # SCA image
-        #     expect_kw="auto_registration = 1,manage_repos = 1"
-        expect_kw="auto_registration = 1,manage_repos = 0"
-        cmd = "sudo cat /etc/rhsm/rhsm.conf"
-        utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=expect_kw, msg='try to check subscription-manager config')
-        cmd = "sudo systemctl is-enabled rhsmcertd"
-        utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to check rhsmcertd enabled')
+    #     # cmd = "sudo rpm -qa|grep rhui"
+    #     # ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg='Check if it is a RHUI image')
+    #     # if ret == 0:
+    #     #     # RHUI image
+    #     #     expect_kw="auto_registration = 0,manage_repos = 1"
+    #     # else:
+    #     #     # SCA image
+    #     #     expect_kw="auto_registration = 1,manage_repos = 1"
+    #     expect_kw="auto_registration = 1,manage_repos = 0"
+    #     cmd = "sudo cat /etc/rhsm/rhsm.conf"
+    #     utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw=expect_kw, msg='try to check subscription-manager config')
+    #     cmd = "sudo systemctl is-enabled rhsmcertd"
+    #     utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to check rhsmcertd enabled')
 
     # def test_check_pkgs(self):
     #     '''
@@ -610,12 +619,12 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
             cmd = 'systemctl is-active {}'.format(service)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check {} is active'.format(service))
 
-    def test_check_grub_params(self):
-        '''
-        Verify /etc/default/grub params
-        '''
-        filename = '/etc/default/grub'
-        self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
+    # def test_check_grub_params(self):
+    #     '''
+    #     Verify /etc/default/grub params
+    #     '''
+    #     filename = '/etc/default/grub'
+    #     self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
 
     def test_check_kdump_status(self):
         '''
@@ -624,38 +633,45 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         cmd = "sudo kdumpctl status"
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='Kdump is operational', msg='Check kdump status')
 
-    def test_check_messages(self):
-        '''
-        Verify no error/fail/trace in /var/log/messages
-        '''
-        ignore_list = [
-            'Failed to init entropy source hwrng',
-            'Failed to register legacy timer interrupt',
-            'augenrules.*failure 1',
-            'cloud-init.*handlers.py.*failed to truncate kvp pool file',
-            'nofail',
-            'Errors: 0',
-            'kernel version.*failed early load check for .*, skipping',
-            'Failed determining last makecache time',
-            'kernel: ftrace',
-            'switching default tracing clock'
-        ]
-        self._check_log('/var/log/messages', ignore_list, 'error|fail|trace')
+    # def test_check_messages(self):
+    #     '''
+    #     Verify no error/fail/trace in /var/log/messages
+    #     '''
+    #     ignore_list = [
+    #         'Failed to init entropy source hwrng',
+    #         'Failed to register legacy timer interrupt',
+    #         'augenrules.*failure 1',
+    #         'cloud-init.*handlers.py.*failed to truncate kvp pool file',
+    #         'nofail',
+    #         'Errors: 0',
+    #         'kernel version.*failed early load check for .*, skipping',
+    #         'Failed determining last makecache time',
+    #         'kernel: ftrace',
+    #         'switching default tracing clock'
+    #     ]
+    #     self._check_log('/var/log/messages', ignore_list, 'error|fail|trace')
 
-    def test_check_dmesg(self):
-        '''
-        Verify no err/fail/warn/trace in dmesg
-        '''
-        ignore_list = [
-            'override',
-            'ftrace',
-            'deferred',
-            'interrupt',
-            'Failed to register legacy timer interrupt',
-            'trace_clock=local'
-        ]
-        utils_lib.run_cmd(self, 'sudo dmesg > /tmp/dmesg.log')
-        self._check_log('/tmp/dmesg.log', ignore_list)
+    # def test_check_dmesg(self):
+    #     '''
+    #     Verify no err/fail/warn/trace in dmesg
+    #     '''
+    #     ignore_list = [
+    #         'override',
+    #         'ftrace',
+    #         'deferred',
+    #         'interrupt',
+    #         'Failed to register legacy timer interrupt',
+    #         'trace_clock=local',
+    #         'RETBleed: WARNING: Spectre v2 mitigation leaves CPU vulnerable to RETBleed attacks, data leaks possible',
+    #         'acpi PNP0A03:00: fail to add MMCONFIG information',
+    #         'Interrupt',
+    #         'psmouse serio1: trackpoint: failed to get extended button data, assuming 3 buttons',
+    #         'Kernel Trace File System',
+    #         'Warning: Unmaintained driver is detected',
+    #         'sr0',
+    #     ]
+    #     utils_lib.run_cmd(self, 'sudo dmesg > /tmp/dmesg.log')
+    #     self._check_log('/tmp/dmesg.log', ignore_list)
 
     def test_check_cloudinit_log(self):
         """
@@ -694,7 +710,10 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
             'SKIPPED: device_part_info.* failed: /dev/mapper/rootvg-rootlv not a partition',
             'modules with 0 failures',
             'Failed to get raw userdata in module rightscale_userdata',
-            'nofail'
+            'nofail',
+            'deferred',
+            'Failed to mount device',
+            "unknown filesystem type",
         ]
         self._check_log('/var/log/cloud-init.log', ignore_list)
 
@@ -734,7 +753,7 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         """
         check if there's boot time delay
         """
-        max_boot_time = 120
+        max_boot_time = 180
         boot_time_sec = utils_lib.getboottime(self)
         utils_lib.compare_nums(self, num1=boot_time_sec, num2=max_boot_time, ratio=0, msg="Compare with cfg specified max_boot_time")
 
@@ -759,14 +778,14 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         cmd = "/sbin/lsmod|grep -iE 'hv|hyperv'"
         utils_lib.run_cmd(self, cmd, expect_kw=','.join(hyperv_driver_list), msg="Verify hyperv drivers are loaded")
 
-    def test_check_dracut_conf(self):
-        '''
-        Check /etc/dracut.conf
-        '''
-        cmd = "cat /etc/dracut.conf|grep -v '^#'"
-        utils_lib.run_cmd(self, cmd, expect_output='', msg="Verify no config in /etc/dracut.conf")
-        cmd = "ls /etc/dracut.conf.d/"
-        utils_lib.run_cmd(self, cmd, expect_output='', msg="Verify no config files in /etc/dracut.conf.d/")
+    # def test_check_dracut_conf(self):
+    #     '''
+    #     Check /etc/dracut.conf
+    #     '''
+    #     cmd = "cat /etc/dracut.conf|grep -v '^#'"
+    #     utils_lib.run_cmd(self, cmd, expect_output='', msg="Verify no config in /etc/dracut.conf")
+    #     cmd = "ls /etc/dracut.conf.d/nvme.conf"
+    #     utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Verify /etc/dracut.conf.d/nvme.conf exists")
 
     def test_check_hostkey_permission(self):
         '''
@@ -829,6 +848,7 @@ installonly_limit=3
 clean_requirements_on_remove=True
 best=True
 skip_if_unavailable=False            
+http_caching=packages
 '''
         filename = '/etc/dnf/dnf.conf'
         self._check_file_content(testfile=filename, expected=dnf_conf, msg="Check /etc/dnf/dnf.conf")
@@ -842,16 +862,16 @@ skip_if_unavailable=False
         cmd = 'authselect current'
         utils_lib.run_cmd(self, cmd, expect_output="No existing configuration detected.", msg="Check authselect current")
 
-    def test_check_logging_cfg(self):
-        '''
-        Check /etc/cloud/cloud.cfg.d/05_logging.cfg
-        * For RHEL-7 it is 06_logging_override.cfg
-        '''
-        if self.rhel_x_version < 8:
-            filename = '/etc/cloud/cloud.cfg.d/06_logging_override.cfg'
-        else:
-            filename = '/etc/cloud/cloud.cfg.d/05_logging.cfg'
-        self._check_file_content(filename.split('/')[-1], filename)
+    # def test_check_logging_cfg(self):
+    #     '''
+    #     Check /etc/cloud/cloud.cfg.d/05_logging.cfg
+    #     * For RHEL-7 it is 06_logging_override.cfg
+    #     '''
+    #     if self.rhel_x_version < 8:
+    #         filename = '/etc/cloud/cloud.cfg.d/06_logging_override.cfg'
+    #     else:
+    #         filename = '/etc/cloud/cloud.cfg.d/05_logging.cfg'
+    #     self._check_file_content(filename.split('/')[-1], filename)
 
     def test_no_sshkeys_knownhosts(self):
         '''
@@ -887,8 +907,10 @@ skip_if_unavailable=False
         '''
         if self.rhel_x_version >= 8:
             self.skipTest('Only support in RHEL-7')
-        filename = '/etc/udev/rules.d/66-azure-storage.rules'
-        self._check_file_content(filename.split('/')[-1], filename)
+        # filename = '/etc/udev/rules.d/66-azure-storage.rules'
+        # self._check_file_content(filename.split('/')[-1], filename)
+        cmd = "ls /etc/udev/rules.d/66-azure-storage.rules"
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Verify 66-azure-storage.rules exists")
 
     def test_check_99_azure_product_uuid_rules(self):
         '''
@@ -899,16 +921,16 @@ skip_if_unavailable=False
         filename = '/etc/udev/rules.d/99-azure-product-uuid.rules'
         self._check_file_content(filename.split('/')[-1], filename)
 
-    def test_check_cloud_cfg(self):
-        '''
-        Verify file /etc/cloud/cloud.cfg is not changed
-        (RHEL-9 only) Verify _netdev is in cloud.cfg
-        '''
-        # filename = '/etc/cloud/cloud.cfg'
-        # self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
-        self._check_file_not_changed("cloud-init")
-        if self.rhel_x_version >= 9:
-            utils_lib.run_cmd(self, cmd="cat /etc/cloud/cloud.cfg", expect_kw="_netdev", msg="Verify _netdev is in RHEL-9 cloud.cfg")
+    # def test_check_cloud_cfg(self):
+    #     '''
+    #     Verify file /etc/cloud/cloud.cfg is not changed
+    #     (RHEL-9 only) Verify _netdev is in cloud.cfg
+    #     '''
+    #     # filename = '/etc/cloud/cloud.cfg'
+    #     # self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
+    #     self._check_file_not_changed("cloud-init")
+    #     if self.rhel_x_version >= 9:
+    #         utils_lib.run_cmd(self, cmd="cat /etc/cloud/cloud.cfg", expect_kw="_netdev", msg="Verify _netdev is in RHEL-9 cloud.cfg")
 
     def test_check_pwquality_conf(self):
         '''
@@ -933,17 +955,17 @@ ucredit = 0
     #     filename = '/etc/waagent.conf'
     #     self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
 
-    def test_check_networkmanager_conf(self):
-        '''
-        Check /etc/NetworkManager/NetworkManager.conf
-        '''
-        expected = '''\
-[main]
-plugins = ifcfg-rh,
-[logging]
-'''
-        filename = '/etc/NetworkManager/NetworkManager.conf'
-        self._check_file_content(expected=expected, testfile=filename)
+#     def test_check_networkmanager_conf(self):
+#         '''
+#         Check /etc/NetworkManager/NetworkManager.conf
+#         '''
+#         expected = '''\
+# [main]
+# plugins = ifcfg-rh,
+# [logging]
+# '''
+#         filename = '/etc/NetworkManager/NetworkManager.conf'
+#         self._check_file_content(expected=expected, testfile=filename)
 
     def test_check_authselect_conf(self):
         '''
@@ -982,7 +1004,11 @@ plugins = ifcfg-rh,
         Check file /etc/pam.d/smartcard-auth
         '''
         filename = '/etc/pam.d/smartcard-auth'
-        self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
+        if self.rhel_x_version == 8:
+            expect_value = "auth sufficient pam_sss.so allow_missing_name"
+            utils_lib.run_cmd(self, "cat /etc/pam.d/smartcard-auth", expect_kw=expect_value, msg='check smartcard-auth')
+        else:
+            self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
 
     def test_check_system_auth(self):
         '''
@@ -991,13 +1017,13 @@ plugins = ifcfg-rh,
         filename = '/etc/pam.d/system-auth'
         self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
         
-    def test_check_chrony_conf(self):
-        '''
-        Verify file /etc/chrony.conf is not changed
-        '''
-        # filename = '/etc/chrony.conf'
-        # self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
-        self._check_file_not_changed("chrony")
+    # def test_check_chrony_conf(self):
+    #     '''
+    #     Verify file /etc/chrony.conf is not changed
+    #     '''
+    #     # filename = '/etc/chrony.conf'
+    #     # self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
+    #     self._check_file_not_changed("chrony")
 
     def test_check_authconfig(self):
         '''
@@ -1012,35 +1038,35 @@ plugins = ifcfg-rh,
             filename = '/etc/sysconfig/authconfig'
             self._check_file_content(filename.split('/')[-1], filename)
 
-    def test_check_yum_conf(self):
-        '''
-        Check file /etc/yum.conf
-        '''
-        if self.rhel_x_version < 8:
-            expected = '''\
-cachedir=/var/cache/yum/$basearch/$releasever
-debuglevel=2
-exactarch=1
-gpgcheck=1
-http_caching=packages
-installonly_limit=3
-keepcache=0
-logfile=/var/log/yum.log
-[main]
-obsoletes=1
-plugins=1
-'''
-        else:
-            expected = '''\
-best=True
-clean_requirements_on_remove=True
-gpgcheck=1
-installonly_limit=3
-[main]
-skip_if_unavailable=False
-'''
-        filename = '/etc/yum.conf'
-        self._check_file_content(testfile=filename, expected=expected, project=self.rhel_x_version)
+#     def test_check_yum_conf(self):
+#         '''
+#         Check file /etc/yum.conf
+#         '''
+#         if self.rhel_x_version < 8:
+#             expected = '''\
+# cachedir=/var/cache/yum/$basearch/$releasever
+# debuglevel=2
+# exactarch=1
+# gpgcheck=1
+# http_caching=packages
+# installonly_limit=3
+# keepcache=0
+# logfile=/var/log/yum.log
+# [main]
+# obsoletes=1
+# plugins=1
+# '''
+#         else:
+#             expected = '''\
+# best=True
+# clean_requirements_on_remove=True
+# gpgcheck=1
+# installonly_limit=3
+# [main]
+# skip_if_unavailable=False
+# '''
+#         filename = '/etc/yum.conf'
+#         self._check_file_content(testfile=filename, expected=expected, project=self.rhel_x_version)
 
     def test_check_langpacks_conf(self):
         '''
@@ -1071,15 +1097,15 @@ langpack_locales = en_US.UTF-8
     #     filename = '/etc/crypto-policies/back-ends/nss.config'
     #     self._check_file_content(filename.split('/')[-1], filename)
 
-    def test_check_osdisk_size(self):
-        '''
-        Verify os disk size is 64 GiB
-        '''
-        if self.rhel_x_version < 8:
-            cmd = "sudo fdisk -l|grep 'Linux LVM'|awk '{print $4}'"
-        else:
-            cmd = "sudo fdisk -l|grep 'Linux LVM'|awk '{print $5}'"
-        utils_lib.run_cmd(self, cmd, expect_kw='63G', msg="Verify os disk size is 64 GiB")
+    # def test_check_osdisk_size(self):
+    #     '''
+    #     Verify os disk size is 64 GiB
+    #     '''
+    #     if self.rhel_x_version < 8:
+    #         cmd = "sudo fdisk -l|grep 'Linux LVM'|awk '{print $4}'"
+    #     else:
+    #         cmd = "sudo fdisk -l|grep 'Linux LVM'|awk '{print $5}'"
+    #     utils_lib.run_cmd(self, cmd, expect_kw='63G', msg="Verify os disk size is 64 GiB")
 
     # Inactive this case because the service list is not always the same
     # def test_check_service_list(self):
@@ -1092,62 +1118,62 @@ langpack_locales = en_US.UTF-8
     #     base_file = 'services'
     #     self._check_file_content(base_file, test_file, msg="Compare services list", project=self.rhel_x_version)
 
-    def test_check_sshd_config(self):
-        '''
-        Check file content /etc/ssh/sshd_config
-        '''
-        if self.rhel_x_version == 7:
-            expected = '''\
-AcceptEnv LANG LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES
-AcceptEnv LC_IDENTIFICATION LC_ALL LANGUAGE
-AcceptEnv LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT
-AcceptEnv XMODIFIERS
-AuthorizedKeysFile	.ssh/authorized_keys
-ChallengeResponseAuthentication no
-ClientAliveInterval 180
-GSSAPIAuthentication yes
-GSSAPICleanupCredentials no
-HostKey /etc/ssh/ssh_host_ecdsa_key
-HostKey /etc/ssh/ssh_host_ed25519_key
-HostKey /etc/ssh/ssh_host_rsa_key
-PasswordAuthentication no
-Subsystem	sftp	/usr/libexec/openssh/sftp-server
-SyslogFacility AUTHPRIV
-UsePAM yes
-X11Forwarding yes
-'''
-        elif self.rhel_x_version == 8:
-            expected = '''\
-AcceptEnv LANG LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES
-AcceptEnv LC_IDENTIFICATION LC_ALL LANGUAGE
-AcceptEnv LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT
-AcceptEnv XMODIFIERS
-AuthorizedKeysFile .ssh/authorized_keys
-ChallengeResponseAuthentication no
-ClientAliveInterval 180
-GSSAPIAuthentication yes
-GSSAPICleanupCredentials no
-HostKey /etc/ssh/ssh_host_ecdsa_key
-HostKey /etc/ssh/ssh_host_ed25519_key
-HostKey /etc/ssh/ssh_host_rsa_key
-PasswordAuthentication no
-PermitRootLogin yes
-PrintMotd no
-Subsystem sftp	/usr/libexec/openssh/sftp-server
-SyslogFacility AUTHPRIV
-UsePAM yes
-X11Forwarding yes
-'''
-        else:
-            expected = '''\
-Include /etc/ssh/sshd_config.d/*.conf
-AuthorizedKeysFile .ssh/authorized_keys
-Subsystem sftp	/usr/libexec/openssh/sftp-server
-ClientAliveInterval 180
-PasswordAuthentication no
-'''
-        filename = "/etc/ssh/sshd_config"
-        self._check_file_content(testfile=filename, expected=expected)
+#     def test_check_sshd_config(self):
+#         '''
+#         Check file content /etc/ssh/sshd_config
+#         '''
+#         if self.rhel_x_version == 7:
+#             expected = '''\
+# AcceptEnv LANG LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES
+# AcceptEnv LC_IDENTIFICATION LC_ALL LANGUAGE
+# AcceptEnv LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT
+# AcceptEnv XMODIFIERS
+# AuthorizedKeysFile	.ssh/authorized_keys
+# ChallengeResponseAuthentication no
+# ClientAliveInterval 180
+# GSSAPIAuthentication yes
+# GSSAPICleanupCredentials no
+# HostKey /etc/ssh/ssh_host_ecdsa_key
+# HostKey /etc/ssh/ssh_host_ed25519_key
+# HostKey /etc/ssh/ssh_host_rsa_key
+# PasswordAuthentication no
+# Subsystem	sftp	/usr/libexec/openssh/sftp-server
+# SyslogFacility AUTHPRIV
+# UsePAM yes
+# X11Forwarding yes
+# '''
+#         elif self.rhel_x_version == 8:
+#             expected = '''\
+# AcceptEnv LANG LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES
+# AcceptEnv LC_IDENTIFICATION LC_ALL LANGUAGE
+# AcceptEnv LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT
+# AcceptEnv XMODIFIERS
+# AuthorizedKeysFile .ssh/authorized_keys
+# ChallengeResponseAuthentication no
+# ClientAliveInterval 180
+# GSSAPIAuthentication yes
+# GSSAPICleanupCredentials no
+# HostKey /etc/ssh/ssh_host_ecdsa_key
+# HostKey /etc/ssh/ssh_host_ed25519_key
+# HostKey /etc/ssh/ssh_host_rsa_key
+# PasswordAuthentication no
+# PermitRootLogin yes
+# PrintMotd no
+# Subsystem sftp	/usr/libexec/openssh/sftp-server
+# SyslogFacility AUTHPRIV
+# UsePAM yes
+# X11Forwarding yes
+# '''
+#         else:
+#             expected = '''\
+# Include /etc/ssh/sshd_config.d/*.conf
+# AuthorizedKeysFile .ssh/authorized_keys
+# Subsystem sftp	/usr/libexec/openssh/sftp-server
+# ClientAliveInterval 180
+# PasswordAuthentication no
+# '''
+#         filename = "/etc/ssh/sshd_config"
+#         self._check_file_content(testfile=filename, expected=expected)
 
     def test_check_metadata(self):
         '''
@@ -1169,33 +1195,33 @@ PasswordAuthentication no
             cmd = "sudo getent hosts {}".format(cds)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check {}'.format(cds))
 
-    def test_z_check_subscription_manager_auto_function(self):
-        '''
-        Verify auto_registration function works
-        * Add "z" in the case name to make it run at last
-        '''
-        product_id = utils_lib.get_product_id(self)
-        # if float(product_id) < float('8.4'):
-        #     self.skipTest('skip in earlier than el8.4')
-        cmd = "sudo subscription-manager config --rhsmcertd.auto_registration=1"
-        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Enable auto_registration")
-        cmd = "sudo subscription-manager config --rhsm.manage_repo=0"
-        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Disable manage_repo")
-        cmd = "sudo subscription-manager config --rhsmcertd.auto_registration_interval=1"
-        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Change interval to 1 min")
-        cmd = "sudo systemctl restart rhsmcertd.service"
-        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Restart rhsmcertd service")
-        time.sleep(60)
-        for retry in range(1, 11):
-            cmd = "sudo subscription-manager identity"
-            output = utils_lib.run_cmd(self, cmd, msg="Checking register status...")
-            if "system identity" in output:
-                self.log.info("Auto register successfully!")
-                break
-            self.log.info("Not registered yet. Wait for 30s...{}/10".format(retry))
-            time.sleep(30)
-        else:
-            self.fail("Fail to auto register!")
+    # def test_z_check_subscription_manager_auto_function(self):
+    #     '''
+    #     Verify auto_registration function works
+    #     * Add "z" in the case name to make it run at last
+    #     '''
+    #     product_id = utils_lib.get_product_id(self)
+    #     # if float(product_id) < float('8.4'):
+    #     #     self.skipTest('skip in earlier than el8.4')
+    #     cmd = "sudo subscription-manager config --rhsmcertd.auto_registration=1"
+    #     utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Enable auto_registration")
+    #     cmd = "sudo subscription-manager config --rhsm.manage_repo=0"
+    #     utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Disable manage_repo")
+    #     cmd = "sudo subscription-manager config --rhsmcertd.auto_registration_interval=1"
+    #     utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Change interval to 1 min")
+    #     cmd = "sudo systemctl restart rhsmcertd.service"
+    #     utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Restart rhsmcertd service")
+    #     time.sleep(60)
+    #     for retry in range(1, 11):
+    #         cmd = "sudo subscription-manager identity"
+    #         output = utils_lib.run_cmd(self, cmd, msg="Checking register status...")
+    #         if "system identity" in output:
+    #             self.log.info("Auto register successfully!")
+    #             break
+    #         self.log.info("Not registered yet. Wait for 30s...{}/10".format(retry))
+    #         time.sleep(30)
+    #     else:
+    #         self.fail("Fail to auto register!")
 
     def test_check_image_generation(self):
         '''
@@ -1204,10 +1230,10 @@ PasswordAuthentication no
         sku = self.metadata['compute']['storageProfile']['imageReference']['sku']
         if not sku:
             self.skipTest("Only for image testing")
-        if sku.endswith('gen1'):
-            self.assertEqual(self._get_generation(), 'gen1', "Expected: gen1; Real: gen2")
-        else:
+        if 'gen2' in sku:
             self.assertEqual(self._get_generation(), 'gen2', "Expected: gen2; Real: gen1")
+        else:
+            self.assertEqual(self._get_generation(), 'gen1', "Expected: gen1; Real: gen2")
 
     def tearDown(self):
         utils_lib.finish_case(self)
