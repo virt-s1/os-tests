@@ -538,9 +538,11 @@ class TestGuestImage(unittest.TestCase):
         dest_path = '/tmp/' + utils_script
         self.SSH.put_file(local_file=src_path, rmt_file=dest_path)
         utils_lib.is_pkg_installed(self,"python3")
-        cmd = "which python3"
+        cmd = "python3 --version"
         ret = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Check if python3 exist")
-        if ret:
+        print(f"python3 version check output: {ret}")
+        if ret.strip() and "Python" in ret:
+            print("python3 found; running rogue.py with python3.")
             cmd = "sudo python3 %s" % dest_path
             output = utils_lib.run_cmd(self,
                                    cmd,
@@ -548,6 +550,7 @@ class TestGuestImage(unittest.TestCase):
                                    timeout=1200,
                                    msg="run rogue.py")
         else:
+            print("python3 not found; running rogue.sh as a shell script instead.")
             cmd = "sudo sh -c 'chmod 755 %s && %s'" % (dest_path, dest_path)
             output = utils_lib.run_cmd(self,
                                    cmd,
