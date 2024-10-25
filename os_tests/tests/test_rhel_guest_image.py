@@ -539,7 +539,7 @@ class TestGuestImage(unittest.TestCase):
         self.SSH.put_file(local_file=src_path, rmt_file=dest_path)
         utils_lib.is_pkg_installed(self,"python3")
         cmd = "python3 --version"
-        ret = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Check if python3 exist")
+        ret = utils_lib.run_cmd(self, cmd, msg="Check if python3 exist")
         print(f"python3 version check output: {ret}")
         if ret.strip() and "Python" in ret:
             print("python3 found; running rogue.py with python3.")
