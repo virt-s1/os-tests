@@ -22,3 +22,5 @@ S.5....T.  c /var/lib/nfs/etab
 .......T.  c /etc/dnf/plugins/product-id.conf
 .......T.  c /etc/dnf/plugins/subscription-manager.conf
 ..5....T.  c /var/lib/powerpc-utils/smt.state
+..5....T.    /var/lib/powerpc-utils/smt.state
+.M.......  g /run/cockpit
