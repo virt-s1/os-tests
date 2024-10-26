@@ -1351,13 +1351,13 @@ COMMIT
         """
         if not self.vm or self.vm.provider != "aws":
             self.skipTest("Skip test case since instance is not aws vm")
-        else:
-            instance_type = self.vm.instance_type
-            if not self.vm.efa_support:
-                self.skipTest('EFA is not supported on the instance ' + instance_type)
-            cmd = 'lspci|grep EFA && lsmod|grep efa'
-            run_cmd(self, cmd, expect_ret=0, msg='check if EFA device exist and efa module is loaded')
-            self.log.info('EFA device is found and efa driver is loaded on the instance ' + instance_type)
+        run_cmd(self, 'modinfo efa', expect_ret=0, msg='get efa module info')
+        run_cmd(self, 'modinfo ena', expect_ret=0, msg='get efa module info')
+        if not self.vm.efa_support:
+            self.skipTest('EFA is not supported on the instance ' + self.vm.instance_type)
+        cmd = 'lspci|grep EFA && lsmod|grep efa'
+        run_cmd(self, cmd, expect_ret=0, msg='check if EFA device exist and efa module is loaded')
+        self.log.info('EFA device is found and efa driver is loaded on the instance ' + self.vm.instance_type)
             
     @unittest.skipUnless(os.getenv('INFRA_PROVIDER') == 'aws', 'aws dedicated feature')
     def test_install_libfabric_check_efa_provider(self):
@@ -1391,15 +1391,13 @@ COMMIT
         """
         if not self.vm or self.vm.provider != "aws":
             self.skipTest("Skip test case since instance is not vm or aws")
-        else:
-            instance_type = self.vm.instance_type
-            if not self.vm.efa_support:
-                self.skipTest('EFA is not supported on the instance ' + instance_type)
-            if utils_lib.is_pkg_installed(self,'libfabric'):
-                cmd = 'fi_info -p efa'
-                utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw="provider: efa", msg='Check the Libfabric EFA interfaces')
-                cmd = "sudo  bash -c 'fi_pingpong -e rdm -p efa -I 100 & sleep 2; fi_pingpong -e rdm -p efa localhost -I 100'"
-                utils_lib.run_cmd(self, cmd, expect_ret=0, msg='run pingpong test')
+        if not self.vm.efa_support:
+            self.skipTest('EFA is not supported on the instance ' + self.vm.instance_type)
+        if utils_lib.is_pkg_installed(self,'libfabric'):
+            cmd = 'fi_info -p efa'
+            utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw="provider: efa", msg='Check the Libfabric EFA interfaces')
+            cmd = "sudo  bash -c 'fi_pingpong -e rdm -p efa -I 100 & sleep 2; fi_pingpong -e rdm -p efa localhost -I 100'"
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='run pingpong test')
 
     @unittest.skipUnless(os.getenv('INFRA_PROVIDER') == 'aws', 'aws dedicated feature')        
     def test_load_unload_efa_driver(self):
@@ -1433,24 +1431,22 @@ COMMIT
         """
         if not self.vm or self.vm.provider != "aws":
             self.skipTest("Skip test case since instance is not vm or aws")
-        else:
-            instance_type = self.vm.instance_type
-            if not self.vm.efa_support:
-                self.skipTest('EFA is not supported on the instance ' + instance_type)
-            self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='sudo dmesg -T')
-            cmd = 'sudo modprobe -r efa'
-            run_cmd(self, cmd, ret_status=True, msg='unload efa driver')
-            cmd = 'lsmod|grep efa'
-            ret = run_cmd(self, cmd, ret_status=True, msg='check if efa driver is unloaded')
-            if ret == 1:
-                self.log.info('efa driver is unloaded successfully')
-            cmd = 'sudo modprobe efa'
-            run_cmd(self, cmd, ret_status=True, msg='reload efa driver')
-            cmd = 'lsmod|grep efa'
-            ret = run_cmd(self, cmd, ret_status=True, msg='check if EFA driver is loaded')
-            utils_lib.check_log(self, "error,warn,fail,trace,Trace", log_cmd='sudo dmesg -T', cursor=self.dmesg_cursor)
-            if ret == 0:
-                self.log.info('efa driver is loaded successfully')
+        if not self.vm.efa_support:
+            self.skipTest('EFA is not supported on the instance ' + self.vm.instance_type)
+        self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='sudo dmesg -T')
+        cmd = 'sudo modprobe -r efa'
+        run_cmd(self, cmd, ret_status=True, msg='unload efa driver')
+        cmd = 'lsmod|grep efa'
+        ret = run_cmd(self, cmd, ret_status=True, msg='check if efa driver is unloaded')
+        if ret == 1:
+            self.log.info('efa driver is unloaded successfully')
+        cmd = 'sudo modprobe efa'
+        run_cmd(self, cmd, ret_status=True, msg='reload efa driver')
+        cmd = 'lsmod|grep efa'
+        ret = run_cmd(self, cmd, ret_status=True, msg='check if EFA driver is loaded')
+        utils_lib.check_log(self, "error,warn,fail,trace,Trace", log_cmd='sudo dmesg -T', cursor=self.dmesg_cursor)
+        if ret == 0:
+            self.log.info('efa driver is loaded successfully')
 
     @unittest.skipUnless(os.getenv('INFRA_PROVIDER') == 'aws', 'aws dedicated feature')
     def test_attach_detach_efa_device(self):
@@ -1617,9 +1613,8 @@ COMMIT
         if not self.vm:
             self.skipTest("Skip test case since instance is not vm")
 
-        instance_type = self.vm.instance_type
         if not self.vm.efa_support:
-            self.skipTest('EFA is not supported on the instance ' + instance_type)
+            self.skipTest('EFA is not supported on the instance ' + self.vm.instance_type)
         if utils_lib.is_pkg_installed(self, 'libfabric'):
             if utils_lib.is_pkg_installed(self,'openmpi'):
                 if utils_lib.is_pkg_installed(self,'git'):

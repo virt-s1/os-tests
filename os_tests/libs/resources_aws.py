@@ -354,6 +354,7 @@ class EC2VM(VMResource):
 
     @property
     def is_secure_boot(self):
+        LOG.info("return false for now, need to update is_secure_boot() on aws")
         return False
 
     @property
