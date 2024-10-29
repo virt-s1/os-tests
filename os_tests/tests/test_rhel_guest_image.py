@@ -533,22 +533,30 @@ class TestGuestImage(unittest.TestCase):
         """
         product_id = utils_lib.get_product_id(self)
         data_file = "rogue.el%s.lst" % product_id.split('.')[0]
-        utils_script = "rogue.py"
-        src_path = self.data_dir + '/guest-images/' + utils_script
-        dest_path = '/tmp/' + utils_script
-        self.SSH.put_file(local_file=src_path, rmt_file=dest_path)
+        utils_script_py = "rogue.py"
+        utils_script_sh = "rogue.sh"
+        src_path_py = self.data_dir + '/guest-images/' + utils_script_py
+        src_path_sh = self.data_dir + '/guest-images/' + utils_script_sh
+        dest_path_py = '/tmp/' + utils_script_py
+        dest_path_sh = '/tmp/' + utils_script_sh
+        self.SSH.put_file(local_file=src_path_py, rmt_file=dest_path_py)
+        self.SSH.put_file(local_file=src_path_sh, rmt_file=dest_path_sh)
+
         utils_lib.is_pkg_installed(self,"python3")
-        cmd = "which python3"
-        ret = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Check if python3 exist")
-        if ret:
-            cmd = "sudo python3 %s" % dest_path
+        cmd = "python3 --version"
+        ret = utils_lib.run_cmd(self, cmd, msg="Check if python3 exist")
+        print(f"python3 version check output: {ret}")
+        if ret.strip() and "Python" in ret:
+            print("python3 found; running rogue.py with python3.")
+            cmd = "sudo python3 %s" % dest_path_py
             output = utils_lib.run_cmd(self,
                                    cmd,
                                    expect_ret=0,
                                    timeout=1200,
                                    msg="run rogue.py")
         else:
-            cmd = "sudo sh -c 'chmod 755 %s && %s'" % (dest_path, dest_path)
+            print("python3 not found; running rogue.sh as a shell script instead.")
+            cmd = "sudo sh -c 'chmod 755 %s && %s'" % (dest_path_sh, dest_path_sh)
             output = utils_lib.run_cmd(self,
                                    cmd,
                                    expect_ret=0,

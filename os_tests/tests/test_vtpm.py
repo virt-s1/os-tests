@@ -370,7 +370,7 @@ cat secret.dec'''
         if ret != 0:
             self.skipTest("No tpm device found!")
         utils_lib.is_cmd_exist(self, cmd='tpm2_gettime', cancel_case=True)
-        cmd = 'systemctl enable --now tpm2-abrmd.service'
+        cmd = 'sudo systemctl enable --now tpm2-abrmd.service'
         utils_lib.run_cmd(self, cmd)
         cmd = 'systemctl status tpm2-abrmd.service'
         utils_lib.run_cmd(self, cmd, expect_ret=0)
