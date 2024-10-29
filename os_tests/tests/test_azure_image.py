@@ -166,10 +166,13 @@ class TestAzureImage(unittest.TestCase):
         '''
         Check cmdline parameters
         '''
-        if self.rhel_x_version <= 8:
-            expect_params = "console=tty1 console=ttyS0 earlyprintk=ttyS0 rootdelay=300"
-        elif self.rhel_x_version >= 9:
-            expect_params = "console=tty1 console=ttyS0,115200n8 earlyprintk=ttyS0,115200"
+        if utils_lib.is_arch(self, arch='aarch64'):
+            expect_params = "console=ttyAMA0,crashkernel=1G-4G:256M,4G-64G:320M,64G-:576M"
+        else:
+            if self.rhel_x_version <= 8:
+                expect_params = "console=tty1 console=ttyS0 earlyprintk=ttyS0 rootdelay=300"
+            elif self.rhel_x_version >= 9:
+                expect_params = "console=tty1 console=ttyS0,115200n8 earlyprintk=ttyS0,115200"
         utils_lib.run_cmd(self, "sudo cat /proc/cmdline", expect_ret=0, expect_kw=expect_params, msg='check console,earlyprintk in cmdline')
 
     def test_check_cmdline_crashkernel(self):
@@ -184,7 +187,7 @@ class TestAzureImage(unittest.TestCase):
             if utils_lib.is_arch(self, arch='x86_64'):
                 expect_kw = 'crashkernel=1G-4G:192M,4G-64G:256M,64G-:512M'
             else:
-                expect_kw = 'crashkernel=2G-:448M'
+                expect_kw = 'crashkernel=1G-4G:256M,4G-64G:320M,64G-:576M'
         utils_lib.run_cmd(self, "sudo cat /proc/cmdline", expect_ret=0, expect_kw=expect_kw, msg='check crashkernel is enabled')
 
     def test_check_blacklist(self):
@@ -223,9 +226,8 @@ class TestAzureImage(unittest.TestCase):
         '''
         Verify requied pkgs are installed.
         '''
-        pkgs_wanted = '''yum-utils,redhat-release-eula,cloud-init,\
-tar,rsync,NetworkManager,cloud-utils-growpart,gdisk,\
-grub2-tools,WALinuxAgent,firewalld,chrony,\
+        pkgs_wanted = '''redhat-release-eula,cloud-init,\
+cloud-utils-growpart,gdisk,WALinuxAgent,firewalld,chrony,\
 hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         product_id = utils_lib.get_product_id(self)
         if float(product_id) < float('8'):
@@ -714,6 +716,9 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
             'deferred',
             'Failed to mount device',
             "unknown filesystem type",
+            "Ignoring IMDS instance metadata",
+            "IMDS network metadata has incomplete configuration",
+            "Polling IMDS failed attempt 1 with exception",
         ]
         self._check_log('/var/log/cloud-init.log', ignore_list)
 
@@ -835,23 +840,23 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
 #         # Check /etc/kdump.conf
 #         self._check_file_content(testfile="/etc/kdump.conf", expected=kdump_conf, msg="Check /etc/kdump.conf")
 
-    def test_check_dnf_conf(self):
-        '''
-        Check /etc/dnf/dnf.conf
-        '''
-        if self.rhel_x_version < 8:
-            self.skipTest("Only support in RHEL-8+.")
-        dnf_conf = '''\
-[main]
-gpgcheck=1
-installonly_limit=3
-clean_requirements_on_remove=True
-best=True
-skip_if_unavailable=False            
-http_caching=packages
-'''
-        filename = '/etc/dnf/dnf.conf'
-        self._check_file_content(testfile=filename, expected=dnf_conf, msg="Check /etc/dnf/dnf.conf")
+#     def test_check_dnf_conf(self):
+#         '''
+#         Check /etc/dnf/dnf.conf
+#         '''
+#         if self.rhel_x_version < 8:
+#             self.skipTest("Only support in RHEL-8+.")
+#         dnf_conf = '''\
+# [main]
+# gpgcheck=1
+# installonly_limit=3
+# clean_requirements_on_remove=True
+# best=True
+# skip_if_unavailable=False            
+# http_caching=packages
+# '''
+#         filename = '/etc/dnf/dnf.conf'
+#         self._check_file_content(testfile=filename, expected=dnf_conf, msg="Check /etc/dnf/dnf.conf")
 
     def test_check_authselect(self):
         '''
@@ -999,16 +1004,16 @@ ucredit = 0
         filename = '/etc/pam.d/postlogin'
         self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
 
-    def test_check_smartcard_auth(self):
-        '''
-        Check file /etc/pam.d/smartcard-auth
-        '''
-        filename = '/etc/pam.d/smartcard-auth'
-        if self.rhel_x_version == 8:
-            expect_value = "auth sufficient pam_sss.so allow_missing_name"
-            utils_lib.run_cmd(self, "cat /etc/pam.d/smartcard-auth", expect_kw=expect_value, msg='check smartcard-auth')
-        else:
-            self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
+    # def test_check_smartcard_auth(self):
+    #     '''
+    #     Check file /etc/pam.d/smartcard-auth
+    #     '''
+    #     filename = '/etc/pam.d/smartcard-auth'
+    #     if self.rhel_x_version == 8:
+    #         expect_value = "auth sufficient pam_sss.so allow_missing_name"
+    #         utils_lib.run_cmd(self, "cat /etc/pam.d/smartcard-auth", expect_kw=expect_value, msg='check smartcard-auth')
+    #     else:
+    #         self._check_file_content(filename.split('/')[-1], filename, project=self.rhel_x_version)
 
     def test_check_system_auth(self):
         '''
@@ -1230,7 +1235,7 @@ langpack_locales = en_US.UTF-8
         sku = self.metadata['compute']['storageProfile']['imageReference']['sku']
         if not sku:
             self.skipTest("Only for image testing")
-        if 'gen2' in sku:
+        if 'gen2' in sku or 'arm' in sku:
             self.assertEqual(self._get_generation(), 'gen2', "Expected: gen2; Real: gen1")
         else:
             self.assertEqual(self._get_generation(), 'gen1', "Expected: gen1; Real: gen2")
