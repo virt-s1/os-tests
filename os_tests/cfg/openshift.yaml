@@ -1,15 +1,15 @@
 Cloud:
   provider: openshift
   token: ''
-  apiserver: 'https://api.ocp-virt.prod.psi.redhat.com:6443'
+  apiserver: 
   project: rhel-guest-image-container
 VM:
   rhel_ver: '9.1'
   username: cloud-user
-  password: RedHatTest1@
+  password: 
   vm_name: rhel
   arch: x86_64
-  image_name: registry.stage.redhat.io/rhel9/rhel-guest-image:9.1.0-286
+  image_name: 
 Flavor:
   name: small
   cpu: 1

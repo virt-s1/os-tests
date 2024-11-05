@@ -317,14 +317,14 @@ class TestRHELCert(unittest.TestCase):
         utils_lib.run_cmd(self,cmd, timeout=1800, msg='create test plan')
         utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
         cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device local"'
-        utils_lib.run_cmd(self,cmd, timeout=1800, msg='run kdump local test')
+        utils_lib.run_cmd(self,cmd, timeout=3600, msg='run kdump local test')
         if not self.SSH.is_active():
             utils_lib.init_connection(self, timeout=self.ssh_timeout*2)
         time.sleep(30)
         self._wait_cert_done(prefix='local')
         utils_lib.is_pkg_installed(self,'nfs-utils')
         cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device nfs --server {}"'.format(self.rmt_ipv4)
-        utils_lib.run_cmd(self,cmd, timeout=1800, msg='run kdump nfs test')
+        utils_lib.run_cmd(self,cmd, timeout=3600, msg='run kdump nfs test')
         if not self.SSH.is_active():
             utils_lib.init_connection(self, timeout=self.ssh_timeout*2)
         time.sleep(30)
@@ -369,14 +369,14 @@ class TestRHELCert(unittest.TestCase):
         cmd = 'sudo bash -c "yes|rhcert-cli plan"'
         utils_lib.run_cmd(self,cmd, timeout=1800, msg='create test plan')
         cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device local"'
-        utils_lib.run_cmd(self,cmd, timeout=1800, msg='run kdump local test')
+        utils_lib.run_cmd(self,cmd, timeout=3600, msg='run kdump local test')
         if not self.SSH.is_active():
-            utils_lib.init_connection(self, timeout=self.ssh_timeout*2)
+            utils_lib.init_connection(self, timeout=self.ssh_timeout*8)
         time.sleep(30)
         self._wait_cert_done(prefix='local_irqpoll')
         utils_lib.is_pkg_installed(self,'nfs-utils')
         cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device nfs --server {}"'.format(self.rmt_ipv4)
-        utils_lib.run_cmd(self,cmd, timeout=1800, msg='run kdump nfs test')
+        utils_lib.run_cmd(self,cmd, timeout=3600, msg='run kdump nfs test')
         if not self.SSH.is_active():
             utils_lib.init_connection(self, timeout=self.ssh_timeout*2)
         time.sleep(30)

@@ -3,7 +3,7 @@
 # Not recommend you edit it directly in case leaking sensitive information.
 Cloud:
   provider: openstack
-  auth_url: https://rhos-d.infra.prod.upshift.rdu2.redhat.com:13000/v3/
+  auth_url: 
   project_name: xenqe
   project_domain_name: redhat.com
   user_domain_name: redhat.com
