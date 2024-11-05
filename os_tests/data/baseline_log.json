@@ -2349,5 +2349,29 @@
         "cases": "os_tests.tests.test_general_check.TestGeneralCheck.test_check_dmidecode_outofspec",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20241009"
+    },
+    "msg_251": {
+        "content": ".*self-tests for drbg_nopr_ctr_aes256.*failed in fips mode.*",
+        "analyze": "known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-65498",
+        "path": "",
+        "trigger": "",
+        "cases": "os_tests.tests.test_lifecycle.TestLifeCycle.test_boot_fipsenabled",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20241101"
+    },
+    "msg_252": {
+        "content": ".*sysfs.* cannot create duplicate filename.*/devices/cache.*",
+        "analyze": "known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-55706",
+        "path": "",
+        "trigger": "",
+        "cases": "os_tests.tests.test_lifecycle.TestLifeCycle.test_boot_debugkernel",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20241103"
     }
 }
