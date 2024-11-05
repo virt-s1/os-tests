@@ -1324,7 +1324,7 @@ if __name__ == "__main__":
         utils_lib.run_cmd(self, 'sudo systemctl restart chronyd.service', expect_ret=0)
         for count in utils_lib.iterate_timeout(
             240, "check chrony server is in use", wait=10):
-            chrony_source = utils_lib.run_cmd(self, "chronyc sources -v", expect_ret=0)
+            chrony_source = utils_lib.run_cmd(self, "chronyc sources -v", msg="check chrony server picked, start with '^*'")
             if re.search('\^\*', chrony_source): break
         for count in utils_lib.iterate_timeout(
             240, "check date be synced by chrony"):
