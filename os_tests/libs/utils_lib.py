@@ -103,6 +103,8 @@ def init_args():
                     help='specify the config_toml for login info of the custom container disk image', required=False)
     parser.add_argument('--config_toml_info', dest='config_toml_info', default=None, action='store',
                     help='specify login info of the custom container disk image', required=False)
+    parser.add_argument('--bootc_image_builder', dest='bootc_image_builder', default=None, action='store',
+                    help='specify the bootc-image-builder used for coverting custom container image to bootable disk image', required=False)
     parser.add_argument('--aws_info', dest='aws_info', default=None, action='store',
                     help='specify the aws configure information, e.g., AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,aws-region,aws-bucket', required=False)
     args = parser.parse_args()

@@ -182,6 +182,7 @@ RUN dnf install -y $pkgs && dnf clean all
         if bootc_base_image_digest == self.params.get('bootc_base_image_digest'):
             self.skipTest("Custom bootc image based bootc image {} Digest:{} was already built. Skip this case."
             .format(bootc_base_image_name, bootc_base_image_digest))
+        bootc_custom_image_tag = bootc_base_image_digest
         if quay_io_data:
             bootc_custom_image = "quay.io/{}/{}:{}".format(quay_io_data.split(',')[0], bootc_custom_image_name, bootc_custom_image_tag)
         else:
@@ -196,6 +197,8 @@ RUN dnf install -y $pkgs && dnf clean all
             utils_lib.is_pkg_installed(self, pkg_name='awscli2', is_install=True, cancel_case=True)
             ami_name = '{}_{}_{}'.format(bootc_custom_image_name, bootc_custom_image_tag, bootc_base_image_compose_id)
             aws_info = self.params.get('aws_info')
+            if aws_info and aws_info.split(',')[2]:
+                aws_region = aws_info.split(',')[2]
             if aws_info and aws_info.split(',')[3]:
                 aws_bucket = aws_info.split(',')[3]
             else:
@@ -210,8 +213,8 @@ RUN dnf install -y $pkgs && dnf clean all
                                          bootc_image_builder,
                                          bootc_image_arch,
                                          ami_name,
-                                         aws-bucket,
-                                         aws_info.split(',')[2],
+                                         aws_region,
+                                         aws_bucket,
                                          bootc_custom_image)
                 utils_lib.run_cmd(self, cmd, timeout=3600, is_log_cmd=False, msg='Create ami for image mode testing based on {}'.format(bootc_base_image_compose_id))
 
