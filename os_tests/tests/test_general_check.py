@@ -2092,7 +2092,7 @@ current_device"
         key_steps:
             # dmesg|grep -i sev
         expect_result:
-            AMD Memory Encryption Features active: SEV
+            "AMD Memory Encryption Features active: SEV"
         debug_want:
             # dmesg
         """
