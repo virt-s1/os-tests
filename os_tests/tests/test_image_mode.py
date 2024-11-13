@@ -14,6 +14,7 @@ class TestImageMode(unittest.TestCase):
         utils_lib.collect_basic_info(self)
 
     def _prepare_containerfile(self,containerfile,bootc_base_image_url,pkgs):
+        tmp_containerfile_file = ''
         if not containerfile:
             containerfile_temp = string.Template('''
 From $bootc_base_image_url
