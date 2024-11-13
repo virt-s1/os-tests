@@ -145,11 +145,15 @@ class TestLifeCycle(unittest.TestCase):
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="change default boot index")
         cmd = 'cat /proc/cmdline'
         cmd_options = utils_lib.run_cmd(self, cmd)
-        if 'kmemleak=on' not in cmd_options:
-            need_reboot = True
+        cmd = 'cat /proc/cpuinfo |grep processor|wc -l'
+        cpucount = utils_lib.run_cmd(self, cmd, msg='get cpu count')
+        self.log.info("Do not collect memory leak when cpucount is over 36 - RHEL-65525")
+        if int(cpucount) <= 36:
+            if 'kmemleak=on' not in cmd_options:
+                need_reboot = True
+                cmd = 'sudo grubby --update-kernel=ALL --args="kmemleak=on"'
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg="enable kmemleak")
         if need_reboot:
-            cmd = 'sudo grubby --update-kernel=ALL --args="kmemleak=on"'
-            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="enable kmemleak")
             utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
             time.sleep(10)
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
@@ -177,7 +181,7 @@ class TestLifeCycle(unittest.TestCase):
             self.log.info("Wait for bootup finish......")
             time.sleep(1)
         utils_lib.run_cmd(self, "sudo dmesg", expect_not_kw="Call trace,Call Trace")
-        if int(mini_mem) <= 32:
+        if int(mini_mem) <= 32 and int(cpucount) <= 36:
             cmd = 'sudo bash -c "echo scan > /sys/kernel/debug/kmemleak"'
             utils_lib.run_cmd(self, cmd, expect_ret=0, timeout=1800)
 
