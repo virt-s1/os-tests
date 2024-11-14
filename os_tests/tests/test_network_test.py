@@ -1096,7 +1096,8 @@ COMMIT
             self.skipTest("2 nodes required, current IP bucket:{}".format(self.params['remote_nodes']))
         self.log.info("Current IP bucket:{}".format(self.params['remote_nodes']))
         k_ver = utils_lib.run_cmd(self,'uname -r').strip('\n')
-        utils_lib.run_cmd(self,'sudo ethtool -k eth0|grep checksum')
+        cmd = "sudo ethtool -k {} | grep checksum".format(self.active_nic)
+        utils_lib.run_cmd(self, cmd)
         if 'not found' in utils_lib.run_cmd(self,'modinfo sch_netem'):
             if not 'debug' in k_ver:
                 utils_lib.is_pkg_installed(self,'kernel-modules-extra-{}'.format(k_ver))
@@ -1120,7 +1121,7 @@ COMMIT
             utils_lib.run_cmd(self,cmd,timeout=300,msg='create a 500M file')
             if i:
                 utils_lib.run_cmd(self,'sudo modprobe sch_netem', msg='manually load sch_netem due to RHEL-52279')
-                cmd = "sudo tc qdisc add dev eth0 root netem corrupt 1%"
+                cmd = "sudo tc qdisc add dev {} root netem corrupt 1%".format(self.active_nic)
                 utils_lib.run_cmd(self,cmd,expect_ret=0,msg='Test again with network corrupt 1%')
                 utils_lib.init_connection(self, timeout=self.ssh_timeout)
             nc_cli_cmd = 'nc {} 2233 < {}'.format(srv_ipv4,testfile_c)
@@ -1134,7 +1135,7 @@ COMMIT
             self.assertEqual(md5_client, md5_server)
             utils_lib.run_cmd(self,'rm -rf {}'.format(testfile_c),msg='delete the test data file')
             if i:
-                cmd = "sudo tc qdisc delete dev eth0 root netem corrupt 1%"
+                cmd = "sudo tc qdisc delete dev {} root netem corrupt 1%".format(self.active_nic)
                 utils_lib.run_cmd(self,cmd,msg='remove network corrupt setting')
                 utils_lib.init_connection(self, timeout=self.ssh_timeout)
             self.log.info("test {} tcp corrupt done".format(i and 'with' or 'without'))
