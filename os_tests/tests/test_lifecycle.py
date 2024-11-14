@@ -1343,8 +1343,9 @@ class TestLifeCycle(unittest.TestCase):
             N/A
         maintainer:
             xiliang@redhat.com
-        description:
+        description: |
             Test system hibernation and process is still running after resumed
+            For aws, please check for prerequisites https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/hibernating-prerequisites.html#hibernation-prereqs-supported-instance-families
         key_steps: |
             1. enable hibernation on system
             2. start a test process, eg. sleep 1800
@@ -1371,11 +1372,11 @@ class TestLifeCycle(unittest.TestCase):
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
             product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
             if float(product_id) >= 8.0 and float(product_id) < 9.0:
-                pkg_url='https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/e/ec2-hibinit-agent-1.0.5-1.el8.noarch.rpm'
+                pkg_url='https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/e/ec2-hibinit-agent-1.0.9-1.el8.noarch.rpm'
             elif float(product_id) < 8.0:
                 self.skipTest('not supported earlier than rhel8')
             else:
-                pkg_url = "https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/Packages/e/ec2-hibinit-agent-1.0.5-1.el9.noarch.rpm"
+                pkg_url = "https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/Packages/e/ec2-hibinit-agent-1.0.9-1.el9.noarch.rpm"
             utils_lib.pkg_install(self, pkg_name='ec2-hibinit-agent', pkg_url=pkg_url, force=True)
             cmd = 'sudo systemctl is-enabled hibinit-agent.service'
             output = utils_lib.run_cmd(self, cmd)

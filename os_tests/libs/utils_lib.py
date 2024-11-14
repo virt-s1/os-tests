@@ -1183,8 +1183,11 @@ def pkg_install(test_instance, pkg_name=None, pkg_url=None, force=False, rmt_nod
             if force:
                 cmd = cmd + " --force"
             run_cmd(test_instance, cmd, timeout=1200)
-        if not is_pkg_installed(test_instance, pkg_name=pkg_name, rmt_node=rmt_node, vm=vm):
+        if not is_pkg_installed(test_instance, pkg_name=pkg_name, rmt_node=rmt_node, vm=vm) and not force:
             test_instance.skipTest("Cannot install {} automatically!".format(pkg_name))
+        elif not is_pkg_installed(test_instance, pkg_name=pkg_name, rmt_node=rmt_node, vm=vm) and force:
+            # when try to install pkg with force=True, we suspect it is must for test continue, so fail the case directly
+            test_instance.fail("Cannot install {} automatically!")
 
 def is_rhsm_registered(test_instance, cancel_case=False, timeout=600, rmt_node=None, vm=None):
     ''' 
