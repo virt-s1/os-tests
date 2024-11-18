@@ -2096,8 +2096,8 @@ sslverify=0
         with open(tmp_repo_file, 'r') as fh:
             for line in fh.readlines():
                 test_instance.log.info(line)
-        repo_file_name = "/tmp/{}.repo".format(repo_type)
-        test_instance.SSH.put_file(local_file=tmp_repo_file, rmt_file=repo_file_name)
+        repo_file_name = "{}.repo".format(repo_type)
+        copy_file(test_instance, local_file=tmp_repo_file, target_file_dir='/tmp/', target_file_name=repo_file_name)
         if repo_type == 'dnf_repo':
             dest_dir = "/etc/yum.repos.d/"
             repo_file = "dnf.repo"
@@ -2108,7 +2108,7 @@ sslverify=0
             dest_dir = "/etc/leapp/files/"
             repo_file = "leapp_upgrade_repositories.repo"
         dest_repo_path = dest_dir + repo_file
-        run_cmd(test_instance, "sudo cp -r %s %s" % (repo_file_name,dest_repo_path), msg='Prepare %s' % (repo_type))
+        run_cmd(test_instance, "sudo cp -r /tmp/%s %s" % (repo_file_name,dest_repo_path), msg='Prepare %s' % (repo_type))
         run_cmd(test_instance, 'ls -l %s' % (dest_repo_path))
         run_cmd(test_instance, 'cat %s' % (dest_repo_path))
         if os.path.exists(tmp_repo_file):
@@ -2124,7 +2124,20 @@ def save_file(test_instance, file_dir=None, file_name=None, rmt_node=None, vm=No
                         local_file='{}/attachments/{}'.format(test_instance.log_dir, file_name))
     else:
         cmd = "sudo cp -f {} {}/attachments/".format(saved_file, test_instance.log_dir)
-        run_cmd(test_instance, cmd, msg='Save {}'.format(saved_file))
+        run_cmd(test_instance, cmd, msg='Save {} to {}/attachments/'.format(saved_file, test_instance.log_dir))
+
+def copy_file(test_instance, local_file=None, target_file_dir=None, target_file_name=None, rmt_node=None, vm=None):
+    target_file = '{}/{}'.format(target_file_dir, target_file_name)
+    abc = test_instance.params['remote_nodes']
+    test_instance.log.info("print %s" % (abc))
+    ##if test_instance.is_rmt:
+    if test_instance.params['remote_nodes']:
+        test_instance.SSH.put_file(local_file=local_file, rmt_file='/tmp/{}'.format(target_file_name))
+        cmd = "sudo cp /tmp/{} {}".format(target_file_name, target_file)
+        run_cmd(test_instance, cmd, msg='copy local file {} to remote {}'.format(local_file, target_file))
+    else:
+        cmd = "sudo cp {} {}".format(local_file, target_file)
+        run_cmd(test_instance, cmd, msg='copy local file {} to {}'.format(local_file, target_file))
 
 def is_ostree_system(test_instance):
     '''
