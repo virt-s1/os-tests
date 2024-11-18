@@ -17,6 +17,7 @@ import logging
 import argparse
 import tempfile
 import string
+import shutil
 from tipset.libs import rmt_ssh
 from functools import wraps
 from itertools import chain
@@ -2109,8 +2110,10 @@ sslverify=0
             repo_file = "leapp_upgrade_repositories.repo"
         dest_repo_path = dest_dir + repo_file
         run_cmd(test_instance, "sudo cp -r /tmp/%s %s" % (repo_file_name,dest_repo_path), msg='Prepare %s' % (repo_type))
-        run_cmd(test_instance, 'ls -l %s' % (dest_repo_path))
-        run_cmd(test_instance, 'cat %s' % (dest_repo_path))
+        run_cmd(test_instance, 'sudo ls -l %s' % (dest_repo_path))
+        run_cmd(test_instance, 'sudo cat %s' % (dest_repo_path))
+        cmd = 'sudo rm -rf /tmp/%s' % (repo_file_name)
+        run_cmd(test_instance, cmd, msg='Delete tempfile in remote host')
         if os.path.exists(tmp_repo_file):
             os.unlink(tmp_repo_file)
             test_instance.log.info("delete tempfile %s" % (tmp_repo_file))
@@ -2122,21 +2125,25 @@ def save_file(test_instance, file_dir=None, file_name=None, rmt_node=None, vm=No
         run_cmd(test_instance, cmd, msg='Prepare for saving {}'.format(saved_file))
         test_instance.SSH.get_file(rmt_file='/tmp/{}'.format(file_name),
                         local_file='{}/attachments/{}'.format(test_instance.log_dir, file_name))
+        cmd = 'sudo rm -rf /tmp/{}'.format(file_name)
+        run_cmd(test_instance, cmd, msg='delete tmp file /tmp/{}'.format(file_name))
     else:
         cmd = "sudo cp -f {} {}/attachments/".format(saved_file, test_instance.log_dir)
         run_cmd(test_instance, cmd, msg='Save {} to {}/attachments/'.format(saved_file, test_instance.log_dir))
 
 def copy_file(test_instance, local_file=None, target_file_dir=None, target_file_name=None, rmt_node=None, vm=None):
     target_file = '{}/{}'.format(target_file_dir, target_file_name)
-    abc = test_instance.params['remote_nodes']
-    test_instance.log.info("print %s" % (abc))
-    ##if test_instance.is_rmt:
     if test_instance.params['remote_nodes']:
-        test_instance.SSH.put_file(local_file=local_file, rmt_file='/tmp/{}'.format(target_file_name))
+        shutil.copy(local_file, "/tmp/{}".format(target_file_name))
+        test_instance.SSH.put_file(local_file='/tmp/{}'.format(target_file_name), rmt_file='/tmp/{}'.format(target_file_name))
         cmd = "sudo cp /tmp/{} {}".format(target_file_name, target_file)
         run_cmd(test_instance, cmd, msg='copy local file {} to remote {}'.format(local_file, target_file))
+        os.unlink('/tmp/{}'.format(target_file_name))
+        test_instance.log.info("delete tmp file /tmp/{} in localhost".format(target_file_name))
+        cmd = "sudo rm -rf /tmp/{}".format(target_file_name)
+        run_cmd(test_instance, cmd, msg='delete tmp file /tmp/{} remote host'.format(target_file_name))
     else:
-        cmd = "sudo cp {} {}".format(local_file, target_file)
+        cmd = "sudo cp -f {} {}".format(local_file, target_file)
         run_cmd(test_instance, cmd, msg='copy local file {} to {}'.format(local_file, target_file))
 
 def is_ostree_system(test_instance):
