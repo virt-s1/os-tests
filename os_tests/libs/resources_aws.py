@@ -120,11 +120,13 @@ class EC2VM(VMResource):
         except Exception as error:
             LOG.info('Cannot determin root device name, use default {}'.format(self.root_device_name))
 
-        if enable_hibernation and self.volume_size < 50:
+        # needs to increase default volume size to 50(not sufficient some times) to launch instance with hibernation enabled
+        # now set it to 80
+        if enable_hibernation and self.volume_size < 80:
             if not self.hibernation_support:
                 LOG.info("instance do not support hibernation")
                 return False
-            self.volume_size = 50
+            self.volume_size = 80
             LOG.info('hibernation_support enabled, change volume size to {}'.format(self.volume_size))
         if enable_enclave and self.volume_size < 50:
             LOG.info('create with enclave enabled, change volume size to {}'.format(self.volume_size))
