@@ -93,7 +93,7 @@ class TestLifeCycle(unittest.TestCase):
         test_type:
             functional
         test_level:
-           Component
+           component
         maintainer:
             xiliang@redhat.com
         description: |
@@ -265,7 +265,7 @@ class TestLifeCycle(unittest.TestCase):
             utils_lib.run_cmd(self, 'sudo dmesg', msg='save dmesg')
             cmd = 'sudo grubby --update-kernel=ALL  --remove-args="fips=1"'
             utils_lib.run_cmd(self, cmd, msg='Disable fips!')
-        else:
+        elif 'el8' in output or 'el9' in output:
             fips_enable_cmd = 'sudo fips-mode-setup --enable'
             out = utils_lib.run_cmd(self, fips_enable_cmd, msg='Enable fips!', timeout=600)
             if 'No space left' in out:
@@ -289,6 +289,17 @@ class TestLifeCycle(unittest.TestCase):
             utils_lib.run_cmd(self, 'sudo dmesg', msg='save dmesg')
             cmd = 'sudo fips-mode-setup --disable'
             utils_lib.run_cmd(self, cmd, msg='Disable fips!')
+        else:
+            # RHEL-65652 Remove fips-mode-setup, below steps are only for test purpose
+            boot_partition = utils_lib.run_cmd(self, 'findmnt --first --noheadings -o SOURCE /boot', msg='find boot partition')
+            boot_uuid = utils_lib.run_cmd(self, 'sudo blkid --output value --match-tag UUID {}'.format(boot_partition.strip('\n')),expect_ret=0,msg='find boot partition uuid')
+            fips_enable_cmd = 'sudo grubby --update-kernel=ALL --args="fips=1 boot=UUID={}"'.format(boot_uuid.strip('\n'))
+            out = utils_lib.run_cmd(self, fips_enable_cmd, msg='Enable fips!', timeout=600)
+            utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
+            time.sleep(10)
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
+            utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='fips=1')
+            utils_lib.run_cmd(self, 'sudo dmesg', expect_kw="fips mode: enabled", msg='save dmesg')
 
     def test_boot_hpet_mmap_enabled(self):
         """
@@ -325,7 +336,7 @@ class TestLifeCycle(unittest.TestCase):
         test_type:
             functional
         test_level:
-            Component
+            component
         maintainer:
             xiliang@redhat.com
         description: |
@@ -432,7 +443,7 @@ class TestLifeCycle(unittest.TestCase):
         test_type:
             functional
         test_level:
-            Component
+            component
         maintainer:
             xiliang@redhat.com
         description: |
@@ -494,7 +505,7 @@ class TestLifeCycle(unittest.TestCase):
         test_type:
             functional
         test_level:
-            Component
+            component
         maintainer:
             libhe@redhat.com
         description: |
@@ -778,7 +789,7 @@ class TestLifeCycle(unittest.TestCase):
         test_type:
             functional
         test_level:
-            Component
+            component
         maintainer:
             xiliang@redhat.com
         description: |
@@ -1678,7 +1689,7 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.finish_case(self)
         reboot_require = False
         addon_args = ["hpet_mmap=1", "mitigations=auto,nosmt", "usbcore.quirks=quirks=0781:5580:bk,0a5c:5834:gij",
-        "nr_cpus=1","nr_cpus=2", "nr_cpus=4", "nr_cpus=5", "intel_iommu=on", "fips=1","mem_encrypt=on"]
+        "nr_cpus=1","nr_cpus=2", "nr_cpus=4", "nr_cpus=5", "intel_iommu=on", "fips=1","mem_encrypt=on","boot"]
         cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline')
         if cmdline:
             for arg in addon_args:
