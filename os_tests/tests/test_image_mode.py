@@ -89,7 +89,7 @@ RUN dnf install -y $pkgs && dnf clean all
         test_type:
             functional
         test_level:
-            Component
+            component
         maintainer:
             linl@redhat.com
         description: |

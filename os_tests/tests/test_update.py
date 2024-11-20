@@ -129,7 +129,7 @@ class TestUpgrade(unittest.TestCase):
         test_type:
             functional
         test_level:
-            Component
+            component
         maintainer:
             linl@redhat.com
         description: |

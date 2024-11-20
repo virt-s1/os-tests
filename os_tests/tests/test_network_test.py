@@ -1054,7 +1054,7 @@ COMMIT
         test_type:
             functional
         test_level:
-           Component
+           component
         maintainer:
             xiliang@redhat.com
         description: |
@@ -1878,7 +1878,7 @@ COMMIT
         test_type:
             functional
         test_level:
-            Component
+            component
         maintainer:
             yoguo@redhat.com
         description: |
@@ -2107,7 +2107,7 @@ COMMIT
         test_type:
             functional
         test_level:
-           Component
+           component
         maintainer:
             xiliang@redhat.com
         description: |

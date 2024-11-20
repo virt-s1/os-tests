@@ -447,7 +447,7 @@ int main(int argc, char *argv[])
         test_type:
             functional
         test_level:
-            Component
+            component
         maintainer:
             xiliang
         description: |
@@ -988,7 +988,7 @@ grep -i pci|grep n1' % boot_pci
         test_type:
             functional
         test_level:
-            Component
+            component
         maintainer:
             xiliang@redhat.com
         description: |
