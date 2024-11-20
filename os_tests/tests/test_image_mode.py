@@ -6,49 +6,14 @@ import os
 import json
 import tempfile
 import string
+from urllib.parse import urlparse
+from datetime import datetime
 
 class TestImageMode(unittest.TestCase):
     def setUp(self):
         utils_lib.init_case(self)
         self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='sudo dmesg -T')
         utils_lib.collect_basic_info(self)
-
-    def _prepare_containerfile(self,containerfile,bootc_base_image_url,pkgs):
-        tmp_containerfile_file = ''
-        if not containerfile:
-            containerfile_temp = string.Template('''
-From $bootc_base_image_url
-ADD ./rhel.repo /etc/yum.repos.d/rhel.repo
-RUN echo $pkgs
-RUN dnf install -y $pkgs && dnf clean all 
-            ''')
-            fh, tmp_containerfile_file = tempfile.mkstemp(suffix='_containerfile',  dir='/tmp', text=False)
-            with open(tmp_containerfile_file, 'a') as fh:
-                containerfile_str = containerfile_temp.substitute(bootc_base_image_url=bootc_base_image_url, pkgs=pkgs)
-                self.log.info("Add %s" % tmp_containerfile_file)
-                fh.writelines(containerfile_str)
-            self.log.info("Updated %s" % tmp_containerfile_file)
-            with open(tmp_containerfile_file, 'r') as fh:
-                for line in fh.readlines():
-                    self.log.info(line)
-            containerfile = tmp_containerfile_file
-        self.SSH.put_file(local_file=containerfile, rmt_file='/tmp/containerfile')
-        cmd = "sudo cp /tmp/containerfile ./Containerfile"
-        utils_lib.run_cmd(self, cmd, msg='copy {}'.format(containerfile))
-        '''
-        Don't need to use if/else ?
-        if self.params.get('remote_node') is not None:
-            self.SSH.put_file(local_file=containerfile, rmt_file='/tmp/containerfile')
-            cmd = "sudo cp /tmp/containerfile ./Containerfile"
-            utils_lib.run_cmd(self, cmd, msg='copy {}'.format(containerfile))
-        else:
-            cmd = "sudo cp {} ./Containerfile".format(containerfile)
-            utils_lib.run_cmd(self, cmd, msg='copy {}'.format(containerfile))
-        '''
-        tmp_containerfile_file = tmp_containerfile_file or '/tmp/containerfile'
-        if os.path.exists(tmp_containerfile_file):
-            os.unlink(tmp_containerfile_file)
-            self.log.info("delete tempfile %s" % (tmp_containerfile_file))
 
     def _podman_login(self,io_user, io_pw, io_name):
         cmd = "sudo podman login -u='{}' -p='{}' {}".format(io_user, io_pw, io_name)
@@ -102,43 +67,77 @@ RUN dnf install -y $pkgs && dnf clean all
         debug_want: |
             n/a
         """
-        product_id = utils_lib.get_product_id(self)
-        if float(product_id) < 9.4:
-            self.fail("Image Mode was supported from rhel 9.4.")
+        #product_id = utils_lib.get_product_id(self)
+        #if float(product_id) < 9.4:
+        #    self.fail("Image Mode was supported from rhel 9.4.")
         if self.params.get('subscription_username') and self.params.get('subscription_password'):
             utils_lib.rhsm_register(self, cancel_case=True)
         utils_lib.is_pkg_installed(self, pkg_name='container-tools', is_install=True, cancel_case=True)
         #prepare containerfile
         disk_image_format = self.params.get('disk_image_format')
-        containerfile = self.params.get('containerfile')
+        bootc_base_image_url = self.params.get('bootc_base_image_url')
+        arch = utils_lib.run_cmd(self, 'uname -m', expect_ret=0, msg="Check the architechure")
         pkgs = self.params.get('pkgs')
         if pkgs:
             pkgs = pkgs.replace(",", " ")
-        bootc_base_image_url = self.params.get('bootc_base_image_url')
-        arch = utils_lib.run_cmd(self, 'uname -m', expect_ret=0, msg="Check the architechure")
-        if not containerfile:
-            if not bootc_base_image_url:
-                self.skipTest("Please sepcify the base rhel bootc container image url.")
-            default_pkgs = "cloud-init"
-            if disk_image_format == 'iso':
-                default_pkgs = "cloud-init,hyperv-daemons"
-            if disk_image_format == 'vmdk':
-                default_pkgs = "cloud-init,open-vm-tools"
-            if disk_image_format == 'vhdx':
-                default_pkgs = "hyperv-daemons"
-            if disk_image_format == 'vhd':
-                default_pkgs = "cloud-init,hyperv-daemons"
-            if pkgs:
-                pkgs = default_pkgs.replace(',',' ') + " " + pkgs
-            else:
-                pkgs = default_pkgs.replace(',',' ')
-        self.log.info("print %s" % pkgs)
-        self._prepare_containerfile(containerfile, bootc_base_image_url, pkgs)
+        containerfile = self.params.get('containerfile')
+        current_time = datetime.now().strftime("%M%S")
+        if containerfile and containerfile.startswith("http"):
+            container_url = urlparse(containerfile)
+            image_mode_dir = "image_mode_" + os.path.basename(container_url.path) + "_{}_{}".format(disk_image_format, current_time)
+            cmd = "sudo rm {} -rf && sudo mkdir {}".format(image_mode_dir, image_mode_dir)
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="create image_mode_dir")
+            utils_lib.is_pkg_installed(self, pkg_name='curl', is_install=True, cancel_case=True)
+            cmd = "pwd && sudo curl -o {}/Containerfile {}".format(image_mode_dir, containerfile)
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="download {}".format(containerfile))
+        else:
+            if containerfile and containerfile.startswith("/"):
+                image_mode_dir = "image_mode_" + os.path.basename(containerfile) + "_{}_{}".format(disk_image_format, current_time)
+                cmd = "sudo rm {} -rf && sudo mkdir {}".format(image_mode_dir, image_mode_dir)
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg="create image_mode_dir")
+                utils_lib.copy_file(self, local_file=containerfile, target_file_dir=image_mode_dir, target_file_name='Containerfile')
+            if not containerfile:
+                if not bootc_base_image_url:
+                    self.skipTest("Please sepcify the base rhel bootc container image url.")
+                image_mode_dir = "image_mode_" + bootc_base_image_url.split(':')[1].replace('.','u') + "_{}_{}".format(disk_image_format, current_time)
+                cmd = "sudo rm {} -rf && sudo mkdir {}".format(image_mode_dir, image_mode_dir)
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg="create image_mode_dir")
+                cmd = 'echo "#Containerfile" > {}/Containerfile'.format(image_mode_dir)
+                utils_lib.run_cmd(self, "sudo bash -c '{}'".format(cmd), expect_ret=0, msg="create an empty Containerfile")
+                default_pkgs = "cloud-init virt-what"
+                if disk_image_format == 'iso':
+                    default_pkgs = default_pkgs + " " + "hyperv-daemons open-vm-tools"
+                if disk_image_format == 'vmdk':
+                    default_pkgs = default_pkgs + " " + "open-vm-tools"
+                if disk_image_format == 'vhdx':
+                    default_pkgs = default_pkgs + " " + "hyperv-daemons"
+                if disk_image_format == 'vhd':
+                    default_pkgs = default_pkgs + " " + "hyperv-daemons"
+                if pkgs:
+                    pkgs = default_pkgs + " " + pkgs
+                else:
+                    pkgs = default_pkgs
+        cmd = "sudo cat {}/Containerfile".format(image_mode_dir)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check Containerfile")
+        if bootc_base_image_url:
+            cmd = "cd {} && sudo grep -q '^FROM' Containerfile && \
+sudo sed -i 's#^FROM.*#FROM {}#' Containerfile || \
+sudo sed -i '1iFROM {}' Containerfile && sudo cat Containerfile".format(image_mode_dir, bootc_base_image_url, bootc_base_image_url)
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Update the bootc base image repo to the test url")
+        
+        #Prepare repo file
         dnf_repo_url = self.params.get('dnf_repo_url')
         if dnf_repo_url:
             utils_lib.configure_repo(self, repo_type='dnf_repo', repo_url_param=dnf_repo_url)
-        cmd = "sudo cp /etc/yum.repos.d/dnf.repo ./rhel.repo"
+            cmd = "cd {} && sudo sed -i '2iADD ./rhel.repo /etc/yum.repos.d/rhel.repo' Containerfile".format(image_mode_dir)
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Configure repo file in containerfile.")
+            if disk_image_format == 'iso':
+                utils_lib.rhsm_unregister(self, cancel_case=True)
+                self.log.info('unregister rhsm to aviod bug when creating iso disk, please register again after this case if you need.')
+        cmd = "sudo cp /etc/yum.repos.d/dnf.repo ./{}/rhel.repo".format(image_mode_dir)
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Create rhel.repo for packages installation in building custom image")
+        cmd = "cd {} && sudo sed -i '3iRUN dnf install -y {} && dnf clean all' Containerfile && sudo cat Containerfile".format(image_mode_dir, pkgs)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Add installed pkgs to Containerfile.")
         
         #login container repo
         quay_io_data = self.params.get('quay_io_data')
@@ -150,8 +149,8 @@ RUN dnf install -y $pkgs && dnf clean all
                 io_name = io_data.split(',')[2]
                 self.log.info('Login {}'.format(io_name))
                 self._podman_login(io_user, io_pw, io_name)
-
-        cmd = "sudo grep ^From Containerfile | awk '{print $(2)}'| tr -d '\n'"
+        
+        cmd = "sudo grep ^FROM {}/Containerfile | awk '{{print $(2)}}'| tr -d '\n'".format(image_mode_dir)
         bootc_base_image = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Fetch bootc base image repo')
         cmd = "sudo podman rmi {} -f".format(bootc_base_image)
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="remove old bootc base image")
@@ -166,19 +165,20 @@ RUN dnf install -y $pkgs && dnf clean all
         bootc_base_image_digest = bootc_base_image_digest.split(':')[1]
         bootc_base_image_name = bootc_base_image.split('/')[2].split(':')[0]
         bootc_base_image_tag = bootc_base_image.split(':')[1].replace('.','u')
-        inspect_json_name = "{}_{}_inspect.json".format(bootc_base_image_name, bootc_base_image_tag)
-        cmd = "sudo podman inspect {} > {}".format(bootc_base_image, inspect_json_name)
+        inspect_json_name = "{}_{}_inspect.json".format(image_mode_dir, bootc_base_image_name, bootc_base_image_tag)
+        cmd = "sudo bash -c 'podman inspect {} > {}/{}'".format(bootc_base_image, image_mode_dir, inspect_json_name)
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check bootc base image info")
         cmd = "sudo podman inspect {} --format '{{{{.Architecture}}}}' | tr -d '\n'".format(bootc_base_image)
         bootc_image_arch = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check bootc base image Architecture")
         if bootc_image_arch == 'amd64':
             bootc_image_arch = 'x86_64'
-        cmd = "sudo jq -r .[].Config.Labels.\\\"redhat.compose-id\\\" {} | tr -d '\n'".format(inspect_json_name)
+        cmd = "sudo jq -r .[].Config.Labels.\\\"redhat.compose-id\\\" {}/{} | tr -d '\n'".format(image_mode_dir, inspect_json_name)
         bootc_base_image_compose_id = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check bootc base image compose-id")
-        bootc_custom_image_name = '{}_{}_{}_{}'.format(bootc_base_image_name,
+        bootc_custom_image_name = '{}_{}_{}_{}_{}'.format(bootc_base_image_name,
                                                        bootc_base_image_tag,
                                                        disk_image_format,
-                                                       bootc_image_arch)
+                                                       bootc_image_arch,
+                                                       current_time)
 
         if bootc_base_image_digest == self.params.get('bootc_base_image_digest'):
             self.skipTest("Custom bootc image based bootc image {} Digest:{} was already built. Skip this case."
@@ -188,9 +188,9 @@ RUN dnf install -y $pkgs && dnf clean all
             bootc_custom_image = "quay.io/{}/{}:{}".format(quay_io_data.split(',')[0], bootc_custom_image_name, bootc_custom_image_tag)
         else:
             bootc_custom_image = "localhost/{}:{}".format(bootc_custom_image_name, bootc_custom_image_tag)
-        cmd = "sudo podman build -t {} . --arch {}".format(bootc_custom_image, arch)
+        cmd = "cd {} && sudo podman build -t {} . --arch {}".format(image_mode_dir, bootc_custom_image, arch)
         utils_lib.run_cmd(self, cmd, expect_ret=0, timeout = 1200, msg="Build bootc custom image")
-        
+    
         #Create bootable disks with custom bootc images
         bootc_image_builder = self.params.get('bootc_image_builder') or bootc_base_image.replace('rhel-bootc','bootc-image-builder')
 
@@ -246,29 +246,24 @@ to AWS {}".format(ami_name, ami_id, bootc_base_image, bootc_base_image_compose_i
             config_toml_file = self.params.get('config_toml_file')
             config_toml_info = self.params.get('config_toml_info')
             if config_toml_file:
-                tmp_config_toml = '/tmp/config_toml'
-                self.SSH.put_file(local_file=config_toml_file, rmt_file=tmp_config_toml)
-                cmd = "sudo cp {} ./config.toml".format(tmp_config_toml)
-                utils_lib.run_cmd(self, cmd, msg='copy {}'.format(config_toml_file))
-                if os.path.exists(tmp_config_toml):
-                    os.unlink(tmp_config_toml)
-                    self.log.info("delete temp config.toml file")
+                utils_lib.copy_file(self, local_file=config_toml_file, target_file_dir=image_mode_dir, target_file_name='config.toml')
             elif config_toml_info:
                 #Note the key will display in the disk convert log if you specify it.
                 utils_lib.run_cmd(self, """
-sudo cat << EOF | sudo tee ./config.toml
+sudo cat << EOF | sudo tee {}/config.toml
 [[customizations.user]]
 name = "{}"
 password = "{}"
 key = "ssh-rsa {}"
 groups = ["wheel"]
 EOF
-""".format(config_toml_info.split(',')[0], config_toml_info.split(',')[1], config_toml_info.split(',')[2]),
-                                is_log_cmd=False,
-                                msg='create config_toml file')
+""".format(image_mode_dir, config_toml_info.split(',')[0], config_toml_info.split(',')[1], config_toml_info.split(',')[2]),
+           is_log_cmd=False,
+           msg='create config_toml file')
  
             #Create directory for converted disk images
-            output_dir = 'output_{}_{}'.format(bootc_custom_image_name, bootc_custom_image_tag)   
+            output_dir_name = 'output_{}_{}'.format(bootc_custom_image_name, bootc_custom_image_tag)
+            output_dir = "{}/{}".format(image_mode_dir, output_dir_name)
             cmd = "sudo rm {} -rf && sudo mkdir {}".format(output_dir, output_dir)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Create output directory")
 
@@ -276,18 +271,23 @@ EOF
             disk_image_type = disk_image_format
             if disk_image_format in ['vhdx', 'vhd']:
                 disk_image_type = 'qcow2'   
-            cmd = "sudo podman run --rm -it --privileged --pull=newer --security-opt \
+            cmd = "cd {} && sudo podman run --rm -it --privileged --pull=newer --security-opt \
 label=type:unconfined_t -v ./config.toml:/config.toml -v ./{}:/output -v \
 /var/lib/containers/storage:/var/lib/containers/storage {} --type {} --target-arch {} \
---config /config.toml --local {}".format(output_dir, bootc_image_builder, disk_image_type, bootc_image_arch, bootc_custom_image)
+--config /config.toml --local {}".format(image_mode_dir, 
+                                         output_dir_name, 
+                                         bootc_image_builder, 
+                                         disk_image_type, 
+                                         bootc_image_arch, 
+                                         bootc_custom_image)
             utils_lib.run_cmd(self,
                             cmd,
                             expect_ret=0,
                             timeout = 3600,
                             msg="Create container disk image {} for image mode testing based on {}".format(bootc_custom_image, bootc_base_image_compose_id))
 
-            manifest_file = 'manifest{}'.format(output_dir.replace('output',''))
-            cmd = "sudo mv {}/manifest-{}.json {}".format(output_dir, disk_image_type, manifest_file)
+            manifest_file = 'manifest{}'.format(output_dir_name.replace('output',''))
+            cmd = "sudo mv {}/manifest-{}.json {}/{}".format(output_dir, disk_image_type, image_mode_dir, manifest_file)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='move manifest-{}.json to {}'.format(disk_image_type, manifest_file))
             utils_lib.is_cmd_exist(self,"qemu-img")
             if disk_image_format == 'vhdx':
@@ -301,28 +301,38 @@ label=type:unconfined_t -v ./config.toml:/config.toml -v ./{}:/output -v \
             if disk_image_type == 'iso':
                 disk_file = 'install.iso'
                 disk_dir = 'bootiso'
-            cmd = "sudo mv {}/{}/{} {}.{}".format(output_dir, disk_dir, disk_file, output_dir.replace('output_',''), disk_file.split('.')[1])
-            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='move {} to workdir'.format(disk_file))
+            cmd = "sudo mv {}/{}/{} {}/{}.{}".format(output_dir, disk_dir, disk_file, image_mode_dir, output_dir_name.replace('output_',''), disk_file.split('.')[1])
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='move {} to {}'.format(disk_file, image_mode_dir))
             #uploade the output to attachment
-            workdir = utils_lib.run_cmd(self, "sudo pwd | tr -d '\n'", expect_ret=0)
-            utils_lib.save_file(self, file_dir=workdir, file_name=inspect_json_name)
-            utils_lib.save_file(self, file_dir=workdir, file_name=manifest_file)
-            #Copy the disk file to your test environment by manual,
-            #Or comment out below line to save it to attachments in log.
-            utils_lib.save_file(self, file_dir=workdir, file_name='{}.{}'.format(output_dir.replace('output_',''), disk_image_format))
+            utils_lib.save_file(self, file_dir=image_mode_dir, file_name="Containerfile")
+            utils_lib.save_file(self, file_dir=image_mode_dir, file_name=inspect_json_name)
+            utils_lib.save_file(self, file_dir=image_mode_dir, file_name=manifest_file)
+            #Save the created bootable bootc image/disk to attachments in log and delete the image_mode_dir.
+            #Or if you'd like to copy the disk file to your test environment by manual,
+            #please specify --upload_image to no.
+            upload_image = self.params.get('upload_image')
+            if upload_image:
+                if isinstance(upload_image, bool):
+                    upload_image = str(upload_image)
+                upload_image = upload_image.strip().lower()
+                if upload_image in ["no", "n", "false"]:
+                    self.log.info("Please copy Disk image {}/{}.{} based on bootc image {} \
+compose-id:{} Digest:{} to your test environment.".format(image_mode_dir,
+                                                          output_dir_name.replace('output_',''), 
+                                                          disk_image_format,
+                                                          bootc_base_image,
+                                                          bootc_base_image_compose_id,
+                                                          bootc_base_image_digest))
+            else:
+                utils_lib.save_file(self, file_dir=image_mode_dir, file_name='{}.{}'.format(output_dir_name.replace('output_',''), disk_image_format))
+                cmd = "sudo rm -rf {}".format(image_mode_dir)
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg="delete the {}".format(image_mode_dir))
 
-            self.log.info("Please copy Disk image ./{}.{} based on bootc image {} \
-compose-id:{} Digest:{} to your test environment.".format(
-                                                        output_dir.replace('output_',''), 
-                                                        disk_image_format,
-                                                        bootc_base_image,
-                                                        bootc_base_image_compose_id,
-                                                        bootc_base_image_digest))
         #delete container images
         for image in [bootc_base_image, bootc_custom_image, bootc_image_builder]:
             cmd = "sudo podman rmi {} -f".format(image)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='remove container image {}'.format(image))
-        
+   
     def tearDown(self):
         utils_lib.finish_case(self)
         pass

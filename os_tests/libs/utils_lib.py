@@ -108,6 +108,9 @@ def init_args():
                     help='specify the bootc-image-builder used for coverting custom container image to bootable disk image', required=False)
     parser.add_argument('--aws_info', dest='aws_info', default=None, action='store',
                     help='specify the aws configure information, e.g., AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,aws-region,aws-bucket', required=False)
+    parser.add_argument('--upload_image', dest='--upload_image', default=None, action='store',
+                    help='The created bootable bootc image/disk will be saved to attachments in log, \
+if you would like to copy the disk file to your test environment by manual, please specify --upload_image no', required=False)
     args = parser.parse_args()
     return args
 
@@ -1258,8 +1261,9 @@ def rhsm_unregister(test_instance, cancel_case=False, rmt_node=None, vm=None):
         cmd = "sudo subscription-manager unregister"
         run_cmd(test_instance, cmd, expect_ret=0, msg='rhsm unregister', rmt_node=rmt_node, vm=vm)
     if not is_rhsm_registered(test_instance, cancel_case=False, rmt_node=rmt_node, vm=vm):
-        cmd = "sudo subscription-manager config --rhsm.manage_repos=0"
-        run_cmd(test_instance, cmd, expect_ret=0, msg='disable rhsm repos', rmt_node=rmt_node, vm=vm)
+        if is_aws(test_instance):
+            cmd = "sudo subscription-manager config --rhsm.manage_repos=0"
+            run_cmd(test_instance, cmd, expect_ret=0, msg='disable rhsm repos', rmt_node=rmt_node, vm=vm)
 
 def get_memsize(test_instance, action=None):
     '''
@@ -2097,8 +2101,6 @@ sslverify=0
         with open(tmp_repo_file, 'r') as fh:
             for line in fh.readlines():
                 test_instance.log.info(line)
-        repo_file_name = "{}.repo".format(repo_type)
-        copy_file(test_instance, local_file=tmp_repo_file, target_file_dir='/tmp/', target_file_name=repo_file_name)
         if repo_type == 'dnf_repo':
             dest_dir = "/etc/yum.repos.d/"
             repo_file = "dnf.repo"
@@ -2108,12 +2110,10 @@ sslverify=0
         if repo_type == 'leapp_target_repo':
             dest_dir = "/etc/leapp/files/"
             repo_file = "leapp_upgrade_repositories.repo"
+        copy_file(test_instance, local_file=tmp_repo_file, target_file_dir=dest_dir, target_file_name=repo_file)
         dest_repo_path = dest_dir + repo_file
-        run_cmd(test_instance, "sudo cp -r /tmp/%s %s" % (repo_file_name,dest_repo_path), msg='Prepare %s' % (repo_type))
         run_cmd(test_instance, 'sudo ls -l %s' % (dest_repo_path))
         run_cmd(test_instance, 'sudo cat %s' % (dest_repo_path))
-        cmd = 'sudo rm -rf /tmp/%s' % (repo_file_name)
-        run_cmd(test_instance, cmd, msg='Delete tempfile in remote host')
         if os.path.exists(tmp_repo_file):
             os.unlink(tmp_repo_file)
             test_instance.log.info("delete tempfile %s" % (tmp_repo_file))
@@ -2134,12 +2134,16 @@ def save_file(test_instance, file_dir=None, file_name=None, rmt_node=None, vm=No
 def copy_file(test_instance, local_file=None, target_file_dir=None, target_file_name=None, rmt_node=None, vm=None):
     target_file = '{}/{}'.format(target_file_dir, target_file_name)
     if test_instance.params['remote_nodes']:
-        shutil.copy(local_file, "/tmp/{}".format(target_file_name))
+        local_first_dir = local_file.split('/')[1]
+        if not local_file == "/tmp/{}".format(target_file_name):
+            shutil.copy(local_file, "/tmp/{}".format(target_file_name))
+            test_instance.log.info("copy local file %s to /tmp/%s in localhost for sending" % (local_file, target_file_name))
         test_instance.SSH.put_file(local_file='/tmp/{}'.format(target_file_name), rmt_file='/tmp/{}'.format(target_file_name))
         cmd = "sudo cp /tmp/{} {}".format(target_file_name, target_file)
-        run_cmd(test_instance, cmd, msg='copy local file {} to remote {}'.format(local_file, target_file))
-        os.unlink('/tmp/{}'.format(target_file_name))
-        test_instance.log.info("delete tmp file /tmp/{} in localhost".format(target_file_name))
+        run_cmd(test_instance, cmd, msg='copy tmp file /tmp/{} to {}'.format(target_file_name, target_file))
+        if os.path.exists('/tmp/{}'.format(target_file_name)):
+             os.unlink('/tmp/{}'.format(target_file_name))
+             test_instance.log.info("delete tmp file /tmp/{} in localhost".format(target_file_name))
         cmd = "sudo rm -rf /tmp/{}".format(target_file_name)
         run_cmd(test_instance, cmd, msg='delete tmp file /tmp/{} remote host'.format(target_file_name))
     else:
