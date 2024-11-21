@@ -347,7 +347,7 @@ cat secret.dec'''
         test_type:
             functional
         test_level:
-            Component
+            component
         maintainer:
             xiliang@redhat.com
         description: |

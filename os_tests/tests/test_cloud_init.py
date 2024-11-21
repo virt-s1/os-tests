@@ -3723,7 +3723,7 @@ ssh_authorized_keys:
         test_type:
             functional
         test_level:
-            Component
+            component
         maintainer:
             huzhao@redhat.com
         description: |
