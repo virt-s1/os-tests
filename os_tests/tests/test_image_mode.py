@@ -138,9 +138,10 @@ sudo sed -i '1iFROM {}' Containerfile && sudo cat Containerfile".format(image_mo
                 self.log.info('unregister rhsm to aviod bug when creating iso disk, please register again after this case if you need.')
         cmd = "sudo cp /etc/yum.repos.d/dnf.repo ./{}/dnf.repo".format(image_mode_dir)
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Create dnf.repo for packages installation in building custom image")
-        cmd = "cd {} && sudo sed -i '3iRUN dnf install -y {} && dnf clean all' Containerfile && sudo cat Containerfile".format(image_mode_dir, pkgs)
-        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Add installed pkgs to Containerfile.")
-        
+        if pkgs:
+            cmd = "cd {} && sudo sed -i '3iRUN dnf install -y {} && dnf clean all' Containerfile && sudo cat Containerfile".format(image_mode_dir, pkgs)
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Add installed pkgs to Containerfile.")
+
         #login container repo
         quay_io_data = self.params.get('quay_io_data')
         bootc_io_data = self.params.get('bootc_io_data')
@@ -204,7 +205,7 @@ sudo sed -i '1iFROM {}' Containerfile && sudo cat Containerfile".format(image_mo
     
         #Create bootable disks with custom bootc images
         bootc_image_builder = self.params.get('bootc_image_builder')
-        if not bootc_base_image:
+        if not bootc_image_builder:
             if 'rhel' in bootc_base_image:
                 bootc_image_builder = bootc_base_image.replace('rhel-bootc','bootc-image-builder')
             else:
