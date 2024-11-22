@@ -287,7 +287,10 @@ class TestLifeCycle(unittest.TestCase):
                         expect_kw='enabled')
             utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='fips=1')
             utils_lib.run_cmd(self, 'sudo dmesg', msg='save dmesg')
+
             cmd = 'sudo fips-mode-setup --disable'
+            if 'OSTree' in out:
+                cmd = cmd + ' --no-bootcfg'
             utils_lib.run_cmd(self, cmd, msg='Disable fips!')
         else:
             # RHEL-65652 Remove fips-mode-setup, below steps are only for test purpose
@@ -1688,16 +1691,23 @@ class TestLifeCycle(unittest.TestCase):
     def tearDown(self):
         utils_lib.finish_case(self)
         reboot_require = False
-        addon_args = ["hpet_mmap=1", "mitigations=auto,nosmt", "usbcore.quirks=quirks=0781:5580:bk,0a5c:5834:gij",
-        "nr_cpus=1","nr_cpus=2", "nr_cpus=4", "nr_cpus=5", "intel_iommu=on", "fips=1","mem_encrypt=on","boot"]
         cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline')
-        if cmdline:
-            for arg in addon_args:
-                if arg in cmdline:
-                    cmd = 'sudo grubby --update-kernel=ALL  --remove-args={}'.format(arg)
-                    utils_lib.run_cmd(self, cmd, msg='Remove {}'.format(arg))
-                    reboot_require = True
-        
+        if 'ostree' in cmdline:
+            addon_args = ['fips=1']
+        else:
+            addon_args = ['hpet_mmap=1', 'mitigations=auto,nosmt', 'usbcore.quirks=quirks=0781:5580:bk,0a5c:5834:gij',
+                'nr_cpus=1', 'nr_cpus=2', 'nr_cpus=4', 'nr_cpus=5', 'intel_iommu=on', 'fips=1', 'mem_encrypt=on', 'boot']
+
+        args_to_remove = [arg for arg in addon_args if arg in cmdline]
+        if args_to_remove:
+            if 'ostree' in cmdline:
+                cmd = 'sudo rpm-ostree kargs --delete={}'
+            else:
+                cmd = 'sudo grubby --update-kernel=ALL --remove-args={}'
+            for arg in args_to_remove:
+                utils_lib.run_cmd(self, cmd.format(arg), msg='Remove {}'.format(arg))
+                reboot_require = True
+
         if "boot_debugkernel" in self.id():
             current_boot_kernel = utils_lib.run_cmd(self, "sudo grubby --default-kernel", expect_ret=0)
             current_cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline')
