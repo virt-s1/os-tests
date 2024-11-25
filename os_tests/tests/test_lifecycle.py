@@ -71,7 +71,7 @@ class TestLifeCycle(unittest.TestCase):
         importance:
             medium
         subsystem_team:
-            sst_virtualization_cloud
+            rhel-sst-virtualization-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -203,7 +203,7 @@ class TestLifeCycle(unittest.TestCase):
         importance:
             high
         subsystem_team:
-            sst_virtualization_cloud
+            rhel-sst-virtualization-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -317,7 +317,7 @@ class TestLifeCycle(unittest.TestCase):
         importance:
             low
         subsystem_team:
-            sst_virtualization_cloud
+            rhel-sst-virtualization-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -424,7 +424,7 @@ class TestLifeCycle(unittest.TestCase):
         importance:
             medium
         subsystem_team:
-            sst_virtualization_cloud
+            rhel-sst-virtualization-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -486,7 +486,7 @@ class TestLifeCycle(unittest.TestCase):
         importance:
             medium
         subsystem_team:
-            sst_virtualization_cloud
+            rhel-sst-virtualization-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -770,7 +770,7 @@ class TestLifeCycle(unittest.TestCase):
         importance:
             low
         subsystem_team:
-            sst_virtualization_cloud
+            rhel-sst-virtualization-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -975,7 +975,7 @@ class TestLifeCycle(unittest.TestCase):
         importance:
             low
         subsystem_team:
-            sst_virtualization_cloud
+            rhel-sst-virtualization-cloud
         automation_drop_down:
             automated
         linked_work_items:

@@ -107,7 +107,7 @@ class TestUpgrade(unittest.TestCase):
         importance:
             critical
         subsystem_team:
-            sst_virtualization_cloud
+            rhel-sst-virtualization-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -215,7 +215,7 @@ class TestUpgrade(unittest.TestCase):
         importance:
             high
         subsystem_team:
-            sst_virtualization_cloud
+            rhel-sst-virtualization-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -386,7 +386,7 @@ class TestUpgrade(unittest.TestCase):
         importance:
             high
         subsystem_team:
-            sst_virtualization_cloud
+            rhel-sst-virtualization-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -558,7 +558,7 @@ class TestUpgrade(unittest.TestCase):
         importance:
             High
         subsystem_team:
-            sst_virtualization_cloud
+            rhel-sst-virtualization-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -728,7 +728,7 @@ class TestUpgrade(unittest.TestCase):
         importance:
             High
         subsystem_team:
-            sst_virtualization_cloud
+            rhel-sst-virtualization-cloud
         automation_drop_down:
             automated
         linked_work_items:
