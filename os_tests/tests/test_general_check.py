@@ -1982,6 +1982,8 @@ current_device"
             self.skipTest('No insights-client installation found!')
         utils_lib.run_cmd(self, 'rpm -q insights-client', msg="get insights-client version")
         utils_lib.run_cmd(self, 'insights-client --version', msg="get insights client version, debug want", timeout=120)
+
+        utils_lib.rhsm_register(self, cancel_case=True)
         out = utils_lib.run_cmd(self, 'sudo insights-client --register', msg="try to register system", timeout=120)
         if 'Unauthorized' in out:
             self.skipTest("Missing RHSM or basic username/password to register insights.")
