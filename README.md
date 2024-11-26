@@ -25,8 +25,10 @@ There is a known pynacl issue while installing paramiko on RHEL-8.6. Please inst
 ```bash
 # git clone https://github.com/virt-s1/os-tests.git
 # cd os-tests
-# python3 setup.py sdist bdist_wheel
-# pip install -U dist/os_tests-0.0.3-py3-none-any.whl
+# pip3 install --upgrade setuptools
+# pip3 install build installer
+# python -m build
+# python -m installer dist/*.whl
 ```
 
 note: the default bin path is "/usr/local/bin" if not in virtual environment.
