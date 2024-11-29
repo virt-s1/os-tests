@@ -49,7 +49,7 @@ class PrismSession(object):
     def post(self, url, data):
         logging.info("Making api post call to %s" % url)
         try:
-            self.r = self.s.post(url, json=data, headers=self.headers, verify="/etc/pki/ca-trust/source/anchors/nutanix_csr_selfsigned_111.csr")
+            self.r = self.s.post(url, json=data, headers=self.headers, verify="/etc/pki/ca-trust/source/anchors/nutanix_111_crt.crt")
         except requests.exceptions.RequestException:
             logging.error("Failed to connect to Prism")
         # convert response to json
@@ -58,7 +58,7 @@ class PrismSession(object):
     def put(self, url, data):
         logging.info("Making api put call to %s" % url)
         try:
-            self.r = self.s.put(url, json=data, headers=self.headers, verify="/etc/pki/ca-trust/source/anchors/nutanix_csr_selfsigned_111.csr")
+            self.r = self.s.put(url, json=data, headers=self.headers, verify="/etc/pki/ca-trust/source/anchors/nutanix_111_crt.crt")
         except requests.exceptions.RequestException:
             logging.error("Failed to connect to Prism")
         # convert response to json
@@ -67,7 +67,7 @@ class PrismSession(object):
     def delete(self, url):
         logging.info("Making api delete call to %s" % url)
         try:
-            self.r = self.s.delete(url, headers=self.headers, verify="/etc/pki/ca-trust/source/anchors/nutanix_csr_selfsigned_111.csr")
+            self.r = self.s.delete(url, headers=self.headers, verify="/etc/pki/ca-trust/source/anchors/nutanix_111_crt.crt")
         except requests.exceptions.RequestException:
             logging.error("Failed to connect to Prism")
         # convert response to json
