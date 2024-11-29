@@ -1740,7 +1740,8 @@ def get_test_disk(test_instance=None):
         cmd = "lsblk -r --output NAME,MOUNTPOINT|awk -F' ' '{if($2) printf\"%s \",$1}'"
         output = run_cmd(test_instance, cmd, expect_ret=0)
         mount_disks = output.split(' ')
-        cmd = 'lsblk -d --output NAME|grep -v NAME'
+        # Filter out loop and zram (swap) devices in image mode
+        cmd = 'lsblk -d --output NAME|grep -v NAME|grep -v zram|grep -v loop'
         output = run_cmd(test_instance, cmd, expect_ret=0)
         disk_list = output.split('\n')
         for disk in disk_list:

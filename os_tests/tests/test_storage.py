@@ -17,9 +17,11 @@ class TestStorage(unittest.TestCase):
             test_instance {avocado Test instance} -- avocado test instance
         '''
         test_disk = "/dev/{}".format(utils_lib.get_test_disk(self))
-        cmd = "sudo bash -c \"echo 'TEST_DEVS=({})' > /usr/local/blktests/config\"".format(test_disk)
+        config = "/tmp/blktests_config"
+        cmd = "sudo bash -c \"echo 'TEST_DEVS=({})' > {}\"".format(test_disk, config)
         utils_lib.run_cmd(self, cmd, expect_ret=0)
-        cmd = "cd /usr/local/blktests/; sudo ./check {}".format(case_name)
+        results_dir = "/tmp/blktests_results"
+        cmd = "cd /usr/local/blktests/; sudo ./check {} -c {} -o {}".format(case_name, config, results_dir)
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw="failed", timeout=2400)
 
     def setUp(self):
