@@ -1469,6 +1469,86 @@ if __name__ == "__main__":
                 self.skipTest("no {} for {} vm".format(attrname, self.vm.provider))
         self._test_vm_time_sync_host('migration')
 
+    def test_qemu_kvm_guest_kernel_boot(self):
+        """
+        case_name:
+            test_qemu_kvm_guest_kernel_boot
+        case_tags:
+            kernel
+        case_status:
+            approved
+        title:
+            quick try a kvm guest kernel boot in metal system
+        importance:
+            medium
+        subsystem_team:
+            rhel-sst-virtualization-cloud
+        automation_drop_down:
+            automated
+        linked_work_items:
+            N/A
+        automation_field:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_general_test.py
+        setup_teardown:
+            N/A
+        environment:
+            N/A
+        component:
+            component
+        bug_id:
+            jira_RHEL-16357
+        is_customer_case:
+            False
+        attached_customer_cases:
+            0
+        testplan:
+            N/A
+        test_type:
+            functional
+        test_level:
+            component
+        maintainer:
+            xiliang@redhat.com
+        description: |
+            The case try to boot a guest with local kernel to make sure no critical problem in starting kvm guest on metal.
+            For more virt specific kvm guest case, we would like you to run os-tests rhel guest test on the metal instance.
+            For full stack kvm guest coverage, please run the virt test tools like avocado-vt, tp-libvirt, tp-qemu.
+        key_steps: |
+            <case key steps - Evidence Traceability>
+        expected_result: |
+            - timeout 20 qemu-kvm -M qemu-kvm -M pc -cpu host  -append "console=ttyS0" -serial stdio -kernel /boot/vmlinuz-$(uname -r)
+            - timeout 20 qemu-kvm -M qemu-kvm -M pc -cpu host  -append "console=ttyS0" -serial stdio -kernel /boot/vmlinuz-$(uname -r)+debug
+            - timeout 20 /usr/libexec/qemu-kvm -smp 4 -cpu EPYC-Milan-v2 -machine q35,confidential-guest-support=sev0,memory-backend=ram1 -object memory-backend-memfd,id=ram1,size=4G,share=true,reserve=false -object sev-snp-guest,id=sev0,cbitpos=51,reduced-phys-bits=1,id-auth=,kernel-hashes=on -bios /usr/share/edk2/ovmf/OVMF.amdsev.fd -kernel /boot/vmlinuz-$(uname -r)+debug -append "console=ttyS0" -serial stdio
+        debug_want: |
+            dmesg
+        """
+        utils_lib.is_metal(self, action="cancel")
+        utils_lib.is_pkg_installed(self, pkg_name="libvirt")
+        utils_lib.is_pkg_installed(self, pkg_name="qemu-kvm-core")
+        cmd = "sudo systemctl restart libvirtd"
+        utils_lib.run_cmd(self, cmd, cancel_ret='0', msg = "restart libvirtd")
+        utils_lib.is_cmd_exist(self, cmd='virsh')
+        machine_type = utils_lib.is_arch(self,arch='aarch64') and '-m 2G -M virt' or '-M q35 -append "console=ttyS0"'
+        utils_lib.run_cmd(self, 'sudo /usr/libexec/qemu-kvm -M help', msg = "list all supported machine type")
+        cmds = ['timeout 20 sudo /usr/libexec/qemu-kvm {} -cpu host  -serial stdio -kernel /boot/vmlinuz-$(uname -r)'.format(machine_type),
+        'timeout 20 sudo /usr/libexec/qemu-kvm {} -cpu host  -serial stdio -kernel /boot/vmlinuz-$(uname -r)+debug'.format(machine_type),
+        'timeout 20 sudo /usr/libexec/qemu-kvm -smp 4 -cpu EPYC-Milan-v2 -machine q35,confidential-guest-support=sev0,memory-backend=ram1 -object memory-backend-memfd,id=ram1,size=4G,share=true,reserve=false -object sev-snp-guest,id=sev0,cbitpos=51,reduced-phys-bits=1,id-auth=,kernel-hashes=on -bios /usr/share/edk2/ovmf/OVMF.amdsev.fd -kernel /boot/vmlinuz-$(uname -r) -append "console=ttyS0" -serial stdio',
+        'timeout 20 sudo /usr/libexec/qemu-kvm -smp 4 -cpu EPYC-Milan-v2 -machine q35,confidential-guest-support=sev0,memory-backend=ram1 -object memory-backend-memfd,id=ram1,size=4G,share=true,reserve=false -object sev-snp-guest,id=sev0,cbitpos=51,reduced-phys-bits=1,id-auth=,kernel-hashes=on -bios /usr/share/edk2/ovmf/OVMF.amdsev.fd -kernel /boot/vmlinuz-$(uname -r)+debug -append "console=ttyS0" -serial stdio']
+        cpu_flags = utils_lib.run_cmd(self, 'sudo lscpu', msg='check if sev is supported')
+        boots_kernel = utils_lib.run_cmd(self, 'sudo ls /boot', msg='check if have a debug kernel')
+        for cmd in cmds:
+            if 'sev' not in cpu_flags and 'sev' in cmd:
+                continue
+            if 'debug' not in boots_kernel and 'debug' in cmd:
+                continue
+            out = utils_lib.run_cmd(self, cmd)
+            if 'terminating on signal 15' in out:
+                self.log.info('Guest kernel boots up normally.')
+            elif 'terminating on signal 15' not in out and 'not supported' in out:
+                self.log.info('Not supported senario on your system')
+            elif 'terminating on signal 15' not in out and 'not supported' not in out:
+                self.fail('Guest kernel cannot boot up normally!')
+
     def tearDown(self):
         utils_lib.finish_case(self)
         if "test_cpu_hotplug_no_workload" in self.id():

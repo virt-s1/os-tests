@@ -229,7 +229,7 @@ class TestUpgrade(unittest.TestCase):
         component:
             kernel
         bug_id:
-            2106904
+            bugzilla_2106904
         is_customer_case:
             True
         testplan:
@@ -556,7 +556,7 @@ class TestUpgrade(unittest.TestCase):
         title:
             TestUpgrade.test_leapp_upgrade_rhsm 
         importance:
-            High
+            high
         subsystem_team:
             rhel-sst-virtualization-cloud
         automation_drop_down:
@@ -726,7 +726,7 @@ class TestUpgrade(unittest.TestCase):
         title:
             TestUpgrade.test_pkg_install 
         importance:
-            High
+            high
         subsystem_team:
             rhel-sst-virtualization-cloud
         automation_drop_down:
