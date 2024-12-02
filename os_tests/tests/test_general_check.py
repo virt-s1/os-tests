@@ -2033,6 +2033,7 @@ current_device"
             self.SSH.get_file(rmt_file='/tmp/{}'.format(file_name),local_file='{}/attachments/{}'.format(self.log_dir,file_name))
         else:
             utils_lib.run_cmd(self, 'sudo cp {} {}/attachments/'.format(gz_file, self.log_dir))
+        utils_lib.run_cmd(self, 'insights-client --version', msg="get insights client version after register", timeout=120)
         try:
             tmp_dict = json.loads(result_out)
             if len(tmp_dict) > 0:
