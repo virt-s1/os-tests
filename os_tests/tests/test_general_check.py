@@ -1814,6 +1814,8 @@ current_device"
         elif 'VMware' in lscpu_output:
             self.log.info("Found it is a vmware system!")
             self.assertIn('vmware', virt_what_output)
+        elif utils_lib.is_gcp(self):
+            self.assertEqual('google_cloud\nkvm\n', virt_what_output)
         elif 'KVM' in lscpu_output:
             if utils_lib.is_ahv(self):
                 self.log.info("Found it is a Nutanix AHV system!")
