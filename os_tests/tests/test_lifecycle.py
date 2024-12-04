@@ -357,7 +357,10 @@ class TestLifeCycle(unittest.TestCase):
                     expect_ret=0,
                     msg='clean /var/crash firstly')
         utils_lib.is_arch(self, arch='x86', action='cancel')
-        cmd = 'sudo grubby --update-kernel=ALL --args="hpet_mmap=1"'
+        if utils_lib.is_ostree_system(self):
+            cmd = 'sudo rpm-ostree kargs --append="hpet_mmap=1"'
+        else:
+            cmd = 'sudo grubby --update-kernel=ALL --args="hpet_mmap=1"'
         utils_lib.run_cmd(self, cmd, msg='Append hpet_mmap=1 to command line!', timeout=600)
         utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(10)
@@ -383,7 +386,10 @@ class TestLifeCycle(unittest.TestCase):
         cpucount = utils_lib.run_cmd(self, cmd, msg='get cpu count')
         if int(cpucount) > 36:
             self.skipTest("skip when cpu count over 36 when nosmt passing")
-        cmd = 'sudo grubby --update-kernel=ALL --args="mitigations=auto,nosmt"'
+        if utils_lib.is_ostree_system(self):
+            cmd = 'sudo rpm-ostree kargs --append="mitigations=auto,nosmt"'
+        else:
+            cmd = 'sudo grubby --update-kernel=ALL --args="mitigations=auto,nosmt"'
         utils_lib.run_cmd(self, cmd, msg='Append mitigations=auto,nosmt to command line!', timeout=600)
         utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(10)
@@ -399,7 +405,10 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.run_cmd(self, r'sudo rm -rf /var/crash/*',
                     expect_ret=0, msg='clean /var/crash firstly')
         option = 'usbcore.quirks=quirks=0781:5580:bk,0a5c:5834:gij'
-        cmd = 'sudo grubby --update-kernel=ALL --args="{}"'.format(option)
+        if utils_lib.is_ostree_system(self):
+            cmd = 'sudo rpm-ostree kargs --append="{}"'.format(option)
+        else:
+            cmd = 'sudo grubby --update-kernel=ALL --args="{}"'.format(option)
         utils_lib.run_cmd(self, cmd, msg='Append {} to command line!'.format(option), timeout=600)
         utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(10)
@@ -514,7 +523,7 @@ class TestLifeCycle(unittest.TestCase):
         description: |
             Check system can boot up with mem_encryp on 
         key_steps: |
-            - add mem_encryp=on to kernel cmdline and reboot system
+            - add mem_encrypt=on to kernel cmdline and reboot system
         expected_result: |
             - system can boot up successfully without any error
             - mem_encryp option is enabled
@@ -526,13 +535,16 @@ class TestLifeCycle(unittest.TestCase):
                     r'sudo rm -rf /var/crash/*',
                     expect_ret=0,
                     msg='clean /var/crash firstly')
-        cmd = 'sudo grubby --update-kernel=ALL --args="mem_encrypt=on"'
+        if utils_lib.is_ostree_system(self):
+            cmd = 'sudo rpm-ostree kargs --append="mem_encrypt=on"'
+        else:
+            cmd = 'sudo grubby --update-kernel=ALL --args="mem_encrypt=on"'
         utils_lib.run_cmd(self, cmd, msg='Append mem_encrypt=on to command line!', timeout=600)
         utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(10)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         utils_lib.run_cmd(self, 'cat /proc/cmdline', expect_kw='mem_encrypt=on')
-        utils_lib.run_cmd(self, 'sudo dmesg | grep -i mem_encrypt', expect_kw='=on')
+        utils_lib.run_cmd(self, 'sudo dmesg | grep -i mem_encrypt', expect_kw='mem_encrypt=on')
         utils_lib.check_log(self, "CallTrace", skip_words='ftrace', rmt_redirect_stdout=True)
 
     def test_kdump_no_specify_cpu(self):
@@ -1083,7 +1095,16 @@ class TestLifeCycle(unittest.TestCase):
         self._start_vm_and_check()
 
     def _update_kernel_args(self, boot_param_required):
-        cmd = 'sudo grubby --update-kernel=ALL --args="{}"'.format(boot_param_required)
+        if utils_lib.is_ostree_system(self):
+            cat_proc_cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline')
+            key = boot_param_required.split('=')[0]
+            for param in cat_proc_cmdline.split(' '):
+                if param.startswith(key + '='):
+                    cmd = 'sudo rpm-ostree kargs --replace="{}={}"'.format(param.rstrip(), boot_param_required.split('=')[1])
+                else:
+                    cmd = 'sudo rpm-ostree kargs --append="{}"'.format(boot_param_required)
+        else:
+            cmd = 'sudo grubby --update-kernel=ALL --args="{}"'.format(boot_param_required)
         utils_lib.run_cmd(self, cmd, msg="append {} to boot params".format(boot_param_required))
         utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
         time.sleep(10)
@@ -1691,16 +1712,17 @@ class TestLifeCycle(unittest.TestCase):
     def tearDown(self):
         utils_lib.finish_case(self)
         reboot_require = False
-        cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline')
-        if 'ostree' in cmdline:
-            addon_args = ['fips=1']
+        if utils_lib.is_ostree_system(self):
+            addon_args = ['hpet_mmap=1', 'mitigations=auto,nosmt', 'usbcore.quirks=quirks=0781:5580:bk,0a5c:5834:gij',
+                'nr_cpus=1', 'nr_cpus=2', 'nr_cpus=4', 'nr_cpus=5', 'intel_iommu=on', 'fips=1', 'mem_encrypt=on']
         else:
             addon_args = ['hpet_mmap=1', 'mitigations=auto,nosmt', 'usbcore.quirks=quirks=0781:5580:bk,0a5c:5834:gij',
                 'nr_cpus=1', 'nr_cpus=2', 'nr_cpus=4', 'nr_cpus=5', 'intel_iommu=on', 'fips=1', 'mem_encrypt=on', 'boot']
 
+        cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline')
         args_to_remove = [arg for arg in addon_args if arg in cmdline]
         if args_to_remove:
-            if 'ostree' in cmdline:
+            if utils_lib.is_ostree_system(self):
                 cmd = 'sudo rpm-ostree kargs --delete={}'
             else:
                 cmd = 'sudo grubby --update-kernel=ALL --remove-args={}'
