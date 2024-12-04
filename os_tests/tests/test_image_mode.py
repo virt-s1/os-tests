@@ -83,14 +83,14 @@ class TestImageMode(unittest.TestCase):
         if pkgs:
             pkgs = pkgs.replace(",", " ")
         containerfile = self.params.get('containerfile')
-        current_time = datetime.now().strftime("%M%S")
+        current_time = datetime.now().strftime("%y%m%d%S")
         if containerfile and containerfile.startswith("http"):
             container_url = urlparse(containerfile)
             image_mode_dir = "image_mode_" + os.path.basename(container_url.path) + "_{}_{}".format(disk_image_format, current_time)
             cmd = "sudo rm {} -rf && sudo mkdir {}".format(image_mode_dir, image_mode_dir)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="create image_mode_dir")
             utils_lib.is_pkg_installed(self, pkg_name='curl', is_install=True, cancel_case=True)
-            cmd = "pwd && sudo curl -o {}/Containerfile {}".format(image_mode_dir, containerfile)
+            cmd = "sudo curl -o {}/Containerfile {}".format(image_mode_dir, containerfile)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="download {}".format(containerfile))
         else:
             if containerfile and containerfile.startswith("/"):
@@ -131,16 +131,27 @@ sudo sed -i '1iFROM {}' Containerfile && sudo cat Containerfile".format(image_mo
         dnf_repo_url = self.params.get('dnf_repo_url')
         if dnf_repo_url:
             utils_lib.configure_repo(self, repo_type='dnf_repo', repo_url_param=dnf_repo_url)
-            cmd = "cd {} && sudo sed -i '2iADD ./dnf.repo /etc/yum.repos.d/dnf.repo' Containerfile".format(image_mode_dir)
+            cmd = "cd {} && sudo sed -i '2iADD ./dnf.repo /etc/yum.repos.d/dnf.repo' Containerfile && sudo cat Containerfile".format(image_mode_dir)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Configure repo file in containerfile.")
-            if disk_image_format == 'iso':
-                utils_lib.rhsm_unregister(self, cancel_case=True)
-                self.log.info('unregister rhsm to aviod bug when creating iso disk, please register again after this case if you need.')
+            #if disk_image_format == 'iso':
+                #utils_lib.rhsm_unregister(self, cancel_case=True)
+                #self.log.info('unregister rhsm to aviod bug when creating iso disk, please register again after this case if you need.')
         cmd = "sudo cp /etc/yum.repos.d/dnf.repo ./{}/dnf.repo".format(image_mode_dir)
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Create dnf.repo for packages installation in building custom image")
         if pkgs:
             cmd = "cd {} && sudo sed -i '3iRUN dnf install -y {} && dnf clean all' Containerfile && sudo cat Containerfile".format(image_mode_dir, pkgs)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Add installed pkgs to Containerfile.")
+
+        #Prepare 05-cloud-kargs.toml file
+        cmd = "cd {} && sudo grep -q '05-cloud-kargs.toml' Containerfile".format(image_mode_dir)
+        ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg="check if there is 05-cloud-kargs.toml in Containerfile")
+        if ret == 0:
+            utils_lib.run_cmd(self, """
+sudo cat << EOF | sudo tee {}/05-cloud-kargs.toml
+[install]
+kargs = ["console=tty0", "console=ttyS0,115200n8"]
+EOF
+""".format(image_mode_dir), msg='create 05-cloud-kargs.toml file')
 
         #login container repo
         quay_io_data = self.params.get('quay_io_data')
@@ -204,6 +215,9 @@ sudo sed -i '1iFROM {}' Containerfile && sudo cat Containerfile".format(image_mo
         utils_lib.run_cmd(self, cmd, expect_ret=0, timeout = 1200, msg="Build bootc custom image")
     
         #Create bootable disks with custom bootc images
+        image_name_string = image_mode_dir.split('_')
+        image_name_string = image_name_string[:-2]
+        pre_image_name = '_'.join(image_name_string)
         bootc_image_builder = self.params.get('bootc_image_builder')
         if not bootc_image_builder:
             if 'rhel' in bootc_base_image:
@@ -213,7 +227,7 @@ sudo sed -i '1iFROM {}' Containerfile && sudo cat Containerfile".format(image_mo
 
         if disk_image_format == 'ami':
             utils_lib.is_pkg_installed(self, pkg_name='awscli2', is_install=True, cancel_case=True)
-            ami_name = '{}_{}_{}'.format(bootc_custom_image_name, bootc_custom_image_tag, bootc_base_image_compose_id)
+            ami_name = '{}_{}_{}_{}'.format(pre_image_name, bootc_custom_image_name, bootc_custom_image_tag, bootc_base_image_compose_id)
             aws_info = self.params.get('aws_info')
             if aws_info and aws_info.split(',')[2]:
                 aws_region = aws_info.split(',')[2]
@@ -318,7 +332,8 @@ label=type:unconfined_t -v ./config.toml:/config.toml -v ./{}:/output -v \
             if disk_image_type == 'iso':
                 disk_file = 'install.iso'
                 disk_dir = 'bootiso'
-            cmd = "sudo mv {}/{}/{} {}/{}.{}".format(output_dir, disk_dir, disk_file, image_mode_dir, output_dir_name.replace('output_',''), disk_file.split('.')[1])
+            disk_image_name = "{}_{}".format(pre_image_name, output_dir_name.replace('output_',''))
+            cmd = "sudo mv {}/{}/{} {}/{}.{}".format(output_dir, disk_dir, disk_file, image_mode_dir, disk_image_name, disk_file.split('.')[1])
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='move {} to {}'.format(disk_file, image_mode_dir))
             #uploade the output to attachment
             utils_lib.save_file(self, file_dir=image_mode_dir, file_name="Containerfile")
@@ -327,21 +342,19 @@ label=type:unconfined_t -v ./config.toml:/config.toml -v ./{}:/output -v \
             #Save the created bootable bootc image/disk to attachments in log and delete the image_mode_dir.
             #Or if you'd like to copy the disk file to your test environment by manual,
             #please specify --upload_image to no.
-            upload_image = self.params.get('upload_image')
+            upload_image = str(self.params.get('upload_image'))
             if upload_image:
-                if isinstance(upload_image, bool):
-                    upload_image = str(upload_image)
                 upload_image = upload_image.strip().lower()
                 if upload_image in ["no", "n", "false"]:
                     self.log.info("Please copy Disk image {}/{}.{} based on bootc image {} \
 compose-id:{} Digest:{} to your test environment.".format(image_mode_dir,
-                                                          output_dir_name.replace('output_',''), 
+                                                          disk_image_name, 
                                                           disk_image_format,
                                                           bootc_base_image,
                                                           bootc_base_image_compose_id,
                                                           bootc_base_image_digest))
             else:
-                utils_lib.save_file(self, file_dir=image_mode_dir, file_name='{}.{}'.format(output_dir_name.replace('output_',''), disk_image_format))
+                utils_lib.save_file(self, file_dir=image_mode_dir, file_name='{}.{}'.format(disk_image_name, disk_image_format))
                 cmd = "sudo rm -rf {}".format(image_mode_dir)
                 utils_lib.run_cmd(self, cmd, expect_ret=0, msg="delete the {}".format(image_mode_dir))
 

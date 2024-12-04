@@ -108,7 +108,7 @@ def init_args():
                     help='specify the bootc-image-builder used for coverting custom container image to bootable disk image', required=False)
     parser.add_argument('--aws_info', dest='aws_info', default=None, action='store',
                     help='specify the aws configure information, e.g., AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,aws-region,aws-bucket', required=False)
-    parser.add_argument('--upload_image', dest='--upload_image', default=None, action='store',
+    parser.add_argument('--upload_image', dest='upload_image', default=None, action='store',
                     help='The created bootable bootc image/disk will be saved to attachments in log, \
 if you would like to copy the disk file to your test environment by manual, please specify --upload_image no', required=False)
     args = parser.parse_args()
