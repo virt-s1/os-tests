@@ -2121,7 +2121,7 @@ sslverify=0
 
 def save_file(test_instance, file_dir=None, file_name=None, rmt_node=None, vm=None):
     saved_file = '{}/{}'.format(file_dir, file_name)
-    if test_instance.params['remote_nodes'] is not None:
+    if test_instance.params['remote_nodes']:
         cmd = "sudo cp -f {} /tmp/".format(saved_file)
         run_cmd(test_instance, cmd, msg='Prepare for saving {}'.format(saved_file))
         test_instance.SSH.get_file(rmt_file='/tmp/{}'.format(file_name),
