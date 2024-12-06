@@ -72,7 +72,9 @@ class TestImageMode(unittest.TestCase):
         #    self.fail("Image Mode was supported from rhel 9.4.")
         if self.params.get('subscription_username') and self.params.get('subscription_password'):
             utils_lib.rhsm_register(self, cancel_case=True)
-        utils_lib.is_pkg_installed(self, pkg_name='container-tools', is_install=True, cancel_case=True)
+        container_tools = ['podman', 'buildah', 'skopeo']
+        for container_tool in container_tools:
+            utils_lib.is_pkg_installed(self, pkg_name=container_tool, is_install=True, cancel_case=True)
         #prepare containerfile
         disk_image_format = self.params.get('disk_image_format')
         bootc_base_image_url = self.params.get('bootc_base_image_url')
@@ -101,7 +103,8 @@ class TestImageMode(unittest.TestCase):
             if not containerfile:
                 if not bootc_base_image_url:
                     self.skipTest("Please sepcify the base bootc container image url.")
-                image_mode_dir = "image_mode_" + bootc_base_image_url.split(':')[1].replace('.','u') + "_{}_{}".format(disk_image_format, current_time)
+                image_mode_dir_name = '{}-{}'.format(bootc_base_image_url.split('/')[1], bootc_base_image_url.split(':')[1].replace('.','u'))
+                image_mode_dir = "image_mode_{}_{}_{}".format(image_mode_dir_name, disk_image_format, current_time)
                 cmd = "sudo rm {} -rf && sudo mkdir {}".format(image_mode_dir, image_mode_dir)
                 utils_lib.run_cmd(self, cmd, expect_ret=0, msg="create image_mode_dir")
                 cmd = 'echo "#Containerfile" > {}/Containerfile'.format(image_mode_dir)
@@ -136,8 +139,8 @@ sudo sed -i '1iFROM {}' Containerfile && sudo cat Containerfile".format(image_mo
             #if disk_image_format == 'iso':
                 #utils_lib.rhsm_unregister(self, cancel_case=True)
                 #self.log.info('unregister rhsm to aviod bug when creating iso disk, please register again after this case if you need.')
-        cmd = "sudo cp /etc/yum.repos.d/dnf.repo ./{}/dnf.repo".format(image_mode_dir)
-        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Create dnf.repo for packages installation in building custom image")
+            cmd = "sudo mv /etc/yum.repos.d/dnf.repo ./{}/dnf.repo".format(image_mode_dir)
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Create dnf.repo for packages installation in building custom image")
         if pkgs:
             cmd = "cd {} && sudo sed -i '3iRUN dnf install -y {} && dnf clean all' Containerfile && sudo cat Containerfile".format(image_mode_dir, pkgs)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Add installed pkgs to Containerfile.")
@@ -177,7 +180,7 @@ EOF
         cmd = "sudo podman inspect {} --format '{{{{.Digest}}}}' | tr -d '\n'".format(bootc_base_image)
         bootc_base_image_digest = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check bootc base image Digest")
         bootc_base_image_digest = bootc_base_image_digest.split(':')[1]
-        bootc_base_image_name = bootc_base_image.split('/')[2].split(':')[0]
+        bootc_base_image_name = '{}_{}'.format(bootc_base_image.split('/')[1],bootc_base_image.split('/')[2].split(':')[0])
         if ':' in bootc_base_image:
             bootc_base_image_tag = bootc_base_image.split(':')[1].replace('.', 'u')
         else:
@@ -216,14 +219,20 @@ EOF
     
         #Create bootable disks with custom bootc images
         image_name_string = image_mode_dir.split('_')
-        image_name_string = image_name_string[:-2]
+        if self.params.get('containerfile'):
+            image_name_string = image_name_string[:-2]
+        else:
+            image_name_string = image_name_string[:-3]
         pre_image_name = '_'.join(image_name_string)
         bootc_image_builder = self.params.get('bootc_image_builder')
         if not bootc_image_builder:
             if 'rhel' in bootc_base_image:
                 bootc_image_builder = bootc_base_image.replace('rhel-bootc','bootc-image-builder')
             else:
-                self.skipTest("Please sepcify the bootc_image_builder.")
+                cmd = "sudo jq -r .[].Config.Labels.\\\"bootc.diskimage-builder\\\" {}/{} | tr -d '\n'".format(image_mode_dir, inspect_json_name)
+                bootc_image_builder = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check bootc image builder")
+                if not bootc_image_builder:
+                    self.skipTest("Please sepcify the bootc_image_builder.")
 
         if disk_image_format == 'ami':
             utils_lib.is_pkg_installed(self, pkg_name='awscli2', is_install=True, cancel_case=True)
