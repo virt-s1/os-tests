@@ -362,10 +362,10 @@ compose-id:{} Digest:{} to your test environment.".format(image_mode_dir,
                                                           bootc_base_image,
                                                           bootc_base_image_compose_id,
                                                           bootc_base_image_digest))
-            else:
-                utils_lib.save_file(self, file_dir=image_mode_dir, file_name='{}.{}'.format(disk_image_name, disk_image_format))
-                cmd = "sudo rm -rf {}".format(image_mode_dir)
-                utils_lib.run_cmd(self, cmd, expect_ret=0, msg="delete the {}".format(image_mode_dir))
+                else:
+                    utils_lib.save_file(self, file_dir=image_mode_dir, file_name='{}.{}'.format(disk_image_name, disk_image_format))
+                    cmd = "sudo rm -rf {}".format(image_mode_dir)
+                    utils_lib.run_cmd(self, cmd, expect_ret=0, msg="delete the {}".format(image_mode_dir))
 
         #delete container images
         for image in [bootc_base_image, bootc_custom_image, bootc_image_builder]:
