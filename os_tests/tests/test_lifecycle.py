@@ -1407,12 +1407,15 @@ class TestLifeCycle(unittest.TestCase):
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
             product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
             if float(product_id) >= 8.0 and float(product_id) < 9.0:
-                pkg_url='https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/e/ec2-hibinit-agent-1.0.9-1.el8.noarch.rpm'
+                utils_lib.run_cmd(self, 'sudo yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y',msg='Installepel repo')
+                utils_lib.run_cmd(self, 'sudo yum install ec2-hibinit-agent -y',msg='Install ec2-hibinit-agent')
+                utils_lib.run_cmd(self, 'sudo systemctl enable hibinit-agent.service',msg='Start ec2-hibinit-agent')
             elif float(product_id) < 8.0:
                 self.skipTest('not supported earlier than rhel8')
             else:
-                pkg_url = "https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/Packages/e/ec2-hibinit-agent-1.0.9-1.el9.noarch.rpm"
-            utils_lib.pkg_install(self, pkg_name='ec2-hibinit-agent', pkg_url=pkg_url, force=True)
+                utils_lib.run_cmd(self, 'sudo yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y',msg='Installepel repo')
+                utils_lib.run_cmd(self, 'sudo yum install ec2-hibinit-agent -y',msg='Install ec2-hibinit-agent')
+                utils_lib.run_cmd(self, 'sudo systemctl enable --now hibinit-agent.service',msg='Enable ec2-hibinit-agent')
             cmd = 'sudo systemctl is-enabled hibinit-agent.service'
             output = utils_lib.run_cmd(self, cmd)
             if 'enabled' not in output:
