@@ -122,6 +122,7 @@ class TestImageMode(unittest.TestCase):
                     pkgs = default_pkgs + " " + pkgs
                 else:
                     pkgs = default_pkgs
+        self.image_mode_dir = image_mode_dir
         cmd = "sudo cat {}/Containerfile".format(image_mode_dir)
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check Containerfile")
         if bootc_base_image_url:
@@ -169,6 +170,7 @@ EOF
         
         cmd = "sudo grep ^FROM {}/Containerfile | awk '{{print $(2)}}'| tr -d '\n'".format(image_mode_dir)
         bootc_base_image = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Fetch bootc base image repo')
+        self.bootc_base_image = bootc_base_image
         cmd = "sudo podman rmi {} -f".format(bootc_base_image)
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="remove old bootc base image")
         cmd = "sudo podman pull {} --arch {}".format(bootc_base_image, arch)
@@ -214,9 +216,10 @@ EOF
             bootc_custom_image = "quay.io/{}/{}:{}".format(quay_io_data.split(',')[0], bootc_custom_image_name, bootc_custom_image_tag)
         else:
             bootc_custom_image = "localhost/{}:{}".format(bootc_custom_image_name, bootc_custom_image_tag)
+        self.bootc_custom_image = bootc_custom_image
         cmd = "cd {} && sudo podman build -t {} . --arch {}".format(image_mode_dir, bootc_custom_image, arch)
         utils_lib.run_cmd(self, cmd, expect_ret=0, timeout = 1200, msg="Build bootc custom image")
-    
+
         #Create bootable disks with custom bootc images
         image_name_string = image_mode_dir.split('_')
         if self.params.get('containerfile'):
@@ -233,6 +236,7 @@ EOF
                 bootc_image_builder = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check bootc image builder")
                 if not bootc_image_builder:
                     self.skipTest("Please sepcify the bootc_image_builder.")
+        self.bootc_image_builder = bootc_image_builder
 
         if disk_image_format == 'ami':
             utils_lib.is_pkg_installed(self, pkg_name='awscli2', is_install=True, cancel_case=True)
@@ -243,7 +247,7 @@ EOF
             if aws_info and aws_info.split(',')[3]:
                 aws_bucket = aws_info.split(',')[3]
             else:
-                aws_bucket = 'rh-image-files'
+                aws_bucket = 'bootc-image-files'
             if aws_info and aws_info.split(',')[0] and aws_info.split(',')[1]:
                 cmd = "sudo podman run --rm -it --privileged --pull=newer --tls-verify=false \
 --security-opt label=type:unconfined_t -v /var/lib/containers/storage:/var/lib/containers/storage \
@@ -364,15 +368,27 @@ compose-id:{} Digest:{} to your test environment.".format(image_mode_dir,
                                                           bootc_base_image_digest))
                 else:
                     utils_lib.save_file(self, file_dir=image_mode_dir, file_name='{}.{}'.format(disk_image_name, disk_image_format))
-                    cmd = "sudo rm -rf {}".format(image_mode_dir)
-                    utils_lib.run_cmd(self, cmd, expect_ret=0, msg="delete the {}".format(image_mode_dir))
-
-        #delete container images
-        for image in [bootc_base_image, bootc_custom_image, bootc_image_builder]:
-            cmd = "sudo podman rmi {} -f".format(image)
-            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='remove container image {}'.format(image))
    
     def tearDown(self):
+        upload_image = str(self.params.get('upload_image'))
+        if upload_image:
+            upload_image = upload_image.strip().lower() 
+            if upload_image in ["no", "n", "false"]:
+                self.log.info("Keep image mode dir and container images.")
+            else:
+                if self.image_mode_dir:
+                    cmd = "sudo rm -rf {}".format(self.image_mode_dir)
+                    utils_lib.run_cmd(self, cmd, expect_ret=0, msg="delete the {}".format(self.image_mode_dir))
+                #delete container images
+                if self.bootc_base_image:
+                    cmd = "sudo podman rmi {} -f".format(self.bootc_base_image)
+                    utils_lib.run_cmd(self, cmd, expect_ret=0, msg='remove container image {}'.format(self.bootc_base_image))
+                if self.bootc_custom_image:
+                    cmd = "sudo podman rmi {} -f".format(self.bootc_custom_image)
+                    utils_lib.run_cmd(self, cmd, expect_ret=0, msg='remove container image {}'.format(self.bootc_custom_image))
+                if self.bootc_image_builder:
+                   cmd = "sudo podman rmi {} -f".format(self.bootc_image_builder)
+                   utils_lib.run_cmd(self, cmd, expect_ret=0, msg='remove container image {}'.format(self.bootc_image_builder))
         utils_lib.finish_case(self)
         pass
 
