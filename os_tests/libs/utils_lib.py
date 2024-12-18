@@ -89,7 +89,8 @@ def init_args():
     parser.add_argument('--target_version', dest='target_version', default=None, action='store',
                     help='specify the target version you want to upgrade to, e.g., 9.4', required=False)
     parser.add_argument('--disk_image_format', dest='disk_image_format', default=None, action='store',
-                    help='specify the disk image format to build disk image for image mode testing, e.g., 9.4', required=False)
+                    help='specify the disk image format to build disk image for image mode testing, \
+                        e.g., ami. Support formats: iso, ami, vhd, vhdx, vmdk, qcow2', required=False)
     parser.add_argument('--containerfile', dest='containerfile', default=None, action='store',
                     help='specify the path of container file', required=False)
     parser.add_argument('--bootc_base_image_url', dest='bootc_base_image_url', default=None, action='store',
@@ -110,7 +111,8 @@ def init_args():
                     help='specify the aws configure information, e.g., AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,aws-region,aws-bucket', required=False)
     parser.add_argument('--upload_image', dest='upload_image', default=None, action='store',
                     help='The created bootable bootc image/disk will be saved to attachments in log, \
-if you would like to copy the disk file to your test environment by manual, please specify --upload_image no', required=False)
+                        if you would like to copy the disk file to your test environment by manual, \
+                        please specify --upload_image no', required=False)
     args = parser.parse_args()
     return args
 
