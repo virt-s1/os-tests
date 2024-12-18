@@ -67,6 +67,10 @@ class TestImageMode(unittest.TestCase):
         debug_want: |
             n/a
         """
+        self.image_mode_dir = None
+        self.bootc_base_image = None
+        self.bootc_custom_image = None
+        self.bootc_image_builder = None
         #product_id = utils_lib.get_product_id(self)
         #if float(product_id) < 9.4:
         #    self.fail("Image Mode was supported from rhel 9.4.")
