@@ -1482,7 +1482,7 @@
         "trigger": ""
     },
     "msg_166": {
-        "content": ".*systemd-udevd.*could not read from.*acpi_cpufreq/initstate.*",
+        "content": ".*systemd-udevd.*could not read from.*initstate.*",
         "analyze": "The message can be ignored since it is harmless.",
         "branch": "rhel",
         "status": "active",
@@ -2339,7 +2339,7 @@
         "addeddate": "20240926"
     },
     "msg_250": {
-        "content": ".*Version: (invalid).*",
+        "content": ".*Version.*invalid.*",
         "analyze": "dmidecode known issue",
         "branch": "rhel",
         "status": "active",
@@ -2373,5 +2373,17 @@
         "cases": "os_tests.tests.test_lifecycle.TestLifeCycle.test_boot_debugkernel",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20241103"
+    },
+    "msg_253": {
+        "content": ".*i2c i2c-.*Failed!.*",
+        "analyze": "known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-70163",
+        "path": "",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20241206"
     }
 }

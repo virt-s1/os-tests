@@ -2036,6 +2036,14 @@ current_device"
         else:
             utils_lib.run_cmd(self, 'sudo cp {} {}/attachments/'.format(gz_file, self.log_dir))
         utils_lib.run_cmd(self, 'insights-client --version', msg="get insights client version after register", timeout=120)
+        insights_client_log = "/var/log/insights-client/insights-client.log"
+        insights_client_log_file_name = os.path.basename(insights_client_log)
+        if self.params.get('remote_node') is not None:
+            utils_lib.run_cmd(self, 'sudo cp {} /tmp/'.format(insights_client_log))
+            utils_lib.run_cmd(self, 'sudo chmod 777 /tmp/{}'.format(insights_client_log_file_name))
+            self.SSH.get_file(rmt_file='/tmp/{}'.format(insights_client_log_file_name),local_file='{}/attachments/{}'.format(self.log_dir,insights_client_log_file_name))
+        else:
+            utils_lib.run_cmd(self, 'sudo cp {} {}/attachments/'.format(insights_client_log, self.log_dir))
         try:
             tmp_dict = json.loads(result_out)
             if len(tmp_dict) > 0:
