@@ -1723,6 +1723,10 @@ class TestLifeCycle(unittest.TestCase):
                 'nr_cpus=1', 'nr_cpus=2', 'nr_cpus=4', 'nr_cpus=5', 'intel_iommu=on', 'fips=1', 'mem_encrypt=on', 'boot']
 
         cmdline = utils_lib.run_cmd(self, 'cat /proc/cmdline')
+        if cmdline is None:
+            self.log.info("Failed to retrieve /proc/cmdline. Check system logs.")
+            self.log.info(cmdline)
+            cmdline = ""
         args_to_remove = [arg for arg in addon_args if arg in cmdline]
         if args_to_remove:
             if utils_lib.is_ostree_system(self):
