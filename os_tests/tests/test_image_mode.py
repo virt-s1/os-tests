@@ -20,7 +20,7 @@ class TestImageMode(unittest.TestCase):
         self.bootc_image_builder = None
         self.inspect_json_name = None
         self.manifest_file = None
-        self.no_upload_image = None
+        self.no_upload_image = self.params.get('no_upload_image')
 
     def _podman_login(self,io_user, io_pw, io_name):
         cmd = "sudo podman login -u='{}' -p='{}' {}".format(io_user, io_pw, io_name)
@@ -94,8 +94,13 @@ class TestImageMode(unittest.TestCase):
         containerfile = self.params.get('containerfile')
         current_time = datetime.now().strftime("%y%m%d%S")
         if containerfile and containerfile.startswith("http"):
-            container_url = urlparse(containerfile)
-            image_mode_dir = "image_mode_" + os.path.basename(container_url.path) + "_{}_{}".format(disk_image_format, current_time)
+            containerfile_url = urlparse(containerfile)
+            containerfile_basename = os.path.basename(container_url.path)
+            if ':' in containerfile_basename:
+                containerfile_basename = containerfile_basename.replace(':', '_')
+            if '.' in containerfile_basename:
+                containerfile_basename = containerfile_basename.replace('.', 'u')
+            image_mode_dir = "image_mode_" + containerfile_basename + "_{}_{}".format(disk_image_format, current_time)
             cmd = "sudo rm {} -rf && sudo mkdir {}".format(image_mode_dir, image_mode_dir)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="create image_mode_dir")
             utils_lib.is_pkg_installed(self, pkg_name='curl', is_install=True, cancel_case=True)
@@ -103,7 +108,12 @@ class TestImageMode(unittest.TestCase):
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="download {}".format(containerfile))
         else:
             if containerfile and containerfile.startswith("/"):
-                image_mode_dir = "image_mode_" + os.path.basename(containerfile) + "_{}_{}".format(disk_image_format, current_time)
+                containerfile_basename = os.path.basename(containerfile)
+                if ':' in containerfile_basename:
+                    containerfile_basename = containerfile_basename.replace(':', '_')
+                if '.' in containerfile_basename:
+                    containerfile_basename = containerfile_basename.replace('.', 'u')
+                image_mode_dir = "image_mode_" + containerfile_basename + "_{}_{}".format(disk_image_format, current_time)
                 cmd = "sudo rm {} -rf && sudo mkdir {}".format(image_mode_dir, image_mode_dir)
                 utils_lib.run_cmd(self, cmd, expect_ret=0, msg="create image_mode_dir")
                 utils_lib.copy_file(self, local_file=containerfile, target_file_dir=image_mode_dir, target_file_name='Containerfile')
@@ -304,7 +314,7 @@ to AWS {}".format(ami_name, ami_id, bootc_base_image, bootc_base_image_compose_i
                 #Note the key will display in the disk convert log if you specify it.
                 utils_lib.run_cmd(self, """
 sudo cat << EOF | sudo tee {}/config.toml
-[[customizations.user]]
+[[blueprint.customizations.user]]
 name = "{}"
 password = "{}"
 key = "{}"
@@ -361,9 +371,7 @@ label=type:unconfined_t -v ./config.toml:/config.toml -v ./{}:/output -v \
             #Save the created bootable bootc image/disk to attachments in log and delete the image_mode_dir.
             #Or if you'd like to copy the disk file to your test environment by manual,
             #please specify --no_upload_image in command or set "no_upload_image: True" in yaml.
-            no_upload_image = self.params.get('no_upload_image')
-            self.no_upload_image = no_upload_image
-            if no_upload_image:
+            if self.no_upload_image:
                 self.log.info("Please copy Disk image {}/{}.{} based on bootc image {} \
 compose-id:{} Digest:{} to your test environment.".format(image_mode_dir,
                                                           disk_image_name,
