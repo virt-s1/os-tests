@@ -14,6 +14,13 @@ class TestImageMode(unittest.TestCase):
         utils_lib.init_case(self)
         self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='sudo dmesg -T')
         utils_lib.collect_basic_info(self)
+        self.image_mode_dir = None
+        self.bootc_base_image = None
+        self.bootc_custom_image = None
+        self.bootc_image_builder = None
+        self.inspect_json_name = None
+        self.manifest_file = None
+        self.no_upload_image = None
 
     def _podman_login(self,io_user, io_pw, io_name):
         cmd = "sudo podman login -u='{}' -p='{}' {}".format(io_user, io_pw, io_name)
@@ -67,10 +74,6 @@ class TestImageMode(unittest.TestCase):
         debug_want: |
             n/a
         """
-        self.image_mode_dir = None
-        self.bootc_base_image = None
-        self.bootc_custom_image = None
-        self.bootc_image_builder = None
         #product_id = utils_lib.get_product_id(self)
         #if float(product_id) < 9.4:
         #    self.fail("Image Mode was supported from rhel 9.4.")
@@ -185,7 +188,6 @@ EOF
         bootc_base_image_id = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check bootc base image ID")
         cmd = "sudo podman inspect {} --format '{{{{.Digest}}}}' | tr -d '\n'".format(bootc_base_image)
         bootc_base_image_digest = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check bootc base image Digest")
-        bootc_base_image_digest = bootc_base_image_digest.split(':')[1]
         bootc_base_image_name = '{}_{}'.format(bootc_base_image.split('/')[1],bootc_base_image.split('/')[2].split(':')[0])
         if ':' in bootc_base_image:
             bootc_base_image_tag = bootc_base_image.split(':')[1].replace('.', 'u')
@@ -194,6 +196,7 @@ EOF
         inspect_json_name = "{}_{}_inspect.json".format(image_mode_dir, bootc_base_image_name, bootc_base_image_tag)
         cmd = "sudo bash -c 'podman inspect {} > {}/{}'".format(bootc_base_image, image_mode_dir, inspect_json_name)
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check bootc base image info")
+        self.inspect_json_name = inspect_json_name
         cmd = "sudo podman inspect {} --format '{{{{.Architecture}}}}' | tr -d '\n'".format(bootc_base_image)
         bootc_image_arch = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check bootc base image Architecture")
         if bootc_image_arch == 'amd64':
@@ -210,8 +213,10 @@ EOF
 
         #Check if the bootc image is built
         built_digest = self.params.get('bootc_base_image_digest')
-        if built_digest and len(bootc_base_image_digest) >= 10:
-            if bootc_base_image_digest == built_digest or bootc_base_image_digest[-10:]== built_digest:
+        if built_digest:
+            if ':' in built_digest:
+                built_digest = built_digest.split(':')[1]
+            if bootc_base_image_digest == built_digest or bootc_base_image_digest.split(':')[1] == built_digest or bootc_base_image_digest[-10:]== built_digest:
                 self.skipTest("Custom bootc image based bootc image {} Digest:{} was already built. Skip this case."
                               .format(bootc_base_image_name, bootc_base_image_digest))
         bootc_custom_image_tag = bootc_base_image_digest[-10:]
@@ -268,12 +273,12 @@ EOF
                 utils_lib.run_cmd(self, cmd, timeout=3600, is_log_cmd=False, msg='Create ami for image mode testing based on {}'.format(bootc_base_image_compose_id))
 
             else:
-                cmd = "sudo grep region .aws/config | awk '{print $(3)}'| tr -d '\n'"
+                cmd = "sudo grep region ~/.aws/config | awk '{print $(3)}'| tr -d '\n'"
                 aws_region = utils_lib.run_cmd(self, cmd, msg='Check aws region')
                 if not aws_region:
                     self.FailTest('Please configure awscli')
                 else:
-                    cmd = "sudo podman run --rm -it --privileged --pull=newer -v ./.aws:/root/.aws:ro \
+                    cmd = "sudo podman run --rm -it --privileged --pull=newer -v ~/.aws:/root/.aws:ro \
 --env AWS_PROFILE=default -v /var/lib/containers/storage:/var/lib/containers/storage {} --local --type ami \
 --target-arch {} --aws-ami-name {} --aws-region {} --aws-bucket {} {}".format(
                                                                       bootc_image_builder,
@@ -302,10 +307,10 @@ sudo cat << EOF | sudo tee {}/config.toml
 [[customizations.user]]
 name = "{}"
 password = "{}"
-key = "ssh-rsa {}"
+key = "{}"
 groups = ["wheel"]
 EOF
-""".format(image_mode_dir, config_toml_info.split(',')[0], config_toml_info.split(',')[1], config_toml_info.split(',')[2]),
+""".format(image_mode_dir, config_toml_info.split(',')[0], config_toml_info.split(',')[1], config_toml_info.split(',')[2].replace('\'','')),
            is_log_cmd=False,
            msg='create config_toml file')
  
@@ -335,6 +340,7 @@ label=type:unconfined_t -v ./config.toml:/config.toml -v ./{}:/output -v \
                             msg="Create container disk image {} for image mode testing based on {}".format(bootc_custom_image, bootc_base_image_compose_id))
 
             manifest_file = 'manifest{}'.format(output_dir_name.replace('output',''))
+            self.manifest_file = manifest_file
             cmd = "sudo mv {}/manifest-{}.json {}/{}".format(output_dir, disk_image_type, image_mode_dir, manifest_file)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='move manifest-{}.json to {}'.format(disk_image_type, manifest_file))
             utils_lib.is_cmd_exist(self,"qemu-img")
@@ -352,47 +358,51 @@ label=type:unconfined_t -v ./config.toml:/config.toml -v ./{}:/output -v \
             disk_image_name = "{}_{}".format(pre_image_name, output_dir_name.replace('output_',''))
             cmd = "sudo mv {}/{}/{} {}/{}.{}".format(output_dir, disk_dir, disk_file, image_mode_dir, disk_image_name, disk_file.split('.')[1])
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='move {} to {}'.format(disk_file, image_mode_dir))
-            #uploade the output to attachment
-            utils_lib.save_file(self, file_dir=image_mode_dir, file_name="Containerfile")
-            utils_lib.save_file(self, file_dir=image_mode_dir, file_name=inspect_json_name)
-            utils_lib.save_file(self, file_dir=image_mode_dir, file_name=manifest_file)
             #Save the created bootable bootc image/disk to attachments in log and delete the image_mode_dir.
             #Or if you'd like to copy the disk file to your test environment by manual,
-            #please specify --upload_image to no.
-            upload_image = str(self.params.get('upload_image'))
-            if upload_image:
-                upload_image = upload_image.strip().lower()
-                if upload_image in ["no", "n", "false"]:
-                    self.log.info("Please copy Disk image {}/{}.{} based on bootc image {} \
+            #please specify --no_upload_image in command or set "no_upload_image: True" in yaml.
+            no_upload_image = self.params.get('no_upload_image')
+            self.no_upload_image = no_upload_image
+            if no_upload_image:
+                self.log.info("Please copy Disk image {}/{}.{} based on bootc image {} \
 compose-id:{} Digest:{} to your test environment.".format(image_mode_dir,
-                                                          disk_image_name, 
+                                                          disk_image_name,
                                                           disk_image_format,
                                                           bootc_base_image,
                                                           bootc_base_image_compose_id,
                                                           bootc_base_image_digest))
-                else:
-                    utils_lib.save_file(self, file_dir=image_mode_dir, file_name='{}.{}'.format(disk_image_name, disk_image_format))
-   
-    def tearDown(self):
-        upload_image = str(self.params.get('upload_image'))
-        if upload_image:
-            upload_image = upload_image.strip().lower() 
-            if upload_image in ["no", "n", "false"]:
-                self.log.info("Keep image mode dir and container images.")
             else:
-                if self.image_mode_dir:
-                    cmd = "sudo rm -rf {}".format(self.image_mode_dir)
-                    utils_lib.run_cmd(self, cmd, expect_ret=0, msg="delete the {}".format(self.image_mode_dir))
-                #delete container images
-                if self.bootc_base_image:
-                    cmd = "sudo podman rmi {} -f".format(self.bootc_base_image)
-                    utils_lib.run_cmd(self, cmd, expect_ret=0, msg='remove container image {}'.format(self.bootc_base_image))
-                if self.bootc_custom_image:
-                    cmd = "sudo podman rmi {} -f".format(self.bootc_custom_image)
-                    utils_lib.run_cmd(self, cmd, expect_ret=0, msg='remove container image {}'.format(self.bootc_custom_image))
-                if self.bootc_image_builder:
-                   cmd = "sudo podman rmi {} -f".format(self.bootc_image_builder)
-                   utils_lib.run_cmd(self, cmd, expect_ret=0, msg='remove container image {}'.format(self.bootc_image_builder))
+                utils_lib.save_file(self, file_dir=image_mode_dir, file_name='{}.{}'.format(disk_image_name, disk_image_format))
+
+    def tearDown(self):
+        #Save files to log/attachments and delete workdir and container images
+        if self.image_mode_dir:
+            cmd = 'sudo ls {}/Containerfile'.format(self.image_mode_dir)
+            ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg="Check if Containerfile exists")
+            if ret == 0:
+                utils_lib.save_file(self, file_dir=self.image_mode_dir, file_name="Containerfile")
+        if self.inspect_json_name:
+            utils_lib.save_file(self, file_dir=self.image_mode_dir, file_name=self.inspect_json_name)
+        if self.manifest_file:
+            utils_lib.save_file(self, file_dir=self.image_mode_dir, file_name=self.manifest_file)
+        if self.no_upload_image:
+            self.log.info("Keep image mode dir and container images.")
+        else:
+            #delete image mode dir and files in it
+            if self.image_mode_dir:
+                cmd = "sudo rm -rf {}".format(self.image_mode_dir)
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg="delete the {}".format(self.image_mode_dir))
+            #delete container images
+            if self.bootc_base_image:
+                cmd = "sudo podman rmi {} -f".format(self.bootc_base_image)
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg='remove container image {}'.format(self.bootc_base_image))
+            if self.bootc_custom_image:
+                cmd = "sudo podman rmi {} -f".format(self.bootc_custom_image)
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg='remove container image {}'.format(self.bootc_custom_image))
+            if self.bootc_image_builder:
+                cmd = "sudo podman rmi {} -f".format(self.bootc_image_builder)
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg='remove container image {}'.format(self.bootc_image_builder))
+
         utils_lib.finish_case(self)
         pass
 
