@@ -291,11 +291,12 @@ class TestCloudInit(unittest.TestCase):
             cloud init log file
         """
         #define string to avoid /dev/console issue on nutanix
+        #define string to ignore warning in bootc image for "cannot resize: dev=composefs mnt_point=/ path=/"
         plus_grep = ' | grep WARNING | grep -Pvo "scripts-user|console|cc_ssh_authkey_fingerprints"'
         if self.vm.provider == 'nutanix':
             cmd='sudo cat /var/log/cloud-init.log' + plus_grep
         else:
-            cmd='sudo cat /var/log/cloud-init.log'
+            cmd='sudo cat /var/log/cloud-init.log | grep -i WARNING | grep -Pvo "dev=composefs"'
         utils_lib.run_cmd(self,
                     cmd,
                     expect_not_kw='WARNING',
@@ -305,7 +306,7 @@ class TestCloudInit(unittest.TestCase):
             if self.vm.provider == 'nutanix':
                 cmd='sudo cat /var/log/cloud-init-output.log' + plus_grep
             else:
-                cmd='sudo cat /var/log/cloud-init-output.log'
+                cmd='sudo cat /var/log/cloud-init-output.log | grep -i WARNING | grep -Pvo "dev=composefs"'
             utils_lib.run_cmd(self,
                         cmd,
                         expect_not_kw='WARNING',
@@ -1175,20 +1176,22 @@ EOF""".format(device, size), expect_ret=0)
         """
         #security check: random password only output to console log
         #no password output in cloud-init-output.log and /var/log/messages
-        cmd = 'sudo cat /var/log/messages'
-        utils_lib.run_cmd(self, 
-                          cmd, 
-                          expect_ret=0,
-                          expect_not_kw="the following 'random' passwords", 
-                          msg='check /var/log/messages')
-        cmd = 'cat /var/log/cloud-init-output.log'
+        out = utils_lib.run_cmd(self, 'ls /ostree/ | grep -i bootc')
+        if 'bootc' not in out:            
+            cmd = 'sudo cat /var/log/messages'
+            utils_lib.run_cmd(self, 
+                            cmd, 
+                            expect_ret=0,
+                            expect_not_kw="the following 'random' passwords", 
+                            msg='check /var/log/messages')
+        cmd = 'sudo cat /var/log/cloud-init-output.log'
         utils_lib.run_cmd(self, 
                           cmd, 
                           expect_ret=0,
                           expect_not_kw="the following 'random' passwords", 
                           msg='check /var/log/cloud-init-output.log')
         #check /var/log/cloud-init-output.log mode is 640 and group is adm
-        cmd = 'ls -l /var/log/cloud-init-output.log '
+        cmd = 'ls -l /var/log/cloud-init-output.log'
         utils_lib.run_cmd(self, 
                           cmd, 
                           expect_ret=0,
@@ -1230,6 +1233,9 @@ EOF""".format(device, size), expect_ret=0)
         key_steps:
         """
         # We will run this case on libvirt when it could customize user-data
+        out = utils_lib.run_cmd(self, 'ls /ostree/ | grep -i bootc')
+        if 'bootc' in out:
+            self.skipTest('skip run as this case is not supported for bootc image')
         cmd = 'sudo cat /var/log/messages'
         utils_lib.run_cmd(self, 
                           cmd, 
@@ -1562,6 +1568,9 @@ EOF""".format(device, size), expect_ret=0)
         """
         self.log.info(
             "RHEL-152730 - CLOUDINIT-TC: Check 'NOZEROCONF=yes' in /etc/sysconfig/network")
+        out = utils_lib.run_cmd(self, 'ls /ostree/ | grep -i bootc')
+        if 'bootc' in out:
+            self.skipTest('skip run as this case is not supported for bootc image')
         cmd = 'sudo cat /etc/sysconfig/network'
         utils_lib.run_cmd(self,
                           cmd,
@@ -2237,6 +2246,9 @@ ssh_pwauth: True
             3. Verify register with subscription-manager and install package by cloud-init successfully
         """
         self.log.info("RHEL-186182 CLOUDINIT-TC:auto install package with subscription manager")
+        out = utils_lib.run_cmd(self, 'ls /ostree/ | grep -i bootc')
+        if 'bootc' in out:
+            self.skipTest('skip run as this case is not supported for bootc image')
         if self.vm.exists():
             self.vm.delete()
             time.sleep(30)
@@ -2700,7 +2712,11 @@ ssh_pwauth: True '''.format(**pw_config_dict)
             N/A
         """
         utils_lib.run_cmd(self, 'cat /etc/cloud/cloud.cfg')
-        utils_lib.run_cmd(self, 'sudo rpm -V cloud-init', expect_not_kw='/etc/cloud/cloud.cfg', msg="modify cloud.cfg is not recommended")
+        out = utils_lib.run_cmd(self, 'ls /ostree/ | grep -i bootc')
+        if 'bootc' in out:
+            utils_lib.run_cmd(self, "sudo rpm -V cloud-init | grep -v '.......T.'", expect_not_kw='/etc/cloud/cloud.cfg', msg="modify cloud.cfg is not recommended")
+        else:
+            utils_lib.run_cmd(self, 'sudo rpm -V cloud-init', expect_not_kw='/etc/cloud/cloud.cfg', msg="modify cloud.cfg is not recommended")
 
     def test_cloudinit_lang_is_not_en_us_utf8(self):
         """
