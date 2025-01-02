@@ -140,7 +140,7 @@ class TestCollectBootTime(unittest.TestCase):
         # Initialize SSH and collect VM information
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
     
-        release = str(utils_lib.run_cmd(self, "cat /etc/redhat-release"))
+        release = str(utils_lib.run_cmd(self, "cat /etc/system-release"))
         kernelVersion = str(utils_lib.run_cmd(self, "uname -r"))
         arch = str(utils_lib.run_cmd(self, "uname -m"))
 
