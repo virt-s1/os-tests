@@ -260,6 +260,10 @@ EOF
         if disk_image_format == 'ami':
             utils_lib.is_pkg_installed(self, pkg_name='awscli2', is_install=True, cancel_case=True)
             ami_name = '{}_{}_{}_{}'.format(pre_image_name, bootc_custom_image_name, bootc_custom_image_tag, bootc_base_image_compose_id)
+            if len(ami_name) > 128:
+                ami_name = 'image_mode_{}_{}_{}'.format(bootc_custom_image_name, bootc_custom_image_tag, bootc_base_image_compose_id)
+            if len(ami_name) > 128:
+                ami_name = 'image_mode_{}'.format(ami_name[-110:])
             aws_info = self.params.get('aws_info')
             if aws_info and aws_info.split(',')[2]:
                 aws_region = aws_info.split(',')[2]
@@ -332,7 +336,7 @@ EOF
 
             #Convert custom bootc container image to disk image
             disk_image_type = disk_image_format
-            if disk_image_format in ['vhdx', 'vhd']:
+            if disk_image_format in ['vhdx']:
                 disk_image_type = 'qcow2'   
             cmd = "cd {} && sudo podman run --rm -it --privileged --pull=newer --security-opt \
 label=type:unconfined_t -v ./config.toml:/config.toml -v ./{}:/output -v \
@@ -357,16 +361,20 @@ label=type:unconfined_t -v ./config.toml:/config.toml -v ./{}:/output -v \
             if disk_image_format == 'vhdx':
                 cmd = "sudo qemu-img convert -O vhdx {}/qcow2/disk.qcow2 {}/qcow2/disk.vhdx".format(output_dir, output_dir)
                 utils_lib.run_cmd(self, cmd, expect_ret=0, msg='convert qcow2 disk to vhdx disk')
-            if disk_image_format == 'vhd':
-                cmd = "sudo qemu-img convert -f qcow2 -o subformat=fixed,force_size -O vpc {}/qcow2/disk.qcow2 {}/qcow2/disk.vhd".format(output_dir, output_dir)
-                utils_lib.run_cmd(self, cmd, expect_ret=0, msg='convert qcow2 disk to vhd disk')
             disk_dir = disk_image_type
             disk_file = 'disk.{}'.format(disk_image_format)
             if disk_image_type == 'iso':
                 disk_file = 'install.iso'
                 disk_dir = 'bootiso'
+            if disk_image_type == 'vhd':
+                disk_dir = 'vpc'
+            if disk_image_type == 'gce':
+                disk_file = 'image.tar.gz'
             disk_image_name = "{}_{}".format(pre_image_name, output_dir_name.replace('output_',''))
-            cmd = "sudo mv {}/{}/{} {}/{}.{}".format(output_dir, disk_dir, disk_file, image_mode_dir, disk_image_name, disk_file.split('.')[1])
+            if disk_image_type == 'gce':
+                cmd = "sudo mv {}/{}/{} {}/{}.{}".format(output_dir, disk_dir, disk_file, image_mode_dir, disk_image_name, disk_file)
+            else:
+                cmd = "sudo mv {}/{}/{} {}/{}.{}".format(output_dir, disk_dir, disk_file, image_mode_dir, disk_image_name, disk_file.split('.')[1])
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='move {} to {}'.format(disk_file, image_mode_dir))
             #Save the created bootable bootc image/disk to attachments in log and delete the image_mode_dir.
             #Or if you'd like to copy the disk file to your test environment by manual,
