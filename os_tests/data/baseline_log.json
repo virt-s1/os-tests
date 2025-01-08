@@ -2385,5 +2385,29 @@
         "cases": "",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20241206"
+    },
+    "msg_254": {
+        "content": ".*VPD access failed.*",
+        "analyze": "known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-72195",
+        "path": "",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20241225"
+    },
+    "msg_255": {
+        "content": ".*Hibernation image not present or could not be loaded.*",
+        "analyze": "known issue in ec2-hibinit-agent",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://github.com/aws/amazon-ec2-hibinit-agent/pull/50/files",
+        "path": "",
+        "trigger": "",
+        "cases": "os_tests.tests.test_lifecycle.TestLifeCycle.test_hibernate_resume",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250102"
     }
 }
