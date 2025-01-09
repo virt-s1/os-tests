@@ -188,6 +188,11 @@ EOF
         cmd = "sudo grep ^FROM {}/Containerfile | awk '{{print $(2)}}'| tr -d '\n'".format(image_mode_dir)
         bootc_base_image = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Fetch bootc base image repo')
         self.bootc_base_image = bootc_base_image
+        cmd = 'echo "bootc_base_image: {}" >> {}/bootc_disk_info'.format(bootc_base_image, image_mode_dir)
+        utils_lib.run_cmd(self, 
+                        "sudo bash -c '{}'".format(cmd), 
+                        expect_ret=0, 
+                        msg="Save bootc_base_image {} to bootc_disk_info".format(bootc_base_image))
         cmd = "sudo podman rmi {} -f".format(bootc_base_image)
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="remove old bootc base image")
         cmd = "sudo podman pull {} --arch {}".format(bootc_base_image, arch)
@@ -198,6 +203,10 @@ EOF
         bootc_base_image_id = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check bootc base image ID")
         cmd = "sudo podman inspect {} --format '{{{{.Digest}}}}' | tr -d '\n'".format(bootc_base_image)
         bootc_base_image_digest = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check bootc base image Digest")
+        cmd = 'echo "bootc_base_image_digest: {}" >> {}/bootc_disk_info'.format(bootc_base_image_digest, image_mode_dir)
+        utils_lib.run_cmd(self, "sudo bash -c '{}'".format(cmd), 
+                        expect_ret=0, 
+                        msg="Save bootc_base_image_digest {} to bootc_disk_info".format(bootc_base_image_digest))
         bootc_base_image_name = '{}_{}'.format(bootc_base_image.split('/')[1],bootc_base_image.split('/')[2].split(':')[0])
         if ':' in bootc_base_image:
             bootc_base_image_tag = bootc_base_image.split(':')[1].replace('.', 'u')
@@ -207,14 +216,35 @@ EOF
         cmd = "sudo bash -c 'podman inspect {} > {}/{}'".format(bootc_base_image, image_mode_dir, inspect_json_name)
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check bootc base image info")
         self.inspect_json_name = inspect_json_name
+        cmd = 'echo "inspect_json_name: {}" >> {}/bootc_disk_info'.format(inspect_json_name, image_mode_dir)
+        utils_lib.run_cmd(self, 
+                        "sudo bash -c '{}'".format(cmd), 
+                        expect_ret=0, 
+                        msg="Save inspect_json_name {} to bootc_disk_info".format(inspect_json_name))
         cmd = "sudo podman inspect {} --format '{{{{.Architecture}}}}' | tr -d '\n'".format(bootc_base_image)
         bootc_image_arch = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check bootc base image Architecture")
         if bootc_image_arch == 'amd64':
             bootc_image_arch = 'x86_64'
+        cmd = 'echo "arch: {}" >> {}/bootc_disk_info'.format(bootc_image_arch, image_mode_dir)
+        utils_lib.run_cmd(self,
+                        "sudo bash -c '{}'".format(cmd),
+                        expect_ret=0,
+                        msg="Save bootc_image_arch {} to bootc_disk_info".format(bootc_image_arch))
         cmd = "sudo jq -r .[].Config.Labels.\\\"redhat.compose-id\\\" {}/{} | tr -d '\n'".format(image_mode_dir, inspect_json_name)
         bootc_base_image_compose_id = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check bootc base image compose-id")
-        if not bootc_base_image_compose_id:
+        if bootc_base_image_compose_id:
+            cmd = "cd {} && sudo sed -i 's|latest-RHEL-[^/]*|{}|g' ./dnf.repo && sudo cat ./dnf.repo".format(image_mode_dir, bootc_base_image_compose_id)
+            utils_lib.run_cmd(self, 
+                            cmd, 
+                            expect_ret=0, 
+                            msg="Set repo for installing packages with the corresponding compose id {}".format(bootc_base_image_compose_id))
+        else:
             bootc_base_image_compose_id = 'other'
+        cmd = 'echo "compose-id: {}" >> {}/bootc_disk_info'.format(bootc_base_image_compose_id, image_mode_dir)
+        utils_lib.run_cmd(self, 
+                        "sudo bash -c '{}'".format(cmd), 
+                        expect_ret=0, 
+                        msg="Save bootc_base_image_compose_id {} to bootc_disk_info".format(bootc_base_image_compose_id))
         bootc_custom_image_name = '{}_{}_{}_{}_{}'.format(bootc_base_image_name,
                                                        bootc_base_image_tag,
                                                        disk_image_format,
@@ -224,6 +254,7 @@ EOF
         #Check if the bootc image is built
         built_digest = self.params.get('bootc_base_image_digest')
         if built_digest:
+            built_digest = built_digest.replace('\n','')
             if ':' in built_digest:
                 built_digest = built_digest.split(':')[1]
             if bootc_base_image_digest == built_digest or bootc_base_image_digest.split(':')[1] == built_digest or bootc_base_image_digest[-10:]== built_digest:
@@ -236,6 +267,11 @@ EOF
         else:
             bootc_custom_image = "localhost/{}:{}".format(bootc_custom_image_name, bootc_custom_image_tag)
         self.bootc_custom_image = bootc_custom_image
+        cmd = 'echo "bootc_custom_image: {}" >> {}/bootc_disk_info'.format(bootc_custom_image, image_mode_dir)
+        utils_lib.run_cmd(self,
+                        "sudo bash -c '{}'".format(cmd),
+                        expect_ret=0,
+                        msg="Save bootc_custom_image name {} to bootc_disk_info".format(bootc_custom_image))
         cmd = "cd {} && sudo podman build -t {} . --arch {}".format(image_mode_dir, bootc_custom_image, arch)
         utils_lib.run_cmd(self, cmd, expect_ret=0, timeout = 1200, msg="Build bootc custom image")
 
@@ -256,6 +292,11 @@ EOF
                 if not bootc_image_builder:
                     self.skipTest("Please sepcify the bootc_image_builder.")
         self.bootc_image_builder = bootc_image_builder
+        cmd = 'echo "bootc_image_builder: {}" >> {}/bootc_disk_info'.format(bootc_image_builder, image_mode_dir)
+        utils_lib.run_cmd(self,
+                        "sudo bash -c '{}'".format(cmd),
+                        expect_ret=0,
+                        msg="Save bootc_image_builder name {} to bootc_disk_info".format(bootc_image_builder))
 
         if disk_image_format == 'ami':
             utils_lib.is_pkg_installed(self, pkg_name='awscli2', is_install=True, cancel_case=True)
@@ -307,6 +348,11 @@ EOF
             if ami_id:
                 self.log.info("AMI name:{} ID:{} based on bootc image {} compose-id:{} Digest:{} is uploaded \
 to AWS {}".format(ami_name, ami_id, bootc_base_image, bootc_base_image_compose_id, bootc_base_image_digest, aws_region))
+                cmd = 'echo "AMI info: {} {}" >> {}/bootc_disk_info'.format(ami_name, ami_id, image_mode_dir)
+                utils_lib.run_cmd(self, 
+                                "sudo bash -c '{}'".format(cmd), 
+                                expect_ret=0, 
+                                msg="Save AMI name and ID to bootc_disk_info")
             else:
                 self.FailTest('Failed to upload AMI')
         else:
@@ -355,40 +401,41 @@ label=type:unconfined_t -v ./config.toml:/config.toml -v ./{}:/output -v \
 
             manifest_file = 'manifest{}'.format(output_dir_name.replace('output',''))
             self.manifest_file = manifest_file
+            cmd = 'echo "manifest_file: {}" >> {}/bootc_disk_info'.format(manifest_file, image_mode_dir)
+            utils_lib.run_cmd(self,
+                            "sudo bash -c '{}'".format(cmd),
+                            expect_ret=0,
+                            msg="Save manifest_file name {} to bootc_disk_info".format(manifest_file))
             cmd = "sudo mv {}/manifest-{}.json {}/{}".format(output_dir, disk_image_type, image_mode_dir, manifest_file)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='move manifest-{}.json to {}'.format(disk_image_type, manifest_file))
             utils_lib.is_cmd_exist(self,"qemu-img")
             if disk_image_format == 'vhdx':
                 cmd = "sudo qemu-img convert -O vhdx {}/qcow2/disk.qcow2 {}/qcow2/disk.vhdx".format(output_dir, output_dir)
                 utils_lib.run_cmd(self, cmd, expect_ret=0, msg='convert qcow2 disk to vhdx disk')
-            disk_dir = disk_image_type
-            disk_file = 'disk.{}'.format(disk_image_format)
-            if disk_image_type == 'iso':
-                disk_file = 'install.iso'
-                disk_dir = 'bootiso'
-            if disk_image_type == 'vhd':
-                disk_dir = 'vpc'
-            if disk_image_type == 'gce':
-                disk_file = 'image.tar.gz'
-            disk_image_name = "{}_{}".format(pre_image_name, output_dir_name.replace('output_',''))
-            if disk_image_type == 'gce':
-                cmd = "sudo mv {}/{}/{} {}/{}.{}".format(output_dir, disk_dir, disk_file, image_mode_dir, disk_image_name, disk_file)
-            else:
-                cmd = "sudo mv {}/{}/{} {}/{}.{}".format(output_dir, disk_dir, disk_file, image_mode_dir, disk_image_name, disk_file.split('.')[1])
-            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='move {} to {}'.format(disk_file, image_mode_dir))
+            cmd = "sudo ls {}/{} | tr -d '\n'".format(image_mode_dir, output_dir_name)
+            disk_dir = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check disk dir name')
+            cmd = "sudo ls {}/{} | tr -d '\n'".format(output_dir, disk_dir)
+            disk_file_name = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check disk file name')
+            disk_file = "{}_{}_{}".format(pre_image_name, output_dir_name.replace('output_',''), disk_file_name)
+            cmd = "sudo mv {}/{}/{} {}/{}".format(output_dir, disk_dir, disk_file_name, image_mode_dir, disk_file)
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='move disk from {}/{}/{} to {}/{}'.format(output_dir, disk_dir, disk_file_name, image_mode_dir, disk_file))
+            cmd = 'echo "disk_file: {}" >> {}/bootc_disk_info'.format(disk_file, image_mode_dir)
+            utils_lib.run_cmd(self,
+                            "sudo bash -c '{}'".format(cmd),
+                            expect_ret=0,
+                            msg="Save disk_file name {} to bootc_disk_info".format(disk_file))
             #Save the created bootable bootc image/disk to attachments in log and delete the image_mode_dir.
             #Or if you'd like to copy the disk file to your test environment by manual,
             #please specify --no_upload_image in command or set "no_upload_image: True" in yaml.
             if self.no_upload_image:
-                self.log.info("Please copy Disk image {}/{}.{} based on bootc image {} \
+                self.log.info("Please copy Disk image {}/{} based on bootc image {} \
 compose-id:{} Digest:{} to your test environment.".format(image_mode_dir,
-                                                          disk_image_name,
-                                                          disk_image_format,
-                                                          bootc_base_image,
-                                                          bootc_base_image_compose_id,
-                                                          bootc_base_image_digest))
+                                                        disk_file,
+                                                        bootc_base_image,
+                                                        bootc_base_image_compose_id,
+                                                        bootc_base_image_digest))
             else:
-                utils_lib.save_file(self, file_dir=image_mode_dir, file_name='{}.{}'.format(disk_image_name, disk_image_format))
+                utils_lib.save_file(self, file_dir=image_mode_dir, file_name='{}'.format(disk_file))
 
     def tearDown(self):
         #Save files to log/attachments and delete workdir and container images
@@ -397,6 +444,22 @@ compose-id:{} Digest:{} to your test environment.".format(image_mode_dir,
             ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg="Check if Containerfile exists")
             if ret == 0:
                 utils_lib.save_file(self, file_dir=self.image_mode_dir, file_name="Containerfile")
+
+            cmd = "cd {} && pwd".format(self.image_mode_dir)
+            image_mode_dir_path = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Check image_mode_dir path")
+            cmd = "sudo sed -i '1iimage_mode_dir_path: {}' {}/bootc_disk_info".format(image_mode_dir_path, self.image_mode_dir)
+            utils_lib.run_cmd(self,
+                            cmd,
+                            expect_ret=0,
+                            msg="Save image_mode_dir_path {}".format(image_mode_dir_path))
+            
+            cmd = 'echo "Case_result: done" >> {}/bootc_disk_info'.format(self.image_mode_dir)
+            utils_lib.run_cmd(self,
+                            "sudo bash -c '{}'".format(cmd),
+                            expect_ret=0,
+                            msg="Save case status TBD to bootc_disk_info")
+            utils_lib.save_file(self, file_dir=self.image_mode_dir, file_name="bootc_disk_info")
+
         if self.inspect_json_name:
             utils_lib.save_file(self, file_dir=self.image_mode_dir, file_name=self.inspect_json_name)
         if self.manifest_file:
