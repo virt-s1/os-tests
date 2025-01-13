@@ -240,7 +240,7 @@ EOF
                             msg="Set repo for installing packages with the corresponding compose id {}".format(bootc_base_image_compose_id))
         else:
             bootc_base_image_compose_id = 'other'
-        cmd = 'echo "compose-id: {}" >> {}/bootc_disk_info'.format(bootc_base_image_compose_id, image_mode_dir)
+        cmd = 'echo "compose_id: {}" >> {}/bootc_disk_info'.format(bootc_base_image_compose_id, image_mode_dir)
         utils_lib.run_cmd(self, 
                         "sudo bash -c '{}'".format(cmd), 
                         expect_ret=0, 
@@ -348,11 +348,11 @@ EOF
             if ami_id:
                 self.log.info("AMI name:{} ID:{} based on bootc image {} compose-id:{} Digest:{} is uploaded \
 to AWS {}".format(ami_name, ami_id, bootc_base_image, bootc_base_image_compose_id, bootc_base_image_digest, aws_region))
-                cmd = 'echo "AMI info: {} {}" >> {}/bootc_disk_info'.format(ami_name, ami_id, image_mode_dir)
+                cmd = 'echo "artifacts: {} {}" >> {}/bootc_disk_info'.format(ami_name, ami_id, image_mode_dir)
                 utils_lib.run_cmd(self, 
                                 "sudo bash -c '{}'".format(cmd), 
                                 expect_ret=0, 
-                                msg="Save AMI name and ID to bootc_disk_info")
+                                msg="Save AMI name and ID to bootc_disk_info artifacts")
             else:
                 self.FailTest('Failed to upload AMI')
         else:
@@ -414,16 +414,19 @@ label=type:unconfined_t -v ./config.toml:/config.toml -v ./{}:/output -v \
                 utils_lib.run_cmd(self, cmd, expect_ret=0, msg='convert qcow2 disk to vhdx disk')
             cmd = "sudo ls {}/{} | tr -d '\n'".format(image_mode_dir, output_dir_name)
             disk_dir = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check disk dir name')
-            cmd = "sudo ls {}/{} | tr -d '\n'".format(output_dir, disk_dir)
+            disk_file_format = disk_image_format
+            if disk_image_format == 'gce':
+                disk_file_format = 'tar.gz'
+            cmd = "sudo ls {}/{} | grep {} | tr -d '\n'".format(output_dir, disk_dir, disk_file_format)
             disk_file_name = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check disk file name')
             disk_file = "{}_{}_{}".format(pre_image_name, output_dir_name.replace('output_',''), disk_file_name)
             cmd = "sudo mv {}/{}/{} {}/{}".format(output_dir, disk_dir, disk_file_name, image_mode_dir, disk_file)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='move disk from {}/{}/{} to {}/{}'.format(output_dir, disk_dir, disk_file_name, image_mode_dir, disk_file))
-            cmd = 'echo "disk_file: {}" >> {}/bootc_disk_info'.format(disk_file, image_mode_dir)
+            cmd = 'echo "artifacts: {}" >> {}/bootc_disk_info'.format(disk_file, image_mode_dir)
             utils_lib.run_cmd(self,
                             "sudo bash -c '{}'".format(cmd),
                             expect_ret=0,
-                            msg="Save disk_file name {} to bootc_disk_info".format(disk_file))
+                            msg="Save disk_file name {} to bootc_disk_info artifacts".format(disk_file))
             #Save the created bootable bootc image/disk to attachments in log and delete the image_mode_dir.
             #Or if you'd like to copy the disk file to your test environment by manual,
             #please specify --no_upload_image in command or set "no_upload_image: True" in yaml.
@@ -453,7 +456,7 @@ compose-id:{} Digest:{} to your test environment.".format(image_mode_dir,
                             expect_ret=0,
                             msg="Save image_mode_dir_path {}".format(image_mode_dir_path))
             
-            cmd = 'echo "Case_result: done" >> {}/bootc_disk_info'.format(self.image_mode_dir)
+            cmd = 'echo "case_result: done" >> {}/bootc_disk_info'.format(self.image_mode_dir)
             utils_lib.run_cmd(self,
                             "sudo bash -c '{}'".format(cmd),
                             expect_ret=0,
