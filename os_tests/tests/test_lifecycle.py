@@ -293,10 +293,14 @@ class TestLifeCycle(unittest.TestCase):
                 cmd = cmd + ' --no-bootcfg'
             utils_lib.run_cmd(self, cmd, msg='Disable fips!')
         else:
-            # RHEL-65652 Remove fips-mode-setup, below steps are only for test purpose
-            boot_partition = utils_lib.run_cmd(self, 'findmnt --first --noheadings -o SOURCE /boot', msg='find boot partition')
-            boot_uuid = utils_lib.run_cmd(self, 'sudo blkid --output value --match-tag UUID {}'.format(boot_partition.strip('\n')),expect_ret=0,msg='find boot partition uuid')
-            fips_enable_cmd = 'sudo grubby --update-kernel=ALL --args="fips=1 boot=UUID={}"'.format(boot_uuid.strip('\n'))
+            if utils_lib.is_ostree_system(self):
+                fips_enable_cmd = 'sudo rpm-ostree kargs --append=fips=1'
+            else:
+                # RHEL-65652 Remove fips-mode-setup, below steps are only for test purpose
+                boot_partition = utils_lib.run_cmd(self, 'findmnt --first --noheadings -o SOURCE /boot', msg='find boot partition')
+                boot_uuid = utils_lib.run_cmd(self, 'sudo blkid --output value --match-tag UUID {}'.format(boot_partition.strip('\n')),expect_ret=0,msg='find boot partition uuid')
+                fips_enable_cmd = 'sudo grubby --update-kernel=ALL --args="fips=1 boot=UUID={}"'.format(boot_uuid.strip('\n'))
+
             out = utils_lib.run_cmd(self, fips_enable_cmd, msg='Enable fips!', timeout=600)
             utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
             time.sleep(10)
