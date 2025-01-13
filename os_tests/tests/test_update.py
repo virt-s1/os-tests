@@ -73,7 +73,7 @@ class TestUpgrade(unittest.TestCase):
                                 msg="check loaded drivers")
         for line in output.splitlines():
             mod_list = line.split()[0]
-            if mod_list in ('floppy','pata_acpi'):
+            if mod_list in ('floppy','pata_acpi','qla4xxx'):
                 utils_lib.run_cmd(self,
                                 "sudo rmmod '{}'".format(mod_list),
                                 expect_ret=0, msg="Remove driver")
