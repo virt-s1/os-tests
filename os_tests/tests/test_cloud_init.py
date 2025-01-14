@@ -1317,9 +1317,14 @@ EOF""".format(device, size), expect_ret=0)
         if 'ssh_keys' in group_ssh_keys:
             for key in private_keys:
                 if len(key) == 0:
-                    continue            
-                self.assertIn('-rw-r-----. root ssh_keys', key,
+                    continue
+                ssh_ver = utils_lib.run_cmd(self, "rpm -q openssh | awk -F'-' '{print $2}' | awk -F'p' '{print $1}'")
+                if float(ssh_ver) > 9:
+                    self.assertIn('-rw-------. root ssh_keys', key,
                         msg=" Unexpected permissions -> %s" % key)
+                else:
+                    self.assertIn('-rw-r-----. root ssh_keys', key,
+                            msg=" Unexpected permissions -> %s" % key)
         else:
             for key in private_keys:
                 if len(key) == 0:
