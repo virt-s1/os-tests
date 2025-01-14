@@ -97,21 +97,40 @@ class TestCollectBootTime(unittest.TestCase):
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         first_launch_time = utils_lib.getboottime(self)
 
-         # Measure reboot time
+        # Measure reboot time
         self.vm.reboot(wait=True)
         reboot_start = int(time.time())
         new_ip = self.vm.floating_ip
+        # Ensure the VM is fully down before starting the reboot time measurement
+        while True:
+            ret, _ = utils_lib.run_cmd_local(ping_cmd, is_log_ret=True)
+            if int(ret) != 0:
+                break  
+            time.sleep(1)
+
+        # Measure the time until the VM becomes reachable again
         while True:
             ret, _ = utils_lib.run_cmd_local(ping_cmd, is_log_ret=True)
             reboot_end = int(time.time())
-            reboot_time = reboot_end - reboot_start
+            time_to_ping = reboot_end - reboot_start
             if int(ret) == 0:
                 break
+            if time_to_ping > self.ssh_timeout:
+                try:
+                    self.vm.get_console_log()
+                except NotImplementedError:
+                    self.log.info(f"{self.vm.provider} does not implement get_console_log")
+                self.log.info("Ensure your network settings allow ping before reporting bugs")
+                self.fail(f"System is not pingable after {self.ssh_timeout}s")
+            time.sleep(1)
+        self.log.info(f"Time to become pingable: {time_to_ping}s")
+
+        # Initialize SSH and collect boot time
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        reboot_time = utils_lib.getboottime(self)
         self.log.info(f"Time for VM reboot: {reboot_time}s")
-
-        time.sleep(60)
-
-        # Measure VM stop time
+        
+        #Stop-Start VM
         self.log.info("Stopping the VM...")
         stop_start_time = int(time.time())
         self.vm.stop(wait=True)
@@ -119,11 +138,7 @@ class TestCollectBootTime(unittest.TestCase):
             if self.vm.is_stopped():
                 break
             time.sleep(30)
-        stop_end_time = int(time.time())
-        stop_time = stop_end_time - stop_start_time
-        self.log.info(f"Time to stop VM: {stop_time}s")
 
-        # Measure VM start time
         self.log.info("Starting the VM...")
         start_start_time = int(time.time())
         self.vm.start(wait=True)
@@ -132,13 +147,22 @@ class TestCollectBootTime(unittest.TestCase):
         while True:
             ret, _ = utils_lib.run_cmd_local(ping_cmd, is_log_ret=True)
             start_end_time = int(time.time())
-            start_time = start_end_time - start_start_time
+            time_to_ping = start_end_time - start_start_time
             if int(ret) == 0:
                 break
-        self.log.info(f"Time for VM start: {start_time}s")
+            if time_to_ping > self.ssh_timeout:
+                try:
+                    self.vm.get_console_log()
+                except NotImplementedError:
+                    self.log.info(f"{self.vm.provider} does not implement get_console_log")
+                self.log.info("Ensure your network settings allow ping before reporting bugs")
+                self.fail(f"System is not pingable after {self.ssh_timeout}s")
+            time.sleep(1)
+        self.log.info(f"Time to become pingable: {time_to_ping}s")
 
         # Initialize SSH and collect VM information
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        stop_start_time = utils_lib.getboottime(self)
     
         release = str(utils_lib.run_cmd(self, "cat /etc/system-release"))
         kernelVersion = str(utils_lib.run_cmd(self, "uname -r"))
@@ -158,9 +182,7 @@ class TestCollectBootTime(unittest.TestCase):
             "InstanceType": self.vm.instance_type,
             "FirstLaunchTime(s)": first_launch_time,
             "RebootTime(s)": reboot_time,
-            "StopTime(s)": stop_time,
-            "StartTime(s)": start_time,
-            "Stop-StartTime(s)": stop_time + start_time
+            "Stop-StartTime(s)": stop_start_time
         }
 
         # Save information to a CSV file
