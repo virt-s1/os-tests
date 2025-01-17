@@ -194,7 +194,7 @@ class TestUpgrade(unittest.TestCase):
         cmd = "sudo grep -e 'error' -e 'fail' /var/log/dnf*"
         utils_lib.run_cmd(self, cmd, msg='Check if there are fail/error in dnf logs')
         if ret_val != 0:
-            self.FailTest('DNF update failed')
+            self.fail('DNF update failed')
         else:
             utils_lib.run_cmd(self,
                             "sudo reboot",
@@ -336,7 +336,7 @@ class TestUpgrade(unittest.TestCase):
         if ret != 0:
             for file_name in file_names:
                 utils_lib.save_file(self, file_dir=file_dir, file_name=file_name)
-            self.FailTest('Leapp preupgrade via RHUI on {} failed'.format(platform))
+            self.fail('Leapp preupgrade via RHUI on {} failed'.format(platform))
         else:
             ret = utils_lib.run_cmd(self,
                                   cmd_upgrade,
@@ -349,7 +349,7 @@ class TestUpgrade(unittest.TestCase):
             for file_name in file_names:
                 utils_lib.save_file(self, file_dir=file_dir, file_name=file_name)
             if ret !=0:
-                self.FailTest('Leapp upgrade via RHUI on {} failed'.format(platform))
+                self.fail('Leapp upgrade via RHUI on {} failed'.format(platform))
             else:
                 utils_lib.run_cmd(self,
                                 "sudo reboot",
@@ -371,7 +371,7 @@ class TestUpgrade(unittest.TestCase):
                 #Check if upgraded to correct version
                 x_version_upgrade = self.rhel_x_version
                 if x_version_upgrade != x_version + 1:
-                    self.FailTest('Leapp upgrade failed since did not upgrade to target release')
+                    self.fail('Leapp upgrade failed since did not upgrade to target release')
     
     def test_leapp_upgrade_customrepo(self):
         """
@@ -493,7 +493,7 @@ class TestUpgrade(unittest.TestCase):
         if ret !=0:
             for file_name in file_names:
                 utils_lib.save_file(self, file_dir=file_dir, file_name=file_name)
-            self.FailTest('Leapp upgrade via customrepo failed')
+            self.fail('Leapp upgrade via customrepo failed')
         else:        
             #Peform leapp upgrade via custom repo
             for i in range(1,10):
@@ -517,7 +517,7 @@ class TestUpgrade(unittest.TestCase):
             for file_name in file_names:
                 utils_lib.save_file(self, file_dir=file_dir, file_name=file_name)
             if ret_val !=0:
-                self.FailTest('Leapp upgrade via customrepo failed')
+                self.fail('Leapp upgrade via customrepo failed')
             else:
                 utils_lib.run_cmd(self,
                                 "sudo reboot",
@@ -528,7 +528,7 @@ class TestUpgrade(unittest.TestCase):
                 #Check if upgraded to correct version
                 x_version_upgrade = self.rhel_x_version
                 if x_version_upgrade != x_version + 1:
-                    self.FailTest('Leapp upgrade failed since did not upgrade to target release')
+                    self.fail('Leapp upgrade failed since did not upgrade to target release')
                 else:
                     #Perform post-upgrade tasks
                     cmd = "sudo yum config-manager --save --setopt exclude=''"
@@ -667,7 +667,7 @@ class TestUpgrade(unittest.TestCase):
         if ret !=0:
             for file_name in file_names:
                 utils_lib.save_file(self, file_dir=file_dir, file_name=file_name)
-            self.FailTest('Leapp upgrade via RHSM failed')
+            self.fail('Leapp upgrade via RHSM failed')
         else:        
             #Peform leapp upgrade via RHSM
             for i in range(1,10):
@@ -691,7 +691,7 @@ class TestUpgrade(unittest.TestCase):
             for file_name in file_names:
                 utils_lib.save_file(self, file_dir=file_dir, file_name=file_name)
             if ret_val !=0:
-                self.FailTest('Leapp upgrade via RHSM failed')
+                self.fail('Leapp upgrade via RHSM failed')
             else:
                 utils_lib.run_cmd(self,
                                 "sudo reboot",
@@ -702,7 +702,7 @@ class TestUpgrade(unittest.TestCase):
                 #Check if upgraded to correct version
                 x_version_upgrade = self.rhel_x_version
                 if x_version_upgrade != x_version + 1:
-                    self.FailTest('Leapp upgrade failed since did not upgrade to target release')
+                    self.fail('Leapp upgrade failed since did not upgrade to target release')
                 else:
                     #Perform post-upgrade tasks
                     cmd = "sudo yum config-manager --save --setopt exclude=''"
