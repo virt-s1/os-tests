@@ -920,7 +920,7 @@ class TestLifeCycle(unittest.TestCase):
         debug_want:
             N/A
         """
-        before = utils_lib.run_cmd(self, 'last reboot --time-format full')
+        before = utils_lib.run_cmd(self, 'last reboot -F full')
         if not self.vm:
             self.skipTest('no vm provider found')
         self.vm.reboot(wait=True)
@@ -930,7 +930,7 @@ class TestLifeCycle(unittest.TestCase):
         self.assertEqual(
             self.vm.vm_username, output,
             "Reboot VM error: output of cmd `who` unexpected -> %s" % output)
-        after = utils_lib.run_cmd(self, 'last reboot --time-format full')
+        after = utils_lib.run_cmd(self, 'last reboot -F full')
         self.assertNotEqual(
             before, after,
             "Reboot VM error: before -> %s; after -> %s" % (before, after))
@@ -964,7 +964,7 @@ class TestLifeCycle(unittest.TestCase):
         debug_want:
             N/A
         """
-        before = utils_lib.run_cmd(self, 'last reboot --time-format full|wc -l')
+        before = utils_lib.run_cmd(self, 'last reboot -F full|wc -l')
         utils_lib.run_cmd(self, 'sudo reboot')
         time.sleep(10)
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
@@ -973,7 +973,7 @@ class TestLifeCycle(unittest.TestCase):
             self.assertEqual(
                 self.vm.vm_username, output.strip(),
                 "Reboot VM error: output of cmd `who` unexpected -> %s" % output)
-        after = utils_lib.run_cmd(self, 'last reboot --time-format full|wc -l')
+        after = utils_lib.run_cmd(self, 'last reboot -F full|wc -l')
         self.assertNotEqual(
             before, after,
             "Reboot VM error: before -> %s; after -> %s" % (before, after))
