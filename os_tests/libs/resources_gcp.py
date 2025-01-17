@@ -117,14 +117,13 @@ class GCPVM(VMResource):
         self.size = params.get('Flavor').get('size')
         self.user_data = None
         self.run_uuid = params.get('run_uuid')
+        self.arch = params.get('Flavor').get('arch')
+        self.nic_type = params.get('Flavor').get('nic_type')
+        self.confidential_type = params.get('Flavor').get('confidential_type')
 
         # VM access parameters
         self.vm_username = params['VM'].get('username')
         self.vm_password = params['VM'].get('password')
-
-        self.arch = params.get('Flavor').get('arch')
-        self.nic_type = params.get('Flavor').get('nic_type')
-        self.sev = params.get('Flavor').get('sev')
 
     @property
     def data(self):
@@ -221,10 +220,32 @@ class GCPVM(VMResource):
                 'enableVtpm': True
             }
 
-        if self.sev:
-            config['confidentialInstanceConfig'] = {
-                'enableConfidentialCompute': True
-            }
+        if self.confidential_type:
+            if self.confidential_type == 'SEV':
+                self.vm_name = '{}-sev'.format(self.vm_name)
+                if not any(x in config['machineType'] for x in ['c2d', 'c3d', 'n2d']):
+                    config['machineType'] = 'zones/{}/machineTypes/n2d-standard-2'.format(self.zone)
+                    config['confidentialInstanceConfig'] = {
+                        'confidentialInstanceType': 'SEV'
+                    }
+
+            if self.confidential_type == 'SEV_SNP':
+                self.vm_name = '{}-sevsnp'.format(self.vm_name)
+                if 'n2d' not in config['machineType']:
+                    config['machineType'] = 'zones/{}/machineTypes/n2d-standard-2'.format(self.zone)
+                config['confidentialInstanceConfig'] = {
+                    'confidentialInstanceType': 'SEV_SNP'
+                }
+
+            if self.confidential_type == 'TDX':
+                self.vm_name = '{}-tdx'.format(self.vm_name)
+                if 'c3-standard' not in config['machineType']:
+                    config['machineType'] = 'zones/{}/machineTypes/c3-standard-4'.format(self.zone)
+                config['confidentialInstanceConfig'] = {
+                    'confidentialInstanceType': 'TDX'
+                }
+
+            config['name'] = self.vm_name
             config['disks'][0]['interface'] = 'NVME'
             config['networkInterfaces'][0]['nicType'] = 'GVNIC'
 
@@ -338,13 +359,20 @@ class GCPVM(VMResource):
     def show(self):
         return self.data
 
-    def is_sev_enabled(self, token, audience):
+    def check_confidential_type(self):
+        if not self._data:
+            raise ValueError("Instance data (_data) is not initialized.")
+        confidential_data = self._data
+        confidential_config = confidential_data.get('confidentialInstanceConfig', {})
+        confidential_type = confidential_config.get('confidentialInstanceType')
+        if confidential_type:
+            return confidential_type
+        return False
+
+    def is_sev_enabled(self):
         sev = False
-        payload = verify_token(token, audience)
-        if 'instance_confidentiality' in payload['google'][
-                'compute_engine'] and payload['google']['compute_engine'][
-                    'instance_confidentiality'] == 1:
-            sev = True
+        if self.check_confidential_type() == 'SEV':
+            return True
         return sev
 
     def get_console_log(self):

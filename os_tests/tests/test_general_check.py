@@ -2110,23 +2110,118 @@ current_device"
             # dmesg
         """
         try:
-            if utils_lib.is_sev_enabled(self):
+            if not self.vm or utils_lib.confidential_instance_type(self) == 'SEV' or utils_lib.is_sev_enabled(self):
                 # https://gitlab.com/redhat/centos-stream/src/kernel/centos-stream-9/-/merge_requests/875/diffs?commit_id=ea66ccfe756058c054f6c32b30f79e69e2b77c08#1314bf7c9c25b9572d0a973f6be52499f0478e85
-                v = utils_lib.get_product_id(self)
-                x = int(v.split(".")[0])
-                y = int(v.split(".")[1])
-                if x < 8 or (x == 8 and y >= 8) or (x == 9 and y >= 2) or x > 9:
-                    utils_lib.run_cmd(self, 'sudo dmesg', expect_ret=0,
-                                      expect_kw='Memory Encryption Features active: AMD SEV',
-                                      msg="Check there is 'Memory Encryption Features active: AMD SEV' in dmesg before run 'perf top'")
+                cmd = 'dmesg | grep -v os_tests | grep -i sev'
+                ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg="Check if there is SEV in dmesg")
+                if ret == 0:
+                    v = utils_lib.get_product_id(self)
+                    x = int(v.split(".")[0])
+                    y = int(v.split(".")[1])
+                    if x < 8 or (x == 8 and y >= 8) or (x == 9 and y >= 2) or x > 9:
+                        utils_lib.run_cmd(self, 'dmesg | grep -v os_tests | grep -i sev', expect_ret=0,
+                                        expect_kw='Memory Encryption Features active: AMD SEV',
+                                        msg="Check there is 'Memory Encryption Features active: AMD SEV' in dmesg before run 'perf top'")
+                    else:
+                        utils_lib.run_cmd(self, 'dmesg | grep -v os_tests | grep -i sev', expect_ret=0,
+                                        expect_kw='AMD Memory Encryption Features active: SEV',
+                                        msg="Check there is 'AMD Memory Encryption Features active: SEV' in dmesg before run 'perf top'")
                 else:
-                    utils_lib.run_cmd(self, 'sudo dmesg', expect_ret=0,
-                                      expect_kw='AMD Memory Encryption Features active: SEV',
-                                      msg="Check there is 'AMD Memory Encryption Features active: SEV' in dmesg before run 'perf top'")
+                    self.fail('SEV is not enabled, please check the if it is configured when launching or an issue')
+
             else:
                 self.skipTest('SEV is not enabled')
         except NotImplementedError:
-                self.skipTest('SEV check is not implemented on %s' % self.vm.provider)
+            self.skipTest('SEV check is not implemented on %s' % self.vm.provider)
+
+    def test_check_dmesg_sevsnp(self):
+        """
+        case_name:
+            test_check_dmesg_sevsnp
+        case_file:
+            os_tests.tests.test_general_check.TestGeneralCheck.test_check_dmesg_sevsnp
+        component:
+            kernel
+        bugzilla_id:
+            RHEL-70465
+        customer_case_id:
+            False
+        testplan:
+            N/A
+        maintainer:
+            linl@redhat.com
+        description:
+            Make sure there is TDX keyword from dmesg output.
+        key_steps:
+            # dmesg|grep -i SEV-SNP
+        expect_result:
+            "SEV-SNP"
+        debug_want:
+            # dmesg
+        """
+        try:
+            if not self.vm or utils_lib.confidential_instance_type(self) == 'SEV_SNP':
+                cmd = 'dmesg | grep -v os_tests | grep -i SEV-SNP'
+                ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg="Check if there is SEV-SNP in dmesg")
+                if ret == 0:
+                    utils_lib.run_cmd(self, 'dmesg | grep -v os_tests | grep -i SEV-SNP', expect_ret=0,
+                                    expect_kw='Memory Encryption Features active: AMD SEV SEV-ES SEV-SNP',
+                                    msg="Check there is 'Memory Encryption Features active: AMD SEV SEV-ES SEV-SNP' in dmesg before run 'perf top'")
+                else:
+                    self.fail('SEV-SNP is not enabled, please check the if it is configured when launching or an issue')
+
+            else:
+                self.skipTest('SEV-SNP is not enabled')
+        except NotImplementedError:
+                self.skipTest('SEV-SNP check is not implemented on %s' % self.vm.provider)
+
+    def test_check_dmesg_tdx(self):
+        """
+        case_name:
+            test_check_dmesg_tdx
+        case_file:
+            os_tests.tests.test_general_check.TestGeneralCheck.test_check_dmesg_tdx
+        component:
+            kernel
+        bugzilla_id:
+            RHEL-70465
+        customer_case_id:
+            False
+        testplan:
+            N/A
+        maintainer:
+            linl@redhat.com
+        description:
+            Make sure there is TDX keyword from dmesg output.
+        key_steps:
+            # dmesg|grep -i tdx
+        expect_result:
+            "TDX"
+        debug_want:
+            # dmesg
+        """
+        try:
+            if not self.vm or utils_lib.confidential_instance_type(self) == 'TDX':
+                cmd = 'dmesg | grep -v os_tests | grep -i tdx'
+                ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg="Check if there is TDX in dmesg")
+                if ret == 0:
+                    utils_lib.run_cmd(self, 'dmesg | grep -v os_tests | grep -i tdx', expect_ret=0,
+                                    expect_kw='Memory Encryption Features active: Intel TDX',
+                                    msg="Check there is 'Memory Encryption Features active: Intel TDX' in dmesg before run 'perf top'")
+                    v = utils_lib.get_product_id(self)
+                    x = int(v.split(".")[0])
+                    y = int(v.split(".")[1])
+                    if x >9 or (x == 9 and y > 5):
+                        utils_lib.run_cmd(self, 'dmesg | grep -v os_tests | grep -i tdx', expect_ret=0,
+                                        expect_not_kw='TECH PREVIEW',
+                                        msg="TDX is full supported after RHEL 9.5.")
+                else:
+                    self.fail('TDX is not enabled, please check the if it is configured when launching or an issue')
+
+            else:
+                self.skipTest('TDX is not enabled')
+        except NotImplementedError:
+                self.skipTest('TDX check is not implemented on %s' % self.vm.provider)
 
     def test_check_secure_ioerror(self):
         """
