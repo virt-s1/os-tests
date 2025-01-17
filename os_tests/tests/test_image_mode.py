@@ -87,7 +87,7 @@ class TestImageMode(unittest.TestCase):
         bootc_base_image_url = self.params.get('bootc_base_image_url')
         if not ':' in bootc_base_image_url:
             bootc_base_image_url = bootc_base_image_url + ":latest"
-        arch = utils_lib.run_cmd(self, 'uname -m', expect_ret=0, msg="Check the architechure")
+        arch = utils_lib.run_cmd(self, "uname -m | tr -d '\n'", expect_ret=0, msg="Check the architechure")
         pkgs = self.params.get('pkgs')
         if pkgs:
             pkgs = pkgs.replace(",", " ")
@@ -196,7 +196,15 @@ EOF
         cmd = "sudo podman rmi {} -f".format(bootc_base_image)
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="remove old bootc base image")
         cmd = "sudo podman pull {} --arch {}".format(bootc_base_image, arch)
-        utils_lib.run_cmd(self, cmd, expect_ret=0, timeout = 1200, msg="pull bootc base image")
+        for i in range(1,10):
+            ret = utils_lib.run_cmd(self, cmd, ret_status=True, timeout = 1200, msg="pull bootc base image")
+            if ret == 0:
+                break
+            self.log.info("Failed to pull bootc base image, try again! Attempt %s/10" % i)
+            if i < 10:
+                time.sleep(10)
+        else:
+            self.skipTest("Skip test since cannot pull the bootc base image{} {}.".format(bootc_base_image, arch))
         cmd = "sudo podman images"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Check all container images")
         cmd = "sudo podman inspect {} --format '{{{{.ID}}}}' | tr -d '\n'".format(bootc_base_image)
@@ -331,7 +339,7 @@ EOF
                 cmd = "sudo grep region ~/.aws/config | awk '{print $(3)}'| tr -d '\n'"
                 aws_region = utils_lib.run_cmd(self, cmd, msg='Check aws region')
                 if not aws_region:
-                    self.FailTest('Please configure awscli')
+                    self.fail('Please configure awscli')
                 else:
                     cmd = "sudo podman run --rm -it --privileged --pull=newer -v ~/.aws:/root/.aws:ro \
 --env AWS_PROFILE=default -v /var/lib/containers/storage:/var/lib/containers/storage {} --local --type ami \
