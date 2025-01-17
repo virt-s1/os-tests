@@ -17,4 +17,5 @@ Flavor:
   virt: kvm
   arch: x86_64
   nic_type: VIRTIO_NET
+  # specify confidential_type, e.g., SEV, SEV_SNP or TDX
   confidential_type:  
