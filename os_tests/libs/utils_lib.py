@@ -880,6 +880,7 @@ def confidential_instance_type(test_instance):
     if not test_instance.vm:
         test_instance.skipTest("Skip as no VM provisioned.")
     if test_instance.vm.provider == 'google':
+        test_instance.log.info("print {}".format(test_instance.vm.data))
         if test_instance.vm.check_confidential_type():
             test_instance.log.info("Confidential instance type: {}".format(test_instance.vm.check_confidential_type()))
             return test_instance.vm.check_confidential_type()
@@ -909,6 +910,15 @@ def is_sev_enabled(test_instance):
         return test_instance.vm.sev_snp_enabled
     else:
         test_instance.skipTest("Skip as unable to determine sev status")
+    return False
+
+def is_tpm_enabled(test_instance):
+    if not test_instance.vm:
+        test_instance.skipTest("Skip as no VM provisioned.")
+    if test_instance.vm.provider == 'google':
+        return test_instance.vm.is_vtpm_enabled()
+    else:
+        test_instance.skipTest("Skip as unable to determine Vtpm status")
     return False
 
 def is_arch(test_instance, arch="", action=None):
