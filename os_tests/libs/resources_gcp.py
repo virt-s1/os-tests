@@ -367,6 +367,8 @@ class GCPVM(VMResource):
         confidential_type = confidential_config.get('confidentialInstanceType')
         if confidential_type:
             return confidential_type
+        if confidential_config.get('enableConfidentialCompute'):
+            return 'SEV'
         return False
 
     def is_sev_enabled(self):
@@ -374,6 +376,16 @@ class GCPVM(VMResource):
         if self.check_confidential_type() == 'SEV':
             return True
         return sev
+
+    def is_vtpm_enabled(self):
+        if not self._data:
+            raise ValueError("Instance data (_data) is not initialized.")
+        instance_data = self._data
+        shielded_config = instance_data.get('shieldedInstanceConfig', {})
+        vtpm_status = shielded_config.get('enableVtpm')
+        if vtpm_status:
+            return True
+        return False
 
     def get_console_log(self):
         response = self.service_v1.instances().getSerialPortOutput(
