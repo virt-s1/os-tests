@@ -1684,8 +1684,8 @@ EOF""".format(device, size), expect_ret=0)
             net-tools, python3-mock, python3-nose, python3-tox, python3-httpretty
             Note: 
             For rhel-9.0, the python3-jsonschema is removed
-            For rhel-10, the netifaces and dhcp-client are removed, but python3-jsonschema is required 
-            Bug ID: RHEL-34518,RHEL-26304,RHEL-41010
+            For rhel-10, the netifaces, dhcp-client and jsonschema are removed
+            Bug ID: RHEL-34518,RHEL-26304,RHEL-41010,RHEL-65849
         key_steps: |
             1. Launch instance with cloud-init installed
             2. Check the cloud-init denpendency
@@ -1696,7 +1696,7 @@ EOF""".format(device, size), expect_ret=0)
         if float(product_id) >= 9.0:
             rm_dep_list = 'net-tools,python3-mock,python3-nose,python3-tox,python3-httpretty,python3-jsonschema'
         if float(product_id) >= 10.0:
-            rm_dep_list = 'net-tools,python3-mock,python3-nose,python3-tox,python3-httpretty,netifaces,dhcp-client'
+            rm_dep_list = 'net-tools,python3-mock,python3-nose,python3-tox,python3-httpretty,netifaces,dhcp-client,jsonschema'
         cmd = 'sudo rpm -qR cloud-init'
         utils_lib.run_cmd(self,
                           cmd,
