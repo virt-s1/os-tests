@@ -48,7 +48,7 @@ class TestAzureUpgradeCheck(unittest.TestCase):
             if utils_lib.is_arch(self, arch='x86_64'):
                 expect_kw = 'crashkernel=1G-4G:192M,4G-64G:256M,64G-:512M'
             else:
-                expect_kw = 'crashkernel=2G-:448M'
+                expect_kw = 'crashkernel=1G-4G:406M,4G-64G:470M,64G-:726M'
         utils_lib.run_cmd(self, "sudo cat /proc/cmdline", expect_ret=0, expect_kw=expect_kw, msg='check crashkernel is enabled')
 
     def test_check_cmdline_rhgb_quiet(self):
