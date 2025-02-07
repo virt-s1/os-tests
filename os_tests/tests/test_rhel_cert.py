@@ -76,7 +76,12 @@ class TestRHELCert(unittest.TestCase):
         self.log.info("boot disk:{}, new part:{}".format(root_disk,new_part))
         part_count = utils_lib.run_cmd(self, "lsblk|grep part|wc -l")
         part_count = int(part_count.strip('\n')) + 1
-        cmds = ['sudo sgdisk {} -e'.format(root_disk),
+        sg_cmd = 'sudo sgdisk {} -e'.format(root_disk)
+        product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
+        if float(product_id) >= 10.0:
+            self.log.info("sgdisk was deprecated in RHEL-10, try ignition-sgdisk")
+            sg_cmd = 'sudo /usr/libexec/ignition-sgdisk -e {}'.format(root_disk)
+        cmds = [sg_cmd,
             'sudo parted -s {} print'.format(root_disk),
             'sudo parted -s {} mkpart swap xfs {}G {}G'.format(root_disk,swap_start,swap_end),
             'sudo parted -s {} print'.format(root_disk),
@@ -154,7 +159,8 @@ class TestRHELCert(unittest.TestCase):
         self.log.info("Pick up nic {}".format(self.active_nic ))
         cmd = "ip addr show {}".format(self.active_nic )
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1], msg='try to get {} ipv4 address'.format(self.active_nic ))
-        self.rmt_ipv4 = re.findall('[\\d.]{7,16}', output)[0]
+        pat = re.compile("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
+        self.rmt_ipv4 = pat.findall(output)[0]
         cmd = 'sudo bash -c "rhcertd start"'
         utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1], msg="start rhcertd on test server")
         cmd = 'sudo cat /root/.ssh/id_rsa.pub'
