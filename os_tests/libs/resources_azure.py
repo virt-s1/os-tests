@@ -62,6 +62,8 @@ class AzureVM(VMResource):
         vm_name_prefix = params.get('VM').get("vm_name_prefix")
         self.vm_size = kwargs.get("size") if "size" in kwargs else params.get('VM').get("vm_size")
         self.vm_name = vm_name_prefix + re.sub("[_-]", "", self.vm_size.lower())
+        if 'nametag' in kwargs:
+            self.vm_name = self.vm_name + '-' + kwargs.get('nametag')
         self.resource_group = params.get('VM').get("resource_group")
         self.storage_account = params.get('VM').get("storage_account")
         self.region = params.get('VM').get("region")
