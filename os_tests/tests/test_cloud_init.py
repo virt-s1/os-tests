@@ -1157,7 +1157,7 @@ EOF""".format(device, size), expect_ret=0)
                           msg='check ipv6 scope global address')
         #On AWS, check ipv6, using google ipv6 address 2001:4860:4860::8888
         if utils_lib.is_aws(self):
-            cmd = "sudo ping {} -c 3 -I {}".format("2001:4860:4860::8888", "eth0")
+            cmd = "sudo ping {} -c 3 ".format("2001:4860:4860::8888")
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='ping google')
 
     def test_cloudinit_check_random_password_len(self):
@@ -3015,7 +3015,7 @@ ssh_pwauth: True '''.format(**pw_config_dict)
 
         if not ipv6:
             self.skipTest("current instance setup might not support ipv6, skip checking.")
-        cmd = 'ip addr show eth0'
+        cmd = 'ip addr show '
         utils_lib.run_cmd(self, cmd, expect_kw=ipv6)
         out = utils_lib.run_cmd(self, 'rpm -q cloud-init', expect_ret=0)
         cloudinit_ver = re.findall('\d+.\d',out)[0]
@@ -3508,7 +3508,7 @@ EOF
         version = version_util.get_version(package_ver,'cloud-init-')
         if version_util.is_support(version,"test_cloudinit_create_vm_ipv6only",support_cases,main_support_versions,backport_versions):
             #check ipv6 of vm[0], using google ipv6 address 2001:4860:4860::8888
-            cmd = "sudo ping {} -c 3 -I {}".format("2001:4860:4860::8888", "eth0")
+            cmd = "sudo ping {} -c 3 ".format("2001:4860:4860::8888")
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='ping google')
             #create publick key of user
             cmd1 = "cat /home/{}/.ssh/id_rsa.pub".format(self.vm.vm_username)
@@ -3538,7 +3538,7 @@ ssh_authorized_keys:
                 time.sleep(60)
                 #from node1 to access node2
                 remote_ip = self.vms[1].ipv6_address
-                cmd1 = "sudo ping {} -c 3 -I {}".format("2001:4860:4860::8888", "eth0")
+                cmd1 = "sudo ping {} -c 3 ".format("2001:4860:4860::8888")
                 cmd = "ssh -6 -o StrictHostKeyChecking=no {}@{} '{}'".format(self.vms[1].vm_username, remote_ip, cmd1)
                 #check if login vm[1] successfully
                 for count in utils_lib.iterate_timeout(600, "check vm[1] login", wait=20):
