@@ -166,7 +166,7 @@ class AzureVM(VMResource):
             return self.show()
 
     def delete(self, wait=True):
-        if os.path.exists(self.user_data_file):
+        if self.user_data_file and os.path.exists(self.user_data_file):
             os.unlink(self.user_data_file)
         cmd = 'az vm delete --name "{}" --resource-group "{}" --yes'.format(
             self.vm_name, self.resource_group)
