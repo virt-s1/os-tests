@@ -921,8 +921,9 @@ grep -i pci|grep n1' % boot_pci
         else:
             self.skipTest("No pci device found to detach")
 
-        tmp_pci = tmp_pci.replace('.', '_')
-        tmp_pci = tmp_pci.replace(':', '_')
+        #tmp_pci = tmp_pci.replace('.', '_')
+        #tmp_pci = tmp_pci.replace(':', '_')
+        tmp_pci = tmp_pci.replace(':', '_').replace('.', '_')
         pci_dev_1 = utils_lib.run_cmd(
             self,
             'sudo virsh nodedev-list|grep %s |tail -1' % tmp_pci,
