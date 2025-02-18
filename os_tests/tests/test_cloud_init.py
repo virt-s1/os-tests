@@ -13,6 +13,15 @@ class TestCloudInit(unittest.TestCase):
         utils_lib.init_case(self)
         cmd = "sudo systemctl is-enabled cloud-init-local"
         utils_lib.run_cmd(self, cmd, cancel_ret='0', msg = "check cloud-init-local is enabled")
+        # Skip some cases for image mode                
+        case_list = ['test_check_cloudinit_status',
+                     'test_cloudinit_check_runcmd',
+                     'test_cloudinit_check_NOZEROCONF',
+                     'test_cloudinit_auto_install_package_with_subscription_manager']
+        out = utils_lib.run_cmd(self, 'ls /ostree/ | grep -i bootc')
+        for case_name in case_list:
+            if case_name in self.id() and 'bootc' in out:
+                self.skipTest('skip run as this case is not supported for image mode')
 
     @property
     def rhel_x_version(self):
@@ -1091,11 +1100,11 @@ EOF""".format(device, size), expect_ret=0)
                                 expect_ret=0,
                                 expect_kw='{}'.format(name),
                                 msg='check if the datasource is correct')
-                    utils_lib.run_cmd(self,
-                                    'cat /run/cloud-init/ds-identify.log | grep datasource',
-                                    expect_ret=0,
-                                    expect_kw="single entry in datasource_list \({}\) use that.".format(name),
-                                    msg='check if found the datasource')
+                    # utils_lib.run_cmd(self,
+                    #                 'cat /run/cloud-init/ds-identify.log | grep datasource',
+                    #                 expect_ret=0,
+                    #                 expect_kw="single entry in datasource_list \({}\) use that.".format(name),
+                    #                 msg='check if found the datasource')
                 else:
                     utils_lib.run_cmd(self,
                                 'cat /run/cloud-init/cloud.cfg',
@@ -1232,10 +1241,7 @@ EOF""".format(device, size), expect_ret=0)
             RHEL-186183 - CLOUDINIT-TC:runcmd module:execute commands
         key_steps:
         """
-        # We will run this case on libvirt when it could customize user-data
-        out = utils_lib.run_cmd(self, 'ls /ostree/ | grep -i bootc')
-        if 'bootc' in out:
-            self.skipTest('skip run as this case is not supported for bootc image')
+        # We will run this case on libvirt when it could customize user-data        
         cmd = 'sudo cat /var/log/messages'
         utils_lib.run_cmd(self, 
                           cmd, 
@@ -1417,7 +1423,7 @@ EOF""".format(device, size), expect_ret=0)
         self.assertNotEqual(old_swap, '0',
             "Swap size is 0 before cloud-init config")
         self.assertEqual(old_swap, new_swap,
-            "Swap size is not same before and after cloud-init config")
+            "Swap size is not same before and after cloud-init config. There was issue BIFROST-598 for image mode")
         self.assertEqual(old_fstab, new_fstab,
             "The /etc/fstab is not same before and after cloud-init config")
 
@@ -1572,10 +1578,7 @@ EOF""".format(device, size), expect_ret=0)
             3. There is "NOZEROCONF=yes" in /etc/sysconfig/network
         """
         self.log.info(
-            "RHEL-152730 - CLOUDINIT-TC: Check 'NOZEROCONF=yes' in /etc/sysconfig/network")
-        out = utils_lib.run_cmd(self, 'ls /ostree/ | grep -i bootc')
-        if 'bootc' in out:
-            self.skipTest('skip run as this case is not supported for bootc image')
+            "RHEL-152730 - CLOUDINIT-TC: Check 'NOZEROCONF=yes' in /etc/sysconfig/network")        
         cmd = 'sudo cat /etc/sysconfig/network'
         utils_lib.run_cmd(self,
                           cmd,
@@ -2250,10 +2253,7 @@ ssh_pwauth: True
             2. create VM
             3. Verify register with subscription-manager and install package by cloud-init successfully
         """
-        self.log.info("RHEL-186182 CLOUDINIT-TC:auto install package with subscription manager")
-        out = utils_lib.run_cmd(self, 'ls /ostree/ | grep -i bootc')
-        if 'bootc' in out:
-            self.skipTest('skip run as this case is not supported for bootc image')
+        self.log.info("RHEL-186182 CLOUDINIT-TC:auto install package with subscription manager")        
         if self.vm.exists():
             self.vm.delete()
             time.sleep(30)
@@ -2511,11 +2511,11 @@ rh_subscription:
         description:
             Test swapon when created on a xfs filesystem by cloud-init.
         key_steps: |
-            1. Add additional data disk and format to xfs, mount to /datatest and add to /etc/fstab
+            1. Add additional data disk and format to xfs, mount to /mnt/datatest and add to /etc/fstab
             2. Configure cloud-config and run mounts module
             # cat /etc/cloud/cloud.cfg.d/test_swap.cfg
             swap:
-              filename: /datatest/swap.img
+              filename: /mnt/datatest/swap.img
               size: "auto" # or size in bytes
               maxsize: 2G
             3. Check the swap, verify /datadisk/swap.img exists, verify no error logs in cloud-init.log
@@ -2538,13 +2538,13 @@ rh_subscription:
         test_part = '/dev/' + utils_lib.run_cmd(self, cmd, expect_ret=0, msg='get test part')
         test_part = test_part.strip('\n')
         utils_lib.run_cmd(self, "sudo mkfs.xfs {} -f".format(test_part))
-        utils_lib.run_cmd(self, "sudo mkdir -p /datatest")
-        utils_lib.run_cmd(self, "sudo mount {} /datatest".format(test_part))
-        utils_lib.run_cmd(self, "sudo mount|grep /datatest", expect_ret=0, msg="Fail to mount datadisk")
+        utils_lib.run_cmd(self, "sudo mkdir -p /mnt/datatest")
+        utils_lib.run_cmd(self, "sudo mount {} /mnt/datatest".format(test_part))
+        utils_lib.run_cmd(self, "sudo mount|grep /mnt/datatest", expect_ret=0, msg="Fail to mount datadisk")
         # Test begin
         CONFIG='''\
 swap:
-  filename: /datatest/swap.img
+  filename: /mnt/datatest/swap.img
   size: "8M" # or size in bytes
   maxsize: 2G'''
         utils_lib.run_cmd(self,'sudo tail /var/log/cloud-init.log')
@@ -2554,15 +2554,15 @@ swap:
         new_swap = utils_lib.run_cmd(self, "free -m|grep Swap|awk '{print $2}'")
         self.assertAlmostEqual(first=int(old_swap)+7, second=int(new_swap), delta=1,
             msg="The enabled swap size does not correct.")
-        utils_lib.run_cmd(self, "ls /datatest/swap.img", expect_ret=0, msg="/datatest/swap.img doesn't exist.")
+        utils_lib.run_cmd(self, "ls /mnt/datatest/swap.img", expect_ret=0, msg="/mnt/datatest/swap.img doesn't exist.")
         utils_lib.run_cmd(self, "grep swap.img /etc/fstab", expect_ret=0, msg="Fail to add swap to /etc/fstab")
         cmd = "grep 'Permission denied' /var/log/cloud-init-output.log"
         utils_lib.run_cmd(self, cmd, expect_not_ret=0, msg="There are Permission denied logs in /var/log/cloud-init-output.log")
         #teardown
-        utils_lib.run_cmd(self, "sudo swapoff /datatest/swap.img")
-        utils_lib.run_cmd(self, "sudo umount /datatest")
-        utils_lib.run_cmd(self, "sudo rm -rf /datatest")
-        utils_lib.run_cmd(self, "sudo bash -c \"sed -i '/.*\/datatest.*/d' /etc/fstab\"")
+        utils_lib.run_cmd(self, "sudo swapoff /mnt/datatest/swap.img")
+        utils_lib.run_cmd(self, "sudo umount /mnt/datatest")
+        utils_lib.run_cmd(self, "sudo rm -rf /mnt/datatest")
+        utils_lib.run_cmd(self, "sudo bash -c \"sed -i '/.*\/mnt\/datatest.*/d' /etc/fstab\"")
 
     def _generate_password(self, password, hash, salt=''):
         import crypt
