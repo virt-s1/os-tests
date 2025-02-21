@@ -77,6 +77,7 @@ class AzureVM(VMResource):
         self.ssh_key_value = params.get('VM').get("ssh_key_value")
         self.authentication_type = "ssh" if self.generate_ssh_keys or self.ssh_key_value else "password"
         self.custom_data = params.get('VM').get("custom_data")
+        self.net_bandwidth_cfg = params.get('VM').get('net_bandwidth')
         self.user_data = None
         self.user_data_file = None
         self.use_unmanaged_disk = params.get('VM').get("use_unmanaged_disk")
@@ -382,6 +383,10 @@ class AzureVM(VMResource):
 
     def send_nmi(self):
         raise NotImplemented('please check resources_azure.py')
+
+    @property
+    def net_bandwidth(self):
+        return self.net_bandwidth_cfg
 
 
 ######################################################################
