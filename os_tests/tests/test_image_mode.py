@@ -88,9 +88,6 @@ class TestImageMode(unittest.TestCase):
         if not ':' in bootc_base_image_url:
             bootc_base_image_url = bootc_base_image_url + ":latest"
         arch = utils_lib.run_cmd(self, "uname -m | tr -d '\n'", expect_ret=0, msg="Check the architechure")
-        pkgs = self.params.get('pkgs')
-        if pkgs:
-            pkgs = pkgs.replace(",", " ")
         containerfile = self.params.get('containerfile')
         current_time = datetime.now().strftime("%y%m%d%S")
         if containerfile and containerfile.startswith("http"):
@@ -126,19 +123,6 @@ class TestImageMode(unittest.TestCase):
                 utils_lib.run_cmd(self, cmd, expect_ret=0, msg="create image_mode_dir")
                 cmd = 'echo "#Containerfile" > {}/Containerfile'.format(image_mode_dir)
                 utils_lib.run_cmd(self, "sudo bash -c '{}'".format(cmd), expect_ret=0, msg="create an empty Containerfile")
-                default_pkgs = "cloud-init virt-what"
-                if disk_image_format == 'iso':
-                    default_pkgs = default_pkgs + " " + "hyperv-daemons open-vm-tools"
-                if disk_image_format == 'vmdk':
-                    default_pkgs = default_pkgs + " " + "open-vm-tools"
-                if disk_image_format == 'vhdx':
-                    default_pkgs = default_pkgs + " " + "hyperv-daemons"
-                if disk_image_format == 'vhd':
-                    default_pkgs = default_pkgs + " " + "hyperv-daemons"
-                if pkgs:
-                    pkgs = default_pkgs + " " + pkgs
-                else:
-                    pkgs = default_pkgs
         self.image_mode_dir = image_mode_dir
         cmd = "sudo cat {}/Containerfile".format(image_mode_dir)
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check Containerfile")
@@ -159,20 +143,11 @@ sudo sed -i '1iFROM {}' Containerfile && sudo cat Containerfile".format(image_mo
                 #self.log.info('unregister rhsm to aviod bug when creating iso disk, please register again after this case if you need.')
             cmd = "sudo mv /etc/yum.repos.d/dnf.repo ./{}/dnf.repo".format(image_mode_dir)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Create dnf.repo for packages installation in building custom image")
+        pkgs = self.params.get('pkgs')
         if pkgs:
+            pkgs = pkgs.replace(",", " ")
             cmd = "cd {} && sudo sed -i '3iRUN dnf install -y {} && dnf clean all' Containerfile && sudo cat Containerfile".format(image_mode_dir, pkgs)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Add installed pkgs to Containerfile.")
-
-        #Prepare 05-cloud-kargs.toml file
-        cmd = "cd {} && sudo grep -q '05-cloud-kargs.toml' Containerfile".format(image_mode_dir)
-        ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg="check if there is 05-cloud-kargs.toml in Containerfile")
-        if ret == 0:
-            utils_lib.run_cmd(self, """
-sudo cat << EOF | sudo tee {}/05-cloud-kargs.toml
-[install]
-kargs = ["console=tty0", "console=ttyS0,115200n8"]
-EOF
-""".format(image_mode_dir), msg='create 05-cloud-kargs.toml file')
 
         #login container repo
         quay_io_data = self.params.get('quay_io_data')
@@ -362,7 +337,7 @@ to AWS {}".format(ami_name, ami_id, bootc_base_image, bootc_base_image_compose_i
                                 expect_ret=0, 
                                 msg="Save AMI name and ID to bootc_disk_info artifacts")
             else:
-                self.FailTest('Failed to upload AMI')
+                self.fail('Failed to upload AMI')
         else:
             config_toml_file = self.params.get('config_toml_file')
             config_toml_info = self.params.get('config_toml_info')
@@ -372,7 +347,7 @@ to AWS {}".format(ami_name, ami_id, bootc_base_image, bootc_base_image_compose_i
                 #Note the key will display in the disk convert log if you specify it.
                 utils_lib.run_cmd(self, """
 sudo cat << EOF | sudo tee {}/config.toml
-[[blueprint.customizations.user]]
+[[customizations.user]]
 name = "{}"
 password = "{}"
 key = "{}"
@@ -381,9 +356,17 @@ EOF
 """.format(image_mode_dir, config_toml_info.split(',')[0], config_toml_info.split(',')[1], config_toml_info.split(',')[2].replace('\'','')),
            is_log_cmd=False,
            msg='create config_toml file')
- 
+                if config_toml_info.split(',')[0] == 'root':
+                    cmd = "sudo sed -i 's/wheel/root/g' {}/config.toml".format(image_mode_dir)
+                    utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Add root user to root group.")
+            cmd = 'sudo cat {}/config.toml'.format(image_mode_dir)
+            ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg="Check if config.toml exists")
+            if ret != 0:
+                self.skipTest("Please sepcify config.toml to add user for login.")
+
             #Create directory for converted disk images
-            output_dir_name = 'output_{}_{}'.format(bootc_custom_image_name, bootc_custom_image_tag)
+            compose_id = bootc_base_image_compose_id.split('-')[-1].replace('.', '')
+            output_dir_name = 'output_{}_{}_{}'.format(bootc_custom_image_name.rsplit('_', 1)[0], compose_id, bootc_custom_image_tag)
             output_dir = "{}/{}".format(image_mode_dir, output_dir_name)
             cmd = "sudo rm {} -rf && sudo mkdir {}".format(output_dir, output_dir)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Create output directory")
