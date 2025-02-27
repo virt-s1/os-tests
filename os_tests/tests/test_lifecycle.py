@@ -717,8 +717,15 @@ class TestLifeCycle(unittest.TestCase):
             self.fail("No kernel found from {}".format(output))
         for kernel in kernels_list:
             self.log.info('try to swith {}'.format(kernel))
-            kernel_vmlinuz = "/boot/" + kernel.replace('kernel','vmlinuz')
-            kernel_initramfs = "/boot/" + kernel.replace('kernel','initramfs') + ".img"
+            if utils_lib.is_ostree_system(self):
+                # Not considering multiple kernels,only test the current kernel in image mode
+                cmd = 'sudo find /boot/ostree -name vmlinuz*'
+                kernel_vmlinuz = utils_lib.run_cmd(self, cmd, msg='Get vmlinuz path').strip()
+                cmd = 'sudo find /boot/ostree -name initramfs*'
+                kernel_initramfs = utils_lib.run_cmd(self, cmd, msg='Get initramfs path').strip()
+            else:
+                kernel_vmlinuz = "/boot/" + kernel.replace('kernel','vmlinuz')
+                kernel_initramfs = "/boot/" + kernel.replace('kernel','initramfs') + ".img"
             if self.vm and self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
                 cmd = "sudo kexec -s -l %s --initrd=%s --reuse-cmdline -s" % (kernel_vmlinuz, kernel_initramfs) #kexec systems using UEFI + SecureBoot using the kexec option "-s"
             else:
@@ -760,8 +767,15 @@ class TestLifeCycle(unittest.TestCase):
             self.fail("No kernel found from {}".format(output))
         for kernel in kernels_list:
             self.log.info('try to swith {}'.format(kernel))
-            kernel_vmlinuz = "/boot/" + kernel.replace('kernel','vmlinuz')
-            kernel_initramfs = "/boot/" + kernel.replace('kernel','initramfs') + ".img"
+            if utils_lib.is_ostree_system(self):
+                # Not considering multiple kernels,only test the current kernel in image mode
+                cmd = 'sudo find /boot/ostree -name vmlinuz*'
+                kernel_vmlinuz = utils_lib.run_cmd(self, cmd, msg='Get vmlinuz path').strip()
+                cmd = 'sudo find /boot/ostree -name initramfs*'
+                kernel_initramfs = utils_lib.run_cmd(self, cmd, msg='Get initramfs path').strip()
+            else:
+                kernel_vmlinuz = "/boot/" + kernel.replace('kernel','vmlinuz')
+                kernel_initramfs = "/boot/" + kernel.replace('kernel','initramfs') + ".img"
             if self.vm and self.vm.provider == 'nutanix' and self.vm.prism.if_secure_boot:
                 cmd = "sudo kexec -s -l %s --initrd=%s --reuse-cmdline -s" % (kernel_vmlinuz, kernel_initramfs) #kexec systems using UEFI + SecureBoot using the kexec option "-s"
             else:
