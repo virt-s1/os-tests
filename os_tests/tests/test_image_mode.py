@@ -149,6 +149,37 @@ sudo sed -i '1iFROM {}' Containerfile && sudo cat Containerfile".format(image_mo
             cmd = "cd {} && sudo sed -i '3iRUN dnf install -y {} && dnf clean all' Containerfile && sudo cat Containerfile".format(image_mode_dir, pkgs)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Add installed pkgs to Containerfile.")
 
+        config_toml_file = self.params.get('config_toml_file')
+        config_toml_info = self.params.get('config_toml_info')
+        if config_toml_file:
+            utils_lib.copy_file(self, local_file=config_toml_file, target_file_dir=image_mode_dir, target_file_name='config.toml')
+        else:
+            if not config_toml_info:
+                self.skipTest("Please sepcify config.toml to add user for login.")
+            #Create config.toml file, Note the key will display in case log if you specify it.
+            utils_lib.run_cmd(self, """
+sudo cat << EOF | sudo tee {}/config.toml
+[[customizations.user]]
+name = "{}"
+password = "{}"
+key = "{}"
+groups = ["wheel"]
+EOF
+""".format(image_mode_dir, config_toml_info.split(',')[0], config_toml_info.split(',')[1], config_toml_info.split(',')[2].replace('\'','')),msg='create config_toml file')
+            if config_toml_info.split(',')[0] == 'root':
+                cmd = "sudo sed -i 's/wheel/root/g' {}/config.toml".format(image_mode_dir)
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Add root user to root group.")
+        cmd = 'sudo cat {}/config.toml'.format(image_mode_dir)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Check config.toml")
+        cmd = 'sudo grep root {}/config.toml'.format(image_mode_dir)
+        ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg="Check if there is root user in config.toml")
+        if ret == 0:
+            cmd = "RUN sed -i 's/^#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config"
+            utils_lib.run_cmd(self, 
+                            "cd {} && echo \"{}\" | sudo tee -a Containerfile && cat Containerfile".format(image_mode_dir, cmd), 
+                            expect_ret=0, 
+                            msg="Configure sshd_config for Root Login with password if there is root user in config.toml")
+        
         #login container repo
         quay_io_data = self.params.get('quay_io_data')
         bootc_io_data = self.params.get('bootc_io_data')
@@ -172,7 +203,7 @@ sudo sed -i '1iFROM {}' Containerfile && sudo cat Containerfile".format(image_mo
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="remove old bootc base image")
         cmd = "sudo podman pull {} --arch {}".format(bootc_base_image, arch)
         for i in range(1,10):
-            ret = utils_lib.run_cmd(self, cmd, ret_status=True, timeout = 1200, msg="pull bootc base image")
+            ret = utils_lib.run_cmd(self, cmd, ret_status=True, timeout = 2400, msg="pull bootc base image")
             if ret == 0:
                 break
             self.log.info("Failed to pull bootc base image, try again! Attempt %s/10" % i)
@@ -256,7 +287,7 @@ sudo sed -i '1iFROM {}' Containerfile && sudo cat Containerfile".format(image_mo
                         expect_ret=0,
                         msg="Save bootc_custom_image name {} to bootc_disk_info".format(bootc_custom_image))
         cmd = "cd {} && sudo podman build -t {} . --arch {}".format(image_mode_dir, bootc_custom_image, arch)
-        utils_lib.run_cmd(self, cmd, expect_ret=0, timeout = 1200, msg="Build bootc custom image")
+        utils_lib.run_cmd(self, cmd, expect_ret=0, timeout = 2400, msg="Build bootc custom image")
 
         #Create bootable disks with custom bootc images
         image_name_string = image_mode_dir.split('_')
@@ -339,31 +370,6 @@ to AWS {}".format(ami_name, ami_id, bootc_base_image, bootc_base_image_compose_i
             else:
                 self.fail('Failed to upload AMI')
         else:
-            config_toml_file = self.params.get('config_toml_file')
-            config_toml_info = self.params.get('config_toml_info')
-            if config_toml_file:
-                utils_lib.copy_file(self, local_file=config_toml_file, target_file_dir=image_mode_dir, target_file_name='config.toml')
-            elif config_toml_info:
-                #Note the key will display in the disk convert log if you specify it.
-                utils_lib.run_cmd(self, """
-sudo cat << EOF | sudo tee {}/config.toml
-[[customizations.user]]
-name = "{}"
-password = "{}"
-key = "{}"
-groups = ["wheel"]
-EOF
-""".format(image_mode_dir, config_toml_info.split(',')[0], config_toml_info.split(',')[1], config_toml_info.split(',')[2].replace('\'','')),
-           is_log_cmd=False,
-           msg='create config_toml file')
-                if config_toml_info.split(',')[0] == 'root':
-                    cmd = "sudo sed -i 's/wheel/root/g' {}/config.toml".format(image_mode_dir)
-                    utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Add root user to root group.")
-            cmd = 'sudo cat {}/config.toml'.format(image_mode_dir)
-            ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg="Check if config.toml exists")
-            if ret != 0:
-                self.skipTest("Please sepcify config.toml to add user for login.")
-
             #Create directory for converted disk images
             compose_id = bootc_base_image_compose_id.split('-')[-1].replace('.', '')
             output_dir_name = 'output_{}_{}_{}'.format(bootc_custom_image_name.rsplit('_', 1)[0], compose_id, bootc_custom_image_tag)
