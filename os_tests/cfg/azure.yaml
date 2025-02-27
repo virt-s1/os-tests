@@ -27,5 +27,7 @@ VM:
     resource_group: 'xxxxxx'
     storage_account: 'xxxxxx'
     region: 'eastus'
+    sriov: 'false'
+    net_bandwidth: 10000
 Other:
     packages: <the cloud-init package name: cloud-init-xxx.rpm>

@@ -78,6 +78,7 @@ class AzureVM(VMResource):
         self.authentication_type = "ssh" if self.generate_ssh_keys or self.ssh_key_value else "password"
         self.custom_data = params.get('VM').get("custom_data")
         self.net_bandwidth_cfg = params.get('VM').get('net_bandwidth')
+        self.sriov = params.get('VM').get('sriov', 'false').lower()
         self.user_data = None
         self.user_data_file = None
         self.use_unmanaged_disk = params.get('VM').get("use_unmanaged_disk")
@@ -158,6 +159,8 @@ class AzureVM(VMResource):
         else:
             cmd += ' --vnet-name "{}" --subnet "{}"'.format(
                 self.vnet_name, self.subnet)
+        if self.sriov == 'true':
+            cmd += ' --accelerated-networking true'
         if self.os_disk_size:
             cmd += ' --os-disk-size-gb {}'.format(self.os_disk_size)
         if not wait:
