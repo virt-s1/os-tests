@@ -63,7 +63,10 @@ class EC2VM(VMResource):
         self.cpus_cfg = params.get('cpus')
         self.memory_cfg = params.get('memory')
         self.disks_cfg = params.get('disks')
-        self.net_bandwidth_cfg = params.get('net_bandwidth')
+        try:
+            self.net_bandwidth_cfg = eval(params.get('net_bandwidth'))
+        except:      
+            self.net_bandwidth_cfg = params.get('net_bandwidth')
         self.is_created = False
         self.another_ip = None
         self.run_uuid = params.get('run_uuid')

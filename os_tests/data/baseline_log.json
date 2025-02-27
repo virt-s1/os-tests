@@ -2409,5 +2409,17 @@
         "cases": "os_tests.tests.test_lifecycle.TestLifeCycle.test_hibernate_resume",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20250102"
+    },
+    "msg_256": {
+        "content": ".*irqbalance.*No directory /sys/devices/platform/0.*",
+        "analyze": "known issue in irqbalance",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-81043",
+        "path": "",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250227"
     }
 }

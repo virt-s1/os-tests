@@ -36,7 +36,8 @@ class TestNetworkTest(unittest.TestCase):
         self.log.info("Pick up nic {}".format(self.active_nic))
         cmd = "ip addr show {}".format(self.active_nic )
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to get {} ipv4 address'.format(self.active_nic ))
-        self.ipv4 = re.findall('[\d.]{7,16}', output)[0]
+        pat = re.compile("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
+        self.ipv4 = pat.findall(output)[0]
 
     @property
     def rhel_x_version(self):
