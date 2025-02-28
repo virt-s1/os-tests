@@ -176,7 +176,7 @@ EOF
         if ret == 0:
             cmd = "RUN sed -i 's/^#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config"
             utils_lib.run_cmd(self, 
-                            "cd {} && echo \"{}\" | sudo tee -a Containerfile && cat Containerfile".format(image_mode_dir, cmd), 
+                            "cd {} && echo -e \"\\n{}\\n\" | sudo tee -a Containerfile && cat Containerfile".format(image_mode_dir, cmd), 
                             expect_ret=0, 
                             msg="Configure sshd_config for Root Login with password if there is root user in config.toml")
         
