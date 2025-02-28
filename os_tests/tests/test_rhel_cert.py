@@ -205,6 +205,20 @@ class TestRHELCert(unittest.TestCase):
                 root_vol.id = root_id
                 root_vol.size = root_size
                 self._parted_swap_partition(root_vol)
+            if os.getenv('INFRA_PROVIDER') == 'azure':
+                # Add 1G swap
+                # dd if=/dev/zero of=/root/swapfile01 bs=1M count=1024
+                # chmod 600 /root/swapfile01
+                # mkswap -L swap01 /root/swapfile01
+                # swapon /root/swapfile01
+                new_part="swapfile01"
+                cmds = ['sudo dd if=/dev/zero of=/root/{} bs=1M count=1024'.format(new_part),
+                'sudo chmod 600 /root/{}'.format(new_part),
+                'sudo mkswap -L swap01 /root/{}'.format(new_part),
+                'sudo swapon /root/{}'.format(new_part),
+                'sudo cat /proc/swaps']
+                for cmd in cmds:
+                    utils_lib.run_cmd(self,cmd)
  
     def test_rhcert_non_interactive(self):
         """
