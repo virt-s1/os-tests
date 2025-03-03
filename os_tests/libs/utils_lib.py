@@ -113,6 +113,8 @@ def init_args():
                     help='The created bootable bootc image/disk will be saved to attachments in log, \
                         if you would like to copy the disk file to your test environment by manual, \
                         please specify --no_upload_image', required=False)
+    parser.add_argument('--ca_info', dest='ca_info', default=None, action='store',
+                    help='specify the ca configure information, e.g., ca_url,ca_path', required=False)
     args = parser.parse_args()
     return args
 

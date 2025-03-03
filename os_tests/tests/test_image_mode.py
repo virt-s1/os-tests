@@ -89,7 +89,7 @@ class TestImageMode(unittest.TestCase):
             bootc_base_image_url = bootc_base_image_url + ":latest"
         arch = utils_lib.run_cmd(self, "uname -m | tr -d '\n'", expect_ret=0, msg="Check the architechure")
         containerfile = self.params.get('containerfile')
-        current_time = datetime.now().strftime("%y%m%d%S")
+        current_time = datetime.now().strftime("%y%m%d%H%M%S")
         if containerfile and containerfile.startswith("http"):
             containerfile_url = urlparse(containerfile)
             containerfile_basename = os.path.basename(container_url.path)
@@ -143,10 +143,23 @@ sudo sed -i '1iFROM {}' Containerfile && sudo cat Containerfile".format(image_mo
                 #self.log.info('unregister rhsm to aviod bug when creating iso disk, please register again after this case if you need.')
             cmd = "sudo mv /etc/yum.repos.d/dnf.repo ./{}/dnf.repo".format(image_mode_dir)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Create dnf.repo for packages installation in building custom image")
+
+        #Configure CAs
+        ca_info = self.params.get('ca_info')
+        if ca_info:
+            ca_url = ca_info.split(',')[0]
+            ca_path = ca_info.split(',')[1]
+            cmd = "curl -L -k {} -o {} && update-ca-trust".format(ca_url,ca_path)
+            utils_lib.run_cmd(self, 
+                            "cd {} && sudo sed -i '3iRUN {}' Containerfile && sudo cat Containerfile".format(image_mode_dir, cmd), 
+                            expect_ret=0, 
+                            msg="Add ca configure to containerfile.")
+
+        #Configure install additional packages
         pkgs = self.params.get('pkgs')
         if pkgs:
             pkgs = pkgs.replace(",", " ")
-            cmd = "cd {} && sudo sed -i '3iRUN dnf install -y {} && dnf clean all' Containerfile && sudo cat Containerfile".format(image_mode_dir, pkgs)
+            cmd = "cd {} && sudo sed -i '4iRUN dnf install -y {} && dnf clean all' Containerfile && sudo cat Containerfile".format(image_mode_dir, pkgs)
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Add installed pkgs to Containerfile.")
 
         config_toml_file = self.params.get('config_toml_file')
@@ -447,11 +460,17 @@ compose-id:{} Digest:{} to your test environment.".format(image_mode_dir,
 
             cmd = "cd {} && pwd".format(self.image_mode_dir)
             image_mode_dir_path = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Check image_mode_dir path")
-            cmd = "sudo sed -i '1iimage_mode_dir_path: {}' {}/bootc_disk_info".format(image_mode_dir_path, self.image_mode_dir)
-            utils_lib.run_cmd(self,
-                            cmd,
-                            expect_ret=0,
-                            msg="Save image_mode_dir_path {}".format(image_mode_dir_path))
+            cmd = 'ls {}/bootc_disk_info'.format(self.image_mode_dir)
+            ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg="Check if bootc_disk_info exists")
+            if ret == 0:
+                cmd = "sudo sed -i '1iimage_mode_dir_path: {}' {}/bootc_disk_info".format(image_mode_dir_path, self.image_mode_dir)
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Save image_mode_dir_path {}".format(image_mode_dir_path))
+            else:
+                cmd = 'echo "image_mode_dir_path: {}" >> {}/bootc_disk_info'.format(image_mode_dir_path, self.image_mode_dir)
+                utils_lib.run_cmd(self,
+                                "sudo bash -c '{}'".format(cmd),
+                                expect_ret=0,
+                                msg="Save image_mode_dir_path {}".format(image_mode_dir_path))
             
             cmd = 'echo "case_result: done" >> {}/bootc_disk_info'.format(self.image_mode_dir)
             utils_lib.run_cmd(self,
