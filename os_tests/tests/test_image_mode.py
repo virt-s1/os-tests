@@ -252,6 +252,8 @@ EOF
         bootc_image_arch = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check bootc base image Architecture")
         if bootc_image_arch == 'amd64':
             bootc_image_arch = 'x86_64'
+        if bootc_image_arch == 'arm64':
+            bootc_image_arch = 'aarch64'
         cmd = 'echo "arch: {}" >> {}/bootc_disk_info'.format(bootc_image_arch, image_mode_dir)
         utils_lib.run_cmd(self,
                         "sudo bash -c '{}'".format(cmd),
