@@ -363,7 +363,10 @@ class AzureVM(VMResource):
         raise NotImplemented('please check resources_azure.py')
 
     def disk_count(self):
-        raise NotImplemented('please check resources_azure.py')
+        cmd = 'az vm show --name "{}" --resource-group {} -d  '\
+            '--query "length(storageProfile.dataDisks)"'.format(self.vm_name, self.resource_group)
+        ret, out = run_cmd_local(cmd, is_log_ret=True)
+        return out
 
     def get_state(self):
         LOG.info(self.properties.get("powerState"))
