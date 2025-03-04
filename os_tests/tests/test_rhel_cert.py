@@ -2,6 +2,7 @@
 # 2 vms or 2 hosts are required to run full test
 import unittest
 from os_tests.libs import utils_lib
+from datetime import datetime
 import time
 import os
 import re
@@ -219,6 +220,12 @@ class TestRHELCert(unittest.TestCase):
                 'sudo cat /proc/swaps']
                 for cmd in cmds:
                     utils_lib.run_cmd(self,cmd)
+
+                # Add a 4G size data disk if without data disk which is required by Azure storage case
+                if int(self.vm.disk_count()) == 0:
+                    time_filename = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    data_disk_name ='date_disk_{}_{}'.format(self.vm.vm_name,time_filename)
+                    self.vm.disk_attach(data_disk_name, 4)
  
     def test_rhcert_non_interactive(self):
         """
