@@ -137,31 +137,10 @@ class TestRHELCert(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, rmt_node=self.params['remote_nodes'][-1])
         cmd = 'sudo bash -c "chmod -R 777 /var/www/rhcert/export/"'
         utils_lib.run_cmd(self, cmd, rmt_node=self.params['remote_nodes'][-1])
-        cmd = "ip link show|grep mtu|grep -v lo|awk -F':' '{print $2}'"
-        output = utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1])
-        self.active_nic  = "eth0"
-        self.log.info("Test which nic connects to public")
-        nic_found = False
-        for net in output.split('\n'):
-            if len(net) < 3:
-                continue
-            cmd = "sudo ping {} -c 6 -I {}".format(self.params.get('ping_server'), net)
-            ret = utils_lib.run_cmd(self, cmd, ret_status=True, rmt_node=self.params['remote_nodes'][-1])
-            if ret == 0:
-                self.active_nic  = net
-                nic_found = True
-                break
-        if not nic_found:
-            for net in output.split('\n'):
-                #man systemd.net-naming-scheme
-                if net.startswith(('eth','en')):
-                    self.active_nic  = net
-                    break
-        self.log.info("Pick up nic {}".format(self.active_nic ))
-        cmd = "ip addr show {}".format(self.active_nic )
-        output = utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1], msg='try to get {} ipv4 address'.format(self.active_nic ))
-        pat = re.compile("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
-        self.rmt_ipv4 = pat.findall(output)[0]
+        # net.ifnames=0 is not recommended in RHEL-10 COMPOSER-2289, so the nic name is dynamically.
+        # the 2 clients might have different interfacenames, so look for them separetly  
+        self.active_nic = utils_lib.get_active_nic(self,rmt_node=self.params['remote_nodes'][0], ret_nic_name=True)
+        self.rmt_ipv4 = utils_lib.get_active_nic(self,rmt_node=self.params['remote_nodes'][-1], ret_nic_name=False)
         cmd = 'sudo bash -c "rhcertd start"'
         utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1], msg="start rhcertd on test server")
         cmd = 'sudo cat /root/.ssh/id_rsa.pub'
