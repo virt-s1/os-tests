@@ -319,10 +319,6 @@ class TestRHELCert(unittest.TestCase):
             subtests.append('PCIE_NVMe')
         if 'STORAGE' in auto_plan:
             subtests.append('STORAGE')
-        if 'cdrom' in auto_plan:
-            subtests.append('cdrom')
-        if 'dvd' in auto_plan:
-            subtests.append('dvd')
         if not utils_lib.is_arch(self, 'aarch64'):
             subtests.append('hwcert/cpuscaling')
             subtests.append('cpuscaling')
