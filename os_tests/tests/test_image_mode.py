@@ -354,7 +354,7 @@ EOF
                                          aws_region,
                                          aws_bucket,
                                          bootc_custom_image)
-                utils_lib.run_cmd(self, cmd, timeout=3600, is_log_cmd=False, msg='Create ami for image mode testing based on {}'.format(bootc_base_image_compose_id))
+                run_output = utils_lib.run_cmd(self, cmd, timeout=3600, is_log_cmd=False, msg='Create ami for image mode testing based on {}'.format(bootc_base_image_compose_id))
 
             else:
                 cmd = "sudo grep region ~/.aws/config | awk '{print $(3)}'| tr -d '\n'"
@@ -371,19 +371,25 @@ EOF
                                                                       aws_region,
                                                                       aws_bucket,
                                                                       bootc_custom_image)
-                    utils_lib.run_cmd(self, cmd, timeout=3600, msg='Create ami for image mode testing based on {}'.format(bootc_base_image_compose_id))
+                    run_output = utils_lib.run_cmd(self, cmd, timeout=3600, msg='Create ami for image mode testing based on {}'.format(bootc_base_image_compose_id))
             cmd = "aws ec2 describe-images --filters 'Name=name,Values={}' --query 'Images[*].ImageId' --output text | tr -d '\n'".format(ami_name)
             ami_id = utils_lib.run_cmd(self, cmd, msg='check ami id')
-            if ami_id:
-                self.log.info("AMI name:{} ID:{} based on bootc image {} compose-id:{} Digest:{} is uploaded \
+            if not ami_id or not ami_id.startswith('ami'):
+                # Try to search the ami id from above podman run output
+                pattern = r'ami-[a-f0-9]{17}'
+                match = re.search(pattern, run_output)
+                if match:
+                    ami_id = match.group(0)
+                else:
+                    self.fail('Failed to upload AMI')
+
+            self.log.info("AMI name:{} ID:{} based on bootc image {} compose-id:{} Digest:{} is uploaded \
 to AWS {}".format(ami_name, ami_id, bootc_base_image, bootc_base_image_compose_id, bootc_base_image_digest, aws_region))
-                cmd = 'echo "artifacts: {} {}" >> {}/bootc_disk_info'.format(ami_name, ami_id, image_mode_dir)
-                utils_lib.run_cmd(self, 
-                                "sudo bash -c '{}'".format(cmd), 
-                                expect_ret=0, 
-                                msg="Save AMI name and ID to bootc_disk_info artifacts")
-            else:
-                self.fail('Failed to upload AMI')
+            cmd = 'echo "artifacts: {} {}" >> {}/bootc_disk_info'.format(ami_name, ami_id, image_mode_dir)
+            utils_lib.run_cmd(self,
+                            "sudo bash -c '{}'".format(cmd),
+                            expect_ret=0,
+                            msg="Save AMI name and ID to bootc_disk_info artifacts")
         else:
             #Create directory for converted disk images
             compose_id = bootc_base_image_compose_id.split('-')[-1].replace('.', '')
