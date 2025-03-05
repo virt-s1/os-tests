@@ -78,12 +78,8 @@ class TestRHELCert(unittest.TestCase):
         part_count = utils_lib.run_cmd(self, "lsblk|grep part|wc -l")
         part_count = int(part_count.strip('\n')) + 1
         sg_cmd = 'sudo sgdisk {} -e'.format(root_disk)
-        product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
-        if float(product_id) >= 10.0:
-            self.log.info("sgdisk was deprecated in RHEL-10, try ignition-sgdisk")
-            sg_cmd = 'sudo /usr/libexec/ignition-sgdisk -e {}'.format(root_disk)
-        cmds = [sg_cmd,
-            'sudo parted -s {} print'.format(root_disk),
+        utils_lib.run_cmd(self,sg_cmd, timeout=180)
+        cmds = ['sudo parted -f -s {} print'.format(root_disk),
             'sudo parted -s {} mkpart swap xfs {}G {}G'.format(root_disk,swap_start,swap_end),
             'sudo parted -s {} print'.format(root_disk),
             'lsblk',
@@ -137,31 +133,10 @@ class TestRHELCert(unittest.TestCase):
         utils_lib.run_cmd(self, cmd, rmt_node=self.params['remote_nodes'][-1])
         cmd = 'sudo bash -c "chmod -R 777 /var/www/rhcert/export/"'
         utils_lib.run_cmd(self, cmd, rmt_node=self.params['remote_nodes'][-1])
-        cmd = "ip link show|grep mtu|grep -v lo|awk -F':' '{print $2}'"
-        output = utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1])
-        self.active_nic  = "eth0"
-        self.log.info("Test which nic connects to public")
-        nic_found = False
-        for net in output.split('\n'):
-            if len(net) < 3:
-                continue
-            cmd = "sudo ping {} -c 6 -I {}".format(self.params.get('ping_server'), net)
-            ret = utils_lib.run_cmd(self, cmd, ret_status=True, rmt_node=self.params['remote_nodes'][-1])
-            if ret == 0:
-                self.active_nic  = net
-                nic_found = True
-                break
-        if not nic_found:
-            for net in output.split('\n'):
-                #man systemd.net-naming-scheme
-                if net.startswith(('eth','en')):
-                    self.active_nic  = net
-                    break
-        self.log.info("Pick up nic {}".format(self.active_nic ))
-        cmd = "ip addr show {}".format(self.active_nic )
-        output = utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1], msg='try to get {} ipv4 address'.format(self.active_nic ))
-        pat = re.compile("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
-        self.rmt_ipv4 = pat.findall(output)[0]
+        # net.ifnames=0 is not recommended in RHEL-10 COMPOSER-2289, so the nic name is dynamically.
+        # the 2 clients might have different interfacenames, so look for them separetly  
+        self.active_nic = utils_lib.get_active_nic(self,rmt_node=self.params['remote_nodes'][0], ret_nic_name=True)
+        self.rmt_ipv4 = utils_lib.get_active_nic(self,rmt_node=self.params['remote_nodes'][-1], ret_nic_name=False)
         cmd = 'sudo bash -c "rhcertd start"'
         utils_lib.run_cmd(self, cmd, expect_ret=0, rmt_node=self.params['remote_nodes'][-1], msg="start rhcertd on test server")
         cmd = 'sudo cat /root/.ssh/id_rsa.pub'
