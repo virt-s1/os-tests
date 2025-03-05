@@ -1965,10 +1965,12 @@ def collect_kmemleak(test_instance=None):
     if len(output) > 0:
         test_instance.log.info('Memory leak found!')
 
-def get_active_nic(test_instance=None, rmt_node=None, vm=None):
+def get_active_nic(test_instance=None, rmt_node=None, vm=None, ret_nic_name=False):
+    # return nic ip addr by default
+    active_nic = 'eth0'
+    active_nic_ip = ''
     cmd = "sudo ip link show|grep mtu|grep -v lo|awk -F': ' '{print $2}'"
     output = run_cmd(test_instance, cmd, rmt_node=rmt_node, vm=vm)
-    test_instance.active_nic  = "eth0"
     test_instance.log.info("Test which nic connects to public")
     nic_found = False
     for net in output.split('\n'):
@@ -1977,22 +1979,24 @@ def get_active_nic(test_instance=None, rmt_node=None, vm=None):
         cmd = "sudo ping {} -c 6 -I {}".format(test_instance.params.get('ping_server'), net)
         ret = run_cmd(test_instance, cmd, ret_status=True, rmt_node=rmt_node, vm=vm)
         if ret == 0:
-            test_instance.active_nic  = net
+            active_nic  = net
             nic_found = True
             break
     if not nic_found:
         for net in output.split('\n'):
             #man systemd.net-naming-scheme
             if net.startswith(('eth','en')):
-                test_instance.active_nic  = net
+                active_nic  = net
                 break
-    test_instance.log.info("Pick up nic {}".format(test_instance.active_nic ))
-    
-    cmd = "sudo ip addr show {}".format(test_instance.active_nic )
+    test_instance.log.info("active_nic: {}".format(active_nic))
+    if ret_nic_name:
+        return active_nic
+    cmd = "sudo ip addr show {}".format(active_nic )
     output = run_cmd(test_instance, cmd, rmt_node=rmt_node, vm=vm)
-    test_instance.rmt_ipv4 = re.findall('[\d.]{7,16}', output)[0]
-
-    return test_instance.rmt_ipv4
+    pat = re.compile("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
+    active_nic_ip = pat.findall(output)[0]
+    test_instance.log.info("ret active_nic_ip: {}".format(active_nic_ip))
+    return active_nic_ip
 
 def is_firewalld_installed_and_running(test_instance=None, rmt_node=None, vm=None):
     cmd = "sudo systemctl status firewalld"
