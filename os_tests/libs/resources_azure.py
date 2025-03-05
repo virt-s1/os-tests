@@ -78,6 +78,7 @@ class AzureVM(VMResource):
         self.authentication_type = "ssh" if self.generate_ssh_keys or self.ssh_key_value else "password"
         self.custom_data = params.get('VM').get("custom_data")
         self.net_bandwidth_cfg = params.get('VM').get('net_bandwidth')
+        self.security_type = params['VM'].get('security_type')
         self.sriov = params.get('VM').get('sriov', 'false').lower()
         self.user_data = None
         self.user_data_file = None
@@ -120,12 +121,20 @@ class AzureVM(VMResource):
             authentication_type = self.authentication_type
         vm_password = None
         vm_username = None
-        cmd = 'az vm create --name "{}" --resource-group "{}" --image "{}" '\
-            '--size "{}" --authentication-type "{}" '\
-            ' --os-disk-name "{}" --nic-delete-option delete --os-disk-delete-option delete'\
-            .format(self.vm_name, self.resource_group, self.vm_image,
-                    self.vm_size, authentication_type,
-                    self.os_disk_name)
+        if self.security_type in ["TrustedLaunch", "ConfidentialVM"]:
+            cmd = 'az vm create --name "{}" --resource-group "{}" --image "{}" '\
+                '--size "{}" --authentication-type "{}" '\
+                ' --os-disk-name "{}" --nic-delete-option delete --os-disk-delete-option delete --security-type "{}"'\
+                .format(self.vm_name, self.resource_group, self.vm_image,
+                        self.vm_size, authentication_type,
+                        self.os_disk_name,self.security_type)
+        else:
+            cmd = 'az vm create --name "{}" --resource-group "{}" --image "{}" '\
+                    '--size "{}" --authentication-type "{}" '\
+                    ' --os-disk-name "{}" --nic-delete-option delete --os-disk-delete-option delete'\
+                    .format(self.vm_name, self.resource_group, self.vm_image,
+                            self.vm_size, authentication_type,
+                            self.os_disk_name)
         if self.ssh_key_value and sshkey != 'DoNotSet':
             cmd += ' --ssh-key-value {}'.format(self.ssh_key_value)
         elif self.generate_ssh_keys and sshkey != 'DoNotSet':
