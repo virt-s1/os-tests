@@ -12,32 +12,8 @@ class TestNetworkTest(unittest.TestCase):
     def setUp(self):
         utils_lib.init_case(self)
         self.dmesg_cursor = utils_lib.get_cmd_cursor(self, cmd='sudo dmesg -T')
-        cmd = "ip link show|grep mtu|grep -v lo|awk -F':' '{print $2}'"
-        output = utils_lib.run_cmd(self, cmd, expect_ret=0)
-        self.active_nic  = "eth0"
-        self.log.info("Test which nic connects to public")
-        nic_found = False
-        for net in output.split('\n'):
-            if len(net) < 3:
-                continue
-            cmd = "sudo ping {} -c 6 -I {}".format(self.params.get('ping_server'), net)
-            ret = utils_lib.run_cmd(self, cmd, ret_status=True)
-            if ret == 0:
-                self.active_nic  = net
-                nic_found = True
-                break
-        if not nic_found:
-            for net in output.split('\n'):
-                #man systemd.net-naming-scheme
-                if net.startswith(('eth','en')):
-                    self.active_nic  = net
-                    break
-        self.active_nic = self.active_nic.strip()
-        self.log.info("Pick up nic {}".format(self.active_nic))
-        cmd = "ip addr show {}".format(self.active_nic )
-        output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='try to get {} ipv4 address'.format(self.active_nic ))
-        pat = re.compile("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
-        self.ipv4 = pat.findall(output)[0]
+        self.active_nic = utils_lib.get_active_nic(self,rmt_node=self.params['remote_nodes'][0], ret_nic_name=True)
+        self.ipv4 = utils_lib.get_active_nic(self,rmt_node=self.params['remote_nodes'][0], ret_nic_name=False)
 
     @property
     def rhel_x_version(self):
