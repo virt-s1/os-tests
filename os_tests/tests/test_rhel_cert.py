@@ -349,6 +349,9 @@ class TestRHELCert(unittest.TestCase):
             self.skipTest("Only for arm instances")
         if utils_lib.is_metal(self):
             self.skipTest("Only for virtual arm instances")
+        product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
+        if float(product_id) >= 10.0:
+            self.skipTest('kdump-utils integrated the workaround in RHEL-10, no need to re-test')
         utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
 
         self.log.info("aws aarch64 non-metal instance found, remove irqpoll if it is used following https://access.redhat.com/articles/6562431")
@@ -440,6 +443,13 @@ class TestRHELCert(unittest.TestCase):
             self._wait_cert_done(prefix=case)
 
     def tearDown(self):
+        # Only ethernet and kdump over nfs require the 2nd vm.
+        # Stop the 2nd vm after test done on azure for saving cost.
+        # aws keeps the 2nd vm because it takes long time to restart a metal insatnce over 20mins
+        if os.getenv('INFRA_PROVIDER') == 'azure':
+            if len(self.vms) > 1:
+               if self.vms[1].exists():
+                   self.vms[1].delete()
         utils_lib.finish_case(self)
 
 if __name__ == '__main__':
