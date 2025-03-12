@@ -92,7 +92,7 @@ class TestImageMode(unittest.TestCase):
         current_time = datetime.now().strftime("%y%m%d%H%M%S")
         if containerfile and containerfile.startswith("http"):
             containerfile_url = urlparse(containerfile)
-            containerfile_basename = os.path.basename(container_url.path)
+            containerfile_basename = os.path.basename(containerfile_url.path)
             if ':' in containerfile_basename:
                 containerfile_basename = containerfile_basename.replace(':', '_')
             if '.' in containerfile_basename:
