@@ -198,7 +198,7 @@ class EC2VM(VMResource):
             else:
                 LOG.info("efa is supported, but disable it as request")
         if self.placement_group_name:
-            not_support_placement = ['t3', 'flex']
+            not_support_placement = ['t3', 't4', 'flex']
             if any([i in self.instance_type for i in not_support_placement]):
                 LOG.info("placement groups are not supported by the {} instance type.".format(not_support_placement))
             else:
