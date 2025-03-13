@@ -121,10 +121,10 @@ class AzureVM(VMResource):
             authentication_type = self.authentication_type
         vm_password = None
         vm_username = None
-        if self.security_type in ["TrustedLaunch", "ConfidentialVM"]:
+        if self.security_type in ["cvm", "CVM"]:
             cmd = 'az vm create --name "{}" --resource-group "{}" --image "{}" '\
                 '--size "{}" --authentication-type "{}" '\
-                ' --os-disk-name "{}" --nic-delete-option delete --os-disk-delete-option delete --security-type "{}"'\
+                ' --os-disk-name "{}" --nic-delete-option delete --os-disk-delete-option delete --security-type ConfidentialVM --enable-secure-boot true --enable-vtpm true --os-disk-security-encryption-type VMGuestStateOnly'\
                 .format(self.vm_name, self.resource_group, self.vm_image,
                         self.vm_size, authentication_type,
                         self.os_disk_name,self.security_type)
