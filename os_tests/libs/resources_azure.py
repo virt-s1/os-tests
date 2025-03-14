@@ -121,20 +121,12 @@ class AzureVM(VMResource):
             authentication_type = self.authentication_type
         vm_password = None
         vm_username = None
-        if self.security_type in ["cvm", "CVM"]:
-            cmd = 'az vm create --name "{}" --resource-group "{}" --image "{}" '\
+        cmd = 'az vm create --name "{}" --resource-group "{}" --image "{}" '\
                 '--size "{}" --authentication-type "{}" '\
-                ' --os-disk-name "{}" --nic-delete-option delete --os-disk-delete-option delete --security-type ConfidentialVM --enable-secure-boot true --enable-vtpm true --os-disk-security-encryption-type VMGuestStateOnly --os-disk-size-gb 80'\
+                ' --os-disk-name "{}" --nic-delete-option delete --os-disk-delete-option delete'\
                 .format(self.vm_name, self.resource_group, self.vm_image,
                         self.vm_size, authentication_type,
-                        self.os_disk_name,self.security_type)
-        else:
-            cmd = 'az vm create --name "{}" --resource-group "{}" --image "{}" '\
-                    '--size "{}" --authentication-type "{}" '\
-                    ' --os-disk-name "{}" --nic-delete-option delete --os-disk-delete-option delete --os-disk-size-gb 80'\
-                    .format(self.vm_name, self.resource_group, self.vm_image,
-                            self.vm_size, authentication_type,
-                            self.os_disk_name)
+                        self.os_disk_name)
         if self.ssh_key_value and sshkey != 'DoNotSet':
             cmd += ' --ssh-key-value {}'.format(self.ssh_key_value)
         elif self.generate_ssh_keys and sshkey != 'DoNotSet':
@@ -170,6 +162,8 @@ class AzureVM(VMResource):
                 self.vnet_name, self.subnet)
         if self.sriov == 'true':
             cmd += ' --accelerated-networking true'
+        if self.cvm == 'true':
+            cmd += ' --security-type ConfidentialVM --enable-secure-boot true --enable-vtpm true --os-disk-security-encryption-type VMGuestStateOnly'
         if self.os_disk_size:
             cmd += ' --os-disk-size-gb {}'.format(self.os_disk_size)
         if not wait:
