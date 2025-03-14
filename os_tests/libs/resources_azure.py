@@ -122,11 +122,11 @@ class AzureVM(VMResource):
         vm_password = None
         vm_username = None
         cmd = 'az vm create --name "{}" --resource-group "{}" --image "{}" '\
-                '--size "{}" --authentication-type "{}" '\
-                ' --os-disk-name "{}" --nic-delete-option delete --os-disk-delete-option delete'\
-                .format(self.vm_name, self.resource_group, self.vm_image,
-                        self.vm_size, authentication_type,
-                        self.os_disk_name)
+            '--size "{}" --authentication-type "{}" '\
+            ' --os-disk-name "{}" --nic-delete-option delete --os-disk-delete-option delete'\
+            .format(self.vm_name, self.resource_group, self.vm_image,
+                    self.vm_size, authentication_type,
+                    self.os_disk_name)
         if self.ssh_key_value and sshkey != 'DoNotSet':
             cmd += ' --ssh-key-value {}'.format(self.ssh_key_value)
         elif self.generate_ssh_keys and sshkey != 'DoNotSet':
