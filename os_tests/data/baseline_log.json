@@ -932,7 +932,7 @@
         "trigger": ""
     },
     "msg_105": {
-        "content": ".*Unknown command line parameters: BOOT_IMAGE.*64$;.*Unknown kernel.* \"*BOOT_IMAGE=.*64\", will be passed to user space.$;.*dracut-cmdline.*: Invalid command.*",
+        "content": ".*Unknown command line parameters: BOOT_IMAGE.*64$;.*Unknown kernel.* \"*BOOT_IMAGE=.*\", will be passed to user space.$;.*dracut-cmdline.*: Invalid command.*",
         "analyze": "BOOT_IMAGE is a know unknow command line parameters, this is not an error. It's new a notice. See https://gitlab.com/redhat/rhel/src/kernel/rhel-9/-/commit/86d1919a4fb0d9c115dd1d3b969f5d1650e45408",
         "branch": "rhel",
         "status": "active",
@@ -2421,5 +2421,25 @@
         "cases": "",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20250227"
+    },
+    "msg_257": {
+        "content": ".*cc_resizefs.py[WARNING]: Device '/dev/composefs' did not exist. cannot resize: dev=composefs mnt_point=/ path=/.*",
+        "analyze": "no /dev/composefs device in image mode",
+        "branch": "rhel",
+        "status": "active",
+        "path": "journal, dmesg",
+        "trigger": "",
+        "addedby": "yoguo@redhat.com",
+        "addeddate": "20250314"
+    },
+    "msg_258": {
+        "content": ".*Failed to create directory or subvolume \"/usr/local/man\": Read-only file system.*",
+        "analyze": "/usr is read-only file system in image mode",
+        "branch": "rhel",
+        "status": "active",
+        "path": "journal, dmesg",
+        "trigger": "",
+        "addedby": "yoguo@redhat.com",
+        "addeddate": "20250314"
     }
 }
