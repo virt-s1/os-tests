@@ -209,24 +209,39 @@ def update_cfgs(base_cfg={}, new_cfg={}, keep_base = False, only_update_exists_k
             if new_cfg.get(key) is not None or key not in tmp_cfg.keys():
                 tmp_cfg[key] = new_cfg.get(key)
     return tmp_cfg
-
+    
 def init_ssh(params=None, timeout=600, interval=10, log=None, rmt_node=None):
     if log is None:
         LOG_FORMAT = '%(levelname)s:%(message)s'
         log = logging.getLogger(__name__)
         logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
-    ssh = rmt_ssh.RemoteSSH()
-    ssh.rmt_node = rmt_node or params.get('remote_node')
-    ssh.port = params.get('remote_port')
-    ssh.rmt_user = params.get('remote_user')
-    ssh.rmt_password = params.get('remote_password')
-    ssh.rmt_keyfile = params.get('remote_keyfile')
-    ssh.rmt_proxy = params.get('proxy_url')
-    ssh.log = log
-    ssh.timeout = timeout
-    ssh.interval = interval
-    ssh.create_connection()
-    return ssh
+    provider = params['Cloud']['provider']
+    if 'openshift' in provider:
+        ssh = rmt_ssh.RemoteSSH()
+        ssh.rmt_node = rmt_node or params.get('remote_node')
+        ssh.port = 22
+        ssh.rmt_user = params.get('remote_user')
+        ssh.rmt_password = params.get('remote_password')
+        ssh.rmt_keyfile = params.get('remote_keyfile')
+        ssh.rmt_proxy = params.get('proxy_url')
+        ssh.log = log
+        ssh.timeout = timeout
+        ssh.interval = interval
+        ssh.create_connection()
+        return ssh
+    else:
+        ssh = rmt_ssh.RemoteSSH()
+        ssh.rmt_node = rmt_node or params.get('remote_node')
+        ssh.port = params.get('remote_port')
+        ssh.rmt_user = params.get('remote_user')
+        ssh.rmt_password = params.get('remote_password')
+        ssh.rmt_keyfile = params.get('remote_keyfile')
+        ssh.rmt_proxy = params.get('proxy_url')
+        ssh.log = log
+        ssh.timeout = timeout
+        ssh.interval = interval
+        ssh.create_connection()
+        return ssh
 
 def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=None, retry=3):
     if not test_instance.params['remote_node'] and not rmt_node and not vm and not test_instance.vm:
