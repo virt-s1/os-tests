@@ -29,6 +29,6 @@ VM:
     region: 'eastus'
     sriov: 'false'
     net_bandwidth: 10000
-    security_type: None
+    cvm: 'false'
 Other:
     packages: <the cloud-init package name: cloud-init-xxx.rpm>
