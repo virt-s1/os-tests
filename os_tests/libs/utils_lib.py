@@ -117,6 +117,10 @@ def init_args():
                         please specify --no_upload_image', required=False)
     parser.add_argument('--ca_info', dest='ca_info', default=None, action='store',
                     help='specify the ca configure information, e.g., ca_url,ca_path', required=False)
+    parser.add_argument('--kar-location', dest='kar_location', default=None, action='store',
+                        help='assign the location of kar')
+    parser.add_argument('--kar-images-location', dest='kar_images_location', default=None, action='store',
+                        help='assign the location of images used by kar')
     args = parser.parse_args()
     return args
 
@@ -218,7 +222,7 @@ def update_cfgs(base_cfg={}, new_cfg={}, keep_base = False, only_update_exists_k
             if new_cfg.get(key) is not None or key not in tmp_cfg.keys():
                 tmp_cfg[key] = new_cfg.get(key)
     return tmp_cfg
-    
+
 def init_ssh(params=None, timeout=600, interval=10, log=None, rmt_node=None):
     if log is None:
         LOG_FORMAT = '%(levelname)s:%(message)s'
@@ -677,7 +681,7 @@ def run_cmd_local_virtctl(test_instance,vm, cmd='', timeout=300, is_log_cmd=True
         "-p 2222 cloud-user@localhost '{}'".format(cmd)
     )
     #ssh_cmd = f"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2222 cloud-user@localhost '{cmd}'"
-    
+
     status = None
     output = None
     ret = subprocess.run(ssh_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
@@ -685,10 +689,10 @@ def run_cmd_local_virtctl(test_instance,vm, cmd='', timeout=300, is_log_cmd=True
     status = ret.returncode
     if ret.stdout is not None:
         output = ret.stdout
-    
+
     if is_log_ret:
         log.info('status:{} output:{}'.format(status, output))
-    
+
     log.info('status:{} output:{}'.format(status, output))
     return status, output
 
@@ -1328,18 +1332,18 @@ def pkg_install(test_instance, pkg_name=None, pkg_url=None, force=False, rmt_nod
             test_instance.fail("Cannot install {} automatically!")
 
 def is_rhsm_registered(test_instance, cancel_case=False, timeout=600, rmt_node=None, vm=None):
-    ''' 
+    '''
     check if the system is registered to RHSM.
-    Arguments: 
+    Arguments:
         test_instance {Test instance} -- test instance
-    ''' 
+    '''
     cmd = "sudo subscription-manager status"
     out = run_cmd(test_instance, cmd, msg='try to check subscription status', rmt_node=rmt_node, vm=vm)
     if 'Red Hat Enterprise Linux' in out or 'Simple Content Access' in out:
         return True
     else:
         if cancel_case: test_instance.skipTest("Unable to register")
-        return False    
+        return False
 
 def enable_auto_registration(test_instance, cancel_case=False, timeout=600, rmt_node=None, vm=None):
     '''
@@ -1543,7 +1547,7 @@ def find_word(test_instance, check_str, log_keyword=None, baseline_dict=None, sk
         log_keyword {[string]} -- [keyword to look]
         baseline_dict {[dict]} -- [baseline dict to compare]
         skip_words: skip words as you want, split by ","
-        case: only check items when cases are same, so users can know which case found it and 
+        case: only check items when cases are same, so users can know which case found it and
                also can be used for test result auto checks.
     Returns:
         [Bool] -- [True|False]
@@ -1783,7 +1787,7 @@ def get_public_key(client_user=None):
 
     with open(public_key_path, 'r') as fh:
         public_key_str = fh.read()
-    
+
     return public_key_str
 
 def normalize_data_size(value_str, order_magnitude="M", factor="1024"):
@@ -1972,7 +1976,7 @@ Operation not permitted" When using secure boot''')
     mini_mem = get_memsize(test_instance)
     if int(mini_mem) < 2:
         test_instance.log.info('minimal 2G memory required for debug kernel')
-        return False 
+        return False
     if is_arch(test_instance, 'aarch64') and int(mini_mem) < 4:
         test_instance.log.info("minimal 4G memory required in aarch64")
         return False
@@ -2174,7 +2178,7 @@ def imds_tracer_tool(test_instance=None, log_check=True, timeout=610, interval=3
         elif ret !=0:
             test_instance.log.info('cannot start imds_tracer_tool.service')
             return False
-    if log_check:    
+    if log_check:
         timeout = timeout
         interval = interval
         time_start = int(time.time())
@@ -2193,8 +2197,8 @@ def imds_tracer_tool(test_instance=None, log_check=True, timeout=610, interval=3
 
     if cleanup:
         run_cmd(test_instance, 'systemctl stop imds_tracer_tool.service')
-        run_cmd(test_instance, 'cd aws-imds-packet-analyzer; sudo ./deactivate-tracer-service.sh') 
-        run_cmd(test_instance, 'sudo rm -rf /var/log/imds/imds-trace.log') 
+        run_cmd(test_instance, 'cd aws-imds-packet-analyzer; sudo ./deactivate-tracer-service.sh')
+        run_cmd(test_instance, 'sudo rm -rf /var/log/imds/imds-trace.log')
     return True
 
 def collect_basic_info(test_instance=None, rmt_node=None, vm=None):
@@ -2237,8 +2241,8 @@ sslverify=0
                 repo_str = repo_temp.substitute(repo_type=repo_type, id=id, repo_url=repo_url)
                 test_instance.log.info("Add new repo %s to %s" % (repo_url, tmp_repo_file))
                 fh.writelines(repo_str)
-                id += 1      
-            
+                id += 1
+
         test_instance.log.info("Updated %s" % tmp_repo_file)
         with open(tmp_repo_file, 'r') as fh:
             for line in fh.readlines():
@@ -2304,4 +2308,3 @@ def is_ostree_system(test_instance):
     else:
         test_instance.log.info("The system is not ostree booted.")
         return False
-        
