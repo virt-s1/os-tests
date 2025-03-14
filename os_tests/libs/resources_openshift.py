@@ -98,7 +98,8 @@ class OpenShiftVM(VMResource):
             #  stdout=subprocess.PIPE).communicate()[0] \
                                    #  .decode("utf-8").rstrip('\n')
         #  f_ip = re.search('(?:\\d{1,3}\\.){3}\\d{1,3}', output).group(0)
-        f_ip = re.search('api.*com', self.apiserver).group(0)
+       # _ip = re.search('api.*com', self.apiserver).group(0)
+        f_ip = 'a249e851c263e41a9b1de4873418fde1-1764486999.us-east-1.elb.amazonaws.com'
         return f_ip
 
     def create(self, wait=False):
