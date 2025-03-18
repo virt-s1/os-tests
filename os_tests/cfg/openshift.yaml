@@ -2,7 +2,7 @@ Cloud:
   provider: openshift
   token: ''
   apiserver: 
-  project: rhel-guest-image-container
+  project: rhel-guest-image-container--runtime-int
 VM:
   rhel_ver: '9.1'
   username: cloud-user
@@ -13,6 +13,6 @@ VM:
 Flavor:
   name: small
   cpu: 1
-  memory: 1.5
+  memory: 2
   size: 10G
   virt: kvm

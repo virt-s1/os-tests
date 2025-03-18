@@ -209,7 +209,7 @@ def update_cfgs(base_cfg={}, new_cfg={}, keep_base = False, only_update_exists_k
             if new_cfg.get(key) is not None or key not in tmp_cfg.keys():
                 tmp_cfg[key] = new_cfg.get(key)
     return tmp_cfg
-
+    
 def init_ssh(params=None, timeout=600, interval=10, log=None, rmt_node=None):
     if log is None:
         LOG_FORMAT = '%(levelname)s:%(message)s'

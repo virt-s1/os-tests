@@ -4,6 +4,8 @@ import subprocess
 import yaml
 import re
 import os
+import json
+import time
 
 FNULL = open(os.devnull, 'w')
 
@@ -74,32 +76,49 @@ class OpenShiftVM(VMResource):
                 shell=True,
                 stdout=subprocess.PIPE).communicate()[0] \
                     .decode("utf-8").rstrip('\n')
-        return self._port
+        #return self._port   
+        return 22
 
     @port.setter
     def port(self, name):
         subprocess.Popen(
-            'virtctl expose vm %s --port=22 --name=%s --type=NodePort' % (name, name),
+            'virtctl expose vm %s --port=22 --name=%s --type=LoadBalancer' % (name, name),
             shell=True,
             stdout=FNULL).communicate()
-
+    
     @property
     def floating_ip(self):
-        #  nodeName = subprocess.Popen(
-            #  'oc get vmi %s -o custom-columns=:.status.nodeName --no-headers' %
-            #  self.vm_name,
-            #  shell=True,
-            #  stdout=subprocess.PIPE).communicate()[0] \
-                #  .decode("utf-8").rstrip('\n')
-        #  output = subprocess.Popen(
-            #  'oc get node %s -o custom-columns=:.status.addresses[*].address' %
-            #  nodeName,
-            #  shell=True,
-            #  stdout=subprocess.PIPE).communicate()[0] \
-                                   #  .decode("utf-8").rstrip('\n')
-        #  f_ip = re.search('(?:\\d{1,3}\\.){3}\\d{1,3}', output).group(0)
-        f_ip = re.search('api.*com', self.apiserver).group(0)
-        return f_ip
+        try:
+            result = subprocess.run(
+                ["oc", "get", "services", "-o", "json"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            services = json.loads(result.stdout)
+
+            for service in services.get("items", []):
+                if service["spec"]["type"] == "LoadBalancer" and service["metadata"]["name"] == f"{self.vm_name}":
+                    ext_ip = service.get("status", {}).get("loadBalancer", {}).get("ingress", [{}])[0].get("hostname")
+                    if ext_ip:
+                        # Wait for DNS resolution before returning
+                        time.sleep(60)
+
+                        known_hosts_path = os.path.expanduser("~/.ssh/known_hosts")
+                        result = subprocess.run(["ssh-keyscan", ext_ip], capture_output=True, text=True)
+                        filtered_output = "\n".join(
+                            line for line in result.stdout.splitlines() if "SSH-2.0-OpenSSH" not in line
+                        )
+                        if filtered_output:
+                            with open(known_hosts_path, "a") as known_hosts:
+                                known_hosts.write(filtered_output + "\n")
+                    
+                        return ext_ip
+
+        except subprocess.CalledProcessError as e:
+            print(f"Error fetching services: {e}")
+
+        return None  
 
     def create(self, wait=False):
         self.pwd = os.path.abspath(os.path.dirname(__file__))
