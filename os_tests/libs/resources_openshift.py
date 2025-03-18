@@ -102,7 +102,7 @@ class OpenShiftVM(VMResource):
                     ext_ip = service.get("status", {}).get("loadBalancer", {}).get("ingress", [{}])[0].get("hostname")
                     if ext_ip:
                         # Wait for DNS resolution before returning
-                        time.sleep(60)
+                        time.sleep(300)
 
                         known_hosts_path = os.path.expanduser("~/.ssh/known_hosts")
                         result = subprocess.run(["ssh-keyscan", ext_ip], capture_output=True, text=True)
