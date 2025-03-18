@@ -17,14 +17,14 @@ setuptools.setup(
         'os_tests': [
             'cfg/*',
             'docs/*',
-            'data/*',
+            'data/**/*',
             'templates/*',
             'utils/*'
         ]
     },
     include_package_data=True,
     #data_files=[('/'+os.path.expanduser("~"), ['cfg/os-tests.yaml']),],
-    install_requires=['PyYAML', 'Jinja2<=2.11.3', 'tipset>=0.2.4', 'markupsafe<=1.1.1', 'packaging<=21.3'],
+    install_requires=['PyYAML', 'Jinja2<=2.11.3', 'tipset>=0.2.4', 'markupsafe<=1.1.1', 'packaging<=21.3', 'psutil', 'parameterized'],
     license="GPLv3+",
     classifiers=[
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',

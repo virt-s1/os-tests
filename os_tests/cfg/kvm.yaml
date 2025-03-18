@@ -1,0 +1,28 @@
+# This is a template for KVM resources provision for cloud-init test. 
+# Please copy it to other place that you want to edit
+# Not recommend you edit it directly in case leaking sensitive information.
+Cloud:
+  provider: kvm
+Subscription:
+  username:
+  password:
+VM:
+  os_variant: rhel-unknown
+  rhel_ver: '9.6'
+  username: cloud-user
+  password: 
+  vm_name: rhel9.6
+  image_name: 
+  #image_dir is used to store the images for cloud-init test on KVM
+  image_dir: /var/lib/libvirt/images/backup
+  #disk_path is used to store the KVM instance disk, /var/lib/libvirt/images is recommended, or it may cause the permission issue.
+  disk_path: /var/lib/libvirt/images
+  nocloud_iso_name: nocloud.iso
+  interface_name:
+  net_name:
+Flavor:
+  name: small
+  cpu: 1
+  memory: 2
+  size: 10G
+  virt: kvm

@@ -28,14 +28,14 @@ def main():
     if args.params_profile:
         tmp_params = get_cfg(cfg_file=args.params_profile)
         update_cfgs(params, tmp_params)
-    vms, disks, nics, sshs = [], [], [], []
+    vms, disks, nics, sshs, nets = [], [], [], [], []
     if params.get('Cloud') or args.platform_profile:
         if args.platform_profile:
             provider_data = get_cfg(cfg_file=args.platform_profile)
             update_cfgs(params, provider_data)
         update_cfgs(params, vars(args))
         if not args.is_listcase and not args.verifydoc and not args.dumpdoc:
-            vms, disks, nics = init_provider(params=params)
+            vms, disks, nics, nets = init_provider(params=params)
     update_cfgs(params, vars(args))
 
     if args.remote_nodes:
@@ -96,6 +96,7 @@ def main():
                         case.disk = case.disks and disks[0] or None
                         case.nics = nics
                         case.nic = case.nics and nics[0] or None
+                        case.createvm = True
                         if filter_case_doc(case=case, patterns=test_patterns, skip_patterns=skip_patterns,
                                            filter_field=params.get('filter_by'), strict=params.get('is_strict'), verify_doc=params.get('verifydoc')):
                             tests_list.append(case)
@@ -139,10 +140,10 @@ def main():
     else:
         HTMLTestRunner(verbosity=2).run(final_ts)
 
-    for res in chain(vms, disks, nics):
+    for res in chain(vms, disks, nics, nets):
         if params.get('no_cleanup'):
             log.info("skipped resource cleanup because --no-cleanup found, please release resources manually")
-            for i in chain(vms, disks, nics):
+            for i in chain(vms, disks, nics, nets):
                 if i.id:
                     log.info(i.id)
             break

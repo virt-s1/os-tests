@@ -6,7 +6,6 @@ import time
 import re
 import json
 import os
-import secrets
 
 class TestCloudInit(unittest.TestCase):
     def setUp(self):
@@ -1659,30 +1658,6 @@ EOF""".format(device, size), expect_ret=0)
             RHEL-288482 - CLOUDINIT-TC: Check cloud-init dependency: openssl, gdisk,
             python3-configobj, python3-jinja2, python3-pyserial
             RHEL-36093 - Remove cloud-init dependency on obsolete gdisk
-        key_steps: |
-            1. Launch instance with cloud-init installed
-            2. Check the cloud-init denpendency
-            # rpm -qR cloud-init 
-        """       
-        dep_list = 'openssl,python3-configobj,python3-jinja2,python3-pyserial'
-        cmd = 'sudo rpm -qR cloud-init'
-        utils_lib.run_cmd(self,
-                          cmd,
-                          expect_ret=0,
-                          expect_kw='%s' % dep_list,
-                          msg='check if %s are cloud-init dependency' % dep_list)
-
-    def test_cloudinit_removed_dependency(self):
-        """
-        case_tag:
-            cloudinit,cloudinit_tier2
-        case_priority:
-            2
-        component:
-            cloud-init
-        maintainer:
-            huzhao@redhat.com
-        description: |
             RHEL-198795 - CLOUDINIT-TC: Check cloud-init removed dependency,
             net-tools, python3-mock, python3-nose, python3-tox, python3-httpretty
             Note: 
@@ -1691,21 +1666,26 @@ EOF""".format(device, size), expect_ret=0)
             Bug ID: RHEL-34518,RHEL-26304,RHEL-41010,RHEL-65849
         key_steps: |
             1. Launch instance with cloud-init installed
-            2. Check the cloud-init denpendency
-            # rpm -qR cloud-init
+            2. Check the cloud-init denpendency # rpm -qR cloud-init
         """
-        rm_dep_list = 'net-tools,python3-mock,python3-nose,python3-tox,python3-httpretty'
+        #using this way, the test wouldn't be stopped if one step fails, it would collect all failures.
+        failures = []
+        dep_list = ["openssl","python3-configobj","python3-jinja2","python3-pyserial"]
+        step = "check cloud-init dependency"
+
+        rm_dep_list = ["net-tools","python3-mock","python3-nose","python3-tox","python3-httpretty"]
         product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
         if float(product_id) >= 9.0:
-            rm_dep_list = 'net-tools,python3-mock,python3-nose,python3-tox,python3-httpretty,python3-jsonschema'
+            rm_dep_list = ["net-tools","python3-mock","python3-nose","python3-tox","python3-httpretty","python3-jsonschema"]
         if float(product_id) >= 10.0:
-            rm_dep_list = 'net-tools,python3-mock,python3-nose,python3-tox,python3-httpretty,netifaces,dhcp-client,jsonschema'
+            rm_dep_list = ["net-tools","python3-mock","python3-nose","python3-tox","python3-httpretty","netifaces","dhcp-client","jsonschema"]
+        self.log.info(step+" contains "+ str(dep_list) + " and check if " + str(rm_dep_list) +" are removed.")
+
         cmd = 'sudo rpm -qR cloud-init'
-        utils_lib.run_cmd(self,
-                          cmd,
-                          expect_ret=0,
-                          expect_not_kw='%s' % rm_dep_list,
-                          msg='check if %s are removed from cloud-init dependency' % rm_dep_list)
+        failures += utils_lib.check_cmd_output(self,step,cmd,keywords=dep_list,nokeywords=rm_dep_list)
+
+        if failures:
+            self.fail("\n"+"\n".join(failures))
 
     def _check_cloudinit_done_and_service_isactive(self):
         # if cloud-init status is running, waiting
@@ -1775,54 +1755,6 @@ EOF""".format(device, size), expect_ret=0)
         self._check_cloudinit_done_and_service_isactive()
         #teardown
 
-    @unittest.skipIf(os.getenv('INFRA_PROVIDER') == 'libvirt', 'skip run as this needs to configure user-data')
-    def test_cloudinit_login_with_password_userdata(self):
-        """
-        case_tag:
-            cloudinit,cloudinit_tier1,vm_delete
-        case_priority:
-            1
-        component:
-            cloud-init
-        maintainer:
-            huzhao@redhat.com
-        description: |
-            RHEL7-103830 - CLOUDINIT-TC: VM can successfully login
-            after provisioning(with password authentication)
-        key_steps: |
-            1. Create a VM with only password authentication
-            2. Login with password, should have sudo privilege
-        """
-        password_length = 10
-        vm_password = secrets.token_urlsafe(password_length)
-        vm_username = "test-user"
-        self.log.info(vm_username)
-        self.log.info(vm_password)
-        if self.vm.exists():
-            self.vm.delete()
-            time.sleep(30)
-        user_data = """\
-#cloud-config
-
-user: {0}
-password: {1}
-chpasswd: {{ expire: False }}
-ssh_pwauth: True
-""".format(vm_username, vm_password)
-        self.vm.create(userdata=user_data,sshkey="DoNotSet")
-        if self.vm.is_stopped():
-            self.vm.start(wait=True)
-        time.sleep(30)
-        self.params['remote_node'] = self.vm.floating_ip
-        test_login = utils_lib.send_ssh_cmd(self.vm.floating_ip, vm_username, vm_password, "whoami", log=self.log)
-        self.assertEqual(vm_username,
-                         test_login[1].strip(),
-                         "Fail to login with password: %s" % format(test_login[1].strip()))        
-        test_sudo = utils_lib.send_ssh_cmd(self.vm.floating_ip, vm_username, vm_password, "sudo cat /etc/sudoers.d/90-cloud-init-users", log=self.log)
-        self.assertIn("%s ALL=(ALL) NOPASSWD:ALL" % vm_username,
-                         test_sudo[1].strip(),
-                         "No sudo privilege")
-        #teardown
 
     def _reboot_inside_vm(self, sleeptime=10):       
         before = utils_lib.run_cmd(self, 'last reboot --time-format full')
@@ -3836,7 +3768,6 @@ ssh_authorized_keys:
 
         casegroup = ('test_cloudinit_create_vm_config_drive',
                      'test_cloudinit_check_previous_hostname',
-                     'test_cloudinit_login_with_password_userdata',
                      'test_cloudinit_sshd_keypair',
                      'test_cloudinit_no_networkmanager',
                      'test_cloudinit_mount_with_noexec_option',

@@ -1,0 +1,11 @@
+<network>
+  <name>br-mgmt</name>
+  <forward mode='open'/>
+  <bridge name='br-mgmt' stp='on' delay='0'/>
+  <ip
+    family='ipv6'
+    address='fc00:1:2::1'
+    prefix='64'
+  />
+  <dns enable='no'/>
+</network>
