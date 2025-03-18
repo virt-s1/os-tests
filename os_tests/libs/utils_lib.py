@@ -168,7 +168,7 @@ def init_provider(params=None):
     if 'azure' in provider:
         from .resources_azure import AzureVM
         # init resources only without create them at very beginning
-        vms.extend([AzureVM(params, nametag='1'),AzureVM(params, nametag='2')])
+        vms.extend([AzureVM(params, nametag='1',os_disk_size=80),AzureVM(params, nametag='2')])
 
     return vms, disks, nics
 
