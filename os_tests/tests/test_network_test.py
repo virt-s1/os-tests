@@ -1916,31 +1916,31 @@ COMMIT
         start_time = time.time()
         ip_count = 0
         while True:
+            time.sleep(25)
             out = utils_lib.run_cmd(self, cmd)
             for ip in self.vm.secondary_ip_list:
-                if not ip in out:
-                    break
-                else:
+                if re.findall(" {}/".format(ip), out):
                     ip_count += 1
                     continue
+                else:
+                    break
             if ip_count == len(self.vm.secondary_ip_list):
+                self.log.info("All ips appeared")
                 break
             end_time = time.time()
             if end_time - start_time > 330:
-                cmd = 'sudo systemctl status nm-cloud-setup.timer'
-                utils_lib.run_cmd(self, cmd)
-                cmd = 'journalctl -u nm-cloud-setup'
-                utils_lib.run_cmd(self, cmd)
+                utils_lib.run_cmd(self, 'sudo systemctl status nm-cloud-setup.timer')
+                utils_lib.run_cmd(self, 'journalctl -u nm-cloud-setup')
                 utils_lib.imds_tracer_tool(self, timeout=10, interval=5, log_check=False)
                 self.fail("expected secondary ips {} are not found completely in guest".format(str(self.vm.secondary_ip_list)))
-            time.sleep(25)
 
         cmd = "sudo ip addr show {}|grep -oP 'inet \K[^/]+'".format(self.active_nic)
         start_time = time.time()
         tmp_ips = self.vm.secondary_ip_list
         self.vm.remove_secondary_ips()
         ip_count = len(tmp_ips)
-        while ip_count > 0: 
+        while ip_count > 0:
+            time.sleep(25) 
             out = utils_lib.run_cmd(self, cmd)
             for ip in tmp_ips:  
                 for network in out.split('\n'):  
@@ -1949,21 +1949,15 @@ COMMIT
                 else:  
                     ip_count -= 1   
                     continue   
-
-            if ip_count == 0:  
+            if ip_count == 0:
+                self.log.info("All ips are removed")
                 break
-        end_time = time.time()
-        
-        self.log.info('------finally ip address list------')
-        utils_lib.run_cmd(self, cmd)
-
-        if end_time - start_time > 330:
-            cmd = 'sudo systemctl status nm-cloud-setup.timer'
-            utils_lib.run_cmd(self, cmd)
-            cmd = 'journalctl -u nm-cloud-setup'
-            utils_lib.run_cmd(self, cmd)
-            self.fail("expected secondary ips {} are not removed completely from guest".format(str(tmp_ips)))
-        time.sleep(25)
+            end_time = time.time()
+            if end_time - start_time > 330:
+                utils_lib.run_cmd(self, 'sudo ip addr show {}'.format(self.active_nic))
+                utils_lib.run_cmd(self, 'sudo systemctl status nm-cloud-setup.timer')
+                utils_lib.run_cmd(self, 'journalctl -u nm-cloud-setup')
+                self.fail("expected secondary ips {} are not removed completely from guest".format(str(tmp_ips)))
         utils_lib.imds_tracer_tool(self, timeout=10, interval=5)
 
     def test_network_device_hotplug_multi(self):
