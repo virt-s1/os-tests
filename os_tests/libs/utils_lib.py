@@ -123,7 +123,8 @@ def init_provider(params=None):
     vms = []
     disks = []
     nics = []
-    supported_platforms = ['aws', 'openstack', 'ali', 'nutanix', 'google', 'libvirt', 'openshift', 'azure']
+    nets = []
+    supported_platforms = ['aws', 'openstack', 'ali', 'nutanix', 'google', 'libvirt', 'openshift', 'azure', 'kvm']
     provider = params['Cloud']['provider']
     os.environ['INFRA_PROVIDER'] = provider
     if not provider:
@@ -169,8 +170,14 @@ def init_provider(params=None):
         from .resources_azure import AzureVM
         # init resources only without create them at very beginning
         vms.extend([AzureVM(params, nametag='1',os_disk_size=80),AzureVM(params, nametag='2')])
-
-    return vms, disks, nics
+    if 'kvm' in provider:
+        from .resources_kvm import KvmVM,KvmNet
+        vms.append(KvmVM(params))
+        nets.extend([KvmNet(params,netname="br1"),KvmNet(params,netname="br-mgmt"),KvmNet(params,netname="br-prov")])
+        for net in nets:
+            if not net.exists():
+                net.create()
+    return vms, disks, nics, nets
 
 def init_provider_from_guest(test_instance):
     # this init provider from system itself
@@ -371,6 +378,16 @@ def load_yaml(yaml_file = None, yaml_content = None):
         print(err)
     return keys_data
 
+def get_properties(out = None):
+    # Initialize an empty dictionary to store properties
+    properties = {}
+    # Parse each line of the output
+    for line in out.splitlines():
+        if ':' in line:  # Ensure line contains a key-value pair
+            key, value = line.split(':', 1)  # Split at the first colon
+            properties[key.strip()] = value.strip()
+    return properties
+
 def init_case(test_instance):
     """init case
     Arguments:
@@ -417,6 +434,9 @@ def init_case(test_instance):
     test_instance.ssh_timeout = 180
     test_instance.default_boot_index = None
     test_instance.skipflag = False
+    if not test_instance.createvm:
+        return True
+    #adding ssh_authorized_keys into default user-data for the common cases running on KVM. (ssh login)
     if test_instance.vm:
         test_instance.vm.user_data = """\
 #cloud-config
@@ -427,7 +447,9 @@ runcmd:
 password: {1}
 chpasswd:
   expire: False
-""".format(test_instance.vm.run_uuid, 'R')
+ssh_authorized_keys:
+    - {2}
+""".format(test_instance.vm.run_uuid, 'R', get_public_key())
         if test_instance.vm.dead_count > 4:
             test_instance.fail("cannot connect to vm over 4 times, skip retry")
         if test_instance.vm.is_metal:
@@ -815,6 +837,39 @@ def run_cmd(test_instance,
     if ret_status:
         return status
     return output
+
+#the test wouldn't be stopped if one step/command fails, it would collect all failures.
+def check_cmd_output(test_instance,step,command,keywords=None,nokeywords=None):
+    """
+    check if the configuration contains the keywords,
+    do not stop checking if some of keywords not found.
+
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+        step {string} -- the message of checking point
+        keywords {list} -- the list of keyword
+        command {string} -- the command to run
+
+    Return failures {list} -- collect the AssertError, do not stop checking if some of keywords not found.
+    """
+    failures = []
+    output = run_cmd(test_instance,
+                        command,
+                        expect_ret=0,
+                        msg=step)
+    if keywords is not None:
+        for keyword in keywords:
+            try:
+                test_instance.assertIn(keyword, output)
+            except AssertionError as e:
+                failures.append("Step - {} failed: expected '{}' not found in the output".format(step,keyword))
+    if nokeywords is not None:
+        for nokeyword in nokeywords:
+            try:
+                test_instance.assertNotIn(nokeyword, output)
+            except AssertionError as e:
+                failures.append("Step - {} failed: Unexpected '{}' found in the output".format(step,nokeyword))
+    return failures
 
 def compare_nums(test_instance, num1=None, num2=None, ratio=0, msg='Compare 2 nums'):
     '''

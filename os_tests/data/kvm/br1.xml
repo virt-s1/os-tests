@@ -1,0 +1,10 @@
+<network>
+  <name>br1</name>
+  <bridge name='virbr1'/>
+  <forward/>
+  <ip address='10.0.2.1' netmask='255.255.255.0'>
+    <dhcp>
+      <range start='10.0.2.2' end='10.0.2.254'/>
+    </dhcp>
+  </ip>
+</network>

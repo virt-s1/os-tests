@@ -1,0 +1,11 @@
+<network>
+  <name>br-prov</name>
+  <forward mode='open'/>
+  <bridge name='br-prov' stp='on' delay='0'/>
+  <ip
+    family='ipv6'
+    address='fc00:1:1::1'
+    prefix='64'
+  />
+  <dns enable='no'/>
+</network>
