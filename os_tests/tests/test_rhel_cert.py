@@ -77,10 +77,10 @@ class TestRHELCert(unittest.TestCase):
         self.log.info("boot disk:{}, new part:{}".format(root_disk,new_part))
         part_count = utils_lib.run_cmd(self, "lsblk|grep part|wc -l")
         part_count = int(part_count.strip('\n')) + 1
-        sg_cmd = 'sudo sgdisk {} -e'.format(root_disk)
-        utils_lib.run_cmd(self,sg_cmd, timeout=180)
-        cmds = ['sudo parted -f -s {} print'.format(root_disk),
-            'sudo parted -s {} mkpart swap xfs {}G {}G'.format(root_disk,swap_start,swap_end),
+        utils_lib.run_cmd(self,'sudo sgdisk {} -e'.format(root_disk), timeout=180)
+        utils_lib.run_cmd(self,'sudo parted -f -s {} print'.format(root_disk), timeout=180, msg='run with -f option in case sgdisk not found')
+        utils_lib.run_cmd(self,'sudo parted -s {} print'.format(root_disk), timeout=180, msg='run again in case parted not support -f option')
+        cmds = ['sudo parted -s {} mkpart swap xfs {}G {}G'.format(root_disk,swap_start,swap_end),
             'sudo parted -s {} print'.format(root_disk),
             'lsblk',
             'swapoff -a',
