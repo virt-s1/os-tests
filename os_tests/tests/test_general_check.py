@@ -2358,7 +2358,8 @@ current_device"
             N/A
         """
         self.log.info("Check rhel product key")
-        utils_lib.run_cmd(self, "ls /etc/pki/product && ls /etc/pki/product-default/", expect_ret=0)
+        #check product key before rhsm registration
+        utils_lib.run_cmd(self, "sudo ls /etc/pki/product*", expect_ret=0)
 
     def tearDown(self):
         utils_lib.finish_case(self)
