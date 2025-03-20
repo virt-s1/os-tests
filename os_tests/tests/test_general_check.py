@@ -9,6 +9,7 @@ class TestGeneralCheck(unittest.TestCase):
     def setUp(self):
         utils_lib.init_case(self)
         utils_lib.msg_to_syslog(self)
+        utils_lib.collect_basic_info(self)
         if self.id().endswith(('test_check_rpm_V_differences', 'test_check_rpm_V_missing')):
             rpm_V_file = '/tmp/{}_rpm_V.log'.format(self.run_uuid)
             self.output = utils_lib.run_cmd(self, 'cat {}'.format(rpm_V_file), msg="check if output exists")
@@ -2322,6 +2323,42 @@ current_device"
         utils_lib.run_cmd(self, "sudo cat /var/log/secure", expect_ret=0)
         utils_lib.run_cmd(self, "sudo cp /var/log/secure /tmp", expect_ret=0)
         utils_lib.run_cmd(self, "sudo cat /var/log/secure", expect_not_kw="Input/output error")
+
+    def test_check_product_key(self):
+        """
+        case_tag:
+            test_check_product_key
+        case_name:
+            test_check_product_key
+        case_file:
+            os_tests.tests.test_general_check.test_check_product_key
+        component:
+            test_check_product_key
+        component:
+            system
+        bugzilla_id:
+            RHEL-82145
+        is_customer_case:
+            True
+        customer_case_id:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            linl@redhat.com
+        description: |
+            Check there is only 1 product key in the system.
+        key_steps:
+            1. ls /etc/pki/product && ls /etc/pki/product-default/
+            2. subscription-manager release --set=8.10 
+        expect_result:
+            1. There is only 1 product key in the system.
+            2. Release set to the target version.
+        debug_want:
+            N/A
+        """
+        self.log.info("Check rhel product key")
+        utils_lib.run_cmd(self, "ls /etc/pki/product && ls /etc/pki/product-default/", expect_ret=0)
 
     def tearDown(self):
         utils_lib.finish_case(self)
