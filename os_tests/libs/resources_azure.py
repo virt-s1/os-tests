@@ -168,7 +168,7 @@ class AzureVM(VMResource):
             cmd += ' --os-disk-size-gb {}'.format(self.os_disk_size)
         if not wait:
             cmd += " --no-wait"
-        _, out = run_cmd_local(cmd, timeout=360, is_log_ret=True)
+        _, out = run_cmd_local(cmd, timeout=720, is_log_ret=True)
         if len(out):
             return self.show()
 

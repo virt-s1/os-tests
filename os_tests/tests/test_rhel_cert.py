@@ -446,10 +446,10 @@ class TestRHELCert(unittest.TestCase):
         # Only ethernet and kdump over nfs require the 2nd vm.
         # Stop the 2nd vm after test done on azure for saving cost.
         # aws keeps the 2nd vm because it takes long time to restart a metal insatnce over 20mins
-        if os.getenv('INFRA_PROVIDER') == 'azure':
-            if len(self.vms) > 1:
-               if self.vms[1].exists():
-                   self.vms[1].delete()
+        #if os.getenv('INFRA_PROVIDER') == 'azure':
+        #    if len(self.vms) > 1:
+        #       if self.vms[1].exists():
+        #           self.vms[1].delete()
         utils_lib.finish_case(self)
 
 if __name__ == '__main__':
