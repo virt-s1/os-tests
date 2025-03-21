@@ -236,6 +236,9 @@ def init_ssh(params=None, timeout=600, interval=10, log=None, rmt_node=None):
     return ssh
 
 def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=None, retry=3):
+    provider = test_instance.params['Cloud']['provider']
+    if 'openshift' in provider:
+        return
     if not test_instance.params['remote_node'] and not rmt_node and not vm and not test_instance.vm:
         return False
     new_vm_ip = None
@@ -464,7 +467,8 @@ ssh_authorized_keys:
             test_instance.vm.start(wait=True)
         test_instance.params['remote_port'] = test_instance.vm.port or 22
 
-    if test_instance.is_rmt:
+    provider = test_instance.params['Cloud']['provider']
+    if test_instance.is_rmt and 'openshift' not in provider:
         test_instance.log.info('ssh connection timeout:{}'.format(test_instance.ssh_timeout))
         init_connection(test_instance, timeout=test_instance.ssh_timeout)
         if not test_instance.params['remote_node']:
@@ -652,6 +656,39 @@ def run_cmd_local(cmd='', timeout=120, is_log_cmd=True, log=None, is_log_ret=Fal
     #if ret.stderr is not None:
     #    output = output + ret.stderr
 
+def start_virtctl_port_forward(test_instance,vm, local_port=2222, remote_port=22, log=None):
+    if log is None:
+        log = logging.getLogger(__name__)
+    vm = test_instance.params['VM'].get('vm_name')
+    cmd = f"nohup virtctl port-forward {vm} {local_port}:{remote_port} > /tmp/virtctl_{vm}.log 2>&1 &"
+    subprocess.run(cmd, shell=True, check=False)
+    time.sleep(5)
+
+def run_cmd_local_virtctl(test_instance,vm, cmd='', timeout=300, is_log_cmd=True, log=None, is_log_ret=False):
+    if log is None:
+        log = logging.getLogger(__name__)
+    vm = test_instance.params['VM'].get('vm_name')
+    start_virtctl_port_forward(test_instance,vm=vm)
+    ssh_cmd = (
+        "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "
+        "-p 2222 cloud-user@localhost '{}'".format(cmd)
+    )
+    #ssh_cmd = f"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2222 cloud-user@localhost '{cmd}'"
+    
+    status = None
+    output = None
+    ret = subprocess.run(ssh_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, encoding='utf-8')
+
+    status = ret.returncode
+    if ret.stdout is not None:
+        output = ret.stdout
+    
+    if is_log_ret:
+        log.info('status:{} output:{}'.format(status, output))
+    
+    log.info('status:{} output:{}'.format(status, output))
+    return status, output
+
 def run_cmd(test_instance,
             cmd,
             expect_ret=None,
@@ -717,7 +754,17 @@ def run_cmd(test_instance,
     ssh_index = 0
 
     try:
-        if test_instance.is_rmt:
+        provider = test_instance.params['Cloud']['provider']
+        test_instance.log.info('---------------')
+        test_instance.log.info('provider is:'+provider)
+        if 'openshift' in provider:
+            vm = test_instance.params['VM'].get('vm_name')
+            status, output = run_cmd_local_virtctl(test_instance,vm=vm, cmd=cmd, timeout=300, is_log_cmd=True, log=test_instance.log)
+            test_instance.log.info(f"Raw SSH Output:\n{output}")
+            filtered_output = "\n".join([line for line in output.splitlines() if "Warning: Permanently added" not in line])
+            test_instance.log.info(f"Filtered SSH Output:\n{filtered_output}")
+            return filtered_output.strip()
+        elif test_instance.is_rmt:
             if not test_instance.params['remote_node'] and not rmt_node and not vm:
                 return
             rmt_node = rmt_node or test_instance.params['remote_node'] or None
