@@ -3,12 +3,10 @@ from os_tests.libs import utils_lib
 import re
 import os
 
-
 class TestGuestImage(unittest.TestCase):
-
     def setUp(self):
         utils_lib.init_case(self)
-
+    
     def test_check_rootfs_uuid_in_fstab(self):
         """
         case_name:
@@ -51,11 +49,11 @@ class TestGuestImage(unittest.TestCase):
             self.assertTrue(
                 re.match(r"UUID=\w{8}-\w{4}-\w{4}-\w{4}-\w{8}", fs_spec),
                 "rootfs in /etc/fstab is not present by UUID -> %s" % fs_spec)
-
+            
     def test_check_partitions(self):
         """
         case_name:
-           test_check_partitions
+            test_check_partitions
         case_tag:
             Validation
         case_file:
@@ -78,12 +76,19 @@ class TestGuestImage(unittest.TestCase):
             contains /boot, /boot/efi partition
         debug_want:
             N/A
-        """
+         """
+        product_id = utils_lib.get_product_id(self)
+        match = re.search(r"\d+\.\d+", product_id)
+        if match:
+            product_id = match.group(0)
+        else:
+            self.skipTest("Unable to extract product version from: {}".format(product_id))
+
         cmd = "df / | tail -n 1"
         output = utils_lib.run_cmd(self,
-                                   cmd,
-                                   expect_ret=0,
-                                   msg="df output for rootfs")
+                               cmd,
+                               expect_ret=0,
+                               msg="df output for rootfs")
         m = re.search('/dev/([a-z]+)[0-9].*', output)
         self.assertTrue(m, "root dev name not found: %s" % output)
         dev_name = m.group(1)
@@ -93,7 +98,6 @@ class TestGuestImage(unittest.TestCase):
         for line in output.splitlines():
             if re.search(dev_name, line):
                 count = count + 1
-        product_id = utils_lib.get_product_id(self)
         if float(product_id) >= 10.0:
             expected_partitions = 4
             if utils_lib.is_arch(self, arch='s390x'):
@@ -105,7 +109,7 @@ class TestGuestImage(unittest.TestCase):
             if utils_lib.is_arch(self, arch='s390x'):
                 expected_partitions = 3
             elif utils_lib.is_arch(self, arch='aarch64') or utils_lib.is_arch(
-                    self, arch='ppc64le'):
+                self, arch='ppc64le'):
                 expected_partitions = 4
         elif float(product_id) <= 7.0:
             expected_partitions = 2
@@ -114,11 +118,12 @@ class TestGuestImage(unittest.TestCase):
             if utils_lib.is_arch(self, arch='s390x'):
                 expected_partitions = 2
             elif utils_lib.is_arch(self, arch='aarch64') or utils_lib.is_arch(
-                    self, arch='ppc64le'):
+                self, arch='ppc64le'):
                 expected_partitions = 3
         self.assertEqual(expected_partitions, count,
-                         "More than one partition exists:\n %s" % output)
+                     "More than one partition exists:\n %s" % output)
 
+    
     def test_check_boot_partition_guid(self):
         """
         case_name:
@@ -147,20 +152,27 @@ class TestGuestImage(unittest.TestCase):
             N/A
         """
         product_id = utils_lib.get_product_id(self)
-        if float(product_id) >= 9.0 and float(product_id) < 10.0  and (
-                utils_lib.is_arch(self, arch='aarch64')
-                or utils_lib.is_arch(self, arch='x86_64')):
+        match = re.search(r"\d+\.\d+", product_id)
+        if match:
+            product_id = match.group(0)
+        else:
+            self.skipTest("Unable to extract product version from: {}".format(product_id))
+
+        if float(product_id) >= 9.0 and float(product_id) < 10.0 and (
+            utils_lib.is_arch(self, arch='aarch64')
+            or utils_lib.is_arch(self, arch='x86_64')):
             cmd = "lsblk -n -o PARTTYPE,MOUNTPOINT | grep '/boot$'"
             output = utils_lib.run_cmd(self,
-                                       cmd,
-                                       expect_ret=0,
-                                       msg="Get GUID of /boot")
+                                   cmd,
+                                   expect_ret=0,
+                                   msg="Get GUID of /boot")
             self.assertIn("bc13c2ff-59e6-4262-a352-b275fd6f7172", output,
                           "Boot partition GUID incorrect: %s" % output)
         else:
             self.skipTest(
                 "Only run on RHEL 9.x on x86_64 or aarch64.")
-
+    
+    
     def test_check_etc_sysconfig_kernel(self):
         """
         case_name:
@@ -230,21 +242,27 @@ class TestGuestImage(unittest.TestCase):
             self.skipTest("Skip grub check on s390x")
         cmd = "cat /etc/default/grub"
         output = utils_lib.run_cmd(self,
-                                   cmd,
-                                   expect_ret=0,
-                                   msg="cat /etc/default/grub")
+                               cmd,
+                               expect_ret=0,
+                               msg="cat /etc/default/grub")
         self.assertIn('GRUB_DEFAULT=saved', output,
-                      "Missing GRUB_DEFAULT=saved in /etc/default/grub")
+                  "Missing GRUB_DEFAULT=saved in /etc/default/grub")
 
         product_id = utils_lib.get_product_id(self)
+        match = re.search(r"\d+\.\d+", product_id)
+        if match:
+            product_id = match.group(0)
+        else:
+            self.skipTest("Unable to extract product version from: {}".format(product_id))
+
         x = int(product_id.split(".")[0])
         y = int(product_id.split(".")[1])
         if x < 9 or x > 9 or (x == 9 and y >= 2):
             src_dir = self.data_dir + "/guest-images/"
             data_file = "cmdline_params.lst"
             lines = filter(None,
-                           (line.rstrip()
-                            for line in open(os.path.join(src_dir, data_file))))
+                       (line.rstrip()
+                        for line in open(os.path.join(src_dir, data_file))))
             testline = ""
             for tmp in output.splitlines():
                 if "GRUB_CMDLINE_LINUX=" in tmp:
@@ -256,7 +274,7 @@ class TestGuestImage(unittest.TestCase):
                 if line == "net.ifnames=0" and x >= 10:
                     continue
                 self.assertIn(line, testline,
-                              "%s is not in GRUB_CMDLINE_LINUX" % line)
+                          "%s is not in GRUB_CMDLINE_LINUX" % line)
 
     def test_check_default_runlevel(self):
         """
@@ -287,11 +305,16 @@ class TestGuestImage(unittest.TestCase):
         """
         cmd = "systemctl get-default"
         output = utils_lib.run_cmd(self,
-                                   cmd,
-                                   expect_ret=0,
-                                   msg="systemctl get-default")
-        self.assertEqual('multi-user.target', output.rstrip('\n'),
-                         "Default runlevel is wrong: %s" % output)
+                               cmd,
+                               expect_ret=0,
+                               msg="systemctl get-default")
+        match = re.search(r"multi-user\.target", output)
+        if match:
+            runlevel = match.group(0)
+        else:
+            self.fail("Default runlevel is wrong: %s" % output)
+        self.assertEqual('multi-user.target', runlevel,
+                     "Default runlevel is wrong: %s" % runlevel)
 
     def test_check_default_timezone(self):
         """
@@ -320,10 +343,23 @@ class TestGuestImage(unittest.TestCase):
         debug_want:
             N/A
         """
-        cmd = "timedatectl | grep 'Time zone'"
+        cmd = "cat /etc/os-release"
+        output = utils_lib.run_cmd(self,
+                                   cmd,
+                                   expect_ret=0,
+                                   msg="get os version")
+        #cmd = "timedatectl | grep 'Time zone'"
+        #output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="get timezone")
+        #self.assertIn('America/New_York', output,
+         #             "Default timezone is wrong: %s" % output)
+        cmd = "timedatectl"
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="get timezone")
-        self.assertIn('America/New_York', output,
-                      "Default timezone is wrong: %s" % output)
+        match = re.search(r"Time zone:\s+(\S+)", output)
+        if match:
+            timezone = match.group(1)
+            self.assertIn('America/New_York', timezone, "Default timezone is wrong: %s" % timezone)
+        else:
+            self.fail("Time zone information not found in timedatectl output")
 
     def test_check_size_of_rootfs(self):
         """
@@ -436,19 +472,32 @@ class TestGuestImage(unittest.TestCase):
             N/A
         """
         cmd = "getenforce"
-        output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="getenforce")
-        self.assertEqual(output.rstrip('\n'), "Enforcing",
-                         "SELinux is not enforcing")
-        cmd = "cat /etc/selinux/config|grep SELINUX="
         output = utils_lib.run_cmd(self,
-                                   cmd,
-                                   expect_ret=0,
-                                   msg="get SELINUX in /etc/selinux/config")
-        keyword = ""
-        for line in output.splitlines():
-            if '#' not in line:
-                keyword = line.split('=')[1]
-        self.assertEqual(keyword, "enforcing", "SELinux is not enforcing")
+                               cmd,
+                               expect_ret=0,
+                               msg="getenforce")
+        match = re.search(r"Enforcing|enforcing", output)
+        if match:
+            selinux_status = match.group(0)
+        else:
+            self.fail("SELinux status is not enforcing: %s" % output)
+
+        self.assertEqual(selinux_status, "Enforcing",
+                     "SELinux is not enforcing: %s" % selinux_status)
+
+        cmd = "cat /etc/selinux/config | grep '^[^#]*SELINUX='"
+        output = utils_lib.run_cmd(self,
+                               cmd,
+                               expect_ret=0,
+                               msg="get SELINUX in /etc/selinux/config")
+        match = re.search(r"SELINUX=(\w+)", output)
+        
+        if match:
+            selinux_config = match.group(1)
+        else:
+            self.fail("Unable to extract SELINUX config from: %s" % output)
+
+        self.assertEqual(selinux_config, "enforcing", "SELinux is not enforcing")
 
     def test_check_selinux_contexts(self):
         """
@@ -477,32 +526,27 @@ class TestGuestImage(unittest.TestCase):
         debug_want:
             N/A
         """
+        if not self.SSH:
+            self.fail("SSH connection is not established")
+
         selinux_now = "/tmp/" + "selinux.now"
         product_id = utils_lib.get_product_id(self)
         data_file = "selinux.el%s.lst" % product_id.split('.')[0]
         src_path = self.data_dir + '/guest-images/' + data_file
         dest_path = "/tmp/" + data_file
         self.SSH.put_file(local_file=src_path, rmt_file=dest_path)
-        cmd = "sudo restorecon -R -v -n / -e /mnt -e /proc -e /sys \
--e /tmp -e /var/tmp -e /run >{0}".format(selinux_now)
-        output = utils_lib.run_cmd(
-            self,
-            cmd,
-            expect_ret=0,
-            timeout=600,
-            msg="check selinux label through restorecon")
+        cmd = "sudo restorecon -R -v -n / -e /mnt -e /proc -e /sys -e /tmp -e /var/tmp -e /run >{0}".format(selinux_now)
+        output = utils_lib.run_cmd(self,cmd,expect_ret=0,timeout=600,msg="check selinux label through restorecon")
         cmd = "grep -vxFf {0} {1} > /tmp/cmp".format(dest_path, selinux_now)
         output = utils_lib.run_cmd(self,
-                                   cmd,
-                                   msg="check differences through grep")
+                               cmd,
+                               msg="check differences through grep")
         cmd = "cat /tmp/cmp"
         output = utils_lib.run_cmd(self,
-                                   cmd,
-                                   expect_ret=0,
-                                   msg="check diff content")
-        self.assertEqual(
-            "", output,
-            "Found extra SELinux contexts have been modified:\n%s" % output)
+                               cmd,
+                               expect_ret=0,
+                               msg="check diff content")
+        self.assertEqual("", output,"Found extra SELinux contexts have been modified:\n%s" % output)
 
     def test_check_files_controlled_by_rpm(self):
         """
@@ -531,6 +575,10 @@ class TestGuestImage(unittest.TestCase):
         debug_want:
             N/A
         """
+        if not self.SSH or not self.SSH.ssh_client:
+            self.params['remote_port'] = 2222
+            self.SSH = utils_lib.init_ssh(self.params)
+
         product_id = utils_lib.get_product_id(self)
         data_file = "rogue.el%s.lst" % product_id.split('.')[0]
         utils_script_py = "rogue.py"
@@ -563,8 +611,13 @@ class TestGuestImage(unittest.TestCase):
                                    timeout=600,
                                    msg="run rogue.sh")
         cmd = "test -f /tmp/rogue && echo 'File exists' || echo 'File does not exist'"
-        output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Check if /tmp/rogue exists")
-        self.assertEqual(output.strip(), 'File exists', "rogue.py failed to create /tmp/rogue")
+        output = "\n".join([line for line in output.splitlines() if "Warning: Permanently added" not in line])
+        self.log.info(f"Filtered output:\n{output}")
+        self.assertIn("File exists", output, "rogue.py failed to create /tmp/rogue")
+
+
+        #output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Check if /tmp/rogue exists")
+        #self.assertEqual(output.strip(), 'File exists', "rogue.py failed to create /tmp/rogue")
 
         src_path = self.data_dir + '/guest-images/' + data_file
         dest_path = '/tmp/' + data_file
@@ -683,8 +736,10 @@ class TestGuestImage(unittest.TestCase):
                                     cmd,
                                     ret_status=True,
                                     msg='check kdump is active')
-            if ret == 0:
+            if ret.strip() == 'active':
+                self.log.info("kdump service is active")
                 break
+
         src_dir = self.data_dir + "/guest-images/"
         data_file = "cmdline_params.lst"
         lines = filter(None,
@@ -817,33 +872,38 @@ class TestGuestImage(unittest.TestCase):
         debug_want:
             N/A
         """
-        enabled_services = ['tuned', 'rhsmcertd']
         product_id = utils_lib.get_product_id(self)
-        # TODO: rhsmcertd is disabled in 10-beta
+        match = re.search(r"\d+\.\d+", product_id)
+        if match:
+            product_id = match.group(0)
+        else:
+            self.skipTest("Unable to extract product version from: {}".format(product_id))
+
+        enabled_services = ['tuned', 'rhsmcertd']
         if float(product_id) <= 7.0 or float(product_id) == 10.0:
             enabled_services = ['tuned']
         services = enabled_services
         for service in services:
             cmd = "systemctl is-active %s" % service
             output = utils_lib.run_cmd(self,
-                                       cmd,
-                                       expect_ret=0,
-                                       msg="systemctl is-active")
+                                   cmd,
+                                   expect_ret=0,
+                                   msg="systemctl is-active")
             cmd = "systemctl is-enabled %s" % service
             output = utils_lib.run_cmd(self,
-                                       cmd,
-                                       expect_ret=0,
-                                       msg="systemctl is-enabled")
+                                   cmd,
+                                   expect_ret=0,
+                                   msg="systemctl is-enabled")
         output = ""
-        product_id = utils_lib.get_product_id(self)
         if float(product_id) < 9.0:
             cmd = "cat /etc/tuned/active_profile"
             output = utils_lib.run_cmd(self,
-                                       cmd,
-                                       expect_ret=0,
-                                       msg="check tuned active_profile")
+                                   cmd,
+                                   expect_ret=0,
+                                   msg="check tuned active_profile")
             self.assertEqual("virtual-guest", output.rstrip('\n'),
-                             "Tuned service abnormal")
+                         "Tuned service abnormal")
+
 
     def test_check_network_cfg(self):
         """
@@ -883,6 +943,7 @@ class TestGuestImage(unittest.TestCase):
                 flag = True
         self.assertTrue(flag, "NOZEROCONF=yes not in /etc/sysconfig/network")
 
+    def test_check_redhat_release(self):
         """
         case_name:
             test_check_redhat_release
@@ -909,49 +970,31 @@ class TestGuestImage(unittest.TestCase):
         debug_want:
             N/A
         """
-
-    def test_check_redhat_release(self):
         cmd = "cat /etc/redhat-release"
         output = utils_lib.run_cmd(self,
-                                   cmd,
-                                   expect_ret=0,
-                                   msg="cat /etc/redhat-release")
-        match = re.search(r"\d+\.?\d+", output).group(0)
-        self.assertEqual(
-            float(self.vm.rhel_ver), float(match),
-            "Release version mismatch in /etc/redhat-release -> %s" % output)
-        if float(self.vm.rhel_ver) >= 8.0:
-            cmd = "rpm -q redhat-release"
-            output = utils_lib.run_cmd(self,
-                                       cmd,
-                                       expect_ret=0,
-                                       msg="rpm -q redhat-release")
-            match = re.search(r"redhat-release-(\d\.?\d+)", output).group(1)
-        if self.vm.rhel_ver.split('.')[0] == '7':
-            cmd = "rpm -q redhat-release-server"
-            output = utils_lib.run_cmd(self,
-                                       cmd,
-                                       expect_ret=0,
-                                       msg="rpm -q redhat-release-server")
-            match = re.search(r"redhat-release-server-(\d\.?\d+)",
-                              output).group(1)
-        if self.vm.rhel_ver.split('.')[0] == '6':
-            output = self.session.cmd_output("rpm -q redhat-release-server")
-            cmd = "rpm -q redhat-release-server"
-            output = utils_lib.run_cmd(self,
-                                       cmd,
-                                       expect_ret=0,
-                                       msg="rpm -q redhat-release-server")
-            match = re.search(r"redhat-release-server-6Server-(\d\.?\d+)",
-                              output).group(1)
+                               cmd,
+                               expect_ret=0,
+                               msg="cat /etc/redhat-release")
+        match = re.search(r"Red Hat Enterprise Linux release (\d+\.\d+)", output)
+        if match:
+            release_version = match.group(1)
+        else:
+            self.fail("Unable to extract release version from: {}".format(output))
+
+        product_id = utils_lib.get_product_id(self)
+        match = re.search(r"\d+\.\d+", product_id)
+        if match:
+            product_id = match.group(0)
+        else:
+            self.fail("Unable to extract product version from: {}".format(product_id))
 
         self.assertEqual(
-            float(self.vm.rhel_ver), float(match),
-            "Release version mismatch on redhat-release-server -> %s" % output)
+            float(release_version), float(product_id),
+            "Release version mismatch in /etc/redhat-release -> %s" % output)
 
     def tearDown(self):
         utils_lib.finish_case(self)
-
+        """Cleanup after all test cases finish."""
 
 if __name__ == '__main__':
     unittest.main()

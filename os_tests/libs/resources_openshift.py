@@ -77,12 +77,12 @@ class OpenShiftVM(VMResource):
                 stdout=subprocess.PIPE).communicate()[0] \
                     .decode("utf-8").rstrip('\n')
         #return self._port   
-        return 22
+        return 2222
 
     @port.setter
     def port(self, name):
         subprocess.Popen(
-            'virtctl expose vm %s --port=22 --name=%s --type=LoadBalancer' % (name, name),
+            'virtctl expose vm %s --port=22 --name=%s --type=NodePort' % (name, name),
             shell=True,
             stdout=FNULL).communicate()
     
@@ -113,7 +113,8 @@ class OpenShiftVM(VMResource):
                             with open(known_hosts_path, "a") as known_hosts:
                                 known_hosts.write(filtered_output + "\n")
                     
-                        return ext_ip
+                        #return ext_ip
+                        return self.vm_name
 
         except subprocess.CalledProcessError as e:
             print(f"Error fetching services: {e}")
