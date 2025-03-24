@@ -30,5 +30,7 @@ VM:
     sriov: 'false'
     net_bandwidth: 10000
     cvm: 'false'
+    # For Mdsv3-series can use disk_controller_type to specify SCSI/NVME disk type
+    disk_controller_type:
 Other:
     packages: <the cloud-init package name: cloud-init-xxx.rpm>
