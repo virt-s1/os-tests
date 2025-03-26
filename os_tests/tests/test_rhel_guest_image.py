@@ -736,7 +736,7 @@ class TestGuestImage(unittest.TestCase):
                                     cmd,
                                     ret_status=True,
                                     msg='check kdump is active')
-            if ret.strip() == 'active':
+            if ret == 0:
                 self.log.info("kdump service is active")
                 break
 
