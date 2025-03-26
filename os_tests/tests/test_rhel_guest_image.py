@@ -736,8 +736,16 @@ class TestGuestImage(unittest.TestCase):
                                     cmd,
                                     ret_status=True,
                                     msg='check kdump is active')
-            if ret.strip() == 'active':
-                self.log.info("kdump service is active")
+            if isinstance(ret, int):
+                if ret == 0:
+                    self.log.info("kdump service is active")
+                    break
+            elif isinstance(ret, str):
+                if ret.strip() == 'active':
+                    self.log.info("kdump service is active")
+                    break
+            else:
+                self.log.error("Unexpected return type from run_cmd: %s" % type(ret))
                 break
 
         src_dir = self.data_dir + "/guest-images/"
