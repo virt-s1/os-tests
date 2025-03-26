@@ -188,7 +188,7 @@ class TestRHELCert(unittest.TestCase):
                 # mkswap -L swap01 /root/swapfile01
                 # swapon /root/swapfile01
                 new_part="swapfile01"
-                cmds = ['sudo dd if=/dev/zero of=/root/{} bs=1M count=1024'.format(new_part),
+                cmds = ['sudo dd if=/dev/zero of=/root/{} bs=1M count=4096'.format(new_part),
                 'sudo chmod 600 /root/{}'.format(new_part),
                 'sudo mkswap -L swap01 /root/{}'.format(new_part),
                 'sudo swapon /root/{}'.format(new_part),
@@ -294,7 +294,7 @@ class TestRHELCert(unittest.TestCase):
             subtests.append('PCIE_NVMe')
         if 'STORAGE' in auto_plan:
             subtests.append('STORAGE')
-        if not utils_lib.is_arch(self, 'aarch64'):
+        if not utils_lib.is_arch(self, 'aarch64' ) and os.getenv('INFRA_PROVIDER') != 'azure':
             subtests.append('hwcert/cpuscaling')
             subtests.append('cpuscaling')
 
