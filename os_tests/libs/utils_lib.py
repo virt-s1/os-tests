@@ -886,7 +886,7 @@ def run_cmd(test_instance,
     return output
 
 #the test wouldn't be stopped if one step/command fails, it would collect all failures.
-def check_cmd_output(test_instance,step,command,keywords=None,nokeywords=None):
+def check_cmd_output(test_instance,step,command,keywords=None,nokeywords=None,patterns=None):
     """
     check if the configuration contains the keywords,
     do not stop checking if some of keywords not found.
@@ -916,6 +916,12 @@ def check_cmd_output(test_instance,step,command,keywords=None,nokeywords=None):
                 test_instance.assertNotIn(nokeyword, output)
             except AssertionError as e:
                 failures.append("Step - {} failed: Unexpected '{}' found in the output".format(step,nokeyword))
+    if patterns is not None:
+        for pattern in patterns:
+            try:
+                test_instance.assertTrue(re.search(pattern, output))
+            except AssertionError as e:
+                failures.append("Step - {} failed: expected '{}' not found in the output".format(step,pattern))
     return failures
 
 def compare_nums(test_instance, num1=None, num2=None, ratio=0, msg='Compare 2 nums'):
