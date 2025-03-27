@@ -6,6 +6,7 @@ import logging
 import os
 import psutil
 import os_tests
+import time
 from .resources import BaseResource, VMResource
 from os_tests.libs import utils_lib
 from os_tests.libs.utils_lib import run_cmd_local,get_properties
@@ -55,6 +56,21 @@ class KvmVM(VMResource):
         if len(out) > 1 and status == 0:
             f_ip = out.split("/")[0]
             LOG.info("ip is %s" % f_ip)
+            #when using smbios, the IP is changed in init-network stage
+            #sudo ip neigh flush all, Clears old ARP cache
+            #ping -c 4 <IP>, Forces ARP update
+            cmd1 = "sudo ip neigh flush all"
+            run_cmd_local(cmd1, is_log_ret=True)
+            cmd2 = "ping -c 4 {}".format(f_ip)
+            run_cmd_local(cmd2, is_log_ret=True)
+            #check if the IP can be ssh connected
+            cmd3 = "nc -zv {} 22".format(f_ip)
+            status1, _ = run_cmd_local(cmd3, is_log_ret=True)
+            if status1 != 0:
+                LOG.info("Clears old ARP cache and forces ARP update!")  
+                run_cmd_local(cmd1, is_log_ret=True)
+                run_cmd_local(cmd2, is_log_ret=True)
+                f_ip = ''
         return f_ip
 
     def create(self, wait=True, userdata=None, sshkey=None, datasource=None, networks=["virbr1"]):
@@ -88,10 +104,13 @@ class KvmVM(VMResource):
             cmd2 += "--sysinfo system.serial='ds=nocloud;s=http://10.0.2.1:8000/' "
 
         cmd2 += "--graphics none  --import --noautoconsole"
-        run_cmd_local(cmd2, timeout=360, is_log_ret=True)
-        self.floating_ip
-
-        return self.exists()
+        run_cmd_local(cmd2, is_log_ret=True)
+        time.sleep(30) 
+        f_ip = self.floating_ip
+        if f_ip != '':
+            return self.exists()
+        else:
+            return False
 
     def delete(self, wait=True):
         cmd1 = "sudo virsh destroy {}".format(self.vm_name)

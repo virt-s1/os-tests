@@ -59,9 +59,10 @@ class TestCloudInitNewVM(unittest.TestCase):
             self.skipTest('skip test as it is the specific test case for kvm.')
 
         # create vm and then do test
-        interface_name = self.vm.interface_name or "eth0"  # for rhel 10, interface name is enp1s0
+        interface_name = self.vm.interface_name or "eth0"
         if self.rhel_x_version >= 10:
-            interface_name = self.vm.interface_name or "enp1s0"
+            # for rhel 10, interface name is ens2
+            interface_name = self.vm.interface_name or "ens2"
 
         user_data = """\
 #cloud-config
@@ -111,19 +112,20 @@ network:
         #create iso or start http server
         self.vm.create_datafile(datasource=datasource,userdata=user_data,metadata=meta_data,networkconfig=network_config) 
         #create vm
-        self.vm.create(datasource=datasource)
-        time.sleep(60)
+        status = self.vm.create(datasource=datasource)
+        if not status:
+            self.fail("create vm failed, please check")
         #login and check
         self.ssh_timeout = 30
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
 
-        # cloud-init 24.3+ support network-config with smbios, but it has a bug, RHEL-81896,RHEL-81703
+        # cloud-init 24.3+ support network-config with smbios
         package_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
         version = version_util.get_version(package_ver,'cloud-init-')
         if datasource == "smbios":
             support_cases = self.vm.support_cases
-            main_support_versions = ["24.4-5.el9","24.4-4.el10"]
-            backport_versions = None
+            main_support_versions = ["24.4-5.el9","24.4-4.el10"]#Bug fix RHEL-81896,RHEL-81703
+            backport_versions = ["24.4-4.el9_6.1","24.4-4.el10_0.1"]#backport bug RHEL-83636,RHEL-83639
             if not version_util.is_support(version,"test_cloudinit_staticip_dns_metric",support_cases,main_support_versions,backport_versions):
                 self.skipTest("Skip test_cloudinit_staticip_dns_metric_smbios because it does not support network-config for "+package_ver)
 
@@ -146,10 +148,12 @@ network:
         #nameserver 24.1 for rhel 10(RHEL-44334), and 24.4 rebase for rhel9.6 (RHEL-59980)
         #cloud-init config dns cloud-init-24.1.4-21.el10(RHEL-65769), cloud-init-23.4-22.el9(RHEL-657680)
         #backport cloud-init-23.4-19.el9_5.4(RHEL-65778,RHEL-68409), cloud-init-23.4-7.el9_4.11(RHEL-65777,RHEL-68408)
-        dnskeywords = ["nameserver 8.8.8.8","nameserver 4.4.4.4","search example.com"]
-        step = "check dns configuration contains "+ str(dnskeywords)
+        dnskeywords = ["nameserver 8.8.8.8","nameserver 4.4.4.4"]
+        #for example search virt.pnr.lab.eng...com example.com
+        dnspatterns = [r"search .*example\.com"]
+        step = "check dns configuration contains "+ str(dnskeywords)+str(dnspatterns)
         cmd = "cat /etc/resolv.conf"
-        failures += utils_lib.check_cmd_output(self,step,cmd,keywords=dnskeywords)
+        failures += utils_lib.check_cmd_output(self,step,cmd,keywords=dnskeywords,patterns=dnspatterns)
 
         #step3 checking metric configuration
         #cloud-init-24.1.4-19.el10(RHEL-65016), cloud-init-23.4-20.el9(RHEL-61224)
@@ -226,8 +230,9 @@ local-hostname: myhost
         #create iso or start http server
         self.vm.create_datafile(datasource=datasource,userdata=user_data,metadata=meta_data)  
         #create vm
-        self.vm.create(datasource=datasource)
-        time.sleep(60)
+        status = self.vm.create(datasource=datasource)
+        if not status:
+            self.fail("Create vm failed, please check!")
 
         #login and check, successfully login means ssh key is configured well
         self.ssh_timeout = 30
