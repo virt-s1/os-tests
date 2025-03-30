@@ -452,7 +452,8 @@ chpasswd:
   expire: False
 ssh_authorized_keys:
     - {2}
-""".format(test_instance.vm.run_uuid, 'R', get_public_key())
+fqdn: {3}
+""".format(test_instance.vm.run_uuid, 'R', get_public_key(), test_instance.vm.vm_name)
         if test_instance.vm.dead_count > 4:
             test_instance.fail("cannot connect to vm over 4 times, skip retry")
         if test_instance.vm.is_metal:

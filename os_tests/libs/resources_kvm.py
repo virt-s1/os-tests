@@ -95,6 +95,8 @@ class KvmVM(VMResource):
             with open(userdatafilename, 'w') as userdatafile:
                 userdatafile.write(userdata)
             cmd2 += "--cloud-init user-data={} ".format(userdatafilename)
+            #clear up the vm.user_data as it may cause data conflicts between different cases
+            self.user_data = None
 
         #--cloud-init user-data and clouduser-ssh-key can not use at the same time     
 
@@ -245,7 +247,17 @@ class KvmVM(VMResource):
         run_cmd_local(cmd,is_log_ret=True)
         cmd = "rm {}/*".format(self.files_path)
         run_cmd_local(cmd,is_log_ret=True)
+        #stop http server
+        self.stop_httpserver()
         return True
+
+    def stop_httpserver(self):
+        for conn in psutil.net_connections(kind='inet'):
+            if conn.laddr.port == self.httpport and conn.status == psutil.CONN_LISTEN:
+                pid = conn.pid
+                if pid:
+                    proc = psutil.Process(pid)
+                    proc.terminate()
 
     def is_httpserver_running(self):
         """Check if a process is using the given port."""
