@@ -19,3 +19,8 @@
 .M.......  c /boot/grub2/grub.cfg
 S.5....T.  c /etc/ssh/sshd_config
 .M.......    /boot/efi/EFI
+.M.......  g /root/.bash_logout
+.M.......  g /root/.bash_profile
+.M.......  g /root/.bashrc
+.M.......  g /root/.cshrc
+.M.......  g /root/.tcshrc

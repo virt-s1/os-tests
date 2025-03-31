@@ -327,7 +327,7 @@ class TestGuestImage(unittest.TestCase):
         component:
             rhel-guest-image
         bugzilla_id:
-            N/A
+            COMPOSER-2396
         is_customer_case:
             False
         testplan:
@@ -352,12 +352,24 @@ class TestGuestImage(unittest.TestCase):
         #output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="get timezone")
         #self.assertIn('America/New_York', output,
          #             "Default timezone is wrong: %s" % output)
+        product_id = utils_lib.get_product_id(self)
+        match = re.search(r"\d+\.\d+", product_id)
+        if match:
+            product_id = match.group(0)
+        else:
+            self.skipTest("Unable to extract product version from: {}".format(product_id))
+        rhel_version = float(product_id)
+        if rhel_version >= 10.0:
+            expected_timezone = 'UTC'
+        else:
+            expected_timezone = 'America/New_York'
+
         cmd = "timedatectl"
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="get timezone")
         match = re.search(r"Time zone:\s+(\S+)", output)
         if match:
             timezone = match.group(1)
-            self.assertIn('America/New_York', timezone, "Default timezone is wrong: %s" % timezone)
+            self.assertIn(expected_timezone, timezone, "Default timezone is wrong: %s" % timezone)
         else:
             self.fail("Time zone information not found in timedatectl output")
 
