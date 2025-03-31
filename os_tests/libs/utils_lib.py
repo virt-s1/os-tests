@@ -121,6 +121,8 @@ def init_args():
                         help='assign the location of kar')
     parser.add_argument('--kar-images-location', dest='kar_images_location', default=None, action='store',
                         help='assign the location of images used by kar')
+    parser.add_argument('--verbose', action='store_true', default=False,
+                        help='show the detail log during running')
     args = parser.parse_args()
     return args
 
@@ -427,6 +429,11 @@ def init_case(test_instance):
         logging.root.removeHandler(handler)
     FORMAT = '%(asctime)s:%(levelname)s:%(message)s'
     logging.basicConfig(level=logging.INFO, format=FORMAT, filename=log_file)
+    if test_instance.params['verbose']:
+        h = logging.StreamHandler()
+        h.setLevel(logging.INFO)
+        h.setFormatter(logging.Formatter('%(asctime)s-%(name)s-%(levelname)s: %(message)s'))
+        logging.root.addHandler(h)
     test_instance.log.info("-"*80)
     test_instance.log.info("Code Repo: {}".format(test_instance.params['code_repo']))
     test_instance.log.info("Code Version: v{}".format(os_tests.__version__))
