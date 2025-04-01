@@ -303,12 +303,14 @@ class EC2VM(VMResource):
         return self.ec2_instance.private_ip_address
 
     @property
-    @utils_lib.wait_for(not_ret=None, ck_not_ret=True, timeout=120)
     def vm_name(self):
-        self.ec2_instance.reload()
-        LOG.info("private_dns_name is: {}".format(self.ec2_instance.private_dns_name))
-        return self.ec2_instance.private_dns_name
-
+        try:
+            self.ec2_instance.reload()
+            LOG.info("private_dns_name is: {}".format(self.ec2_instance.private_dns_name))
+            return self.ec2_instance.private_dns_name
+        except Exception as exe:
+            LOG.info("private_dns_name is not avaiable now, return None")
+            return None
 
     @property
     @utils_lib.wait_for(not_ret=None, ck_not_ret=True, timeout=120)
