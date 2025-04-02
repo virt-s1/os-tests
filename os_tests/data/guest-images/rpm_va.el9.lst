@@ -22,3 +22,8 @@ S.5....T.  c /etc/ssh/sshd_config
 .M.......  c /boot/grub2/grub.cfg
 .M.......  c /etc/machine-id
 ..5....T.  c /var/lib/powerpc-utils/smt.state
+.M.......  g /root/.bash_logout
+.M.......  g /root/.bash_profile
+.M.......  g /root/.bashrc
+.M.......  g /root/.cshrc
+.M.......  g /root/.tcshrc
