@@ -6,37 +6,21 @@ from os_tests.libs import utils_lib
 
 
 class TestKAR(unittest.TestCase):
-    run_mappings = {
-        "boot": [
-            f"--guestname={os.getenv('DISTRO')}..page_{os.getenv('PAGESIZE')}",
-            "--netdst=virbr0",
-            "--driveformat=virtio_scsi",
-            "--testcase=boot",
-            "--isopool=null://",
-            "--clone=yes",
-            "--debug"
-        ],
-        # "tier1": [
-        #     "--category=tier1_test_aarch64",
-        #     f"--hostname={os.getenv('DISTRO')}",
-        #     f"--customsparams='only qemu_build.host_{os.getenv('PAGESIZE')}'",
-        #     "--netdst=virbr0",
-        #     "--driveformat=virtio_scsi",
-        #     "--isopool=null://",
-        #     "--clone=no",
-        #     "--debug"
-        # ],
-    }
-
     def setUp(self):
         utils_lib.init_case(self)
 
-    def prepare_environment(self, kar_dir, images_dir):
-        kar_loc = self.params['kar_location']
-        images_loc = self.params['kar_images_location']
+        if not self.params.get('kar_location'):
+            raise Exception("kar location must be assigned")
+        if not self.params.get('kar_images_location'):
+            raise Exception("images location must be assigned")
+        if not self.params.get("kar_tests"):
+            raise Exception("no test suite of kar assigned")
+        if not self.params.get("kar_avocado_conf"):
+            raise Exception("no avocado config assigned")
 
-        if not kar_loc and not images_loc:
-            raise Exception("No kar or images location assigned")
+    def prepare_environment(self, kar_dir, images_dir):
+        kar_loc = self.params.get('kar_location')
+        images_loc = self.params.get('kar_images_location')
 
         # Set timeout to 600 for avoiding some timeout error, or maybe put them into CI
         cmd = ("dnf install -y bzip2 qemu-* git vim gcc libvirt-* libguestfs-* "
@@ -79,11 +63,9 @@ class TestKAR(unittest.TestCase):
     def test_kar_run(self):
         kar_dir = "/home/kar"
         images_dir = "/home/kvm_autotest_root"
-
         self.prepare_environment(kar_dir, images_dir)
 
         venv = kar_dir + "/workspace"
-
         # Set timeout to 600 for avoiding some timeout error
         ret, out = utils_lib.run_cmd_local(cmd=f"source {venv}/bin/activate && pip install netifaces 'jinja2' Pillow",
                                            timeout=600,
@@ -97,33 +79,36 @@ class TestKAR(unittest.TestCase):
             f"python3 {kar_dir}/ConfigTest.py "
         )
         error_list = []
+        # Read the avocado config for the log dir
+        # Then put them into os-tests resutls dir
+        kar_config = configparser.ConfigParser()
+        kar_config.read(self.params.get("kar_avocado_conf"))
 
-        for k, v in self.run_mappings.items():
-            cmd = cmd_prefix + " ".join(v)
+        for k, v in self.params.get("kar_tests").items():
+            cmd = cmd_prefix + v
 
-            # Timeout: 12 hours
             ret, out = utils_lib.run_cmd_local(cmd=cmd,
                                                timeout=12 * 60 * 60,
                                                is_log_ret=True)
             if ret != 0:
-                error_list.append(k)
+                error_list.append(f"Run testsuite {k} failed with {out}")
 
-        # Read the avcado config for log dir
-        # Then put them into os-tests resutls dir
-        kar_config = configparser.ConfigParser()
-        kar_config.read(os.getenv('KAR_AVOCADO_CONF'))
-        avocado_results_path = os.path.realpath(kar_config['datadir.paths']['logs_dir'] + "/latest")
-        ret, _ = utils_lib.run_cmd_local(cmd=f"cp -r {avocado_results_path} {self.params['results_dir']}",
-                                            timeout=600,
-                                            is_log_ret=True)
-        if ret != 0:
-            self.log.error(f"Failed for cp -r {avocado_results_path} {self.params['results_dir']}")
+            target_res_dir = self.params['results_dir'] + "/" + k
+            ret, out = utils_lib.run_cmd_local(cmd=f"mkdir -p {target_res_dir}",
+                                               is_log_ret=True)
+            if ret != 0:
+                error_list.append(f"Create target results directory failed with {out}")
 
-        # If error during running, raising in the end
+            avocado_results_path = os.path.realpath(kar_config['datadir.paths']['logs_dir'] + "/latest")
+            ret, out = utils_lib.run_cmd_local(cmd=f"cp -r {avocado_results_path} {target_res_dir}",
+                                               is_log_ret=True)
+            if ret != 0:
+                error_list.append(f"cp -r {avocado_results_path} {target_res_dir} failed with {out}")
+
         if error_list:
             for i in error_list:
-                self.log.error(f"kar test suite {i} failed")
-            raise Exception("Run kar suite failed")
+                self.log.error(i)
+            raise Exception("Found error during run kar testsuite")
 
     def tearDown(self):
         utils_lib.finish_case(self)

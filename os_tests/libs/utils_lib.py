@@ -117,10 +117,6 @@ def init_args():
                         please specify --no_upload_image', required=False)
     parser.add_argument('--ca_info', dest='ca_info', default=None, action='store',
                     help='specify the ca configure information, e.g., ca_url,ca_path', required=False)
-    parser.add_argument('--kar-location', dest='kar_location', default=None, action='store',
-                        help='assign the location of kar')
-    parser.add_argument('--kar-images-location', dest='kar_images_location', default=None, action='store',
-                        help='assign the location of images used by kar')
     parser.add_argument('--verbose', action='store_true', default=False,
                         help='show the detail log during running')
     args = parser.parse_args()
