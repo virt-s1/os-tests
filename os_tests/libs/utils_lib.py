@@ -452,8 +452,8 @@ chpasswd:
   expire: False
 ssh_authorized_keys:
     - {2}
-fqdn: {3}
-""".format(test_instance.vm.run_uuid, 'R', get_public_key(), test_instance.vm.vm_name)
+{3}
+""".format(test_instance.vm.run_uuid, 'R', get_public_key(), test_instance.vm.vm_name and "fqdn: {}".format(test_instance.vm.vm_name) or '')
         if test_instance.vm.dead_count > 4:
             test_instance.fail("cannot connect to vm over 4 times, skip retry")
         if test_instance.vm.is_metal:
@@ -1743,10 +1743,9 @@ def get_public_key(client_user=None):
         if os.environ.get('USER') not in ('root', client_user):
             raise RuntimeError("Can not set ssh-key for OTHER user using"
                                "non-root account. Permission Denied.")
+        ssh_conf_path = '/home/%s/.ssh' % client_user
         if client_user == 'root':
             ssh_conf_path = '/root/.ssh'
-        else:
-            ssh_conf_path = '/home/%s/.ssh' % client_user
     else:
         ssh_conf_path = os.path.expanduser('~/.ssh')
         client_user = os.environ.get('USER')
@@ -1772,12 +1771,16 @@ def get_public_key(client_user=None):
 
     else:
         logging.info('Neither RSA nor DSA keypair found, creating RSA ssh key pair')
+        if os.path.exists(rsa_private_key_path):
+            os.unlink(rsa_private_key_path)
+        if os.path.exists(rsa_public_key_path):
+            os.unlink(rsa_public_key_path)
+        run_cmd_local(cmd='ssh-keygen -t rsa -b 4096 -N "" -f {}'.format(rsa_private_key_path))
 
         public_key_path = rsa_public_key_path
 
-    public_key = open(public_key_path, 'r')
-    public_key_str = public_key.read()
-    public_key.close()
+    with open(public_key_path, 'r') as fh:
+        public_key_str = fh.read()
     
     return public_key_str
 
