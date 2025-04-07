@@ -1011,10 +1011,43 @@ class TestGuestImage(unittest.TestCase):
         self.assertEqual(
             float(release_version), float(product_id),
             "Release version mismatch in /etc/redhat-release -> %s" % output)
+        
+    def test_check_rpm_packages_installed(self):
+        """
+        case_name:
+            test_check_rpm_packages_installed
+        case_tag:
+            Validation
+        case_file:
+            os_tests.tests.test_rhel_guest_image.py
+        component:
+            rhel-guest-image
+        bugzilla_id:
+            https://issues.redhat.com/browse/ENGCMP-5385
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            libhe@redhat.com
+        description:
+            check whether some important rpm packages(rhc, subscription-manager, insights-client) are installed
+        key_steps:
+            1. rpm -q rhc subscription-manager insights-client
+        expect_result:
+            The packages are installed
+        debug_want:
+            N/A
+        """
+        packages = ["rhc", "subscription-manager", "insights-client"]
+        for package in packages:
+            cmd = f"rpm -q {package}"
+            output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg=f"Check if {package} is installed")
+            self.assertIn(package, output, f"{package} is not installed")
 
-    def tearDown(self):
-        utils_lib.finish_case(self)
-        """Cleanup after all test cases finish."""
+        def tearDown(self):
+            utils_lib.finish_case(self)
+            """Cleanup after all test cases finish."""
 
 if __name__ == '__main__':
     unittest.main()
