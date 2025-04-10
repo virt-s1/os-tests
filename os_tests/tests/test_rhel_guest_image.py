@@ -602,21 +602,29 @@ class TestGuestImage(unittest.TestCase):
         self.SSH.put_file(local_file=src_path_py, rmt_file=dest_path_py)
         self.SSH.put_file(local_file=src_path_sh, rmt_file=dest_path_sh)
 
-        
-        cmd = "sudo sh -c 'chmod 755 %s && %s'" % (dest_path_sh, dest_path_sh)
-        output = utils_lib.run_cmd(self,
+        utils_lib.is_pkg_installed(self,"python3")
+        cmd = "python3 --version"
+        ret = utils_lib.run_cmd(self, cmd, msg="Check if python3 exist")
+        print(f"python3 version check output: {ret}")
+        if ret.strip() and "Python" in ret:
+            print("python3 found; running rogue.py with python3.")
+            cmd = "sudo python3 %s" % dest_path_py
+            output = utils_lib.run_cmd(self,
+                                   cmd,
+                                   expect_ret=0,
+                                   timeout=1200,
+                                   msg="run rogue.py")
+        else:
+            print("python3 not found; running rogue.sh as a shell script instead.")
+            cmd = "sudo sh -c 'chmod 755 %s && %s'" % (dest_path_sh, dest_path_sh)
+            output = utils_lib.run_cmd(self,
                                    cmd,
                                    expect_ret=0,
                                    timeout=600,
                                    msg="run rogue.sh")
         cmd = "test -f /tmp/rogue && echo 'File exists' || echo 'File does not exist'"
-        output = "\n".join([line for line in output.splitlines() if "Warning: Permanently added" not in line])
-        self.log.info(f"Filtered output:\n{output}")
-        self.assertIn("File exists", output, "rogue.py failed to create /tmp/rogue")
-
-
-        #output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Check if /tmp/rogue exists")
-        #self.assertEqual(output.strip(), 'File exists', "rogue.py failed to create /tmp/rogue")
+        output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Check if /tmp/rogue exists")
+        self.assertEqual(output.strip(), 'File exists', "Failed to create /tmp/rogue")
 
         src_path = self.data_dir + '/guest-images/' + data_file
         dest_path = '/tmp/' + data_file
