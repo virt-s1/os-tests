@@ -75,7 +75,6 @@ class _WritelnDecorator(object):
         self.write('\n') # text-mode streams translate to \r\n if needed
 
 class HTMLTestResult(TextTestResult):
-    
     def __init__(self, stream, descriptions, verbosity, *, durations=None):
         """Construct a TextTestResult. Subclasses should accept **kwargs
         to ensure compatibility as the interface changes."""
@@ -97,7 +96,7 @@ class HTMLTestRunner(object):
     """A test runner class that displays results in html form.
 
     While printing out the names of tests as they are run, errors as they
-    occur, and a summary of the results at the end of the test run. It 
+    occur, and a summary of the results at the end of the test run. It
     also generates html report for reading and link to related debug logs.
     """
     resultclass = HTMLTestResult
@@ -232,7 +231,7 @@ class HTMLTestRunner(object):
             #  os.chdir(logdir)
             debug_log = "../attachments/" + case + '.debug'
         if hasattr(result, 'separator2'):
-            self.stream.writeln(result.separator2)
+            print(result.separator2)
         test_result_summary.compute_totals()
         node_info_file = "{}/attachments/node_info".format(logdir)
         if os.path.exists(node_info_file):
@@ -245,10 +244,10 @@ class HTMLTestRunner(object):
         generated_report(sum_html, "sum.html", test_result_summary)
         sum_junit = os.path.join(results_dir, "sum.xml")
         generated_report(sum_junit, "sum.xml", test_result_summary)
-        self.stream.writeln("{} generated".format(os.path.realpath(sum_txt)))
+        print("{} generated".format(os.path.realpath(sum_txt)))
         #result.printErrors()
         if hasattr(result, 'separator2'):
-            self.stream.writeln(result.separator2)
+            print(result.separator2)
         run = result.testsRun
         self.stream.writeln("Ran %d test%s in %.3fs" %
                             (run, run != 1 and "s" or "", timeTaken))
