@@ -713,6 +713,7 @@ def run_cmd(test_instance,
             cancel_not_ret=None,
             timeout=120,
             ret_status=False,
+            ret_out=False,
             is_log_output=True,
             is_log_cmd=True,
             cursor=None,
@@ -892,6 +893,8 @@ def run_cmd(test_instance,
             if int(ret) == int(status):
                 test_instance.skipTest("skip ret code '%s' found act ret '%s' cancel case. msg:%s" % (ret, status, msg))
     if ret_status:
+        if ret_out:
+            return status, output
         return status
     return output
 

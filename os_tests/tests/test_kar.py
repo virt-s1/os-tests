@@ -1,5 +1,4 @@
 import configparser
-import os
 import unittest
 
 from os_tests.libs import utils_lib
@@ -22,11 +21,15 @@ class TestKAR(unittest.TestCase):
         kar_loc = self.params.get('kar_location')
         images_loc = self.params.get('kar_images_location')
 
-        # Set timeout to 600 for avoiding some timeout error, or maybe put them into CI
-        cmd = ("dnf install -y bzip2 qemu-* git vim gcc libvirt-* libguestfs-* "
-               "virt-install python3-sphinx gdb* bpf* ksm* tcpdump "
-               "rpmdevtools* python3-devel")
-        ret, out = utils_lib.run_cmd_local(cmd, timeout=600, is_log_ret=True)
+        cmd = ("dnf install -q -y bzip2 qemu-* git vim gcc libvirt-* "
+               "libguestfs-* virt-install python3-sphinx gdb* bpf* ksm* "
+               "tcpdump rpmdevtools* python3-devel")
+        ret, out = utils_lib.run_cmd(self,
+                                     cmd,
+                                     timeout=600,
+                                     is_log_cmd=True,
+                                     ret_out=True,
+                                     ret_status=True)
         if ret != 0:
             raise Exception(f"Install packages failed - {out}")
 
@@ -35,28 +38,49 @@ class TestKAR(unittest.TestCase):
                "systemctl start --now virtstoraged && "
                "systemctl start --now virtinterfaced && "
                "systemctl start --now virtnodedevd")
-        ret, out = utils_lib.run_cmd_local(cmd, is_log_ret=True)
+        ret, out = utils_lib.run_cmd(self,
+                                     cmd,
+                                     is_log_cmd=True,
+                                     ret_out=True,
+                                     ret_status=True)
         if ret != 0:
             raise Exception(f"Enable virtualization failed - {out}")
 
-        ret, _ = utils_lib.run_cmd_local(f"test -d {kar_dir}", is_log_ret=True)
+        ret, _ = utils_lib.run_cmd(self,
+                                   f"test -d {kar_dir}",
+                                   is_log_cmd=True,
+                                   ret_out=True,
+                                   ret_status=True)
         if ret != 0:
-            ret, out = utils_lib.run_cmd_local(f"tar -jxvf {kar_loc} -C /home",
-                                               is_log_ret=True)
+            ret, out = utils_lib.run_cmd(self,
+                                         f"tar -jxf {kar_loc} -C /home",
+                                         timeout=600,
+                                         is_log_cmd=True,
+                                         ret_out=True,
+                                         ret_status=True)
             if ret != 0:
                 raise Exception(f"Decompression kar.bz2 failed - {out}")
 
-        ret, _ = utils_lib.run_cmd_local(f"test -d {images_dir}",
-                                         is_log_ret=True)
+        ret, _ = utils_lib.run_cmd(self,
+                                   f"test -d {images_dir}",
+                                   is_log_cmd=True,
+                                   ret_out=True,
+                                   ret_status=True)
         if ret != 0:
-            ret, out = utils_lib.run_cmd_local(f"mkdir -p {images_dir}",
-                                               is_log_ret=True)
+            ret, out = utils_lib.run_cmd(self,
+                                         f"mkdir -p {images_dir}",
+                                         is_log_cmd=True,
+                                         ret_out=True,
+                                         ret_status=True)
             if ret != 0:
                 raise Exception(f"Create images directory failed - {out}")
 
-            ret, out = utils_lib.run_cmd_local(f"tar -jxvf {images_loc} -C {images_dir}",
-                                               is_log_ret=True,
-                                               timeout=600)
+            ret, out = utils_lib.run_cmd(self,
+                                         f"tar -jxf {images_loc} -C {images_dir}",
+                                         is_log_cmd=True,
+                                         timeout=1200,
+                                         ret_out=True,
+                                         ret_status=True)
             if ret != 0:
                 raise Exception(f"Decompression images.bz2 failed - {out}")
 
@@ -67,9 +91,12 @@ class TestKAR(unittest.TestCase):
 
         venv = kar_dir + "/workspace"
         # Set timeout to 600 for avoiding some timeout error
-        ret, out = utils_lib.run_cmd_local(cmd=f"source {venv}/bin/activate && pip install netifaces 'jinja2' Pillow",
-                                           timeout=600,
-                                           is_log_ret=True)
+        ret, out = utils_lib.run_cmd(self,
+                                     cmd=f"source {venv}/bin/activate && pip install netifaces 'jinja2' Pillow",
+                                     timeout=600,
+                                     is_log_cmd=True,
+                                     ret_out=True,
+                                     ret_status=True)
         if ret != 0:
             raise Exception(f"Installing venv dependencies fails - {out}")
 
@@ -82,32 +109,63 @@ class TestKAR(unittest.TestCase):
         # Read the avocado config for the log dir
         # Then put them into os-tests resutls dir
         kar_config = configparser.ConfigParser()
-        kar_config.read(self.params.get("kar_avocado_conf"))
+        ret, out = utils_lib.run_cmd(self,
+                                     f"cat {self.params.get("kar_avocado_conf")}",
+                                     is_log_cmd=True,
+                                     ret_out=True,
+                                     ret_status=True)
+        if ret != 0:
+            raise Exception(f"Read avocado configuration failed with {out}")
+        kar_config.read_string(out)
 
         for k, v in self.params.get("kar_tests").items():
             cmd = cmd_prefix + v
 
-            ret, out = utils_lib.run_cmd_local(cmd=cmd,
-                                               timeout=12 * 60 * 60,
-                                               is_log_ret=True)
+            # Each testsuite should be finished in 12 hours
+            ret, out = utils_lib.run_cmd(self,
+                                         cmd=cmd,
+                                         timeout=12 * 60 * 60,
+                                         is_log_cmd=True,
+                                         ret_out=True,
+                                         ret_status=True)
             if ret != 0:
                 error_list.append(f"Run testsuite {k} failed with {out}")
 
+            # The results is stored locally
             target_res_dir = self.params['results_dir'] + "/" + k
             ret, out = utils_lib.run_cmd_local(cmd=f"mkdir -p {target_res_dir}",
                                                is_log_ret=True)
             if ret != 0:
                 error_list.append(f"Create target results directory failed with {out}")
 
-            avocado_results_path = os.path.realpath(kar_config['datadir.paths']['logs_dir'] + "/latest")
-            ret, out = utils_lib.run_cmd_local(cmd=f"cp -r {avocado_results_path} {target_res_dir}",
-                                               is_log_ret=True)
+            ret, out = utils_lib.run_cmd(self,
+                                         f"realpath {kar_config['datadir.paths']['logs_dir'] + '/latest'}",
+                                         is_log_cmd=True,
+                                         ret_out=True,
+                                         ret_status=True)
             if ret != 0:
-                error_list.append(f"cp -r {avocado_results_path} {target_res_dir} failed with {out}")
+                error_list.append(f"Get realpath from {kar_config['datadir.paths']['logs_dir'] + '/latest'} failed with {out}")
+
+            cmd = "scp -q -r "
+            if self.is_rmt:
+                cmd += f"-i {self.params['remote_keyfile']} -o StrictHostKeyChecking=no {self.params['remote_user']}@{self.params['remote_nodes'][0]}:"
+            cmd += f"{out.strip()} {target_res_dir}"
+            # Sometime, the results may be too large,
+            # or there are too much files,
+            # or the network is slow,
+            # then the scp will be failed with timeout
+            ret, out = utils_lib.run_cmd_local(cmd=cmd,
+                                               is_log_ret=True,
+                                               timeout=600)
+            if ret != 0:
+                error_list.append(f"{cmd} failed with {out}")
 
         if error_list:
             for i in error_list:
+                # Separator for error outputs
+                self.log.error("----------error_list----------")
                 self.log.error(i)
+                self.log.error("----------error_list----------")
             raise Exception("Found error during run kar testsuite")
 
     def tearDown(self):
