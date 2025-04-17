@@ -298,6 +298,9 @@ class TestRHELCert(unittest.TestCase):
             subtests.append('hwcert/cpuscaling')
             subtests.append('cpuscaling')
 
+        if self.params.get('subtests'):
+            self.log.info('Found subtests in params:{}'.format(self.params.get('subtests')))
+            subtests = self.params.get('subtests').split()
         self.log.info("Will run subtests: {}".format(subtests))
         for case in subtests:
             cmd = 'sudo bash -c "yes|rhcert-cli run --test {}"'.format(case)
@@ -320,19 +323,29 @@ class TestRHELCert(unittest.TestCase):
         cmd = 'sudo bash -c "yes|rhcert-cli plan"'
         utils_lib.run_cmd(self,cmd, timeout=1800, msg='create test plan')
         utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
-        cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device local"'
-        utils_lib.run_cmd(self,cmd, timeout=3600, msg='run kdump local test')
-        if not self.SSH.is_active():
-            utils_lib.init_connection(self, timeout=self.ssh_timeout*2)
-        time.sleep(30)
-        self._wait_cert_done(prefix='local')
-        utils_lib.is_pkg_installed(self,'nfs-utils')
-        cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device nfs --server {}"'.format(self.rmt_ipv4)
-        utils_lib.run_cmd(self,cmd, timeout=3600, msg='run kdump nfs test')
-        if not self.SSH.is_active():
-            utils_lib.init_connection(self, timeout=self.ssh_timeout*2)
-        time.sleep(30)
-        self._wait_cert_done(prefix='nfs')
+        run_local = True
+        run_nfs = True
+        if self.params.get('subtests'):
+            self.log.info('Found subtests in params:{}'.format(self.params.get('subtests')))
+            if 'local' not in self.params.get('subtests'):
+                run_local = False
+            if 'nfs' not in self.params.get('subtests'):
+                run_nfs = False
+        if run_local:
+            cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device local"'
+            utils_lib.run_cmd(self,cmd, timeout=3600, msg='run kdump local test')
+            if not self.SSH.is_active():
+                utils_lib.init_connection(self, timeout=self.ssh_timeout*2)
+            time.sleep(30)
+            self._wait_cert_done(prefix='local')
+        if run_nfs:
+            utils_lib.is_pkg_installed(self,'nfs-utils')
+            cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device nfs --server {}"'.format(self.rmt_ipv4)
+            utils_lib.run_cmd(self,cmd, timeout=3600, msg='run kdump nfs test')
+            if not self.SSH.is_active():
+                utils_lib.init_connection(self, timeout=self.ssh_timeout*2)
+            time.sleep(30)
+            self._wait_cert_done(prefix='nfs')
 
     def test_rhcert_kdump_aws_arm_irqpoll(self):
         '''
@@ -424,13 +437,21 @@ class TestRHELCert(unittest.TestCase):
         """
         if not utils_lib.is_metal(self):
             self.skipTest("Only run on metal instance")
+        cmd = "sudo rm -rf /etc/libvirt/qemu/hwcert-x86_64.xml"
+        utils_lib.run_cmd(self,cmd, msg='delete it if exists')
         cmd = 'sudo bash -c "yes|rhcert-cli plan"'
         auto_plan = utils_lib.run_cmd(self,cmd, timeout=3600, msg='create test plan')
+        # case name denpends on cert pkg version, the latest cert tool cannot recognize hwcert/xxx cases
         subtests = []
         if 'fv_core' in auto_plan:
             subtests.append('hwcert/fvtest/fv_core')
+            subtests.append('fv_core')
         if 'fv_memory' in auto_plan:
             subtests.append('hwcert/fvtest/fv_memory')
+            subtests.append('fv_memory')
+        if self.params.get('subtests'):
+            self.log.info('Found subtests in params:{}'.format(self.params.get('subtests')))
+            subtests = self.params.get('subtests').split()
 
         self.log.info("Will run subtests: {}".format(subtests))
         for case in subtests:

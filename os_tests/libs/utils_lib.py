@@ -36,6 +36,8 @@ def init_args():
                     help='list supported cases without run', required=False)
     parser.add_argument('-p', dest='pattern', default=None, action='store',
                     help='filter case by name and run it in specified order, add --strict for matching exactly', required=False)
+    parser.add_argument('--subtests', dest='subtests', default=None, action='store',
+                    help='run subtests only in 3rd party test tools, eg.  local/nfs kdump in test_rhcert_kdump and fv_core/fv_memory/other in test_rhcert_only_metal', required=False)
     parser.add_argument('--strict', dest='is_strict', action='store_true',
                     help='match exactly if -p or -s specified', required=False)
     parser.add_argument('-s', dest='skip_pattern', default=None, action='store',
