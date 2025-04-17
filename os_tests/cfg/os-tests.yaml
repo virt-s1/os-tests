@@ -40,6 +40,8 @@ net_bandwidth:
 is_listcase: False
 # filter case by name and run it in specified order, add --strict for matching exactly
 pattern:
+# run subtests only in 3rd party test tools, eg. rhcert cases
+subtests: 
 # skip cases
 skip_pattern:
 # match exactly if pattern or skip_pattern specified
