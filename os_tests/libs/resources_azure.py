@@ -122,12 +122,25 @@ class AzureVM(VMResource):
             authentication_type = self.authentication_type
         vm_password = None
         vm_username = None
+
+        # Create resouce group firstly if resouce group does not exist, mainly for image replicated to other region 
+        cmd ='az group exists --name "{}"'.format(self.resource_group)
+        ret, out = run_cmd_local(cmd, is_log_ret=True)
+        if out.strip().lower() == "true":
+            print(f"Resource group '{self.resource_group}' already exists.")
+        else:
+            print(f"Resource group '{self.resource_group}' does not exist. Creating...")
+            cmd = 'az group create --name "{}"  --location "{}"' \
+            .format(self.resource_group, self.region)
+            ret, out = run_cmd_local(cmd, is_log_ret=True)
+
         cmd = 'az vm create --name "{}" --resource-group "{}" --image "{}" '\
-            '--size "{}" --authentication-type "{}" '\
+            '--size "{}" --authentication-type "{}" --location "{}" '\
             ' --os-disk-name "{}" --nic-delete-option delete --os-disk-delete-option delete'\
             .format(self.vm_name, self.resource_group, self.vm_image,
-                    self.vm_size, authentication_type,
+                    self.vm_size, authentication_type, self.region,
                     self.os_disk_name)
+
         if self.ssh_key_value and sshkey != 'DoNotSet':
             cmd += ' --ssh-key-value {}'.format(self.ssh_key_value)
         elif self.generate_ssh_keys and sshkey != 'DoNotSet':
@@ -182,7 +195,7 @@ class AzureVM(VMResource):
             self.vm_name, self.resource_group)
         if not wait:
             cmd += " --no-wait"
-        run_cmd_local(cmd, is_log_ret=True)
+        run_cmd_local(cmd, timeout=720, is_log_ret=True)
         # Previous os disk name will be deleted together with vm, but it still exists for a while.
         # It will fail to create new vm immediatly, so use new os disk name instead.
         self.os_disk_name = self.vm_name + "_os" + \
