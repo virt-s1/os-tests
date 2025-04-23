@@ -1428,12 +1428,12 @@
     },
     "msg_160": {
         "content": ".*tsc: Fast TSC calibration failed.*",
-        "analyze": "can ignore this if refine TSC clocksource successfully",
+        "analyze": "can ignore this because it is information only",
         "branch": "rhel",
         "status": "active",
-        "link": "https://access.redhat.com/solutions/260603,https://access.redhat.com/solutions/4423371",
+        "link": "https://access.redhat.com/solutions/260603,https://access.redhat.com/solutions/4423371,https://lore.kernel.org/all/1418106470-6906-1-git-send-email-alexandre.f.demers@gmail.com/T/#u",
         "path": "journal,dmesg",
-        "trigger": "Refined TSC clocksource calibration"
+        "trigger": ""
     },
     "msg_161": {
         "content": ".*acpid.socket:.*ListenStream= references a path below legacy directory.*",
