@@ -2076,8 +2076,11 @@ current_device"
         cmd = 'sudo rm -rf /var/tmp/sos*'
         utils_lib.run_cmd(self,cmd,msg="clean up old sos report")
         utils_lib.is_cmd_exist(self, cmd='sosreport')
-        cmd = "sudo sosreport --batch"
-        utils_lib.run_cmd(self,cmd,expect_ret=0,msg="test sosreport",timeout=900)
+        cmds = ["sudo sos report --batch", "sudo sosreport --batch"]
+        for cmd in cmds:
+            ret = utils_lib.run_cmd(self,cmd,msg="test sosreport",timeout=900, ret_status=True)
+            if ret == 0:
+                break
         cmd = 'sudo ls /var/tmp/sos*.xz'
         sosfile = utils_lib.run_cmd(self, cmd, expect_ret=0)
         sosfile = sosfile.strip('\n')
