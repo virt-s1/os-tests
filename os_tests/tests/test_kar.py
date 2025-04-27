@@ -150,23 +150,24 @@ class TestKAR(unittest.TestCase):
             if self.is_rmt:
                 cmd += f"-i {self.params['remote_keyfile']} -o StrictHostKeyChecking=no {self.params['remote_user']}@{self.params['remote_nodes'][0]}:"
             cmd += f"{out.strip()} {target_res_dir}"
-            # Sometime, the results may be too large,
-            # or there are too much files,
-            # or the network is slow,
-            # then the scp will be failed with timeout
-            ret, out = utils_lib.run_cmd_local(cmd=cmd,
-                                               is_log_ret=True,
-                                               timeout=600)
-            if ret != 0:
-                error_list.append(f"{cmd} failed with {out}")
+            # Catch the exception when timeout
+            try:
+                ret, out = utils_lib.run_cmd_local(cmd=cmd,
+                                                   is_log_ret=True,
+                                                   timeout=1200)
+                if ret != 0:
+                    error_list.append(f"{cmd} failed with {out}")
+            except Exception as e:
+                error_list.append(repr(e))
 
         if error_list:
+            self.log.error("*" * 20 + "start to print the error list" + "*" * 20)
             for i in error_list:
                 # Separator for error outputs
-                self.log.error("----------error_list----------")
                 self.log.error(i)
-                self.log.error("----------error_list----------")
-            raise Exception("Found error during run kar testsuite")
+                self.log.error("-" * 20)
+            self.log.error("*" * 20 + "end to print the error list" + "*" * 20)
+            raise Exception("Found errors during run kar testsuite")
 
     def tearDown(self):
         utils_lib.finish_case(self)
