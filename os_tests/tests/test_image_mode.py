@@ -223,7 +223,7 @@ EOF
             if i < 10:
                 time.sleep(10)
         else:
-            self.skipTest("Skip test since cannot pull the bootc base image{} {}.".format(bootc_base_image, arch))
+            self.skipTest("Skip test since cannot pull the bootc base image {} {}.".format(bootc_base_image, arch))
         cmd = "sudo podman images"
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg="Check all container images")
         cmd = "sudo podman inspect {} --format '{{{{.ID}}}}' | tr -d '\n'".format(bootc_base_image)
