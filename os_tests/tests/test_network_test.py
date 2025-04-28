@@ -2312,6 +2312,45 @@ COMMIT
         cmd = "ethtool -S {}|grep xdp".format(self.active_nic )
         utils_lib.run_cmd(self, cmd, msg='check xdp counter')
 
+    def test_check_gce_gve(self):
+        """
+        case_tag:
+            Network,Network_tier1
+        case_name:
+            test_check_gce_gvnic
+        case_file:
+            os_tests.tests.test_netwrok_test.TestNetworkTest.test_check_gce_gvnic
+        component:
+            network
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            linl@redhat.com
+        description:
+            Check gVNIC information in dmesg.
+        key_steps:
+            1. Check if the nic driver is gve via command "ethtool -i $nic".
+            2. Check gVIC information in dmesg via command "dmesg | grep -i gve".
+        expect_result:
+            There is keywords in dmesg like "Driver is running with GQI xxx queue format"
+        debug_want:
+            N/A
+        """
+        if os.getenv('INFRA_PROVIDER') in ['google']:
+            cmd = "sudo ethtool -i {}".format(self.active_nic )
+            output = utils_lib.run_cmd(self, cmd, expect_ret=0)
+            if 'gve' in output:
+                self.log.info('gve driver found!')
+                cmd = "sudo dmesg | grep -i gve"
+                ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg="Check if there is gve in dmesg")
+                if ret == 0:
+                    utils_lib.run_cmd(self, 'sudo dmesg | grep -i gve', expect_ret=0,
+                                    expect_kw='Driver is running with',
+                                    msg="Check the gve driver queue format")
     def tearDown(self):
         utils_lib.finish_case(self)
         if 'test_mtu_min_max_set' in self.id():
