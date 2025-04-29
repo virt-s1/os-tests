@@ -1,7 +1,5 @@
----
 kar_location: ""
 kar_images_location: ""
 kar_avocado_conf: ""
 kar_tests:
   demo: ""
-...

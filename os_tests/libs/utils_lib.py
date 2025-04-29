@@ -240,9 +240,10 @@ def init_ssh(params=None, timeout=600, interval=10, log=None, rmt_node=None):
     return ssh
 
 def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=None, retry=3):
-    provider = test_instance.params['Cloud']['provider']
-    if 'openshift' in provider:
-        return
+    # If no Cloud section in the yaml, don't terminate the test
+    params_cloud = test_instance.params.get('Cloud')
+    if params_cloud and 'openshift' in params_cloud.get('provider'):
+            return
     if not test_instance.params['remote_node'] and not rmt_node and not vm and not test_instance.vm:
         return False
     new_vm_ip = None
@@ -477,16 +478,18 @@ ssh_authorized_keys:
             test_instance.vm.start(wait=True)
         test_instance.params['remote_port'] = test_instance.vm.port or 22
 
-    provider = test_instance.params['Cloud']['provider']
-    if test_instance.is_rmt and 'openshift' not in provider:
-        test_instance.log.info('ssh connection timeout:{}'.format(test_instance.ssh_timeout))
-        init_connection(test_instance, timeout=test_instance.ssh_timeout)
-        if not test_instance.params['remote_node']:
-            test_instance.fail("remote_node not found")
-        if test_instance.SSH:
-            test_instance.SSH.log = test_instance.log
-            if  not test_instance.SSH.ssh_client:
-                test_instance.fail("Cannot make ssh connection to remote, please check!")
+    # If no Cloud section in the yaml, don't terminate the test
+    params_cloud = test_instance.params.get('Cloud')
+    if test_instance.is_rmt:
+        if not (params_cloud and 'openshift' in params_cloud['provider']):
+            test_instance.log.info('ssh connection timeout:{}'.format(test_instance.ssh_timeout))
+            init_connection(test_instance, timeout=test_instance.ssh_timeout)
+            if not test_instance.params['remote_node']:
+                test_instance.fail("remote_node not found")
+            if test_instance.SSH:
+                test_instance.SSH.log = test_instance.log
+                if  not test_instance.SSH.ssh_client:
+                    test_instance.fail("Cannot make ssh connection to remote, please check!")
     node_info = "{}/node_info".format(attachment_dir)
     node_info_data = {}
     if not os.path.exists(node_info):
@@ -765,16 +768,17 @@ def run_cmd(test_instance,
     ssh_index = 0
 
     try:
-        provider = test_instance.params['Cloud']['provider']
-        test_instance.log.info('---------------')
-        test_instance.log.info('provider is:'+provider)
-        if 'openshift' in provider:
-            vm = test_instance.params['VM'].get('vm_name')
-            status, output = run_cmd_local_virtctl(test_instance,vm=vm, cmd=cmd, timeout=300, is_log_cmd=True, log=test_instance.log)
-            test_instance.log.info(f"Raw SSH Output:\n{output}")
-            filtered_output = "\n".join([line for line in output.splitlines() if "Warning: Permanently added" not in line])
-            test_instance.log.info(f"Filtered SSH Output:\n{filtered_output}")
-            return filtered_output.strip()
+        # If no Cloud section in the yaml, don't terminate the test
+        params_cloud = test_instance.params.get('Cloud')
+        if params_cloud:
+            test_instance.log.info("-" * 10 + 'provider is: ' + params_cloud['provider'] + "-" * 10)
+            if 'openshift' in params_cloud.get('provider'):
+                vm = test_instance.params['VM'].get('vm_name')
+                status, output = run_cmd_local_virtctl(test_instance,vm=vm, cmd=cmd, timeout=300, is_log_cmd=True, log=test_instance.log)
+                test_instance.log.info(f"Raw SSH Output:\n{output}")
+                filtered_output = "\n".join([line for line in output.splitlines() if "Warning: Permanently added" not in line])
+                test_instance.log.info(f"Filtered SSH Output:\n{filtered_output}")
+                return filtered_output.strip()
         elif test_instance.is_rmt:
             if not test_instance.params['remote_node'] and not rmt_node and not vm:
                 return

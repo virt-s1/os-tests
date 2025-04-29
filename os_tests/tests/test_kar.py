@@ -146,11 +146,20 @@ class TestKAR(unittest.TestCase):
             if ret != 0:
                 error_list.append(f"Get realpath from {kar_config['datadir.paths']['logs_dir'] + '/latest'} failed with {out}")
 
-            cmd = "scp -q -r "
+            # The log maybe too large, compress them
+            ret, out = utils_lib.run_cmd(self,
+                                         f"tar -czf /tmp/kar_avocado_{k}.tar.gz {out.strip()}",
+                                         is_log_cmd=True,
+                                         ret_out=True,
+                                         ret_status=True)
+            if ret != 0:
+                error_list.append(f"compress the log failed with {out}")
+
+            cmd = "scp -q "
             if self.is_rmt:
                 cmd += f"-i {self.params['remote_keyfile']} -o StrictHostKeyChecking=no {self.params['remote_user']}@{self.params['remote_nodes'][0]}:"
-            cmd += f"{out.strip()} {target_res_dir}"
-            # Catch the exception when timeout
+            cmd += f"/tmp/kar_avocado_{k}.tar.gz {target_res_dir}"
+            # subprocess.run will raise timeout exception, catch it and put it into the error list
             try:
                 ret, out = utils_lib.run_cmd_local(cmd=cmd,
                                                    is_log_ret=True,
@@ -158,7 +167,7 @@ class TestKAR(unittest.TestCase):
                 if ret != 0:
                     error_list.append(f"{cmd} failed with {out}")
             except Exception as e:
-                error_list.append(repr(e))
+                error_list.append(f"{cmd} failed with " + repr(e))
 
         if error_list:
             self.log.error("*" * 20 + "start to print the error list" + "*" * 20)
