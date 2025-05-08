@@ -21,8 +21,8 @@ class TestKAR(unittest.TestCase):
         kar_loc = self.params.get('kar_location')
         images_loc = self.params.get('kar_images_location')
 
-        cmd = ("dnf install -q -y bzip2 qemu-* git vim gcc libvirt-* "
-               "libguestfs-* virt-install python3-sphinx gdb* bpf* ksm* "
+        cmd = ("sudo dnf install -q -y bzip2 qemu-* git vim gcc libvirt-* "
+               "libguestfs-* virt-install gdb* bpf* ksm* "
                "tcpdump rpmdevtools* python3-devel")
         ret, out = utils_lib.run_cmd(self,
                                      cmd,
@@ -33,11 +33,12 @@ class TestKAR(unittest.TestCase):
         if ret != 0:
             raise Exception(f"Install packages failed - {out}")
 
-        cmd = ("systemctl start --now virtqemud && "
+        cmd = ("sudo su -c \""
+               "systemctl start --now virtqemud && "
                "systemctl start --now virtnetworkd && "
                "systemctl start --now virtstoraged && "
                "systemctl start --now virtinterfaced && "
-               "systemctl start --now virtnodedevd")
+               "systemctl start --now virtnodedevd\"")
         ret, out = utils_lib.run_cmd(self,
                                      cmd,
                                      is_log_cmd=True,
@@ -53,7 +54,7 @@ class TestKAR(unittest.TestCase):
                                    ret_status=True)
         if ret != 0:
             ret, out = utils_lib.run_cmd(self,
-                                         f"tar -jxf {kar_loc} -C /home",
+                                         f"sudo tar -jxf {kar_loc} -C /home",
                                          timeout=600,
                                          is_log_cmd=True,
                                          ret_out=True,
@@ -68,7 +69,7 @@ class TestKAR(unittest.TestCase):
                                    ret_status=True)
         if ret != 0:
             ret, out = utils_lib.run_cmd(self,
-                                         f"mkdir -p {images_dir}",
+                                         f"sudo mkdir -p {images_dir}",
                                          is_log_cmd=True,
                                          ret_out=True,
                                          ret_status=True)
@@ -76,7 +77,7 @@ class TestKAR(unittest.TestCase):
                 raise Exception(f"Create images directory failed - {out}")
 
             ret, out = utils_lib.run_cmd(self,
-                                         f"tar -jxf {images_loc} -C {images_dir}",
+                                         f"sudo tar -jxf {images_loc} -C {images_dir}",
                                          is_log_cmd=True,
                                          timeout=1200,
                                          ret_out=True,
@@ -92,7 +93,7 @@ class TestKAR(unittest.TestCase):
         venv = kar_dir + "/workspace"
         # Set timeout to 600 for avoiding some timeout error
         ret, out = utils_lib.run_cmd(self,
-                                     cmd=f"source {venv}/bin/activate && pip install netifaces 'jinja2' Pillow",
+                                     cmd=f"sudo su -c \"source {venv}/bin/activate && pip install netifaces 'jinja2' Pillow transitions\"",
                                      timeout=600,
                                      is_log_cmd=True,
                                      ret_out=True,
@@ -101,6 +102,7 @@ class TestKAR(unittest.TestCase):
             raise Exception(f"Installing venv dependencies fails - {out}")
 
         cmd_prefix = (
+            "sudo su -c \""
             f"source {venv}/bin/activate && "
             f"PYTHONPATH={venv}/avocado:{venv}/avocado-vt:{venv}/aexpect "
             f"python3 {kar_dir}/ConfigTest.py "
@@ -110,7 +112,7 @@ class TestKAR(unittest.TestCase):
         # Then put them into os-tests resutls dir
         kar_config = configparser.ConfigParser()
         ret, out = utils_lib.run_cmd(self,
-                                     f"cat {self.params.get("kar_avocado_conf")}",
+                                     f"sudo cat {self.params.get("kar_avocado_conf")}",
                                      is_log_cmd=True,
                                      ret_out=True,
                                      ret_status=True)
@@ -119,7 +121,7 @@ class TestKAR(unittest.TestCase):
         kar_config.read_string(out)
 
         for k, v in self.params.get("kar_tests").items():
-            cmd = cmd_prefix + v
+            cmd = cmd_prefix + v + "\""
 
             # Each testsuite should be finished in 12 hours
             ret, out = utils_lib.run_cmd(self,
@@ -139,7 +141,7 @@ class TestKAR(unittest.TestCase):
                 error_list.append(f"Create target results directory failed with {out}")
 
             ret, out = utils_lib.run_cmd(self,
-                                         f"realpath {kar_config['datadir.paths']['logs_dir'] + '/latest'}",
+                                         f"sudo realpath {kar_config['datadir.paths']['logs_dir'] + '/latest'}",
                                          is_log_cmd=True,
                                          ret_out=True,
                                          ret_status=True)
@@ -148,7 +150,7 @@ class TestKAR(unittest.TestCase):
 
             # The log maybe too large, compress them
             ret, out = utils_lib.run_cmd(self,
-                                         f"tar -czf /tmp/kar_avocado_{k}.tar.gz {out.strip()}",
+                                         f"sudo tar -czf /tmp/kar_avocado_{k}.tar.gz {out.strip()}",
                                          is_log_cmd=True,
                                          ret_out=True,
                                          ret_status=True)
