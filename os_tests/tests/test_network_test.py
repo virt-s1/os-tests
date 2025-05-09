@@ -1376,6 +1376,8 @@ COMMIT
             utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw="provider: efa", msg='Check the Libfabric EFA interfaces')
             cmd = "sudo  bash -c 'fi_pingpong -e rdm -p efa -I 100 & sleep 2; fi_pingpong -e rdm -p efa localhost -I 100'"
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='run pingpong test')
+        if utils_lib.is_pkg_installed(self,'infiniband-diags'):
+            utils_lib.run_cmd(self,'ibstatus',expect_ret=0)
 
     @unittest.skipUnless(os.getenv('INFRA_PROVIDER') == 'aws', 'aws dedicated feature')        
     def test_load_unload_efa_driver(self):
@@ -1578,7 +1580,7 @@ COMMIT
             Check MPI app run via efa provider
         key_steps: |
             1.# sudo yum install libfabric
-            2.# sudo yum install openmpi
+            2.# sudo yum install openmpi openmpi-devel
             3.# git clone https://github.com/mpitutorial/mpitutorial && cd mpitutorial/tutorials/mpi-hello-world/code/
             4.# export PATH=$PATH:/usr/lib64/openmpi/bin && cd ~/mpitutorial/tutorials/mpi-hello-world/code/
             5.# make
@@ -1594,7 +1596,7 @@ COMMIT
         if not self.vm.efa_support:
             self.skipTest('EFA is not supported on the instance ' + self.vm.instance_type)
         if utils_lib.is_pkg_installed(self, 'libfabric'):
-            if utils_lib.is_pkg_installed(self,'openmpi'):
+            if utils_lib.is_pkg_installed(self,'openmpi') and utils_lib.is_pkg_installed(self,'openmpi-devel'):
                 if utils_lib.is_pkg_installed(self,'git'):
                     cmd = 'git clone https://github.com/mpitutorial/mpitutorial && cd mpitutorial/tutorials/mpi-hello-world/code/'
                     utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Download OPENMPI Hello_world App')
