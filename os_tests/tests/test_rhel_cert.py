@@ -188,21 +188,15 @@ class TestRHELCert(unittest.TestCase):
                 # mkswap -L swap01 /root/swapfile01
                 # swapon /root/swapfile01
 
-                # RAM Size  #Swap Size   hardcode Swap Size
-                # ≤ 8 GB     2 × RAM     4G
-                # 8–64 GB    8–16 GB     8G
-                # > 64 GB    32–64 GB    32G
-
                 cmd = "sudo free -g | awk '/^Mem:/ {print $2}'"
                 mem_output = utils_lib.run_cmd(self, cmd).rstrip('\n')
                 self.log.info("Current total mem is {}G".format(mem_output))
 
-                if int(mem_output) <= 8 :
-                    #count = (int(mem_output))*2*1024
+                if int(mem_output) <= 800 :
                     count = 4096   # 4G
-                elif int(mem_output) <= 64:
-                    count = 8192   # 8G
-                elif int(mem_output) > 64:
+                elif int(mem_output) <= 10000:
+                    count = 10240   # 10G
+                elif int(mem_output) > 10000:
                     count = 32768  # 32G
                 self.log.info("The swap will be set as {}M".format(count))
 
@@ -213,7 +207,7 @@ class TestRHELCert(unittest.TestCase):
                 'sudo swapon /root/{}'.format(new_part),
                 'sudo cat /proc/swaps']
                 for cmd in cmds:
-                    utils_lib.run_cmd(self,cmd)
+                    utils_lib.run_cmd(self,cmd,timeout=720)
                 
                 cmd = "sudo free -g"
                 memnew_output = utils_lib.run_cmd(self, cmd).rstrip('\n')
