@@ -2441,5 +2441,17 @@
         "trigger": "",
         "addedby": "yoguo@redhat.com",
         "addeddate": "20250314"
+    },
+    "msg_259": {
+        "content": ".*Failure to post internal receive buffers.*",
+        "analyze": "known issue",
+        "branch": "rhel10.1",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-90363",
+        "path": "",
+        "trigger": "",
+        "cases": "os_tests.tests.test_network_test.TestNetworkTest.test_mpi_app_via_efa_provider",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250509"
     }
 }

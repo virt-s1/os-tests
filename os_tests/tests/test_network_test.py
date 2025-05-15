@@ -1587,8 +1587,10 @@ COMMIT
             6.# export OMPI_MCA_mtl_base_verbose=100 && /usr/lib64/openmpi/bin/mpirun ~/mpitutorial/tutorials/mpi-hello-world/code/mpi_hello_world
         expect_result:
             MPI application run via efa provider
-        debug_want:
-            efa,libfabric
+        debug_want: |
+            collect the debug log:
+            export FI_LOG_LEVEL=10
+            export FI_LOG_PROV=core
         """
         if not self.vm:
             self.skipTest("Skip test case since instance is not vm")

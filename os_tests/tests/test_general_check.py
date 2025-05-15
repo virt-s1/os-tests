@@ -2075,7 +2075,7 @@ current_device"
         """
         cmd = 'sudo rm -rf /var/tmp/sos*'
         utils_lib.run_cmd(self,cmd,msg="clean up old sos report")
-        utils_lib.is_cmd_exist(self, cmd='sosreport')
+        utils_lib.is_pkg_installed(self,pkg_name='sos')
         cmds = ["sudo sos report --batch", "sudo sosreport --batch"]
         for cmd in cmds:
             ret = utils_lib.run_cmd(self,cmd,msg="test sosreport",timeout=900, ret_status=True)
