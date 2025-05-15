@@ -187,14 +187,31 @@ class TestRHELCert(unittest.TestCase):
                 # chmod 600 /root/swapfile01
                 # mkswap -L swap01 /root/swapfile01
                 # swapon /root/swapfile01
+
+                cmd = "sudo free -g | awk '/^Mem:/ {print $2}'"
+                mem_output = utils_lib.run_cmd(self, cmd).rstrip('\n')
+                self.log.info("Current total mem is {}G".format(mem_output))
+
+                if int(mem_output) <= 800 :
+                    count = 4096   # 4G
+                elif int(mem_output) <= 10000:
+                    count = 10240   # 10G
+                elif int(mem_output) > 10000:
+                    count = 32768  # 32G
+                self.log.info("The swap will be set as {}M".format(count))
+
                 new_part="swapfile01"
-                cmds = ['sudo dd if=/dev/zero of=/root/{} bs=1M count=4096'.format(new_part),
+                cmds = ['sudo dd if=/dev/zero of=/root/{} bs=1M count={}'.format(new_part,count),
                 'sudo chmod 600 /root/{}'.format(new_part),
                 'sudo mkswap -L swap01 /root/{}'.format(new_part),
                 'sudo swapon /root/{}'.format(new_part),
                 'sudo cat /proc/swaps']
                 for cmd in cmds:
-                    utils_lib.run_cmd(self,cmd)
+                    utils_lib.run_cmd(self,cmd,timeout=720)
+                
+                cmd = "sudo free -g"
+                memnew_output = utils_lib.run_cmd(self, cmd).rstrip('\n')
+                self.log.info("The free -g status is \n {}".format(memnew_output))
 
                 # Add a 4G size data disk if without data disk which is required by Azure storage case
                 if int(self.vm.disk_count()) == 0:
