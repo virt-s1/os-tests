@@ -779,7 +779,7 @@ def run_cmd(test_instance,
                 filtered_output = "\n".join([line for line in output.splitlines() if "Warning: Permanently added" not in line])
                 test_instance.log.info(f"Filtered SSH Output:\n{filtered_output}")
                 return filtered_output.strip()
-        elif test_instance.is_rmt:
+        if test_instance.is_rmt:
             if not test_instance.params['remote_node'] and not rmt_node and not vm:
                 return
             rmt_node = rmt_node or test_instance.params['remote_node'] or None
