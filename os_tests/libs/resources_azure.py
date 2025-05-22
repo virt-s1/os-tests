@@ -79,7 +79,7 @@ class AzureVM(VMResource):
         self.custom_data = params.get('VM').get("custom_data")
         self.net_bandwidth_cfg = params.get('VM').get('net_bandwidth')
         self.cvm = params['VM'].get('cvm', 'false').lower()
-        self.disk_controller_type = params['VM'].get('disk_controller_type')
+        self.disk_controller_type = params['VM'].get('disk_controller_type', 'false')
         self.sriov = params.get('VM').get('sriov', 'false').lower()
         self.user_data = None
         self.user_data_file = None
