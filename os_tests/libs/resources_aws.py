@@ -65,7 +65,7 @@ class EC2VM(VMResource):
         self.disks_cfg = params.get('disks')
         try:
             self.net_bandwidth_cfg = eval(params.get('net_bandwidth'))
-        except:      
+        except:
             self.net_bandwidth_cfg = params.get('net_bandwidth')
         self.is_created = False
         self.another_ip = None
@@ -172,7 +172,7 @@ class EC2VM(VMResource):
                 'InstanceMetadataTags': 'enabled'
             }
         }
-        
+
         sshkey= sshkey or self.ssh_key_name
         if sshkey and sshkey != "DoNotSet" :
             vm_kwargs['KeyName'] = sshkey
@@ -203,11 +203,11 @@ class EC2VM(VMResource):
                 LOG.info("placement groups are not supported by the {} instance type.".format(not_support_placement))
             else:
                 vm_kwargs["Placement"] = {"GroupName":self.placement_group_name}
-            
+
         if enable_sev_snp or self.sev_snp_enable_cfg:
             LOG.info("try to create instance with sev-snp enabled")
             vm_kwargs["CpuOptions"]={"AmdSevSnp":'enabled'}
-            
+
         if enable_ipv6only:
             LOG.info("try to create an instance with ipv6 only subnet")
             subnet = self.resource.Subnet(self.subnet_id_ipv6only)
@@ -280,16 +280,16 @@ class EC2VM(VMResource):
     @utils_lib.wait_for(not_ret='', ck_not_ret=True, timeout=120)
     def floating_ip(self):
         self.ec2_instance.reload()
-        self.ipv4 = self.ec2_instance.public_dns_name or '' 
+        self.ipv4 = self.ec2_instance.public_dns_name or ''
         subnet = self.resource.Subnet(self.subnet_id)
         if subnet.ipv6_cidr_block_association_set:
             self.ipv6 = self.ipv6_address
         else:
-            LOG.info("current {} does not support ipv6".format(self.subnet_id))   
+            LOG.info("current {} does not support ipv6".format(self.subnet_id))
         if self.ipv4:
-            LOG.info("instance: {} public ip is: {}".format(self.id, self.ipv4)) 
+            LOG.info("instance: {} public ip is: {}".format(self.id, self.ipv4))
             return self.ipv4
-        if self.ipv6:    
+        if self.ipv6:
             LOG.info("instance: {} public ipv6 is: {}".format(self.id, self.ipv6))
             return self.ipv6
         LOG.info("No public ip available yet! Try to reload it!")
@@ -411,7 +411,11 @@ class EC2VM(VMResource):
                 return False
 
         if wait:
-            self.ec2_instance.wait_until_running()
+            try:
+                self.ec2_instance.wait_until_running()
+            except Exception as e:
+                LOG.error(f"The wait_until_running of the ec2 instance failed as: {e}")
+                return False
             if self.ec2_instance.state['Name'] == 'running':
                 LOG.info("Instance is in running state!")
             else:
@@ -1034,7 +1038,7 @@ class EC2NIC(NetworkResource):
         except Exception as err:
             LOG.error("NIC cannot attach to %s error %s" % (instance_id, err))
             return False
-            
+
     def detach_from_instance(self, instance_id, wait=True, force=False):
         """Detach nic from instance as $device_name
 
@@ -1112,7 +1116,7 @@ class EC2NIC(NetworkResource):
         except Exception as err:
             LOG.info("Failed to release Elastic IP")
             LOG.error(err)
-    
+
     def add_inbound_rule(self,instance_id,port):
         '''
         Add port to inbound rule
@@ -1142,7 +1146,7 @@ class EC2NIC(NetworkResource):
                         'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
                     }
                 ]
-            )  
+            )
         except Exception as err:
             LOG.info("Failed to add inbound rule")
             LOG.error(err)
@@ -1150,7 +1154,7 @@ class EC2NIC(NetworkResource):
 
     def remove_inbound_rule(self,instance_id,port):
         '''
-        remove port from inbound rule 
+        remove port from inbound rule
         :param instance_id: id of instance
         :param port: the port need to be removed from inbound rule
         :return: True if success, False as failed
