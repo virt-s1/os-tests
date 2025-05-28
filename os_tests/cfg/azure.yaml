@@ -28,9 +28,11 @@ VM:
     storage_account: 'xxxxxx'
     region: 'eastus'
     sriov: 'false'
-    net_bandwidth: 10000
+    #net_bandwidth 10, means 10G
+    net_bandwidth: 10
     cvm: 'false'
     # For Mdsv3-series can use disk_controller_type to specify SCSI/NVME disk type
     disk_controller_type:
+    nfs_server: 
 Other:
     packages: <the cloud-init package name: cloud-init-xxx.rpm>
