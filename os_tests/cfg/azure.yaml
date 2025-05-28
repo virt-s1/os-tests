@@ -33,6 +33,6 @@ VM:
     cvm: 'false'
     # For Mdsv3-series can use disk_controller_type to specify SCSI/NVME disk type
     disk_controller_type:
-    nfs_server: 
+    kdump_nfs_server: 
 Other:
     packages: <the cloud-init package name: cloud-init-xxx.rpm>
