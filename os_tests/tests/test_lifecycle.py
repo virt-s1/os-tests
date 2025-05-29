@@ -233,14 +233,14 @@ class TestLifeCycle(unittest.TestCase):
         key_steps: |
             1. Start a system, enable fips in system.
                For RHEL7,
-               Add the fips=1 option to the kernel command line of the boot loader, 
+               Add the fips=1 option to the kernel command line of the boot loader,
                e.g., "sudo grubby --update-kernel=ALL --args="fips=1""
                For RHEL8, RHEL9,
                To switch the system to FIPS mode via command "sudo fips-mode-setup --enable"
             2. Reboot system to enable FIPS mode in system.
             3. Check if the FIPS mode enabled.
                For RHEL7, there is "fips=1" in /proc/cmdline.
-               For RHEL8, RHEL9, 
+               For RHEL8, RHEL9,
                There is "fips=1" in /proc/cmdline and "sudo fips-mode-setup --check" is enabled.
         expected_result: |
             System boot success with fips mode enabled without any error in dmesg.
@@ -296,9 +296,12 @@ class TestLifeCycle(unittest.TestCase):
             if utils_lib.is_ostree_system(self):
                 fips_enable_cmd = 'sudo rpm-ostree kargs --append=fips=1'
             else:
-                # RHEL-65652 Remove fips-mode-setup, below steps are only for test purpose
-                boot_partition = utils_lib.run_cmd(self, 'findmnt --first --noheadings -o SOURCE /boot', msg='find boot partition')
-                boot_uuid = utils_lib.run_cmd(self, 'sudo blkid --output value --match-tag UUID {}'.format(boot_partition.strip('\n')),expect_ret=0,msg='find boot partition uuid')
+                # Ouput all blkid for following debugging
+                utils_lib.run_cmd(self, 'sudo blkid')
+                boot_uuid = utils_lib.run_cmd(self,
+                                              'sudo blkid --output value --match-tag UUID -t LABEL="root"',
+                                              expect_ret=0,
+                                              msg='find boot partition uuid')
                 fips_enable_cmd = 'sudo grubby --update-kernel=ALL --args="fips=1 boot=UUID={}"'.format(boot_uuid.strip('\n'))
 
             out = utils_lib.run_cmd(self, fips_enable_cmd, msg='Enable fips!', timeout=600)
@@ -525,7 +528,7 @@ class TestLifeCycle(unittest.TestCase):
         maintainer:
             libhe@redhat.com
         description: |
-            Check system can boot up with mem_encryp on 
+            Check system can boot up with mem_encryp on
         key_steps: |
             - add mem_encrypt=on to kernel cmdline and reboot system
         expected_result: |
@@ -647,7 +650,7 @@ class TestLifeCycle(unittest.TestCase):
         product_id = utils_lib.get_product_id(self)
         if utils_lib.is_arch(self, 'aarch64') and not utils_lib.is_metal(self) and float(product_id) < 8.6:
             self.skipTest("Cancel as bug 1654962 in arm guest earlier than 8.6 2082405" )
-        
+
         cmd = "grep processor /proc/cpuinfo | wc -l"
         cpu_counts = int(utils_lib.run_cmd(self, cmd, expect_ret=0,
                                            msg = "Get cpu counts"))
@@ -659,7 +662,7 @@ class TestLifeCycle(unittest.TestCase):
             self.log.info("Trigger kdump on core %d" % core_num)
             cmd = "systemctl is-active kdump || sudo systemctl start kdump"
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check kdump service status")
-            
+
             utils_lib.run_cmd(self,
                         "sudo rm -rf /var/crash/*",
                         expect_ret=0,
@@ -693,21 +696,21 @@ class TestLifeCycle(unittest.TestCase):
             Test loading kernel via kexec with RHEL.
         testplan:
             N/A
-        bugzilla_id: 
+        bugzilla_id:
             1758323, 1841578
         is_customer_case:
             True
-        maintainer: 
+        maintainer:
             xiliang
-        case_priority: 
+        case_priority:
             0
-        case_component: 
+        case_component:
             Kdump
         key_steps: |
             1. Launch an instance with multi kernels installed.
             2. Load each kernel with command "sudo kexec -s -l /boot/vmlinuz-$version --initrd=/boot/initramfs-$version.img --reuse-cmdline"
             note: kexec "-s" is recommended in 2118669 devel's comment
-        pass_criteria: 
+        pass_criteria:
             System shutdown and reboot with the specified kernel version, kernel can be loaded via kexec.
         '''
         cmd = 'sudo rpm -qa|grep -e "kernel-[0-9]"'
@@ -743,21 +746,21 @@ class TestLifeCycle(unittest.TestCase):
             Test loading kernel via kexec with RHEL on AWS.
         testplan:
             N/A
-        bugzilla_id: 
+        bugzilla_id:
             1758323, 1841578
         is_customer_case:
             True
-        maintainer: 
+        maintainer:
             xiliang
-        case_priority: 
+        case_priority:
             0
-        case_component: 
+        case_component:
             Kdump
         key_steps: |
             1. Launch an instance with multi kernels installed.
             2. Load each kernel with command "sudo kexec -s -l /boot/vmlinuz-$version --initrd=/boot/initramfs-$version.img --reuse-cmdline"
             3. When the kernel is loaded, run command "sudo kexec -e".
-        pass_criteria: 
+        pass_criteria:
             Kernel can be loaded via kexec, and system will reboot into the loaded kernel via kexec -e without calling shutdown(8).
         '''
         cmd = 'sudo rpm -qa|grep -e "kernel-[0-9]"'
@@ -859,10 +862,10 @@ class TestLifeCycle(unittest.TestCase):
                 self.fail("system is not pingable after {}s".format(self.ssh_timeout))
             time.sleep(1)
         self.log.info("time taken between launch and pingable: {}".format(time_taken))
-        
+
         utils_lib.init_connection(self, timeout=self.ssh_timeout)
         utils_lib.getboottime(self)
-        
+
         try:
            self.vm.get_console_log()
         except NotImplementedError:
@@ -1098,7 +1101,7 @@ class TestLifeCycle(unittest.TestCase):
             120, "Timed out waiting for VM to stop."):
             if self.vm.is_stopped():
                 break
-            time.sleep(30) 
+            time.sleep(30)
         time.sleep(120)
         self.assertTrue(self.vm.is_stopped(),
                         "Stop VM error: VM status is not SHUTOFF")
@@ -1106,10 +1109,10 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.run_cmd(self, 'sudo shutdown now')
         for count in utils_lib.iterate_timeout(
                 120, "Timed out waiting for VM to stop."):
-            if self.vm.is_stopped(): 
+            if self.vm.is_stopped():
                 break
             time.sleep(30)
-        time.sleep(120) 
+        time.sleep(120)
         self._start_vm_and_check()
 
     def _update_kernel_args(self, boot_param_required):
@@ -1209,7 +1212,7 @@ class TestLifeCycle(unittest.TestCase):
             self.assertIn(boot_param_required, cat_proc_cmdline, msg='Expect {} in /proc/cmdline'.format(boot_param_required))
             online_cpu_num = int(utils_lib.run_cmd(self, 'cat /proc/cpuinfo | grep processor | wc -l'))
             self.assertEqual(online_cpu_num, cpus, msg='Check online cpus numbers equal to nr_cpus in kernel command line. Expect: %s, Actual: %s' % (cpus, online_cpu_num))
-    
+
     def test_kdump_nr_cpus(self):
         """
         case_tag:
@@ -1288,18 +1291,18 @@ class TestLifeCycle(unittest.TestCase):
             n/a
         is_customer_case:
             False
-        maintainer: 
+        maintainer:
             xiliang
-        case_priority: 
+        case_priority:
             0
-        case_component: 
+        case_component:
             Kdump
         key_steps:
             1. Launch an instance on AWS EC2.
             2. Check the kdump status by command "systemctl status kdump.service".
             3. Disable kernel to trigger a kernel panic upon receiving the interrupt by set /etc/sysctl.conf and add a line : kernel.unknown_nmi_panic=0 and reboot. Or by command "sudo sysctl kernel.unknown_nmi_panic=0".
             4. Send Diagnostic Interrupt to the instance.
-        pass_criteria: 
+        pass_criteria:
             Unknown NMI received and kernel panic isn't triggered, system is still running with no error message.
         '''
         if not self.vm:
@@ -1326,23 +1329,23 @@ class TestLifeCycle(unittest.TestCase):
             Test Diagnostic Interrupt triggers the kdump when unknown_nmi_panic is enabled with RHEL on AWS. https://aws.amazon.com/blogs/aws/new-trigger-a-kernel-panic-to-diagnose-unresponsive-ec2-instances/
         testplan:
             N/A
-        bugzilla_id: 
+        bugzilla_id:
             n/a
-        customer_case_id: 
+        customer_case_id:
             n/a
-        maintainer: 
+        maintainer:
             xiliang
-        case_priority: 
+        case_priority:
             0
-        case_component: 
+        case_component:
             Kdump
         key_steps:
             1. Launch an instance on AWS EC2.
             2. Check the kdump status by command "systemctl status kdump.service".
             3. Disable kernel to trigger a kernel panic upon receiving the interrupt by set /etc/sysctl.conf and add a line : kernel.unknown_nmi_panic=1 and reboot. Or by command "sudo sysctl kernel.unknown_nmi_panic=1".
             4. Send Diagnostic Interrupt to the instance.
-        pass_criteria: 
-            Kernel panic is triggered, system reboot after panic, and vm core is gernerated in /var/crash after crash. 
+        pass_criteria:
+            Kernel panic is triggered, system reboot after panic, and vm core is gernerated in /var/crash after crash.
         '''
         if not self.vm:
             self.skipTest('vm not init')
@@ -1549,7 +1552,7 @@ class TestLifeCycle(unittest.TestCase):
 
             if len(self.vms) < 2 and len(self.params.get('remote_nodes')) < 2:
                 self.skipTest('2 nodes required!')
-            
+
             self.log.info("Current IP bucket:{}".format(self.params['remote_nodes']))
             utils_lib.init_connection(self, timeout=self.ssh_timeout, rmt_node=self.params['remote_nodes'][-1])
             self.rmt_ipv4 = utils_lib.get_active_nic(self,rmt_node=self.params['remote_nodes'][-1])
@@ -1646,7 +1649,7 @@ class TestLifeCycle(unittest.TestCase):
 
             if not self.is_rmt:
                 self.skipTest('only run on remote')
-                
+
             if len(self.vms) > 1 and not self.vms[1].exists():
                 self.vms[1].create()
                 if self.vms[1].is_stopped():
@@ -1655,7 +1658,7 @@ class TestLifeCycle(unittest.TestCase):
 
             if len(self.vms) < 2 and len(self.params.get('remote_nodes')) < 2:
                 self.skipTest('2 nodes required!')
-                
+
             self.log.info("Current IP bucket:{}".format(self.params['remote_nodes']))
             utils_lib.init_connection(self, timeout=self.ssh_timeout, rmt_node=self.params['remote_nodes'][-1])
             #Get active nic
@@ -1665,19 +1668,19 @@ class TestLifeCycle(unittest.TestCase):
             utils_lib.run_cmd(self, cmd, rmt_node=self.params['remote_nodes'][-1])
             cmd = 'sudo bash -c "chmod -R 777 /var/www/export/kdump"'
             utils_lib.run_cmd(self, cmd, rmt_node=self.params['remote_nodes'][-1])
-           
+
             #Configure nfs server
             utils_lib.run_cmd(self, "rpm -q nfs-utils||sudo yum install -y nfs-utils", expect_ret=0, timeout=180, rmt_node=self.params['remote_nodes'][-1])
             cmd = 'sudo echo "/var/www/export/kdump *(rw)"|sudo tee /etc/exports'
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg="configure nfs server",rmt_node=self.params['remote_nodes'][-1])
             utils_lib.run_cmd(self, "sudo systemctl restart rpcbind", expect_ret=0, msg="restart rpcbind server",rmt_node=self.params['remote_nodes'][-1])
             utils_lib.run_cmd(self, "sudo systemctl restart nfs-server", expect_ret=0, msg="start nfs server",rmt_node=self.params['remote_nodes'][-1])
-                   
+
             #Allow inbound access on the NFS port
             if self.vm and self.vm.provider == 'aws':
                 instance_id = utils_lib.run_cmd(self,"cat /var/lib/cloud/data/instance-id",msg='get instance id',rmt_node=self.params['remote_nodes'][-1])
                 is_port_exist = self.nic.add_inbound_rule(instance_id.strip(),2049)
-            
+
             if utils_lib.is_firewalld_installed_and_running(self,rmt_node=self.params['remote_nodes'][-1]):
                 utils_lib.add_port_to_firewall(self,rmt_node=self.params['remote_nodes'][-1],port=2049)
 
@@ -1688,13 +1691,13 @@ class TestLifeCycle(unittest.TestCase):
         utils_lib.run_cmd(self, "sudo cp /etc/kdump.conf /etc/kdump.conf.orig", msg='save default kdump cfg')
         output = utils_lib.run_cmd(self, 'uname -r', expect_ret=0)
         if 'el7' in output:
-           cmd = '''sudo echo -e 'dracut_args --mount \"{}:/var/www/export/kdump /var/crash nfs defaults\"\ncore_collector makedumpfile -l --message-level 7 -d 31' |sudo tee /etc/kdump.conf'''.format(self.rmt_ipv4) 
+           cmd = '''sudo echo -e 'dracut_args --mount \"{}:/var/www/export/kdump /var/crash nfs defaults\"\ncore_collector makedumpfile -l --message-level 7 -d 31' |sudo tee /etc/kdump.conf'''.format(self.rmt_ipv4)
         else:
             cmd = 'sudo echo -e "nfs {}:/var/www/export/kdump\npath /var/crash\ncore_collector makedumpfile -l --message-level 7 -d 31" |sudo tee /etc/kdump.conf'.format(self.rmt_ipv4)
         utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Configure kdump using nfs')
         utils_lib.run_cmd(self, "sudo systemctl start kdump", msg='start kdump')
         utils_lib.run_cmd(self, "sudo systemctl status kdump", expect_ret=0, msg='check kdump status')
-        
+
         #Enable FIPs
         #utils_lib.fips_enable(self)
 
@@ -1788,11 +1791,11 @@ class TestLifeCycle(unittest.TestCase):
             time.sleep(10)
             utils_lib.init_connection(self, timeout=self.ssh_timeout)
             utils_lib.run_cmd(self, 'cat /proc/cmdline', msg='Check /proc/cmdline')
-        
+
         if "test_kdump_over_ssh" in self.id() or "test_kdump_over_nfs" in self.id():
             utils_lib.run_cmd(self, "sudo systemctl stop kdump",expect_ret=0, msg='stop kdump')
             utils_lib.run_cmd(self, "sudo mv -f /etc/kdump.conf.orig /etc/kdump.conf", expect_ret=0, msg='restore default kdump cfg')
             utils_lib.run_cmd(self, "sudo systemctl start kdump", expect_ret=0, msg='start kdump')
-            
+
 if __name__ == '__main__':
     unittest.main()
