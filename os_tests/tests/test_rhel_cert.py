@@ -357,7 +357,12 @@ class TestRHELCert(unittest.TestCase):
             self._wait_cert_done(prefix='local')
         if run_nfs:
             utils_lib.is_pkg_installed(self,'nfs-utils')
-            cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device nfs --server {}"'.format(self.rmt_ipv4)
+            kdump_nfs_server = self.params.get('VM').get('kdump_nfs_server')
+            if kdump_nfs_server:
+                self.log.info('Found kdump_nfs_server in params:{}'.format(kdump_nfs_server))
+                cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device nfs --server {}"'.format(kdump_nfs_server)
+            else:
+                cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device nfs --server {}"'.format(self.rmt_ipv4)
             utils_lib.run_cmd(self,cmd, timeout=3600, msg='run kdump nfs test')
             if not self.SSH.is_active():
                 utils_lib.init_connection(self, timeout=self.ssh_timeout*2)
