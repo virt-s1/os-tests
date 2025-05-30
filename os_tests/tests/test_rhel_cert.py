@@ -357,7 +357,7 @@ class TestRHELCert(unittest.TestCase):
             self._wait_cert_done(prefix='local')
         if run_nfs:
             utils_lib.is_pkg_installed(self,'nfs-utils')
-            kdump_nfs_server = self.params.get('VM').get('kdump_nfs_server')
+            kdump_nfs_server = self.params.get('kdump_nfs_server')
             if kdump_nfs_server:
                 self.log.info('Found kdump_nfs_server in params:{}'.format(kdump_nfs_server))
                 cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device nfs --server {}"'.format(kdump_nfs_server)
