@@ -2290,18 +2290,22 @@ def save_file(test_instance, file_dir=None, file_name=None, rmt_node=None, vm=No
 def copy_file(test_instance, local_file=None, target_file_dir=None, target_file_name=None, rmt_node=None, vm=None):
     target_file = '{}/{}'.format(target_file_dir, target_file_name)
     if test_instance.params['remote_nodes']:
-        local_first_dir = local_file.split('/')[1]
         if not local_file == "/tmp/{}".format(target_file_name):
             shutil.copy(local_file, "/tmp/{}".format(target_file_name))
             test_instance.log.info("copy local file %s to /tmp/%s in localhost for sending" % (local_file, target_file_name))
-        test_instance.SSH.put_file(local_file='/tmp/{}'.format(target_file_name), rmt_file='/tmp/{}'.format(target_file_name))
-        cmd = "sudo cp /tmp/{} {}".format(target_file_name, target_file)
-        run_cmd(test_instance, cmd, msg='copy tmp file /tmp/{} to {}'.format(target_file_name, target_file))
+        # If the remote host is local, the same file name may cause errors,
+        # thus, rmt_file use another file name
+        test_instance.SSH.put_file(local_file=f'/tmp/{target_file_name}',
+                                   rmt_file=f'/tmp/{target_file_name}_remote')
+        run_cmd(test_instance,
+                f"sudo cp /tmp/{target_file_name}_remote {target_file}",
+                msg=f'copy tmp file /tmp/{target_file_name}_remote to {target_file}')
         if os.path.exists('/tmp/{}'.format(target_file_name)):
              os.unlink('/tmp/{}'.format(target_file_name))
-             test_instance.log.info("delete tmp file /tmp/{} in localhost".format(target_file_name))
-        cmd = "sudo rm -rf /tmp/{}".format(target_file_name)
-        run_cmd(test_instance, cmd, msg='delete tmp file /tmp/{} remote host'.format(target_file_name))
+             test_instance.log.info("delete tmp file /tmp/{} on localhost".format(target_file_name))
+        run_cmd(test_instance,
+                f"sudo rm -rf /tmp/{target_file_name}_remote",
+                msg=f'delete tmp file /tmp/{target_file_name}_remote on remote host')
     else:
         cmd = "sudo cp -f {} {}".format(local_file, target_file)
         run_cmd(test_instance, cmd, msg='copy local file {} to {}'.format(local_file, target_file))
