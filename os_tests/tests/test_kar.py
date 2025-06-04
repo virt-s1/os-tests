@@ -112,7 +112,7 @@ class TestKAR(unittest.TestCase):
         # Then put them into os-tests resutls dir
         kar_config = configparser.ConfigParser()
         ret, out = utils_lib.run_cmd(self,
-                                     f"sudo cat {self.params.get("kar_avocado_conf")}",
+                                     f'sudo cat {self.params.get("kar_avocado_conf")}',
                                      is_log_cmd=True,
                                      ret_out=True,
                                      ret_status=True)
