@@ -1163,7 +1163,7 @@
         "status": "active",
         "link": "",
         "path": "dmesg,journal",
-        "trigger": "Reloading Network Manager"
+        "trigger": ""
     },
     "msg_131": {
         "content": ".*DataSourceGCE.py[WARNING]: address \"http://metadata.google.internal/computeMetadata/v1/\" is not resolvable.*",
@@ -2453,5 +2453,29 @@
         "cases": "os_tests.tests.test_network_test.TestNetworkTest.test_mpi_app_via_efa_provider",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20250509"
+    },
+    "msg_260": {
+        "content": ".*acpi_ut_initialize_buffer.*",
+        "analyze": "known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-73305",
+        "path": "",
+        "trigger": "",
+        "cases": "os_tests.tests.test_lifecycle.TestLifeCycle.test_boot_debugkernel",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250605"
+    },
+    "msg_261": {
+        "content": ".*Warning.*Unmaintained driver is detected.*nft_compat.*",
+        "analyze": "information only",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://access.redhat.com/solutions/6739041",
+        "path": "",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250605"
     }
 }
