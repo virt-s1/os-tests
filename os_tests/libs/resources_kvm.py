@@ -39,14 +39,22 @@ class KvmVM(VMResource):
         self.interface_name = params['VM'].get('interface_name')
         self.properties = {}
         self.httpport = 8000
+        self.static_ip = None
 
         # VM creation parameter user_data
         self.user_data = None
 
+        # VM creation parameter for rhsm subscription related cases
+        self.subscription_username = params['Subscription'].get('username')
+        self.subscription_password = params['Subscription'].get('password')
+        self.subscription_baseurl = params['Subscription'].get('baseurl')
+        self.subscription_serverurl = params['Subscription'].get('serverurl')
 
     @property
     @utils_lib.wait_for(not_ret='', ck_not_ret=True, timeout=120, interval=10)
     def floating_ip(self):
+        if self.static_ip:
+            return self.static_ip
         f_ip = ''
         cmd = "sudo virsh domifaddr {} --source arp | awk '{{print $4}}' | sed -n '3p' ".format(self.vm_name)
         try:
@@ -73,7 +81,7 @@ class KvmVM(VMResource):
                 f_ip = ''
         return f_ip
 
-    def create(self, wait=True, userdata=None, sshkey=None, datasource=None, networks=["virbr1"]):
+    def create(self, wait=True, userdata=None, sshkey=None, datasource=None, networks=[("virbr1","")]):
         # the CI job would save rhel guest image to /var/lib/libvirt/images/backup
         # copy the image from /var/lib/libvirt/images/backup to /var/lib/libvirt/images
         cmd1 = "sudo cp {0}/{1} {2}/{1}".format(self.image_dir, self.image_name, self.disk_path)
@@ -83,10 +91,13 @@ class KvmVM(VMResource):
             "--console log.file={} "\
             .format(self.vm_name, self.disk_path, self.image_name, self.os_variant, self.console_log)
 
-        #networks, for example ["virbr1"] or ["br-mgmt","br-prov"]
+        #networks including network name and mac, for example [("virbr1","")] or [("br-mgmt","")("br-prov","")]
         if networks is not None:
-            for network in networks:
-                cmd2 += "--network bridge={},model=virtio ".format(network)
+            for network,mac in networks:
+                if mac != "":
+                    cmd2 += "--network bridge={},model=virtio,mac={} ".format(network,mac)
+                else:
+                    cmd2 += "--network bridge={},model=virtio ".format(network)
         #userdata, using this way to compatible with other cloud platform
         #--cloud-init and cdrom can not set at the same time, now it supports user-data, meta-data, network-config and clouduser-ssh-key and so on.'
         userdata = userdata or self.user_data
