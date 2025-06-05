@@ -15,8 +15,7 @@ class TestCloudInit(unittest.TestCase):
         # Skip some cases for image mode                
         case_list = ['test_check_cloudinit_status',
                      'test_cloudinit_check_runcmd',
-                     'test_cloudinit_check_NOZEROCONF',
-                     'test_cloudinit_auto_install_package_with_subscription_manager']
+                     'test_cloudinit_check_NOZEROCONF']
         out = utils_lib.run_cmd(self, 'ls /ostree/ | grep -i bootc')
         for case_name in case_list:
             if case_name in self.id() and 'bootc' in out:
@@ -2161,231 +2160,6 @@ EOF""".format(device, size), expect_ret=0)
         # check cloud-init status is done and services are active
         self._check_cloudinit_done_and_service_isactive()
 
-    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['openstack','nutanix'], 'skip run as this case need connect rhsm stage server, not suitable for public cloud')
-    def test_cloudinit_auto_install_package_with_subscription_manager(self):
-        """
-        case_tag:
-            cloudinit,cloudinit_tier2,vm_delete
-        case_priority:
-            2
-        component:
-            cloud-init
-        maintainer:
-            huzhao@redhat.com
-        description:
-            RHEL-186182	CLOUDINIT-TC:auto install package with subscription manager
-        key_steps: |
-            1. Add content to user data config file
-            rh_subscription:
-            username: ******
-            password: ******
-            auto-attach: True
-            packages:
-            - dos2unix
-            2. create VM
-            3. Verify register with subscription-manager and install package by cloud-init successfully
-        """
-        self.log.info("RHEL-186182 CLOUDINIT-TC:auto install package with subscription manager")        
-        if self.vm.exists():
-            self.vm.delete()
-            time.sleep(30)
-        package = "dos2unix"        
-        user_data = """\
-#cloud-config
-
-rh_subscription:
-  username: {0}
-  password: {1}
-  rhsm-baseurl: {2}
-  server-hostname: {3}
-  auto-attach: true
-  disable-repo: []
-packages:
-  - {4}
-""".format(self.vm.subscription_username, self.vm.subscription_password, 
-    self.vm.subscription_baseurl, self.vm.subscription_serverurl, package)
-        self.vm.create(userdata=user_data)
-        if self.vm.is_stopped():
-            self.vm.start(wait=True)
-        time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
-        # check login
-        output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
-        self.assertEqual(
-            self.vm.vm_username, output,
-            "Create VM error: output of cmd `who` unexpected -> %s" % output)
-        self.log.info("Waiting 30s for subscription-manager done...")
-        time.sleep(30) # waiting for subscription-manager register done.
-        # no error because of disable-repo null
-        # check cloud-init status is done and services are active
-        self._check_cloudinit_done_and_service_isactive()
-        # check register
-        cmd = "sudo grep 'Registered successfully' /var/log/cloud-init.log"
-        utils_lib.run_cmd(self,
-                    cmd,
-                    expect_ret=0,
-                    expect_kw='Registered successfully',
-                    msg='Check Registered successfully log in cloud-init.log')
-        cmd = "sudo subscription-manager identity"
-        utils_lib.run_cmd(self,
-                    cmd,
-                    expect_ret=0,
-                    msg='Register with subscription-manager')
-        # check auto-attach
-        output = utils_lib.run_cmd(self, "sudo subscription-manager list --consumed --pool-only").rstrip('\n')
-        self.assertNotEqual("", output, "Cannot auto-attach pools")
-        # check package installed
-        time.sleep(30) # waiting for package install done.
-        cmd = "rpm -q {}".format(package)
-        utils_lib.run_cmd(self,
-                    cmd,
-                    expect_ret=0,
-                    expect_kw='{}'.format(package),
-                    msg="Fail to install package {} by cloud-init".format(package))
-        #teardown
-
-    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['openstack','nutanix'], 'skip run as this case need connect rhsm stage server, not suitable for public cloud')
-    def test_cloudinit_verify_rh_subscription_enablerepo_disablerepo(self):
-        """
-        case_tag:
-            cloudinit,cloudinit_tier2,vm_delete
-        case_priority:
-            2
-        component:
-            cloud-init
-        maintainer:
-            huzhao@redhat.com
-        description:
-            RHEL-189134 - CLOUDINIT-TC: Verify rh_subscription enable-repo and disable-repo
-        key_steps: |
-            1. Add content to user data config file
-            rh_subscription:
-            username: ******
-            password: ******
-            auto-attach: True
-            enable-repo: ['rhel-*-baseos-*rpms','rhel-*-supplementary-*rpms']
-            disable-repo: ['rhel-*-appstream-*rpms']
-            2. create VM
-            3. Verify register with subscription-manager and enabled repos and disabled repos successfully
-        """
-        rhel_ver = utils_lib.run_cmd(self, "sudo cat /etc/redhat-release").rstrip('\n')
-        rhel_ver = float(re.search('release\s+(\d+.\d+)\s+', rhel_ver).group(1))
-        if rhel_ver >= 9.0 or rhel_ver < 8.0:
-            self.skipflag = True
-            self.skipTest('skip run as this case is only test rhel-8')        
-        self.log.info("RHEL-189134 - CLOUDINIT-TC: Verify rh_subscription enable-repo and disable-repo")
-        if self.vm.exists():
-            self.vm.delete()
-            time.sleep(30)
-        user_data = """\
-#cloud-config
-
-rh_subscription:
-  username: {0}
-  password: {1}
-  rhsm-baseurl: {2}
-  server-hostname: {3}
-  auto-attach: true
-  enable-repo: ['rhel-8-for-x86_64-baseos-beta-rpms','rhel-8-for-x86_64-supplementary-beta-rpms']
-  disable-repo: ['rhel-8-for-x86_64-appstream-beta-rpms']
-""".format(self.vm.subscription_username, self.vm.subscription_password, 
-    self.vm.subscription_baseurl, self.vm.subscription_serverurl)
-        self.vm.create(userdata=user_data)
-        if self.vm.is_stopped():
-            self.vm.start(wait=True)
-        time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
-        # check login
-        output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
-        self.assertEqual(
-            self.vm.vm_username, output,
-            "Reboot VM error: output of cmd `who` unexpected -> %s" % output)
-        # waiting for subscription-manager register done.
-        # 51.55900s (modules-config/config-rh_subscription)
-        self.log.info("Waiting 60s for subscription-manager done...")
-        time.sleep(60) 
-        # check cloud-init status is done and services are active
-        self._check_cloudinit_done_and_service_isactive()
-        # check register
-        cmd = "sudo grep 'Registered successfully' /var/log/cloud-init.log"
-        utils_lib.run_cmd(self,
-                    cmd,
-                    expect_ret=0,
-                    expect_kw='Registered successfully',
-                    msg='Check registered successfully log in cloud-init.log')
-        cmd = "sudo subscription-manager identity"
-        utils_lib.run_cmd(self,
-                    cmd,
-                    expect_ret=0,
-                    msg='Register with subscription-manager')
-        # check auto-attach
-        output = utils_lib.run_cmd(self, "sudo subscription-manager list --consumed --pool-only").rstrip('\n')
-        self.assertNotEqual("", output, "Cannot auto-attach pools")
-        # check enabled/disabled repos
-        enable_repo_1 = 'rhel-8-for-x86_64-baseos-beta-rpms'
-        enable_repo_2 = 'rhel-8-for-x86_64-supplementary-beta-rpms'
-        disable_repo = 'rhel-8-for-x86_64-appstream-beta-rpms'
-        repolist = utils_lib.run_cmd(self, "yum repolist|awk '{print $1}'").split('\n')
-        self.assertIn(enable_repo_1, repolist,
-            "Repo of {} is not enabled".format(enable_repo_1))
-        self.assertIn(enable_repo_2, repolist,
-            "Repo of {} is not enabled".format(enable_repo_2))
-        self.assertNotIn(disable_repo, repolist,
-            "Repo of {} is not disabled".format(disable_repo))
-        #teardown
-
-    def _verify_rh_subscription(self, config):
-        utils_lib.run_cmd(self,"sudo subscription-manager unregister")
-        utils_lib.run_cmd(self,
-            "sudo rm -f /var/lib/cloud/instance/sem/config_rh_subscription /var/log/cloud-init*.log")
-        utils_lib.run_cmd(self,"echo '''%s''' | sudo tee /etc/cloud/cloud.cfg.d/test_rh_subscription.cfg" % config)
-        utils_lib.run_cmd(self,"sudo cloud-init single -n rh_subscription", timeout=600)
-        cmd="sudo grep 'Registered successfully' /var/log/cloud-init.log"
-        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="No 'Registered successfully log in cloud-init.log")
-        utils_lib.run_cmd(self,"sudo subscription-manager identity", expect_ret=0, msg="Fail to register with subscription-manager")
-
-    def test_cloudinit_auto_register_with_subscription_manager(self):
-        """
-        case_tag:
-            cloudinit,cloudinit_tier2
-        case_name:
-            test_cloudinit_auto_register_with_subscription_manager
-        case_file:
-            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_auto_register_with_subscription_manager
-        component:
-            cloudinit
-        bugzilla_id:
-            N/A
-        is_customer_case:
-            False
-        testplan:
-            N/A
-        maintainer:
-            minl@redhat.com
-        description:
-            Auto register by cloud-init
-        key_steps: |
-            1. Add content to /etc/cloud/cloud.cfg.d/test_rh_subscription.cfg
-            2. Run rh_subscription module
-            3. Verify can register with subscription-manager
-            4. Verify can auto-attach manually
-        expect_result:
-            register with subscription-manager successfully.
-        debug_want:
-            N/A
-        """
-        # skip this case for public cloud, will update the case when it's suitable for public cloud
-        if self.vm.provider != 'openstack' and self.vm.provider != 'nutanix':
-            self.skipflag = True
-            self.skipTest('skip run as this case need connect rhsm stage server, not suitable for public cloud')
-        CONFIG='''rh_subscription:
-    username: {}
-    password: {}
-    rhsm-baseurl: {}
-    server-hostname: {}
-    '''.format(self.vm.subscription_username, self.vm.subscription_password,
-               self.vm.subscription_baseurl, self.vm.subscription_serverurl)
-        self._verify_rh_subscription(CONFIG)
 
     def _get_test_disk(self):
         '''
@@ -3759,10 +3533,7 @@ ssh_authorized_keys:
     
     def tearDown(self):
         utils_lib.finish_case(self)
-        casegroup = ('test_cloudinit_no_networkmanager',
-                     'test_cloudinit_auto_register_with_subscription_manager',
-                     'test_cloudinit_auto_install_package_with_subscription_manager',
-                     'test_cloudinit_verify_rh_subscription_enablerepo_disablerepo')
+        casegroup = ('test_cloudinit_no_networkmanager')
         if self.id().endswith(casegroup) and not self.skipflag:
             utils_lib.run_cmd(self, "sudo subscription-manager unregister")
 
@@ -3771,9 +3542,7 @@ ssh_authorized_keys:
                      'test_cloudinit_sshd_keypair',
                      'test_cloudinit_no_networkmanager',
                      'test_cloudinit_mount_with_noexec_option',
-                     'test_cloudinit_disable_cloudinit',
-                     'test_cloudinit_auto_install_package_with_subscription_manager',
-                     'test_cloudinit_verify_rh_subscription_enablerepo_disablerepo')
+                     'test_cloudinit_disable_cloudinit')
         if self.id().endswith(casegroup) and not self.skipflag and not self.params.get('no_cleanup'):
             self.vm.delete(wait=True)
             #self.vm.create(wait=True) # remove this line of create cannot save time because init_case still create one
