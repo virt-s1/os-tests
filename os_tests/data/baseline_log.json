@@ -2477,5 +2477,17 @@
         "cases": "",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20250605"
+    },
+    "msg_262": {
+        "content": ".*xen_evtchn_do_upcall.*",
+        "analyze": "known issue",
+        "branch": "rhel9",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-91670",
+        "path": "",
+        "trigger": "",
+        "cases": "os_tests.tests.test_lifecycle.TestLifeCycle.test_boot_debugkernel",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250607"
     }
 }
