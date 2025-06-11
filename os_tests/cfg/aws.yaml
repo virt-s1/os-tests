@@ -43,12 +43,12 @@ net_max_ratio : 10
 # instance_type: t2.large,t3.small (vm1,vm2)
 instance_type: is4gen.large
 # specify below items if cannot retrive instance spec automatically
-cpus: None
-memory: None
-disks: None
-net_bandwidth: None
+cpus:
+memory:
+disks:
+net_bandwidth:
 # Add case name into support cases if support versions are undefined when testing fixed scratch build
 # For example ["case1","case2"]
-support_cases: None
+support_cases: []
 # Test with amdsevsnp enabled, us-east-2 supports this feature
 amdsevsnp: False
