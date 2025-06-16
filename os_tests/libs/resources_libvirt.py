@@ -101,6 +101,18 @@ class LibvirtVM(VMResource):
         return False
 
     def create(self, wait=True):
+        # Check for existing domain and delete if found
+        for dom in self.conn.listAllDomains():
+            if dom.name() == self.vm_name:
+                LOG.info(f"VM {self.vm_name} already exists, deleting before creating a new one.")
+                try:
+                    if dom.isActive():
+                        dom.destroy()
+                    dom.undefineFlags(libvirt.VIR_DOMAIN_UNDEFINE_NVRAM)
+                except libvirt.libvirtError as e:
+                    LOG.error(f"Failed to delete existing VM {self.vm_name}: {e}")
+                    raise
+
         root = ET.fromstring(dom_xml)
         acpi = ET.fromstring("<acpi/>")
         ccf_assist = ET.fromstring("<ccf-assist state='off'/>")
