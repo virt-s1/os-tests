@@ -2489,5 +2489,17 @@
         "cases": "os_tests.tests.test_lifecycle.TestLifeCycle.test_boot_debugkernel",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20250607"
+    },
+    "msg_263": {
+        "content": ".*Could not retrieve perf counters.*19.*",
+        "analyze": "please confirm if your system support p state control",
+        "branch": "rhel10",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-84836, https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/processor_state_control.html",
+        "path": "",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250615"
     }
 }
