@@ -6,14 +6,14 @@ import re
 class TestVtpm(unittest.TestCase):
     def setUp(self):
         utils_lib.init_case(self)
-        #check platform version
-        if  self.vm and self.vm.provider == 'nutanix':
-            ahv_version = utils_lib.send_ssh_cmd(self.vm.host_ip, self.vm.host_username, self.vm.host_password, \
-                        "cat /etc/nutanix-release")[1]
-            ahv_match = 'el\d+.nutanix.(\d{8})'
-            ahv_date = time.strptime(re.search(ahv_match, ahv_version, re.I).groups()[0], "%Y%m%d")
-            if ahv_date < time.strptime('20220304', "%Y%m%d"):
-                self.skipTest("Platform version is too old to run vtpm test!")
+        # #check platform version
+        # if  self.vm and self.vm.provider == 'nutanix':
+        #     ahv_version = utils_lib.send_ssh_cmd(self.vm.host_ip, self.vm.host_username, self.vm.host_password, \
+        #                 "cat /etc/nutanix-release")[1]
+        #     ahv_match = 'el\d+.nutanix.(\d{8})'
+        #     ahv_date = time.strptime(re.search(ahv_match, ahv_version, re.I).groups()[0], "%Y%m%d")
+        #     if ahv_date < time.strptime('20220304', "%Y%m%d"):
+        #         self.skipTest("Platform version is too old to run vtpm test!")
         #check boot configuration
         cmd='[ -d /sys/firmware/efi ] && echo UEFI || echo BIOS'
         bios_or_uefi = utils_lib.run_cmd(self, cmd, expect_ret=0).strip()
