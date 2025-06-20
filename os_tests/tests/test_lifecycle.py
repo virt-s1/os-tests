@@ -1097,21 +1097,26 @@ class TestLifeCycle(unittest.TestCase):
             self.skipTest('no vm provider found')
         self.vm.stop(wait=True)
         self.log.info('Attempting to stop VM...')
-        for count in utils_lib.iterate_timeout(
-            120, "Timed out waiting for VM to stop."):
+        for count in utils_lib.iterate_timeout(120,
+                                               "Timed out waiting for VM to stop."):
+            time.sleep(30)
+            self.log.info(f"The {count} time 30 second waiting\n"
+                          f"The vm status is {self.vm.get_state()}")
             if self.vm.is_stopped():
                 break
-            time.sleep(30)
         time.sleep(120)
         self.assertTrue(self.vm.is_stopped(),
                         "Stop VM error: VM status is not SHUTOFF")
         self._start_vm_and_check()
         utils_lib.run_cmd(self, 'sudo shutdown now')
-        for count in utils_lib.iterate_timeout(
-                120, "Timed out waiting for VM to stop."):
+        for count in utils_lib.iterate_timeout(180,
+                                               "Timed out waiting for VM to stop.",
+                                               wait=0):
+            time.sleep(30)
+            self.log.info(f"The {count} time 30 second waiting\n"
+                          f"The vm status is {self.vm.get_state()}")
             if self.vm.is_stopped():
                 break
-            time.sleep(30)
         time.sleep(120)
         self._start_vm_and_check()
 
