@@ -827,7 +827,7 @@
         "content": ".*libcap-ng used by .*/usr/sbin/irqbalance.* failed .* due to not having CAP_SETPCAP in capng_apply.*",
         "analyze": "Known issue fixed by errata",
         "branch": "rhel",
-        "status": "active",
+        "status": "fixed",
         "link": "jira_RHEL-36576,bugzilla_1963152",
         "path": "journal, dmesg",
         "trigger": ""
@@ -2208,9 +2208,9 @@
     },
     "msg_239": {
         "content": ".*nm-cloud-setup.service.* Unknown key name 'StartLimitIntervalSec' in section 'Service', ignoring.*",
-        "analyze": "known issue",
+        "analyze": "Known issue was fixed already.",
         "branch": "rhel9",
-        "status": "active",
+        "status": "fixed",
         "link": "https://issues.redhat.com/browse/RHEL-56860",
         "path": "journal",
         "trigger": "",
@@ -2220,9 +2220,9 @@
     },
     "msg_240": {
         "content": ".*lvm-devices-import.*: Unknown key 'ConditionPathExists' in section .* ignoring.*",
-        "analyze": "known issue",
+        "analyze": "known issue was fixed by errata",
         "branch": "rhel10",
-        "status": "active",
+        "status": "fixed",
         "link": "https://issues.redhat.com/browse/RHEL-57001",
         "path": "journal",
         "trigger": "",
@@ -2268,9 +2268,9 @@
     },
     "msg_244": {
         "content": ".*/sys/devices/system/cpu/cpu1/online: No such file or directory.*",
-        "analyze": "known issue",
+        "analyze": "known issue was fixed by errata",
         "branch": "rhel9",
-        "status": "active",
+        "status": "fixed",
         "link": "https://issues.redhat.com/browse/RHEL-58031",
         "path": "/sys/devices/system/cpu/cpu1/online",
         "trigger": "",
@@ -2280,9 +2280,9 @@
     },
     "msg_245": {
         "content": ".*error: invalid application of.*sizeof.*to an incomplete type .*truct bpf_wq.*",
-        "analyze": "known issue",
+        "analyze": "known issue was fixed by errata",
         "branch": "rhel10",
-        "status": "active",
+        "status": "fixed",
         "link": "https://issues.redhat.com/browse/RHEL-50531",
         "path": "",
         "trigger": "",
@@ -2292,9 +2292,9 @@
     },
     "msg_246": {
         "content": ".*/etc/cron.hourly/0anacron: line 11: /etc/default/anacron: No such file or directory.*",
-        "analyze": "known issue",
+        "analyze": "known issue was fixed by errata",
         "branch": "rhel10",
-        "status": "active",
+        "status": "fixed",
         "link": "https://issues.redhat.com/browse/RHEL-42706",
         "path": "",
         "trigger": "",
@@ -2501,5 +2501,17 @@
         "cases": "",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20250615"
+    },
+    "msg_264": {
+        "content": ".*systemd-coredump.*irqbalance.*;.*irqbalance.service.*loaded failed.*;.*irqbalance.service.*core-dump.*;.*__fortify_fail.*;.*__chk_fail.*",
+        "analyze": "kown issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-78709",
+        "path": "",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250619"
     }
 }
