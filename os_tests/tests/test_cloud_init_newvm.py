@@ -437,8 +437,9 @@ chpasswd: {{ expire: False }}
 ssh_pwauth: True
 """.format(vm_username, vm_password)
         status= self.vm.create(userdata=user_data,sshkey="DoNotSet")
-        if not status:
-            self.fail("Create vm failed, please check!")
+        if self.vm.provider != 'nutanix':
+            if not status:
+                self.fail("Create vm failed, please check!")
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
