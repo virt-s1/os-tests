@@ -179,8 +179,7 @@ class PrismApi(PrismSession):
         #- systemctl restart cloud-final]
         user_data = '#cloud-config\n'
         user_data_ssh_key = '''\
-disable_root: false
-lock_passwd: false%s%s\n''' % (ssh_pwauth, ssh_key)
+disable_root: false%s%s\n''' % (ssh_pwauth, ssh_key)
         user_data += user_data_ssh_key
         if self.vm_user_data:
             user_data += self.vm_user_data
