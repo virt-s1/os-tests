@@ -186,12 +186,12 @@ network:
             self.fail("\n"+"\n".join(failures))
 
     @parameterized.expand(["cdrom","smbios"])
-    def test_cloudinit_userdata_metadata(self, datasource):
+    def test_cloudinit_smoketests_kvm(self, datasource):
         """
         case_tag:
             cloudinit,cloudinit_tier2,vm_delete
         case_name:
-            test_cloudinit_userdata_metadata
+            test_cloudinit_smoketests_kvm
         case_file:
             test_cloud_init_newvm.py
         component:
@@ -261,7 +261,7 @@ local-hostname: myhost
             backport_versions = ["23.4-7.el9_4.12","23.4-19.el9_5.5"] # RHEL-79773, RHEL-79774
             package_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
             version = version_util.get_version(package_ver,'cloud-init-')
-            if not version_util.is_support(version,"test_cloudinit_userdata_metadata",support_cases,main_support_versions,backport_versions):
+            if not version_util.is_support(version,"test_cloudinit_smoketests_kvm",support_cases,main_support_versions,backport_versions):
                 self.skipTest("Skip test_cloudinit_staticip_dns_metric_smbios because it does not support network-config for "+package_ver)
 
         failures = []
