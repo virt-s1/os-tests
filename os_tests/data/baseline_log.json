@@ -2513,5 +2513,15 @@
         "cases": "",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20250619"
+    },
+    "msg_265": {
+        "content": ".*Failed to open directory sm: No such file or directory.*;.*Failed to create /var/lib/nfs/statd/.*state.new: No such file or directory.*",
+        "analyze": "the default user for accessing /var/lib/nfs/statd directory is rpcuser",
+        "branch": "rhel",
+        "status": "active",
+        "path": "journal, dmesg",
+        "trigger": "",
+        "addedby": "yoguo@redhat.com",
+        "addeddate": "20250627"
     }
 }
