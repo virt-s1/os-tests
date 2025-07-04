@@ -1,7 +1,7 @@
 # https://www.redhat.com/en/blog/red-hat-enterprise-linux-and-secure-boot-cloud
 # the script enable secure boot a living system in AWS instances
 set -x
-PKGS="python3 openssl efivar keyutils awscli2 python3-virt-firmware"
+PKGS="python3 openssl efivar keyutils awscli2 python3-virt-firmware edk2-ovmf"
 MSFTCRT="MicCorUEFCA2011_2011-06-27.crt"
 DBXFILE="DBXUpdate-20250507.x64.bin"
 if [[ ! -d /sys/firmware/efi/ ]]; then
@@ -10,8 +10,8 @@ if [[ ! -d /sys/firmware/efi/ ]]; then
 fi
 sudo mokutil --dbx
 sudo mokutil --db
-out = $(sudo mokutil --sb-state 2>&1)
-if ![ $out ~ 'Platform is in Setup Mode' ]; then
+out=$(sudo mokutil --sb-state 2>&1)
+if ! [[ $out =~ 'Platform is in Setup Mode' ]]; then
     echo "Not in setup mode, exit!"
     exit 0
 fi
@@ -27,18 +27,25 @@ fi
 sudo dnf install -y $PKGS
 uuidgen --random > GUID.txt
 openssl req -quiet -newkey rsa:3072 -nodes -keyout PK.key -new -x509 -sha256 -days 3650 -subj "/CN=Platform key/" -outform DER -out PK.cer
-virt-fw-sigdb --add-cert "$(< GUID.txt)" PK.cer -o PK.esl
-openssl req -quiet -newkey rsa:4096 -nodes -keyout KEK.key -new -x509 -sha256 -days 3650 -subj "/CN=Key Exchange Key/" -outform DER -out KEK.cer
-virt-fw-sigdb --add-cert "$(< GUID.txt)" KEK.cer -o KEK.esl
-openssl req -quiet -newkey rsa:4096 -nodes -keyout custom_db.key -new -x509 -sha256 -days 3650 -subj "/CN=Signature Database key/" --outform DER -out custom_db.cer
-virt-fw-sigdb --add-cert "$(< GUID.txt)" custom_db.cer -o custom_db.esl
-virt-fw-sigdb --add-cert 77fa9abd-0359-4d32-bd60-28f4e78f784b $MSFTCRT -o ms_db.esl
-cat custom_db.esl ms_db.esl > db.esl
+#virt-fw-sigdb --add-cert "$(< GUID.txt)" PK.cer -o PK.esl
+openssl req -quiet -newkey rsa:3072 -nodes -keyout KEK.key -new -x509 -sha256 -days 3650 -subj "/CN=Key Exchange Key/" -outform DER -out KEK.cer
+#openssl req -quiet -newkey rsa:4096 -nodes -keyout KEK.key -new -x509 -sha256 -days 3650 -subj "/CN=Key Exchange Key/" -outform DER -out KEK.cer
+#virt-fw-sigdb --add-cert "$(< GUID.txt)" KEK.cer -o KEK.esl
+openssl req -quiet -newkey rsa:3072 -nodes -keyout custom_db.key -new -x509 -sha256 -days 3650 -subj "/CN=Signature Database key/" --outform DER -out custom_db.cer
+#openssl req -quiet -newkey rsa:4096 -nodes -keyout custom_db.key -new -x509 -sha256 -days 3650 -subj "/CN=Signature Database key/" --outform DER -out custom_db.cer
+#virt-fw-sigdb --add-cert "$(< GUID.txt)" custom_db.cer -o custom_db.esl
+#virt-fw-sigdb --add-cert 77fa9abd-0359-4d32-bd60-28f4e78f784b $MSFTCRT -o ms_db.esl
+virt-fw-vars --set-pk "$(< GUID.txt)" PK.cer --add-kek "$(< GUID.txt)" KEK.cer --add-db "$(< GUID.txt)" custom_db.cer --add-db 77fa9abd-0359-4d32-bd60-28f4e78f784b $MSFTCRT --set-dbx $DBXFILE -i /usr/share/edk2/ovmf/OVMF_VARS.secboot.fd --output VARS
+python3 /usr/share/doc/python3-virt-firmware/experimental/authfiles.py --input VARS --outdir .
+for f in PK KEK db dbx; do tail -c +41 $f.auth > $f.esl; done
+#cat custom_db.esl ms_db.esl > db.esl
 sudo efivar -w -n 8be4df61-93ca-11d2-aa0d-00e098032b8c-PK -f PK.esl
 sudo efivar -w -n 8be4df61-93ca-11d2-aa0d-00e098032b8c-KEK -f KEK.esl
 sudo efivar -w -n d719b2cb-3d3a-4596-a3bc-dad00e67656f-db -f db.esl
-sudo efivar -w -n d719b2cb-3d3a-4596-a3bc-dad00e67656f-dbx -f $DBXFILE
+sudo efivar -w -n d719b2cb-3d3a-4596-a3bc-dad00e67656f-dbx -f dbx.esl
+#sudo efivar -w -n d719b2cb-3d3a-4596-a3bc-dad00e67656f-dbx -f $DBXFILE
 sudo mokutil --dbx
 sudo mokutil --db
 sudo mokutil --sb-state
+sudo keyctl list %:.platform
 echo "please reboot when all went well!"
