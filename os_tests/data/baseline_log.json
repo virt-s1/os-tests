@@ -2523,5 +2523,17 @@
         "trigger": "",
         "addedby": "yoguo@redhat.com",
         "addeddate": "20250627"
+    },
+    "msg_267": {
+        "content": ".*KVM internal error.*",
+        "analyze": "known issue",
+        "branch": "rhel9",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-73624",
+        "path": "",
+        "trigger": "",
+        "cases": "os_tests.tests.test_general_test.TestGeneralTest.test_qemu_kvm_guest_kernel_boot",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250704"
     }
 }
