@@ -148,6 +148,7 @@ class OpenstackVM(VMResource):
                 self.conn.compute.add_floating_ip_to_server(
                     server, f_ip.floating_ip_address)
         self._data = None
+        return True
 
     def delete(self, wait=True):
         f_ip = self.floating_ip

@@ -810,6 +810,7 @@ class NutanixVM(VMResource):
                 res['task_uuid'], 60,
                 "Timed out waiting for server to get created.")
         self._data = None
+        return True
         
     def create_by_ISO_kickstart(self, wait=False, single_nic=True, vm_name=None):
         logging.info("Create VM by ISO kickstart")

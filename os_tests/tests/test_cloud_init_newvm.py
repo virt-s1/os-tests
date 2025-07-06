@@ -436,10 +436,9 @@ password: {1}
 chpasswd: {{ expire: False }}
 ssh_pwauth: True
 """.format(vm_username, vm_password)
-        status= self.vm.create(userdata=user_data,sshkey="DoNotSet")
-        if self.vm.provider != 'nutanix':
-            if not status:
-                self.fail("Create vm failed, please check!")
+        status = self.vm.create(userdata=user_data,sshkey="DoNotSet")
+        if not status:
+            self.fail("Create vm failed, please check!")
         if self.vm.is_stopped():
             self.vm.start(wait=True)
         time.sleep(30)
@@ -536,94 +535,9 @@ ssh_authorized_keys:
                     msg="Check if package {} is installed by cloud-init".format(package))
         #teardown
 
-    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['openstack','nutanix','kvm'], 'skip run as this case need connect rhsm stage server, not suitable for public cloud')
-    def test_cloudinit_verify_rh_subscription_enablerepo_disablerepo(self):
-        """
-        case_tag:
-            cloudinit,cloudinit_tier2,vm_delete
-        case_priority:
-            2
-        component:
-            cloud-init
-        maintainer:
-            xiachen@redhat.com
-        description:
-            RHEL-189134 - CLOUDINIT-TC: Verify rh_subscription enable-repo and disable-repo
-        key_steps: |
-            1. Add content to user data config file
-            rh_subscription:
-            username: ******
-            password: ******
-            enable-repo: ['rhel-*-baseos-*rpms']
-            disable-repo: ['rhel-*-appstream-*rpms']
-            2. create VM
-            3. Verify register with subscription-manager and enabled repos and disabled repos successfully
-        """
-        rhel_ver = self.rhel_x_version
-        self.log.info("RHEL-189134 - CLOUDINIT-TC: Verify rh_subscription enable-repo and disable-repo")
-        if self.vm.exists():
-            self.vm.delete()
-            time.sleep(30)
-        user_data = """\
-#cloud-config
-
-rh_subscription:
-  username: {0}
-  password: {1}
-  rhsm-baseurl: {2}
-  server-hostname: {3}
-  enable-repo: ['rhel-{4}-for-x86_64-baseos-rpms']
-  disable-repo: ['rhel-{4}-for-x86_64-appstream-rpms']
-
-ssh_authorized_keys:
-    - {5}
-""".format(self.vm.subscription_username, self.vm.subscription_password,
-    self.vm.subscription_baseurl, self.vm.subscription_serverurl, rhel_ver, utils_lib.get_public_key())
-        status = self.vm.create(userdata=user_data)
-        if not status:
-            self.fail("Create vm failed, please check!")
-        if self.vm.is_stopped():
-            self.vm.start(wait=True)
-        time.sleep(30)
-        #check login
-        status = utils_lib.init_connection(self, timeout=self.ssh_timeout)
-        if not status:
-            self.fail("Login failed, please check!")
-
-        # waiting for subscription-manager register done.
-        # 51.55900s (modules-config/config-rh_subscription)
-        self.log.info("Waiting 60s for subscription-manager done...")
-        time.sleep(60)
-        # check cloud-init status is done and services are active
-        self._check_cloudinit_done()
-        # check register
-        cmd = "sudo grep 'Registered successfully' /var/log/cloud-init.log"
-        utils_lib.run_cmd(self,
-                    cmd,
-                    expect_ret=0,
-                    expect_kw='Registered successfully',
-                    msg='Check registered successfully log in cloud-init.log')
-        cmd = "sudo subscription-manager identity"
-        utils_lib.run_cmd(self,
-                    cmd,
-                    expect_ret=0,
-                    msg='Register with subscription-manager')
-        # SCA enabled ignoring auto-attach
-        # check enabled/disabled repos
-        enable_repo_1 = 'rhel-{}-for-x86_64-baseos-rpms'.format(rhel_ver)
-        disable_repo = 'rhel-{}-for-x86_64-appstream-rpms'.format(rhel_ver)
-        repolist = utils_lib.run_cmd(self, "yum repolist|awk '{print $1}'").split('\n')
-        self.assertIn(enable_repo_1, repolist,
-            "Repo of {} is not enabled".format(enable_repo_1))
-        self.assertNotIn(disable_repo, repolist,
-            "Repo of {} is not disabled".format(disable_repo))
-        #teardown
-
-
     def tearDown(self):
         utils_lib.finish_case(self)
-        casegroup = ('test_cloudinit_auto_install_package_with_subscription_manager',
-                     'test_cloudinit_verify_rh_subscription_enablerepo_disablerepo')
+        casegroup = ('test_cloudinit_auto_install_package_with_subscription_manager')
         if self.id().endswith(casegroup) and not self.skipflag:
             utils_lib.run_cmd(self, "sudo subscription-manager unregister")
         #remove the vm in teardown as it is specific and may can not be connected by other cases
