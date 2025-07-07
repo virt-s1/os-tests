@@ -2535,5 +2535,17 @@
         "cases": "os_tests.tests.test_general_test.TestGeneralTest.test_qemu_kvm_guest_kernel_boot",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20250704"
+    },
+    "msg_268": {
+        "content": ".*CPU features.*Unexpected variation in SYS_MPAMIDR_EL1.*",
+        "analyze": "known issue",
+        "branch": "rhel10",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-90172",
+        "path": "",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250707"
     }
 }
