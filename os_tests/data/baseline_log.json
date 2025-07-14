@@ -2547,5 +2547,17 @@
         "cases": "",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20250707"
+    },
+    "msg_269": {
+        "content": ".*block/017.*failed.*",
+        "analyze": "known issue in blktests suite",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://github.com/linux-blktests/blktests/pull/189",
+        "path": "",
+        "trigger": "",
+        "cases": "os_tests.tests.test_storage.TestStorage.test_storage_blktests_block",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250714"
     }
 }
