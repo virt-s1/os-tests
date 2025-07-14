@@ -123,13 +123,14 @@ class AzureVM(VMResource):
         vm_password = None
         vm_username = None
 
-        # Create resouce group firstly if resouce group does not exist, mainly for image replicated to other region 
-        cmd ='az group exists --name "{}"'.format(self.resource_group)
+        #cmd =p exists --name "{}"'.format(self.resource_group)'az grou
+        cmd = 'az group show --name "{}" --query "location=={}" -o tsv'.format(self.resource_group, self.region)
         ret, out = run_cmd_local(cmd, is_log_ret=True)
         if out.strip().lower() == "true":
-            print(f"Resource group '{self.resource_group}' already exists.")
+            print(f"Resource group '{self.resource_group}' already exists in region '{self.region}'.")
         else:
-            print(f"Resource group '{self.resource_group}' does not exist. Creating...")
+            print(f"Resource group '{self.resource_group}' does not exist in region. Creating...")
+            self.resouce_group = self.resouce_group + self.region
             cmd = 'az group create --name "{}"  --location "{}"' \
             .format(self.resource_group, self.region)
             ret, out = run_cmd_local(cmd, is_log_ret=True)
