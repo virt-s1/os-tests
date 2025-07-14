@@ -2151,7 +2151,7 @@ COMMIT
         description: |
             call /usr/share/xdp-tools/run_tests.sh to sanity test xdp module
         key_steps: |
-            # yum install -y xdp-tools wireshark-cli tcpdump nmap-ncat
+            # yum install -y xdp-tools wireshark-cli tcpdump nmap-ncat socat
             # ethtool -L eth0 combined 2
             # ip link set eth0 mtu 2000
             # nc -6 -l 5000 -v
@@ -2181,6 +2181,7 @@ COMMIT
         utils_lib.is_pkg_installed(self, pkg_name='wireshark-cli', is_install=True, cancel_case=True)
         utils_lib.is_pkg_installed(self, pkg_name='tcpdump', is_install=True, cancel_case=True)
         utils_lib.is_pkg_installed(self, pkg_name='nmap-ncat', is_install=True, cancel_case=True)
+        utils_lib.is_pkg_installed(self, pkg_name='socat', is_install=True, cancel_case=True)
 
         utils_lib.run_cmd(self, 'sudo /usr/share/xdp-tools/run_tests.sh', expect_not_kw='fail,FAIL', timeout=900)
 
@@ -2225,7 +2226,7 @@ COMMIT
         description: |
             Use xdp-trafficgen to test xdp over 2 nodes
         key_steps: |
-            # yum install -y xdp-tools wireshark-cli tcpdump nmap-ncat
+            # yum install -y xdp-tools wireshark-cli tcpdump nmap-ncat socat
             # ethtool -L eth0 combined 2
             # ip link set eth0 mtu 2000
             # nc -6 -l 5000 -v
@@ -2297,11 +2298,13 @@ COMMIT
         utils_lib.is_pkg_installed(self, pkg_name='wireshark-cli', is_install=True, cancel_case=True)
         utils_lib.is_pkg_installed(self, pkg_name='tcpdump', is_install=True, cancel_case=True)
         utils_lib.is_pkg_installed(self, pkg_name='nmap-ncat', is_install=True, cancel_case=True)
+        utils_lib.is_pkg_installed(self, pkg_name='socat', is_install=True, cancel_case=True)
         utils_lib.init_connection(self, timeout=180, rmt_node=self.params['remote_nodes'][-1])
         utils_lib.is_pkg_installed(self, pkg_name='xdp-tools', is_install=True, cancel_case=True, rmt_node=self.params['remote_nodes'][-1])
         utils_lib.is_pkg_installed(self, pkg_name='wireshark-cli', is_install=True, cancel_case=True, rmt_node=self.params['remote_nodes'][-1])
         utils_lib.is_pkg_installed(self, pkg_name='tcpdump', is_install=True, cancel_case=True, rmt_node=self.params['remote_nodes'][-1])
         utils_lib.is_pkg_installed(self, pkg_name='nmap-ncat', is_install=True, cancel_case=True, rmt_node=self.params['remote_nodes'][-1])
+        utils_lib.is_pkg_installed(self, pkg_name='socat', is_install=True, cancel_case=True, rmt_node=self.params['remote_nodes'][-1])
 
         utils_lib.run_cmd(self, 'sudo ethtool -L {} combined 1'.format(self.active_nic), rmt_node=self.params['remote_nodes'][-1])
         utils_lib.run_cmd(self, 'sudo ip link set {} mtu 2000'.format(self.active_nic), rmt_node=self.params['remote_nodes'][-1])
