@@ -122,9 +122,7 @@ class AzureVM(VMResource):
             authentication_type = self.authentication_type
         vm_password = None
         vm_username = None
-
-        #cmd =p exists --name "{}"'.format(self.resource_group)'az grou
-        cmd = 'az group show --name "{}" --query "location=={}" -o tsv'.format(self.resource_group, self.region)
+        cmd = 'az group show --name "{}" --query "location==\'{}\'" -o tsv'.format(self.resource_group, self.region)
         ret, out = run_cmd_local(cmd, is_log_ret=True)
         if out.strip().lower() == "true":
             print(f"Resource group '{self.resource_group}' already exists in region '{self.region}'.")
