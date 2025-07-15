@@ -127,7 +127,7 @@ class AzureVM(VMResource):
         if out.strip().lower() == "true":
             print(f"Resource group '{self.resource_group}' already exists in region '{self.region}'.")
         else:
-            print(f"Resource group '{self.resource_group}' does not exist in region. Creating...")
+            print(f"Resource group '{self.resource_group}' does not exist in region '{self.region}'. Creating...")
             self.resource_group = self.resource_group + self.region
             cmd = 'az group create --name "{}"  --location "{}"' \
             .format(self.resource_group, self.region)
