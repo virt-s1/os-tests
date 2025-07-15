@@ -1528,7 +1528,7 @@ EOF""".format(device, size), expect_ret=0)
             4. Verify can login successfully and AuthorizedKeysFile has correct authority
         """
         cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')        
-        cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
+        cloudinit_ver = float(re.search(r'cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
         if cloudinit_ver < 21.1:
             self.skipTest('skip run as this case is suitable for rhel higher than rhel-8.5 and rhel-9.0, bz1862967')
         self.log.info(
@@ -2046,8 +2046,6 @@ EOF""".format(device, size), expect_ret=0)
             if 'state UP' in line:
                 active_num = active_num + 1
         self.assertEqual(active_num, 2, "There should be 2 active network interfaces")
-        cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')        
-        cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
         # Check ping gateway successful
         cmd = "ping6 {} -c 3".format(gateway)
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='0% packet loss')
@@ -2097,7 +2095,7 @@ EOF""".format(device, size), expect_ret=0)
                 active_num = active_num + 1
         self.assertEqual(active_num, 2, "There should be 2 active network interfaces")
         cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')        
-        cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
+        cloudinit_ver = float(re.search(r'cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
         if cloudinit_ver < 22.1:
             cmd = 'sudo cat /etc/sysconfig/network-scripts/ifcfg-eth1'
             utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='DHCPV6C_OPTIONS=-S,IPV6_AUTOCONF=yes')
@@ -2150,7 +2148,7 @@ EOF""".format(device, size), expect_ret=0)
                 active_num = active_num + 1
         self.assertEqual(active_num, 2, "There should be 2 active network interfaces")
         cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')        
-        cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
+        cloudinit_ver = float(re.search(r'cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
         if cloudinit_ver < 22.1:
             cmd = 'sudo cat /etc/sysconfig/network-scripts/ifcfg-eth1'
             utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='IPV6_FORCE_ACCEPT_RA=yes')
@@ -2340,7 +2338,20 @@ swap:
             "test4": base_pw,
             "test5": "RANDOM"
         }
-        CONFIG='''\
+        cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
+        cloudinit_ver = float(re.search(r'cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
+        if cloudinit_ver < 22.3: #using list before 22.3, else using users
+            CONFIG='''\
+chpasswd:
+  list:
+    - test1:{test1}
+    - test2:{test2}
+    - test3:{test3}
+    - test4:{test4}
+    - test5:{test5}
+ssh_pwauth: True '''.format(**pw_config_dict)
+        else:
+            CONFIG='''\
 chpasswd:
   users:
     - name: test1
