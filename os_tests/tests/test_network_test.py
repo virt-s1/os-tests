@@ -961,7 +961,8 @@ COMMIT
         cmd = "ip addr show {}".format(self.active_nic )
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, \
             msg='try to get {} ipv4 address'.format(self.active_nic ),rmt_node=self.params['remote_nodes'][-1])
-        srv_ipv4 = re.findall('[\d.]{7,16}', output)[0]
+        ipv4_regex = r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
+        srv_ipv4 = re.findall(ipv4_regex, output)[0]
         iperf_cli_cmd = 'iperf3 -P 10 -c {} -t 60'.format(srv_ipv4)
         res = utils_lib.run_cmd(self, iperf_cli_cmd, expect_ret=0, timeout=120)
         if not re.search('(\d+)\s+Mbits/sec.+sender', res):
@@ -1088,7 +1089,8 @@ COMMIT
         cmd = "ip addr show {}".format(self.active_nic )
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, \
             msg='try to get {} ipv4 address'.format(self.active_nic ),rmt_node=self.params['remote_nodes'][-1])
-        srv_ipv4 = re.findall('[\d.]{7,16}', output)[0]
+        ipv4_regex = r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
+        srv_ipv4 = re.findall(ipv4_regex, output)[0]
         testfile_s = "/tmp/test_tcp_checksum_offload_s.data"
         testfile_c = "/tmp/test_tcp_checksum_offload_c.data"
         for i in [False, True]:

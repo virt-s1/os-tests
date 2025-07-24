@@ -2560,7 +2560,7 @@
         "addedby": "xiliang@redhat.com",
         "addeddate": "20250714"
     },
-    "msg_259": {
+    "msg_270": {
         "content": ".*x86/amd: Previous system reset reason.*",
         "analyze": "known issue",
         "branch": "rhel9.7,rhel10.1",
@@ -2571,5 +2571,17 @@
         "cases": "os_tests.tests.test_general_check.TestGeneralCheck.test_check_dmesg_error,os_tests.tests.test_general_check.TestGeneralCheck.test_check_dmesg_fail,os_tests.tests.test_general_check.TestGeneralCheck.test_check_journalctl_error,os_tests.tests.test_general_check.TestGeneralCheck.test_check_journalctl_fail",
         "addedby": "linl@redhat.com",
 	"addeddate": "20250716"
+    },
+    "msg_271": {
+        "content": ".*blk_mq_submit_bio.*",
+        "analyze": "known issue when run blktests block/040",
+        "branch": "rhel9",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-102593",
+        "path": "",
+        "trigger": "",
+        "cases": "os_tests.tests.test_storage.TestStorage.test_storage_blktests_block",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250723"
     }
 }
