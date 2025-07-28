@@ -2583,5 +2583,17 @@
         "cases": "os_tests.tests.test_storage.TestStorage.test_storage_blktests_block",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20250723"
+    },
+    "msg_272": {
+        "content": ".*Missing required option.*",
+        "analyze": "known issue in xdp-tools xdp-trafficgen",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-105793",
+        "path": "",
+        "trigger": "",
+        "cases": "os_tests.tests.test_network_test.TestNetworkTest.test_xdp_tools_run_tests",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250728"
     }
 }
