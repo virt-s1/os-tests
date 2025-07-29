@@ -98,23 +98,22 @@ class KvmVM(VMResource):
                     cmd2 += "--network bridge={},model=virtio,mac={} ".format(network,mac)
                 else:
                     cmd2 += "--network bridge={},model=virtio ".format(network)
-        #userdata, using this way to compatible with other cloud platform
-        #--cloud-init and cdrom can not set at the same time, now it supports user-data, meta-data, network-config and clouduser-ssh-key and so on.'
-        userdata = userdata or self.user_data
-        if userdata:
-            userdatafilename = self.files_path+"/user-data"
-            with open(userdatafilename, 'w') as userdatafile:
-                userdatafile.write(userdata)
-            cmd2 += "--cloud-init user-data={} ".format(userdatafilename)
-            #clear up the vm.user_data as it may cause data conflicts between different cases
-            self.user_data = None
-
         #--cloud-init user-data and clouduser-ssh-key can not use at the same time     
 
         if datasource == "cdrom":
             cmd2 += "--disk path={}/{},device=cdrom ".format(self.disk_path,self.nocloud_iso_name)
         elif datasource == "smbios":
             cmd2 += "--sysinfo system.serial='ds=nocloud;s=http://10.0.2.1:8000/' "
+        else:
+            #userdata, using this way to compatible with other cloud platform
+            #--cloud-init,cdrom and smbios can not set at the same time,
+            #now it supports user-data, meta-data, network-config and clouduser-ssh-key and so on.'
+            userdata = userdata or self.user_data
+            if userdata:
+                userdatafilename = self.files_path+"/user-data"
+                with open(userdatafilename, 'w') as userdatafile:
+                    userdatafile.write(userdata)
+                cmd2 += "--cloud-init user-data={} ".format(userdatafilename)
 
         cmd2 += "--graphics none  --import --noautoconsole"
         run_cmd_local(cmd2, is_log_ret=True)
