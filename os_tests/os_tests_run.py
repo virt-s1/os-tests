@@ -152,5 +152,8 @@ def main():
                 res.delete()
         elif hasattr(res, 'is_exist') and res.is_exist():
             res.delete()
+    if 'Cloud' in params and params['Cloud'].get('provider') == 'kvm':
+        utils_lib.stop_httpserver()
+
 if __name__ == "__main__":
     main()

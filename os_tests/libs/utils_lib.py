@@ -18,6 +18,7 @@ import argparse
 import tempfile
 import string
 import shutil
+import psutil
 from tipset.libs import rmt_ssh
 from functools import wraps
 from itertools import chain
@@ -28,6 +29,7 @@ except ImportError:
     from yaml import Loader, Dumper
 
 LOG = logging.getLogger('os_tests.os_tests_run')
+HTTP_PORT = 8000
 
 def init_args():
     parser = argparse.ArgumentParser(
@@ -200,6 +202,14 @@ def init_provider_from_guest(test_instance):
     if is_gcp(test_instance):
         provider = 'google'
     os.environ['INFRA_PROVIDER'] = provider
+
+def stop_httpserver(port=HTTP_PORT):
+    for conn in psutil.net_connections(kind='inet'):
+        if conn.laddr.port == port and conn.status == psutil.CONN_LISTEN:
+            pid = conn.pid
+            if pid:
+                proc = psutil.Process(pid)
+                proc.terminate()
 
 def update_cfgs(base_cfg={}, new_cfg={}, keep_base = False, only_update_exists_keys = False):
     '''
