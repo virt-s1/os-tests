@@ -122,7 +122,12 @@ network:
             self.vm.delete()
 
         #create iso or start http server
-        self.vm.create_datafile(datasource=datasource,userdata=user_data,metadata=meta_data,networkconfig=network_config) 
+        self.vm.create_datafile(
+            datasource=datasource,
+            userdata=user_data,
+            metadata=meta_data,
+            networkconfig=network_config
+        )
         #create vm
         status = self.vm.create(datasource=datasource)
         if not status:
@@ -242,7 +247,11 @@ local-hostname: myhost
             self.vm.delete()
 
         #create iso or start http server
-        self.vm.create_datafile(datasource=datasource,userdata=user_data,metadata=meta_data)  
+        self.vm.create_datafile(
+            datasource=datasource,
+            userdata=user_data,
+            metadata=meta_data
+        )
         #create vm
         status = self.vm.create(datasource=datasource)
         if not status:
@@ -370,7 +379,12 @@ network:
 
         #create iso or start http server
         self.vm.static_ip = "fc00:1:1::2"
-        self.vm.create_datafile(datasource="cdrom",userdata=user_data,metadata=meta_data,networkconfig=network_config)
+        self.vm.create_datafile(
+            datasource="cdrom",
+            userdata=user_data,
+            metadata=meta_data,
+            networkconfig=network_config
+        )
         #create vm
         status = self.vm.create(datasource="cdrom",networks=[("br-mgmt","52:54:00:25:ae:12"),("br-prov","52:54:00:bd:8f:cb")])
         if not status:
