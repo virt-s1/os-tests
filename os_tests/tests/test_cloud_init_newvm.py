@@ -122,6 +122,7 @@ network:
             self.vm.delete()
 
         #create iso or start http server
+        self.vm.static_ip = "10.0.2.2"
         self.vm.create_datafile(
             datasource=datasource,
             userdata=user_data,

@@ -38,7 +38,7 @@ class KvmVM(VMResource):
         self.ssh_pubkey = utils_lib.get_public_key()
         self.interface_name = params['VM'].get('interface_name')
         self.properties = {}
-        self.httpport = 8000
+        self.httpport = utils_lib.HTTP_PORT
         self.static_ip = None
 
         # VM creation parameter user_data
@@ -257,17 +257,7 @@ class KvmVM(VMResource):
         run_cmd_local(cmd,is_log_ret=True)
         cmd = "rm {}/*".format(self.files_path)
         run_cmd_local(cmd,is_log_ret=True)
-        #stop http server
-        self.stop_httpserver()
         return True
-
-    def stop_httpserver(self):
-        for conn in psutil.net_connections(kind='inet'):
-            if conn.laddr.port == self.httpport and conn.status == psutil.CONN_LISTEN:
-                pid = conn.pid
-                if pid:
-                    proc = psutil.Process(pid)
-                    proc.terminate()
 
     def is_httpserver_running(self):
         """Check if a process is using the given port."""
