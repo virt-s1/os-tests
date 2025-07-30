@@ -44,11 +44,25 @@ class TestAzureUpgradeCheck(unittest.TestCase):
         if float(product_id) < float('9'):
             expect_kw = 'crashkernel=auto'
         else:
-            # rhbz: 1942398
-            if utils_lib.is_arch(self, arch='x86_64'):
-                expect_kw = 'crashkernel=1G-4G:192M,4G-64G:256M,64G-:512M'
+            # RHEL-9.6 and before
+            if float(product_id) < float('9.7'):
+                # rhbz: 1942398
+                if utils_lib.is_arch(self, arch='x86_64'):
+                    expect_kw = 'crashkernel=1G-4G:192M,4G-64G:256M,64G-:512M'
+                else:
+                    expect_kw = 'crashkernel=1G-4G:406M,4G-64G:470M,64G-:726M'
+            # RHEL-9.7+
+            elif float(product_id) < float('10'):
+                if utils_lib.is_arch(self, arch='x86_64'):
+                    expect_kw = 'crashkernel=1G-2G:192M,2G-64G:256M,64G-:512M'
+                else:
+                    expect_kw = 'crashkernel=1G-4G:256M,4G-64G:320M,64G-:576M'
+            # RHEL-10+
             else:
-                expect_kw = 'crashkernel=1G-4G:406M,4G-64G:470M,64G-:726M'
+                if utils_lib.is_arch(self, arch='x86_64'):
+                    expect_kw = 'crashkernel=2G-64G:256M,64G-:512M'
+                else:
+                    expect_kw = 'crashkernel=2G-4G:406M,4G-64G:470M,64G-:726M'
         utils_lib.run_cmd(self, "sudo cat /proc/cmdline", expect_ret=0, expect_kw=expect_kw, msg='check crashkernel is enabled')
 
     def test_check_cmdline_rhgb_quiet(self):
@@ -71,13 +85,17 @@ class TestAzureUpgradeCheck(unittest.TestCase):
         '''
         Verify requied pkgs are installed.
         '''
-        pkgs_wanted = '''cloud-init,NetworkManager,cloud-utils-growpart,gdisk,WALinuxAgent,\
+        pkgs_wanted = '''cloud-init,NetworkManager,cloud-utils-growpart,WALinuxAgent,\
 hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         product_id = utils_lib.get_product_id(self)
+        # From RHEL-8+ don't need to install dhcp-client
         if float(product_id) < float('8'):
-            pkgs_wanted += ''',dhclient'''
+            pkgs_wanted += ''',dhcp-client'''
+        # From RHEL-10+ don't need to install gdisk
+        if float(product_id) <= float('9'):
+            pkgs_wanted += ''',gdisk'''
         # Only verify in RHEL-9 because when 7->8 upgrade there's no insights-client
-        elif float(product_id) >= float('9'):
+        if float(product_id) >= float('9'):
             pkgs_wanted += ''',insights-client'''
         pkgs_wanted_list = pkgs_wanted.split(',')
         failed = 0
@@ -97,7 +115,7 @@ hypervkvpd,hyperv-daemons-license,hypervfcopyd,hypervvssd,hyperv-daemons'''
         check there is no avc denials (selinux)
         '''
         cmd = "x=$(sudo ausearch -m AVC,USER_AVC -ts boot 2>&1 &); echo $x"
-        utils_lib.run_cmd(self, cmd, expect_kw='no matches', msg='check no avc denials')
+        utils_lib.check_log(self, 'PROCTITLE', log_cmd=cmd, rmt_get_pty=True)
 
     def test_check_timezone(self):
         '''

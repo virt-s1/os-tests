@@ -2595,5 +2595,17 @@
         "cases": "os_tests.tests.test_network_test.TestNetworkTest.test_xdp_tools_run_tests",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20250728"
+    },
+    "msg_273": {
+        "content": ".*leapp3.*",
+        "analyze": "known issue in leapp upgrade",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-1771",
+        "path": "",
+        "trigger": "",
+        "cases": "os_tests.tests.test_azure_upgrade_check.TestAzureUpgradeCheck.test_check_no_avc_denials",
+        "addedby": "yuxisun@redhat.com",
+        "addeddate": "20250730"
     }
 }
