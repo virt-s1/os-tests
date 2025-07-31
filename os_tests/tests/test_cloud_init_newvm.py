@@ -17,7 +17,9 @@ class TestCloudInitNewVM(unittest.TestCase):
 
     @property
     def rhel_x_version(self):
-        return int(self.vm.rhel_ver.split('.')[0])
+        #not all resources support this parameter now, only openstack and kvm
+        if self.vm.rhel_ver:
+            return int(self.vm.rhel_ver.split('.')[0])
 
     def _check_cloudinit_done(self):
         # if cloud-init status is running, waiting
@@ -548,7 +550,61 @@ ssh_authorized_keys:
                     expect_ret=0,
                     expect_kw='{}'.format(package),
                     msg="Check if package {} is installed by cloud-init".format(package))
-        #teardown
+
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['openstack','kvm'], 'now support openstack and kvm')
+    def test_cloudinit_recoverable_change(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2,vm_delete
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            xiachen@redhat.com
+        description:
+            downstream: Retain exit code in cloud-init status for recoverable errors
+            it is downstream only patch and only for rhel9
+            so when recoverable errors, to check that rhel9 return 0 and rhel10 return 2
+        key_steps: |
+            1. Add content to user data config file
+            2. Create VM
+            3. Verify the return code of 'cloud-init status'
+        """
+        self.log.info("checking downstream: Retain exit code in cloud-init status for recoverable errors")
+        if self.vm.exists():
+            self.vm.delete()
+            time.sleep(30)
+        #If using users:{}, it would block ssh login.
+        #so using another data chpasswd.list which can also cause recoverable error.
+        user_data = """\
+#cloud-config
+chpasswd:
+  list:
+
+ssh_authorized_keys:
+    - {}
+""".format(utils_lib.get_public_key())
+        status = self.vm.create(userdata=user_data)
+        if not status:
+            self.fail("Create vm failed, please check!")
+        if self.vm.is_stopped():
+            self.vm.start(wait=True)
+        # check login
+        status = utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        if not status:
+            self.fail("Login failed, please check!")
+        # check cloud-init status return value
+        cmd = "sudo cloud-init status"
+        # for cloud-init el_9, expect is 0, while for el_10, expect is 2
+        if self.rhel_x_version <= 9:
+            expect_code = 0
+        else:
+            expect_code = 2
+        utils_lib.run_cmd(self,
+                    cmd,
+                    expect_ret=expect_code,
+                    msg="Check the return code of cloud-init status")
 
     def tearDown(self):
         utils_lib.finish_case(self)
