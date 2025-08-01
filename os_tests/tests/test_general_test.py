@@ -533,8 +533,8 @@ int main(int argc, char *argv[])
             cmd = "sudo subscription-manager list --installed"
             out = utils_lib.run_cmd(self, cmd, msg='try to list currently installed on the system')
             cmd = "sudo subscription-manager status"
-            out = utils_lib.run_cmd(self, cmd, msg='try to check subscription status')
-            if 'Red Hat Enterprise Linux' in out or 'Simple Content Access' in out:
+            status = utils_lib.run_cmd(self, cmd, msg='try to check subscription status', ret_status=True, ret_out=False)
+            if status == 0:
                 self.log.info("auto subscription registered completed")
                 cmd = "sudo insights-client --register"
                 utils_lib.run_cmd(self, cmd, msg='check if insights-client can register successfully')
