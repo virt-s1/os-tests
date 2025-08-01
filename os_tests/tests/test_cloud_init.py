@@ -72,7 +72,7 @@ class TestCloudInit(unittest.TestCase):
             xiliang@redhat.com
         description:
             check if ds-identify can run and ret is found
-        key_steps:
+        key_steps: |
             1.rpm -q cloud-init
             2.check cloud-init-generator log 
         expect_result:
@@ -145,7 +145,7 @@ class TestCloudInit(unittest.TestCase):
             xiliang@redhat.com
         description:
             Check cloud-init use imdsv2 in aws
-        key_steps:
+        key_steps: |
             1.#sudo grep -Ri amazon /sys/devices/virtual/dmi/id/bios*
             2.#sudo rpm -ql cloud-init|grep -w DataSourceEc2.py
             3.#sudo cat "output of step2"|grep IMDSv2
@@ -258,7 +258,7 @@ class TestCloudInit(unittest.TestCase):
             False
         maintainer:
             xiachen@redhat.com
-        description:
+        description: |
             check if there is AttributeError, TypeError or NameError in log file
             this case is useful when backport upstream patch, if there is code dependency, it would show these kinds of Error.
         key_steps:
@@ -398,13 +398,13 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
 
     @unittest.skipIf(os.getenv('INFRA_PROVIDER') == 'nutanix', 'nutanix platform on which use config drive to fetch metadata but not http service')
     def test_check_metadata(self):
-        '''
+        """
         case_tag:
             cloudinit,cloudinit_tier2
         polarion_id:
         description:
             https://cloudinit.readthedocs.io/en/latest/topics/datasources/ec2.html
-        '''
+        """
         if utils_lib.is_ali(self):
             cmd = r"curl http://100.100.100.200/latest/meta-data"
         else:
@@ -412,14 +412,14 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw="Not Found")
 
     def test_check_output_isexist(self):
-        '''
+        """
         case_tag:
             cloudinit,cloudinit_tier1
         polarion_id:
         bz: 1626117
         description:
             check whether /var/log/cloud-init-output.log exists
-        '''
+        """
         utils_lib.run_cmd(self,
                     'uname -r',
                     cancel_not_kw='el7,el6',
@@ -475,7 +475,7 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
             utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='active', msg = "check %s status" % service)
 
     def test_cloudinit_sshd_keypair(self):
-        '''
+        """
         case_tag:
             cloudinit,cloudinit_tier2,vm_delete,cloudinit_clean
         case_file:
@@ -503,7 +503,7 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
             No 'SSH credentials failed' found
         debug_want:
             Please attach /var/log/cloud-init.log
-        '''
+        """
         product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
         if float(product_id) >= 9.0:
             self.skipflag = True
@@ -558,7 +558,7 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
             N/A
         maintainer:
             xiachen@redhat.com
-        description:
+        description: |
             RHEL-188669 - CLOUDINIT-TC:[cloud-utils-growpart]resize partition during VM first boot
             RHEL-36093 - Remove cloud-init dependency on obsolete gdisk
         key_steps: |
@@ -598,7 +598,7 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
             N/A
         maintainer:
             xiachen@redhat.com
-        description:
+        description: |
             RHEL7-103839 - CLOUDINIT-TC: Auto extend root partition and filesystem
             RHEL-36093 - Remove cloud-init dependency on obsolete gdisk
         key_steps: |
@@ -721,13 +721,13 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
             VIRT-297993
         maintainer:
             xiachen@redhat.com
-        description:
+        description: |
             check previous-hostname is written/read correctly
             support version is begin since cloud-init-23.1.1-2.el8 and cloud-init-23.1.1-2.el9
-        key_steps:
+        key_steps: |
             1. cat /var/lib/cloud/data/previous-hostname
             2. checking /var/log/cloud-init.log
-        expect_result:
+        expect_result: |
             1. previous-hostname is equal to hostname by default
             2. by default, no key words "previous-hostname differs from" in log
         debug_want:
@@ -1718,7 +1718,7 @@ EOF""".format(device, size), expect_ret=0)
             huzhao@redhat.com
         description:
             RHEL-189225 - CLOUDINIT-TC: launch vm with config drive
-        key_steps:
+        key_steps: |
             basic case of config drive
             1. Create a VM with datasource 'Config Drive'
             2. Login and check user sudo privilege
@@ -1783,10 +1783,10 @@ EOF""".format(device, size), expect_ret=0)
             True
         maintainer:
             huzhao@redhat.com
-        description:
+        description: |
             RHEL-196518 - CLOUDINIT-TC: check dns configuration on openstack instance
             RHEL-182309 - CLOUDINIT-TC: /etc/resolv.conf will not lose config after reboot
-        key_steps:
+        key_steps: |
             1. check dns configuration in /etc/resolv.conf
             2. check /etc/NetworkManager/conf.d/99-cloud-init.conf
             3. run hostnamectl command and then check resolv.conf again
@@ -2065,7 +2065,7 @@ EOF""".format(device, size), expect_ret=0)
             huzhao@redhat.com
         description:
             RHEL-186180 - CLOUDINIT-TC: correct config for dhcp-stateless openstack subnets
-        key_steps:
+        key_steps: |
             1. Create a VM with two nics, the second nic is stateless ipv6 mode
             2. Login and check user
             3. check network config file
@@ -2116,9 +2116,9 @@ EOF""".format(device, size), expect_ret=0)
             cloud-init
         maintainer:
             huzhao@redhat.com
-        description:
+        description: |
             RHEL-186181 - CLOUDINIT-TC: correct config for dhcp-stateful openstack subnets
-        key_steps:
+        key_steps: |
             1. Create a VM with two nics, the second nic is dhcp-stateful ipv6 mode
             2. Login and check user
             3. check network config file
@@ -2702,7 +2702,7 @@ ssh_authorized_keys:
            Cloud-init should place the puppet, power-state-change modules in cloud_final_modules
         key_steps: |
             1. Check /etc/cloud/cloud.cfg
-        expect_result:
+        expect_result: |
             The puppet, chef, salt-minion, mcollective, package-update-upgrade-install, power-state-change 
             should be in cloud_final_modules
         debug_want:
@@ -2790,7 +2790,7 @@ ssh_authorized_keys:
     def test_cloudinit_config_ipv6(self):
         '''
         case_tag:
-            cloudinit
+            cloudinit,cloudinit_tier2
         description:
             Check the IPv6 is configured by default for guests.
         testplan:
@@ -2805,7 +2805,7 @@ ssh_authorized_keys:
             0
         case_component: 
             cloud-init
-        key_steps:
+        key_steps: |
             1. Launch an instance which support IPv6 with IPv6 auto assigned.
             2. Check the IPv6 is configured and auto assigned for NIC and can be connected via IPv6 address after system boot up.
         pass_criteria: 
@@ -2831,7 +2831,7 @@ ssh_authorized_keys:
     def test_cloudinit_lineoverwrite(self):
         '''
         case_tag:
-            cloudinit,cloudinit_clean
+            cloudinit,cloudinit_tier2,cloudinit_clean
         description: |
             This is a specific case of openstack, because the cloud guest images need to have "NOZEROCONF=yes" in /etc/sysconfig/network so that it works well as an openstack guest. (Bug 983611 - Cloud guest images needs to have "NOZEROCONF=yes" in /etc/sysconfig/network)
             cloud-init removed user configuration in /etc/sysconfig/network and rewrite the default configuration in every prevision before cloud-init-18.2-4.el7, after this version, certain lines in network configuration isn't removed after re-provision. linked case RHEL-152730
@@ -2901,7 +2901,7 @@ ssh_authorized_keys:
     def test_cloudinit_userdata(self):
         '''
         case_tag:
-            cloudinit
+            cloudinit,cloudinit_tier2
         description:
             Check the userdata can be passed when creating instance. Linked case RHEL7-87120
         testplan:
@@ -3203,7 +3203,7 @@ EOF
             RHEL-188320
         maintainer:
             xiachen@redhat.com
-        description:
+        description: |
            create vm and login with ssh-key, run 50 times or set the number of cycles (run_loop)
            because of the race condition issue on openstack, this auto case only run on openstack now
         key_steps: |

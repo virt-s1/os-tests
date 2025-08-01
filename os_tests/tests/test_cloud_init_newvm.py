@@ -36,10 +36,11 @@ class TestCloudInitNewVM(unittest.TestCase):
     @parameterized.expand(["cdrom","smbios"])
     def test_cloudinit_staticip_dns_metric(self, datasource):
         """
-        case_tag:
-            cloudinit,cloudinit_tier2,vm_delete
+        with parameter:
         case_name:
             test_cloudinit_staticip_dns_metric
+        case_tag:
+            cloudinit,cloudinit_tier2,vm_delete
         case_file:
             test_cloud_init_newvm.py
         component:
@@ -54,16 +55,14 @@ class TestCloudInitNewVM(unittest.TestCase):
             xiachen@redhat.com
         description:
             Check cloud-init can configure static IP, nameservers and metric
-        key_steps:
+        key_steps: |
             1.#prepare user-data,meta-data and network-data
             2.#launch a KVM instance
             3.#login and check IP,nameservers and metric
-        expect_result:
+        expect_result: |
             ip is the static IP
             nameservers configured in /etc/resolv.conf
             metric value is same as network-config
-        debug_want:
-            cloud-init
         """
         #When @unittest.skipUnless is placed before @parameterized.expand, it does not work as expected. 
         #This happens because @parameterized.expand modifies the test method before @unittest.skipUnless applies, 
@@ -196,10 +195,11 @@ network:
     @parameterized.expand(["cdrom","smbios"])
     def test_cloudinit_smoketests_kvm(self, datasource):
         """
-        case_tag:
-            cloudinit,cloudinit_tier2,vm_delete
+        with parameter:
         case_name:
             test_cloudinit_smoketests_kvm
+        case_tag:
+            cloudinit,cloudinit_tier2,vm_delete
         case_file:
             test_cloud_init_newvm.py
         component:
@@ -214,16 +214,14 @@ network:
             xiachen@redhat.com
         description:
             the basic check for cloud-init on KVM
-        key_steps:
+        key_steps: |
             1.#prepare user-data and meta-data
             2.#launch a KVM instance
             3.#login to check the configuration, e.g. hostname, datasource, cloud-init status
-        expect_result:
+        expect_result: |
             ssh login is success
             hostname is configured
             datasource is recognized correctly
-        debug_want:
-            cloud-init
         """
         #When @unittest.skipUnless is placed before @parameterized.expand, it does not work as expected. 
         #solution: skipping inside the test method
@@ -299,10 +297,10 @@ local-hostname: myhost
     @unittest.skipUnless(os.getenv('INFRA_PROVIDER') == 'kvm', 'it is a specific case for kvm')
     def test_cloudinit_bridges(self):
         """
-        case_tag:
-            cloudinit,cloudinit_tier2,vm_delete
         case_name:
             test_cloudinit_bridges
+        case_tag:
+            cloudinit,cloudinit_tier2,vm_delete
         case_file:
             test_cloud_init_newvm.py
         component:
@@ -317,14 +315,12 @@ local-hostname: myhost
             xiachen@redhat.com
         description:
             test the bridge configuration on KVM
-        key_steps:
+        key_steps: |
             1.#prepare user-data and meta-data
             2.#launch a KVM instance
             3.#login to check the network configuration
         expect_result:
             Both IPs can ssh login means network configuration is correct.
-        debug_want:
-            cloud-init
         """
         # create vm and then do test
         user_data = """\
@@ -562,7 +558,7 @@ ssh_authorized_keys:
             cloud-init
         maintainer:
             xiachen@redhat.com
-        description:
+        description: |
             downstream: Retain exit code in cloud-init status for recoverable errors
             it is downstream only patch and only for rhel9
             so when recoverable errors, to check that rhel9 return 0 and rhel10 return 2
