@@ -446,6 +446,8 @@ class TestRHELCert(unittest.TestCase):
             net_bandwidth = 100
         elif net_bandwidth <= 200:
             net_bandwidth = 200
+        elif net_bandwidth <= 400:
+            net_bandwidth = 400
         cmd = 'sudo bash -c "yes|rhcert-cli plan --add --test {}GigEthernet --device {} --server {}"'.format(net_bandwidth,self.active_nic,self.rmt_ipv4)
         utils_lib.run_cmd(self,cmd, timeout=1800, msg='create test plan')
         cmd = 'sudo bash -c "yes|rhcert-cli run --test {}GigEthernet --device {} --server {}"'.format(net_bandwidth,self.active_nic,self.rmt_ipv4)

@@ -1130,6 +1130,44 @@ if __name__ == "__main__":
         cmd = 'sudo cat /tmp/grub.cfg'
         utils_lib.run_cmd(self,cmd,msg="check if there is saved_entry",expect_kw="{saved_entry"+"}")
 
+    def test_serial_port_check(self):
+        """
+        case_name:
+            test_serial_port_check
+        component:
+            kernel
+        bug_id:
+            jira_RHEL-69911
+        maintainer:
+            xiliang@redhat.com
+        description:
+            Check the serial port specified in /proc/cmdline are working.
+        key_steps: |
+            1. check "/proc/cmdline" and pick up the ttySn setting, if no ttySn setting, skip the case
+            2. check ttyS mapping during boot by "sudo dmesg|grep -i ttyS"
+            3. if the vm has get_console_log(), call it to get the console log.
+            4. If the return string over 200 characters, the test PASS.
+            5. If it is too short less than 200, we set the test fail.
+        """
+        cmd = "cat /proc/cmdline"
+        cmdline = utils_lib.run_cmd(self, cmd, expect_ret=0)
+        match = re.search(r'console=(ttyS[0-9]+)', cmdline)
+        if not match:
+            self.skipTest("No ttySn setting found in /proc/cmdline")
+        
+        ttyS = match.group(1)
+        cmd = "sudo dmesg|grep -i %s" % ttyS
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check %s mapping" % ttyS)
+
+        if not (self.vm and hasattr(self.vm, 'get_console_log')):
+            self.skipTest("VM does not support get_console_log")
+
+        console_log = self.vm.get_console_log()
+        if len(console_log) > 200:
+            self.log.info("Console log is long enough (%d characters)." % len(console_log))
+        else:
+            self.fail("Console log is too short (%d characters)." % len(console_log))
+
     def test_z_nitro_enclaves(self):
         '''
         case_name:
