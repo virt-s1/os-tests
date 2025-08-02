@@ -122,6 +122,8 @@ def main():
                 yaml_data = {}
                 try:
                     src_content = case._testMethodDoc
+                    # remove the line added by @parameterized.expand()
+                    src_content = "\n".join(l for l in src_content.splitlines() if not l.startswith("with parameter: [with"))
                     yaml_data = load(src_content, Loader=Loader)
                     if not hasattr(yaml_data,'get'):
                         yaml_data = {}
