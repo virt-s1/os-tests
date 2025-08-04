@@ -7,7 +7,8 @@ import warnings
 import string
 import contextlib
 import os
-from jinja2 import Template, FileSystemLoader, Environment, PackageLoader, select_autoescape
+from importlib.resources import files
+from jinja2 import Template, FileSystemLoader, Environment, select_autoescape
 
 class ResultSummary:
     '''
@@ -35,7 +36,15 @@ def generated_report(logfile, template_name, result):
     if os.path.exists(logfile):
         os.unlink(logfile)
 
-    file_loader = PackageLoader("os_tests", "templates")
+    try:
+        file_loader = FileSystemLoader(str(files("os_tests").joinpath("templates")))
+    except:
+        try:
+            from jinja2 import PackageLoader
+            file_loader = PackageLoader("os_tests", "templates")
+        except:
+            print("Error in loading templates:{}".format(err))
+            sys.exit(1)
     env = Environment(loader=file_loader)
     template = env.get_template(template_name)
     if template_name.endswith('xml'):
