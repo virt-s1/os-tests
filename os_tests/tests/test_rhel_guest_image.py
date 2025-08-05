@@ -807,7 +807,7 @@ class TestGuestImage(unittest.TestCase):
         description:
             check packages are signed
         key_steps:
-            1. "rpm -qa --qf '%{name}-%{version}-%{release}.%{arch} (%{SIGPGP:pgpsig})\\n'|grep -v 'Key ID'"
+            1. "rpm -qa --qf '%{name}-%{version}-%{release}.%{arch} (%{RSAHEADER:pgpsig})\\n'|grep -v 'Key ID'"
         expect_result:
             Red Hat managed packages should be signed
         debug_want:
@@ -818,7 +818,7 @@ class TestGuestImage(unittest.TestCase):
         dest_path = '/tmp/' + data_file
         self.SSH.put_file(local_file=src_path, rmt_file=dest_path)
         cmd = "rpm -qa --qf '%{name}-%{version}-%{release}.%{arch} \
-(%{SIGPGP:pgpsig})\n'|grep -v 'Key ID'" + "|grep -vFf %s" % dest_path
+(%{RSAHEADER:pgpsig})\n'|grep -v 'Key ID'" + "|grep -vFf %s" % dest_path
         output = utils_lib.run_cmd(self, cmd, msg="compare through grep")
 
         # cheshi, newline characters are not supported in aexpect, so need a
