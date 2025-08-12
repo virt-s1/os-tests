@@ -20,6 +20,12 @@ class TestCloudInit(unittest.TestCase):
         for case_name in case_list:
             if case_name in self.id() and 'bootc' in out:
                 self.skipTest('skip run as this case is not supported for image mode')
+        # Skip some cases for CentOS Stream
+        case_list = ['test_cloudinit_verify_rh_subscription_enablerepo_disablerepo']
+        out = utils_lib.run_cmd(self, 'cat /etc/redhat-release | grep -i CentOS')
+        for case_name in case_list:
+            if case_name in self.id() and 'CentOS Stream' in out:
+                self.skipTest('skip run as this case is not supported for CentOS Stream')
 
     @property
     def rhel_x_version(self):

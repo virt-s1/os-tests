@@ -14,12 +14,15 @@ class TestCloudInitNewVM(unittest.TestCase):
         #do not create vm in init_case, because it will create new vm in test case
         self.createvm = False
         utils_lib.init_case(self)
-        # Skip some cases for image mode                
+        # Skip some cases for image mode and CentOS Stream              
         case_list = ['test_cloudinit_auto_install_package_with_subscription_manager']
         out = utils_lib.run_cmd(self, 'ls /ostree/ | grep -i bootc')
+        out_centos = utils_lib.run_cmd(self, 'cat /etc/redhat-release | grep -i CentOS')
         for case_name in case_list:
             if case_name in self.id() and 'bootc' in out:
                 self.skipTest('skip run as this case is not supported for image mode')
+            if case_name in self.id() and 'CentOS Stream' in out_centos:
+                self.skipTest('skip run as this case is not supported for CentOS Stream')
 
     @property
     def rhel_x_version(self):
