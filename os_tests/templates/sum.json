@@ -1,0 +1,27 @@
+{
+  "summary": {
+    "total": {{ result.total }},
+    "pass": {{ result.case_pass }},
+    "fail": {{ result.case_fail }},
+    "error": {{ result.case_error }},
+    "skip": {{ result.case_skip }},
+    "pass_rate": {{ result.pass_rate }},
+    "run_time": {{ result.run_time }},
+    "run_date": {{ result.run_date | tojson }},
+    "comment": {{ result.comment | tojson }}
+  },
+  "node_info": {{ result.node_info | tojson }},
+  "tests": [
+    {% for row in result.table_rows %}
+    {
+      "id": {{ row[0] }},
+      "name": {{ row[1] | tojson }},
+      "status": {{ row[2] | tojson }},
+      "reason": {{ row[3] | tojson }},
+      "duration": {{ row[4] }},
+      "log": {{ row[5] | tojson }},
+      "class_name": {{ row[6] | tojson }}
+    }{{ "," if not loop.last }}
+    {% endfor %}
+  ]
+}
