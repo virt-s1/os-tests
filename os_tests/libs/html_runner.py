@@ -25,6 +25,7 @@ class ResultSummary:
         self.table_rows = []
         self.node_info = None
         self.run_date = time.asctime()
+        self.comment = ''
 
     def compute_totals(self):
         self.total = self.case_pass + self.case_error + self.case_fail + self.case_skip
@@ -253,6 +254,8 @@ class HTMLTestRunner(object):
         generated_report(sum_html, "sum.html", test_result_summary)
         sum_junit = os.path.join(results_dir, "sum.xml")
         generated_report(sum_junit, "sum.xml", test_result_summary)
+        sum_json = os.path.join(results_dir, "sum.json")
+        generated_report(sum_json, "sum.json", test_result_summary)
         print("{} generated".format(os.path.realpath(sum_txt)))
         #result.printErrors()
         if hasattr(result, 'separator2'):
