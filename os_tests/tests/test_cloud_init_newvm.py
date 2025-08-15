@@ -13,18 +13,7 @@ class TestCloudInitNewVM(unittest.TestCase):
     def setUp(self):
         #do not create vm in init_case, because it will create new vm in test case
         self.createvm = False
-        utils_lib.init_case(self)
-        cmd = "sudo systemctl is-enabled cloud-init-local"
-        utils_lib.run_cmd(self, cmd, cancel_ret='0', msg = "check cloud-init-local is enabled")
-        # Skip some cases for image mode and CentOS Stream              
-        case_list = ['test_cloudinit_auto_install_package_with_subscription_manager']
-        out = utils_lib.run_cmd(self, 'ls /ostree/ | grep -i bootc')
-        out_centos = utils_lib.run_cmd(self, 'cat /etc/redhat-release | grep -i CentOS')
-        for case_name in case_list:
-            if case_name in self.id() and 'bootc' in out:
-                self.skipTest('skip run as this case is not supported for image mode')
-            if case_name in self.id() and 'CentOS Stream' in out_centos:
-                self.skipTest('skip run as this case is not supported for CentOS Stream')
+        utils_lib.init_case(self)        
 
     @property
     def rhel_x_version(self):
@@ -501,6 +490,15 @@ ssh_pwauth: True
         """
         self.log.info("RHEL-186182 CLOUDINIT-TC:auto install package with subscription manager")
         if self.vm.exists():
+            # Skip if it is image mode or CenOS Stream
+            utils_lib.init_connection(self, timeout=self.ssh_timeout)
+            out = utils_lib.run_cmd(self, 'ls /ostree/ | grep -i bootc')
+            if 'bootc' in out:
+                self.skipTest('skip run as this case is not supported for image mode')
+            out = utils_lib.run_cmd(self, 'cat /etc/redhat-release | grep -i CentOS')
+            if 'CentOS Stream' in out:
+                self.skipTest('skip run as this case is not supported for CentOS Stream')
+
             self.vm.delete()
             time.sleep(30)
         package = "dos2unix"
@@ -530,6 +528,13 @@ ssh_authorized_keys:
         status = utils_lib.init_connection(self, timeout=self.ssh_timeout)
         if not status:
             self.fail("Login failed, please check!")
+        # Skip if it is image mode or CenOS Stream
+        out = utils_lib.run_cmd(self, 'ls /ostree/ | grep -i bootc')
+        if 'bootc' in out:
+            self.skipTest('skip run as this case is not supported for image mode')
+        out = utils_lib.run_cmd(self, 'cat /etc/redhat-release | grep -i CentOS')
+        if 'CentOS Stream' in out:
+            self.skipTest('skip run as this case is not supported for CentOS Stream')
 
         self.log.info("Waiting 30s for subscription-manager done...")
         time.sleep(30) # waiting for subscription-manager register done.
