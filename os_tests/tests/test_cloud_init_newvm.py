@@ -14,6 +14,8 @@ class TestCloudInitNewVM(unittest.TestCase):
         #do not create vm in init_case, because it will create new vm in test case
         self.createvm = False
         utils_lib.init_case(self)
+        cmd = "sudo systemctl is-enabled cloud-init-local"
+        utils_lib.run_cmd(self, cmd, cancel_ret='0', msg = "check cloud-init-local is enabled")
         # Skip some cases for image mode and CentOS Stream              
         case_list = ['test_cloudinit_auto_install_package_with_subscription_manager']
         out = utils_lib.run_cmd(self, 'ls /ostree/ | grep -i bootc')
