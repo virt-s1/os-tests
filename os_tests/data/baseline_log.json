@@ -2607,5 +2607,29 @@
         "cases": "os_tests.tests.test_azure_upgrade_check.TestAzureUpgradeCheck.test_check_no_avc_denials",
         "addedby": "yuxisun@redhat.com",
         "addeddate": "20250730"
+    },
+    "msg_274": {
+        "content": ".*x86/tme.*Unknown policy is active.*",
+        "analyze": "known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-111095",
+        "path": "",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250826"
+    },
+    "msg_275": {
+        "content": ".*x86/split lock detection.*warning on user-space bus_locks.*",
+        "analyze": "information level log, harmless",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250826"
     }
 }
