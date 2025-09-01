@@ -73,7 +73,7 @@ class TestUpgrade(unittest.TestCase):
                                 msg="check loaded drivers")
         for line in output.splitlines():
             mod_list = line.split()[0]
-            if mod_list in ('floppy','pata_acpi','qla4xxx'):
+            if mod_list in ('floppy','pata_acpi','qla4xxx','ip_set'):
                 utils_lib.run_cmd(self,
                                 "sudo rmmod '{}'".format(mod_list),
                                 expect_ret=0, msg="Remove driver")
@@ -94,6 +94,12 @@ class TestUpgrade(unittest.TestCase):
             cmd = "sudo sed -i 's/^AllowZoneDrifting=.*/AllowZoneDrifting=no/' /etc/firewalld/firewalld.conf"
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Configure firewalld')
 
+    def _nmcli_migrate(self):
+        x_version = self.rhel_x_version
+        if x_version >= 9:
+            cmd = "sudo nmcli connection migrate && sudo nmcli con show"
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Migrate the connection from ifcfg to NetworkManager')
+    
     def test_dnf_update(self):
         """
         case_name:
@@ -306,6 +312,7 @@ class TestUpgrade(unittest.TestCase):
         self._config_PermitRootLogin()
         self._remove_package()
         self._prepare_configure()
+        self._nmcli_migrate()
         #Do preupgrade
         target_version = self.params.get('target_version')
         if target_version:
@@ -460,6 +467,7 @@ class TestUpgrade(unittest.TestCase):
         self._config_PermitRootLogin()
         self._remove_package()
         self._prepare_configure()
+        self._nmcli_migrate()
         leapp_target_repo_url = self.params.get('leapp_target_repo_url')
         if leapp_target_repo_url:
             utils_lib.configure_repo(self, repo_type='leapp_target_repo', repo_url_param=leapp_target_repo_url)
@@ -636,6 +644,7 @@ class TestUpgrade(unittest.TestCase):
         self._config_PermitRootLogin()
         self._remove_package()
         self._prepare_configure()
+        self._nmcli_migrate()
         #Enable yum plugins
         cmd = "sed -i 's/^plugins=0/plugins=1/' '/etc/yum.conf'; sed -i 's/^enabled.*/enabled=1/' '/etc/yum/pluginconf.d/subscription-manager.conf'; sed -i 's/^enabled=0/enabled=1/' '/etc/yum/pluginconf.d/product-id.conf'"
         utils_lib.run_cmd(self,
