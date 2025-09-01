@@ -73,7 +73,7 @@ class TestUpgrade(unittest.TestCase):
                                 msg="check loaded drivers")
         for line in output.splitlines():
             mod_list = line.split()[0]
-            if mod_list in ('floppy','pata_acpi','qla4xxx'):
+            if mod_list in ('floppy','pata_acpi','qla4xxx','ip_set'):
                 utils_lib.run_cmd(self,
                                 "sudo rmmod '{}'".format(mod_list),
                                 expect_ret=0, msg="Remove driver")
@@ -94,6 +94,12 @@ class TestUpgrade(unittest.TestCase):
             cmd = "sudo sed -i 's/^AllowZoneDrifting=.*/AllowZoneDrifting=no/' /etc/firewalld/firewalld.conf"
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Configure firewalld')
 
+    def _nmcli_migrate(self):
+        x_version = self.rhel_x_version
+        if x_version >= 9:
+            cmd = "sudo nmcli connection migrate && sudo nmcli con show"
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Configure firewalld')
+    
     def test_dnf_update(self):
         """
         case_name:
