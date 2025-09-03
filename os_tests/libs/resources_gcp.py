@@ -204,11 +204,17 @@ class GCPVM(VMResource):
                     'https://www.googleapis.com/auth/logging.write'
                 ]
             }],
-            'scheduling': {
-                'provisioningModel': 'SPOT',
-                'instanceTerminationAction': 'DELETE'
-            },
         }
+
+        config['scheduling'] = {
+            'provisioningModel': 'SPOT',
+            'instanceTerminationAction': 'DELETE'
+        }
+
+        if "metal" in self.flavor:
+            config['scheduling'] = {
+                "onHostMaintenance": "TERMINATE"
+            }
 
         if self.arch == "aarch64":
             config['displayDevice']['enableDisplay'] = False
