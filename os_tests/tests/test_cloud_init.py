@@ -3531,8 +3531,6 @@ ssh_authorized_keys:
             Check cloud-init clean configs options
         importance:
             medium
-        subsystem_team:
-            rhel-sst-virtualization-cloud
         automation_drop_down:
             automated
         linked_work_items:
