@@ -24,3 +24,4 @@ S.5....T.  c /etc/ssh/sshd_config
 .M.......  g /root/.bashrc
 .M.......  g /root/.cshrc
 .M.......  g /root/.tcshrc
+.......T.  c /etc/selinux/targeted/contexts/customizable_types
