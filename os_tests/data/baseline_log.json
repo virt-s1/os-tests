@@ -2631,5 +2631,17 @@
         "cases": "",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20250826"
+    },
+    "msg_276": {
+        "content": ".*Failed to find VA.*",
+        "analyze": "please try boot with uefi, please report a bug if it persists",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-107449",
+        "path": "",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250908"
     }
 }
