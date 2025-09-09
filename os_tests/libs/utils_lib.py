@@ -1360,8 +1360,8 @@ def is_rhsm_registered(test_instance, cancel_case=False, timeout=600, rmt_node=N
         test_instance {Test instance} -- test instance
     '''
     cmd = "sudo subscription-manager status"
-    out = run_cmd(test_instance, cmd, msg='try to check subscription status', rmt_node=rmt_node, vm=vm)
-    if 'Red Hat Enterprise Linux' in out or 'Simple Content Access' in out:
+    status = run_cmd(test_instance, cmd, msg='try to check subscription status', rmt_node=rmt_node, vm=vm, ret_status=True, ret_out=False)
+    if status == 0:
         return True
     else:
         if cancel_case: test_instance.skipTest("Unable to register")
