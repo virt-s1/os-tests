@@ -98,7 +98,12 @@ class KvmVM(VMResource):
                     cmd2 += "--network bridge={},model=virtio,mac={} ".format(network,mac)
                 else:
                     cmd2 += "--network bridge={},model=virtio ".format(network)
-        #--cloud-init user-data and clouduser-ssh-key can not use at the same time     
+        #--cloud-init user-data and clouduser-ssh-key can not use at the same time
+        #--cloud-init do not support reboot because of missing the one time cloud-init media
+        # meant for initial VM configuration,
+        # that is, virt-install forcing shutdown for the first reboot is intended behavior,
+        # so we cannot use --cloud-init as we have mutiple cases with reboot.
+        # solution: using cdrom instead of --cloud-init
 
         if datasource == "cdrom":
             cmd2 += "--disk path={}/{},device=cdrom ".format(self.disk_path,self.nocloud_iso_name)
@@ -110,10 +115,12 @@ class KvmVM(VMResource):
             #now it supports user-data, meta-data, network-config and clouduser-ssh-key and so on.'
             userdata = userdata or self.user_data
             if userdata:
-                userdatafilename = self.files_path+"/user-data"
-                with open(userdatafilename, 'w') as userdatafile:
-                    userdatafile.write(userdata)
-                cmd2 += "--cloud-init user-data={} ".format(userdatafilename)
+                self.create_datafile(
+                    datasource="cdrom",
+                    userdata=userdata,
+                    metadata=""
+                )
+                cmd2 += "--disk path={}/{},device=cdrom ".format(self.disk_path,self.nocloud_iso_name)
 
         cmd2 += "--graphics none  --import --noautoconsole"
         run_cmd_local(cmd2, is_log_ret=True)

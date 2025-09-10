@@ -1215,8 +1215,8 @@ EOF""".format(device, size), expect_ret=0)
         #AWS rhel image dev/console to tty0, not ttyS0
         #libvirt has some problem when using assertIn console log file
         #alicloud sometimes SDK-Version:2.14.0 ClientException:SDK.HttpError
-        #so we only run below steps on openstack
-        if utils_lib.is_openstack(self):
+        #so we only run below steps on openstack and kvm
+        if utils_lib.is_openstack(self) or self.vm.provider == "kvm":
             output= self.vm.get_console_log(silent=True)
             if isinstance(output,Exception):
                 self.fail("Failed to get console log!")
@@ -2394,8 +2394,8 @@ ssh_pwauth: True '''.format(**pw_config_dict)
         #AWS rhel image dev/console to tty0, not ttyS0
         #libvirt has some problem when using assertIn console log file
         #alicloud sometimes SDK-Version:2.14.0 ClientException:SDK.HttpError
-        #so we only run below steps on openstack
-        if utils_lib.is_openstack(self):
+        #so we only run below steps on openstack and kvm
+        if utils_lib.is_openstack(self) or self.vm.provider == "kvm":
             output= self.vm.get_console_log(silent=False)
             if isinstance(output,Exception):
                 self.fail("Failed to get console log!")
