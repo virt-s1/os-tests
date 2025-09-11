@@ -2643,5 +2643,17 @@
         "cases": "",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20250908"
+    },
+    "msg_277": {
+        "content": ".*SELinux:  Context system_u:object_r:invalid_bootcinstall_testlabel_t:s0 is not valid.*",
+        "analyze": "kown issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://github.com/bootc-dev/bootc/issues/1434,https://issues.redhat.com/browse/BIFROST-688",
+        "path": "",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250911"
     }
 }
