@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<testsuites>
+	<properties>
+		<property name="polarion-project-id" value="RHELVIRT"/>
+		<property name="polarion-testrun-title" value="{{ result.run_title }}"/>
+    <property name="polarion-group-id" value="os-tests"/>
+    <property name="polarion-include-skipped" value="false"/>		
+		<property name="polarion-custom-description" value="{{ result.node_info }}"/>
+		<property name="polarion-custom-plannedin" value="{{ result.release_version }}"/>
+    <property name="polarion-custom-isautomated" value="True"/>
+		<property name="polarion-custom-poolteam" value="rhel-virt-cloud"/>
+	</properties>
+  <testsuite name="os-tests" tests="{{ result.total }}" errors="{{ result.case_error }}" skipped="{{ result.case_skip }}" failures="{{ result.case_fail }}" time="{{ result.run_time }}">
+  {% for row in result.table_rows %}
+  <testcase classname="{{ row[6] }}" name="{{ row[1] }}" time="{{ row[4] }}">
+    <properties>
+        <property name="polarion-testcase-id" value="{{ row[7] }}" />
+    </properties>
+    {% if row[2] == 'FAIL' %}
+    <failure message="Failed" type="failure"/>
+    {% endif %}
+    {% if row[2] == 'ERROR' %}
+    <error message="Error found, test could not be executed" type="error"/>
+    {% endif %}
+    {% if row[2] == 'SKIP' %}
+    <skipped message="Skipped as not support" type="skipped"/>
+    {% endif %}
+  </testcase>
+  {% endfor %}
+  </testsuite>
+</testsuites>
