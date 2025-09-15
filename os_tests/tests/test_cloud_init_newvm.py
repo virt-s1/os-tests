@@ -13,7 +13,8 @@ class TestCloudInitNewVM(unittest.TestCase):
     def setUp(self):
         #do not create vm in init_case, because it will create new vm in test case
         self.createvm = False
-        utils_lib.init_case(self)        
+        self.cloudinit_version = None
+        utils_lib.init_case(self)
 
     @property
     def rhel_x_version(self):
@@ -31,6 +32,52 @@ class TestCloudInitNewVM(unittest.TestCase):
         # check cloud-init status is done
         cmd = 'sudo cloud-init status'
         utils_lib.run_cmd(self, cmd, expect_kw='status: done', msg='Get cloud-init status')
+        #output cloud-init version
+        package_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
+        version = version_util.get_version(package_ver,'cloud-init-')
+        self.cloudinit_version =  version
+
+    def check_cloudinit_version(self):
+
+        user_data = """\
+#cloud-config
+user: {}
+password: {}
+chpasswd:
+  expire: False
+ssh_authorized_keys:
+ - "{}"
+""".format(self.vm.vm_username, self.vm.vm_password, self.vm.ssh_pubkey)
+
+        meta_data ="""\
+instance-id: example
+local-hostname: myhost
+"""
+        #remove vm if it exists
+        if self.vm.exists():
+            self.vm.delete()
+
+        #create iso or start http server
+        datasource = "cdrom"
+        self.vm.create_datafile(
+            datasource=datasource,
+            userdata=user_data,
+            metadata=meta_data
+        )
+        #create vm
+        status = self.vm.create(datasource=datasource)
+        if not status:
+            self.fail("Create vm failed, please check!")
+
+        #login and check, successfully login means ssh key is configured well
+        self.ssh_timeout = 30
+        status = utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        if not status:
+            self.fail("Login failed, please check!")
+        #get cloud-init version from somketests
+        package_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
+        version = version_util.get_version(package_ver,'cloud-init-')
+        self.cloudinit_version =  version
 
     #the datasource of cloud-init for cdrom and smbios are different, using parameterized to expand the test case
     @parameterized.expand(["cdrom","smbios"])
@@ -70,6 +117,17 @@ class TestCloudInitNewVM(unittest.TestCase):
         #solution: skipping inside the test method
         if os.getenv('INFRA_PROVIDER') != 'kvm':
             self.skipTest('skip test as it is the specific test case for kvm.')
+
+        #cannot connect if the version is not supported
+        if datasource == "smbios":
+            support_cases = self.vm.support_cases
+            main_support_versions = ["24.4-5.el9","24.4-4.el10"]#Bug fix RHEL-81896,RHEL-81703
+            backport_versions = ["24.4-4.el9_6.1","24.4-3.el10_0.1"]#backport bug RHEL-83636,RHEL-83639
+            if self.cloudinit_version is None:
+                self.check_cloudinit_version()
+            version = self.cloudinit_version
+            if not version_util.is_support(version,"test_cloudinit_staticip_dns_metric",support_cases,main_support_versions,backport_versions):
+                self.skipTest("Skip test_cloudinit_staticip_dns_metric_smbios because it does not support network-config for cloud-init-"+version)
 
         # create vm and then do test
         interface_name = self.vm.interface_name or "eth0"
@@ -143,12 +201,6 @@ network:
         # cloud-init 24.3+ support network-config with smbios
         package_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
         version = version_util.get_version(package_ver,'cloud-init-')
-        if datasource == "smbios":
-            support_cases = self.vm.support_cases
-            main_support_versions = ["24.4-5.el9","24.4-4.el10"]#Bug fix RHEL-81896,RHEL-81703
-            backport_versions = ["24.4-4.el9_6.1","24.4-3.el10_0.1"]#backport bug RHEL-83636,RHEL-83639
-            if not version_util.is_support(version,"test_cloudinit_staticip_dns_metric",support_cases,main_support_versions,backport_versions):
-                self.skipTest("Skip test_cloudinit_staticip_dns_metric_smbios because it does not support network-config for "+package_ver)
 
         failures = []
         #step1 checking IP configuration
@@ -322,6 +374,18 @@ local-hostname: myhost
         expect_result:
             Both IPs can ssh login means network configuration is correct.
         """
+
+        # cannot connect if the version is not supported
+        # so get cloud-init version by creating a VM
+        support_cases = self.vm.support_cases
+        main_support_versions = ["23.4-21.el9","24.1.4-19.el10"] # RHEL-38927 for rhel9.6
+        backport_versions = ["23.4-7.el9_4.9","23.4-19.el9_5.2"] # RHEL-65020, RHEL-65021
+        if self.cloudinit_version is None:
+            self.check_cloudinit_version()
+        version = self.cloudinit_version
+        if not version_util.is_support(version,"test_cloudinit_bridges",support_cases,main_support_versions,backport_versions):
+            self.skipTest("Skip test_cloudinit_bridges because it does not support bridge set-name for cloud-init-"+version)
+
         # create vm and then do test
         user_data = """\
 #cloud-config
@@ -393,14 +457,6 @@ network:
         status = utils_lib.init_connection(self, timeout=self.ssh_timeout)
         if not status:
             self.fail("Login failed, please check!")
-
-        support_cases = self.vm.support_cases
-        main_support_versions = ["23.4-21.el9","24.1.4-19.el10"] # RHEL-38927 for rhel9.6
-        backport_versions = ["23.4-7.el9_4.9","23.4-19.el9_5.2"] # RHEL-65020, RHEL-65021
-        package_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
-        version = version_util.get_version(package_ver,'cloud-init-')
-        if not version_util.is_support(version,"test_cloudinit_bridges",support_cases,main_support_versions,backport_versions):
-            self.skipTest("Skip test_cloudinit_bridges because it does not support set-name for bridge. "+package_ver)
 
         self._check_cloudinit_done()
 
