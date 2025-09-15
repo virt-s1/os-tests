@@ -1093,7 +1093,8 @@ EOF""".format(device, size), expect_ret=0)
         datasource={'openstack':'OpenStack',
                     'aws':'Ec2',
                     'nutanix':'ConfigDrive',
-                    'ali':'AliYun'}
+                    'ali':'AliYun',
+                    'kvm':'NoCloud'}
         if self.vm.provider not in datasource.keys():
             self.skipTest('skip run as no such provider in datasource list')
         for provider,name in datasource.items():
@@ -1145,6 +1146,7 @@ EOF""".format(device, size), expect_ret=0)
                           expect_not_kw='No such file or directory',
                           msg='check /run/cloud-init/instance-data.json')
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') == 'kvm', 'default network is ipv4 only')
     def test_cloudinit_check_config_ipv6(self):        
         """
         case_tag:
@@ -1618,7 +1620,7 @@ EOF""".format(device, size), expect_ret=0)
                           expect_kw='echo;sleep 10;exit 142',
                           msg='check if the exit code correct')
 
-    @unittest.skipIf(os.getenv('INFRA_PROVIDER') in ['nutanix','aws'], 'skip run on {} platform which there is no ip route append command used'.format(os.getenv('INFRA_PROVIDER')))
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') in ['nutanix','aws','kvm'], 'skip run on {} platform which there is no ip route append command used'.format(os.getenv('INFRA_PROVIDER')))
     def test_cloudinit_ip_route_append(self):        
         """
         case_tag:
@@ -2524,6 +2526,7 @@ ssh_pwauth: True '''.format(**pw_config_dict)
         # Verify cloud-init.log
         utils_lib.run_cmd(self, "sudo grep 'Permission denied' /var/log/cloud-init.log",expect_ret=1, msg="BZ#1857309. Should not have 'Permission denied'")
 
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['openstack','kvm'], 'skip run as this case need connect rhsm stage server, not suitable for public cloud')
     def test_cloudinit_no_networkmanager(self):
         """
         case_tag:
@@ -2557,7 +2560,7 @@ ssh_pwauth: True '''.format(**pw_config_dict)
             self.skipflag = True
             self.skipTest('skip run this case, network-script is not be supported by rhel 9 any more')
         pkg_install_check = utils_lib.is_pkg_installed(self,"network-scripts")
-        if not pkg_install_check and self.vm.provider == 'openstack':
+        if not pkg_install_check:
             # Register to rhsm stage
             reg_cmd = "sudo subscription-manager register --username {0} --password {1} --serverurl {2} --baseurl {3}".format(
                 self.vm.subscription_username, 
