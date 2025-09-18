@@ -9,6 +9,9 @@ import contextlib
 import os
 from importlib.resources import files
 from jinja2 import Template, FileSystemLoader, Environment, select_autoescape
+import json
+from os_tests.libs.utils_lib import init_args
+import re
 
 class ResultSummary:
     '''
@@ -24,6 +27,8 @@ class ResultSummary:
         self.run_time = 0
         self.table_rows = []
         self.node_info = None
+        self.release_version = None
+        self.run_title = None
         self.run_date = time.asctime()
         self.comment = ''
 
@@ -257,6 +262,50 @@ class HTMLTestRunner(object):
         sum_json = os.path.join(results_dir, "sum.json")
         generated_report(sum_json, "sum.json", test_result_summary)
         print("{} generated".format(os.path.realpath(sum_txt)))
+        # Generate sum_polarion.xml for Polarion if there is --tc tc_file.json
+        args = init_args()
+        tc_json_path = args.tc_file
+        if tc_json_path and os.path.exists(tc_json_path):
+            # Parse node_info to fill in some Polarion fields
+            if os.path.exists(node_info_file):
+                with open(node_info_file) as fh:                    
+                    node_info_content = fh.read()
+                    test_result_summary.node_info = node_info_content
+                    # Parse the release_version in node_info
+                    match = re.search(r"release_version:\s*([\d.]+)", node_info_content)
+                    if match:
+                        version_str = match.group(1)
+                        version_plannedin = version_str.replace(".", "_") + "_ga"
+                        test_result_summary.release_version = version_plannedin
+                    else:
+                        test_result_summary.release_version = "UNKNOWN"
+                    # Parse run_title in node_info
+                    kernel_version = re.search(r"kernel_version:\s*([^\n]+)", node_info_content)
+                    product_name = re.search(r"product_name:\s*([^\n]+)", node_info_content)
+                    release_name = re.search(r"release_name:\s*([^\n]+)", node_info_content)
+                    release_version = re.search(r"release_version:\s*([^\n]+)", node_info_content)
+                    sys_vendor = re.search(r"sys_vendor:\s*([^\n]+)", node_info_content)
+
+                    kernel_version = kernel_version.group(1).strip() if kernel_version else "UNKNOWN"
+                    product_name = product_name.group(1).strip() if product_name else "UNKNOWN"
+                    release_name = release_name.group(1).strip() if release_name else "UNKNOWN"
+                    release_version = release_version.group(1).strip() if release_version else "UNKNOWN"
+                    sys_vendor = sys_vendor.group(1).strip() if sys_vendor else "UNKNOWN"
+                    # Format run_title
+                    test_result_summary.run_title = (
+                        f"os-tests for {kernel_version} of {release_name} {release_version} "
+                        f"on {sys_vendor} {product_name}"
+                    )
+            # Load tc_file.json mapping
+            with open(tc_json_path, 'r', encoding='utf-8') as f:
+                tc_map = json.load(f)
+            title2wid = {tc['title']: tc['work_item_id'] for tc in tc_map}
+            # Append work_item_id to each row for template
+            for row in test_result_summary.table_rows:
+                title = row[1]
+                row.append(title2wid.get(title, "UNKNOWN"))
+            sum_polarion = os.path.join(results_dir, "sum_polarion.xml")
+            generated_report(sum_polarion, "sum_polarion.xml", test_result_summary)
         #result.printErrors()
         if hasattr(result, 'separator2'):
             print(result.separator2)
