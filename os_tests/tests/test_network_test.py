@@ -1363,7 +1363,7 @@ COMMIT
         key_steps: |
             1.# sudo yum install libfabric
             2.# fi_info -p efa
-            3.# fi_pingpong -e rdm -p efa -I 100 & sleep 2; fi_pingpong -e rdm -p efa localhost -I 100
+            3.# fi_pingpong -e rdm -p efa -f efa -I 100 & sleep 2; fi_pingpong -e rdm -p efa -f efa localhost -I 100
         expect_result:
             libfabric package is installed successfully and fi_info command should return information about the Libfabric EFA interfaces.
         debug_want:
@@ -1376,7 +1376,7 @@ COMMIT
         if utils_lib.is_pkg_installed(self,'libfabric'):
             cmd = 'fi_info -p efa'
             utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw="provider: efa", msg='Check the Libfabric EFA interfaces')
-            cmd = "sudo  bash -c 'fi_pingpong -e rdm -p efa -I 100 & sleep 2; fi_pingpong -e rdm -p efa localhost -I 100'"
+            cmd = "sudo  bash -c 'fi_pingpong -e rdm -p efa -f efa -I 100 & sleep 2; fi_pingpong -e rdm -p efa -f efa localhost -I 100'"
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='run pingpong test')
         if utils_lib.is_pkg_installed(self,'infiniband-diags'):
             utils_lib.run_cmd(self,'ibstatus',expect_ret=0)
