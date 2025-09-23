@@ -6,6 +6,7 @@ import sys
 try:
     from apiclient.discovery import build
     from google.oauth2 import service_account, id_token
+    import google.auth
     import google.auth.transport.requests
 except ImportError as err:
     print("Please install google-api-python-client module if run gcp test")
@@ -15,21 +16,25 @@ LOG = logging.getLogger('os_tests.os_tests_run')
 logging.basicConfig(level=logging.INFO)
 
 
-def get_service(api_name, api_version, scopes, key_file_location):
+def get_service(api_name, api_version, scopes, key_file_location=None):
     """Get a service that communicates to a Google API.
 
     Args:
         api_name: The name of the api to connect to.
         api_version: The api version to connect to.
-        scopes: A list auth scopes to authorize for the application.
-        key_file_location: The path to a valid service account JSON key file.
+        scopes: A list of auth scopes to authorize for the application.
+        key_file_location: (optional) path to a valid service account JSON key file.
 
-    Returns:
+    Return:
         A service that is connected to the specified API.
     """
-
-    credentials = service_account.Credentials.from_service_account_file(
-        key_file_location, scopes=scopes)
+    if key_file_location:
+        # service account JSON
+        credentials = service_account.Credentials.from_service_account_file(
+            key_file_location, scopes=scopes)
+    else:
+        # ADC (e.g. gcloud auth application-default login)
+        credentials, _ = google.auth.default(scopes=scopes)
 
     # Build the service object.
     service = build(api_name,
@@ -92,6 +97,7 @@ class GCPVM(VMResource):
 
         # Define the auth scopes to request.
         scope = 'https://www.googleapis.com/auth/compute'
+        # optional service account JSON file
         service_account_json_file = params['Cloud'].get(
             'service_account_json_file')
 
