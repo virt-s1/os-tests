@@ -121,6 +121,8 @@ def init_args():
                     help='specify the ca configure information, e.g., ca_url,ca_path', required=False)
     parser.add_argument('--verbose', action='store_true', default=False,
                         help='show the detail log during running')
+    parser.add_argument('--tc', dest='tc_file', default=None,
+                        help='Path to tc_file.json file for generating sum_polarion.xml which could be uploaded to Polarion')
     args = parser.parse_args()
     return args
 
