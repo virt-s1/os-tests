@@ -1,7 +1,7 @@
 Cloud:
   provider: google
   service_account_json_file:
-  project_name: virt-qe
+  project_name: 
   zone: us-central1-a
 VM:
   rhel_ver: '9.1'
