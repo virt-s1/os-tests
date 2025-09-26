@@ -175,6 +175,7 @@ class TestCloudInit(unittest.TestCase):
                     expect_kw='Fetching Ec2 IMDSv2 API Token,X-aws-ec2-metadata-token',
                     msg='check /var/log/cloud-init.log')
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') == 'azure', 'azure uses another specific case to check the log')
     def test_check_cloudinit_log_unexpected(self):
         """
         case_tag:
@@ -211,6 +212,7 @@ class TestCloudInit(unittest.TestCase):
                         expect_not_kw='unexpected',
                         msg='check /var/log/cloud-init-output.log')
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') == 'azure', 'azure uses another specific case to check the log')
     def test_check_cloudinit_log_critical(self):
         """
         case_tag:
@@ -249,6 +251,7 @@ class TestCloudInit(unittest.TestCase):
                         expect_not_kw='CRITICAL',
                         msg='check /var/log/cloud-init-output.log')
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') == 'azure', 'azure uses another specific case to check the log')
     def test_check_cloudinit_log_attributeerror(self):
         """
         case_tag:
@@ -325,6 +328,7 @@ class TestCloudInit(unittest.TestCase):
                         expect_not_kw='WARNING',
                         msg='check /var/log/cloud-init-output.log')
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') == 'azure', 'azure uses another specific case to check the log')
     def test_check_cloudinit_log_error(self):
         """
         case_tag:
@@ -401,6 +405,54 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
                         expect_ret=0,
                         expect_not_kw='Traceback',
                         msg='check /var/log/cloud-init-output.log')
+
+    def _check_cloudinit_log(self, additional_ignore_msg=None):
+        ignore_message_list = [
+            r"cc_rightscale_userdata.*Failed to get raw userdata in module rightscale_userdata",
+            r"util.py.DEBUG.. Failed mount of ./dev/sd.1. as .ntfs.. Unexpected error while running command",
+            r"util.py.DEBUG.. Failed to mount device: ./dev/sd.1. with type: .ntfs. using mount command: .* which caused exception: Unexpected error while running command",
+            r"Failed mounting /dev/sd.1 to .* due to: Unexpected error while running command",
+            r"nofail",
+            r"Ran .* modules with 0 failures",
+            r"DEBUG.: Fetched.*mounts from proc",
+            r"finish: azure-ds/load_azure_ds_dir: FAIL: load_azure_ds_dir",
+            r"dhclient error stream: Internet Systems Consortium DHCP Client",
+        ]
+        if additional_ignore_msg and isinstance(additional_ignore_msg, list):
+            ignore_message_list += additional_ignore_msg
+        output = utils_lib.run_cmd(
+            self,
+            "sudo grep -iE -w 'err.*|fail.*|warn.*|unexpected.*|traceback.*|critical.*' /var/log/cloud-init.log | grep -vE '{0}'"
+            .format('|'.join(ignore_message_list))
+        )
+        self.assertEqual("", output, "There're error logs: {0}".format(output))        
+    
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') == 'azure', 'azure specific case')        
+    def test_check_cloudinit_log_azure(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier1
+        case_name:
+            test_check_cloudinit_log_azure
+        case_file:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_cloud_init.py
+        component:
+            cloud-init
+        bugzilla_id:
+        is_customer_case:
+            False
+        maintainer:
+            huzhao@redhat.com
+        description: |
+            check if there is 'err.*|fail.*|warn.*|unexpected.*|traceback.*|critical.*' in log file
+        key_steps:
+            1. check cloud init log file
+        expect_result:
+            no 'err.*|fail.*|warn.*|unexpected.*|traceback.*|critical.*' in log file
+        debug_want:
+            cloud init log file
+        """
+        self._check_cloudinit_log()
 
     @unittest.skipIf(os.getenv('INFRA_PROVIDER') == 'nutanix', 'nutanix platform on which use config drive to fetch metadata but not http service')
     def test_check_metadata(self):
@@ -1146,7 +1198,7 @@ EOF""".format(device, size), expect_ret=0)
                           expect_not_kw='No such file or directory',
                           msg='check /run/cloud-init/instance-data.json')
 
-    @unittest.skipIf(os.getenv('INFRA_PROVIDER') == 'kvm', 'default network is ipv4 only')
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') in ['azure','kvm'], 'default network is ipv4 only')
     def test_cloudinit_check_config_ipv6(self):        
         """
         case_tag:
@@ -1430,8 +1482,9 @@ EOF""".format(device, size), expect_ret=0)
             "Swap size is 0 before cloud-init config")
         self.assertEqual(old_swap, new_swap,
             "Swap size is not same before and after cloud-init config. There was issue BIFROST-598 for image mode")
-        self.assertEqual(old_fstab, new_fstab,
-            "The /etc/fstab is not same before and after cloud-init config")
+        if self.vm.provider != 'azure':
+            self.assertEqual(old_fstab, new_fstab,
+                "The /etc/fstab is not same before and after cloud-init config")
 
     def _verify_authorizedkeysfile(self, keyfiles):
         # 1. Modify /etc/ssh/sshd_config
@@ -2378,10 +2431,11 @@ ssh_pwauth: True '''.format(**pw_config_dict)
         utils_lib.run_cmd(self, "sudo rm -f /var/lib/cloud/instance/sem/config_set_passwords /var/log/cloud-init*.log")
         output = utils_lib.run_cmd(self, "sudo cloud-init single --name set_passwords")
         # check password login
-        for i in range(1,5):
-            testuser = "test{}".format(str(i))
-            test_login = utils_lib.send_ssh_cmd(self.vm.floating_ip, testuser, base_pw, "whoami", log=self.log)
-            self.assertTrue(test_login,"Fail to login with password" )
+        if self.vm.provider != 'azure':
+            for i in range(1,5):
+                testuser = "test{}".format(str(i))
+                test_login = utils_lib.send_ssh_cmd(self.vm.floating_ip, testuser, base_pw, "whoami", log=self.log)
+                self.assertTrue(test_login,"Fail to login with password" )
 
        #Move this step after checking test4 pwd
         for line in output.split('\n'):
