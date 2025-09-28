@@ -594,7 +594,13 @@ ssh_authorized_keys:
 
         self.log.info("Waiting 30s for subscription-manager done...")
         time.sleep(30) # waiting for subscription-manager register done.
+        # run unregister in teardown.
         # no error because of disable-repo null
+
+        # do not check package install when rhel version is beta, the repo does not contain package
+        if 'Beta' in utils_lib.run_cmd(self,'sudo cat /etc/redhat-release'):
+            self.skipTest('skip run as this case is not supported for Beta release')
+
         # check cloud-init status is done and services are active
         self._check_cloudinit_done()
         # check register
@@ -677,7 +683,7 @@ ssh_authorized_keys:
     def tearDown(self):
         utils_lib.finish_case(self)
         casegroup = ('test_cloudinit_auto_install_package_with_subscription_manager')
-        if self.id().endswith(casegroup) and not self.skipflag:
+        if self.id().endswith(casegroup):
             utils_lib.run_cmd(self, "sudo subscription-manager unregister")
         #remove the vm in teardown as it is specific and may can not be connected by other cases
         if not self.params.get('no_cleanup') and self.vm.exists():

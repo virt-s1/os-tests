@@ -3694,7 +3694,7 @@ ssh_authorized_keys:
         utils_lib.finish_case(self)
         casegroup = ('test_cloudinit_no_networkmanager',
                      'test_cloudinit_verify_rh_subscription_enablerepo_disablerepo')
-        if self.id().endswith(casegroup) and not self.skipflag:
+        if self.id().endswith(casegroup):
             utils_lib.run_cmd(self, "sudo subscription-manager unregister")
 
         casegroup = ('test_cloudinit_create_vm_config_drive',
