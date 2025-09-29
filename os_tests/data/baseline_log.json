@@ -208,8 +208,8 @@
         "trigger": ""
     },
     "msg_25": {
-        "content": "arm_spe_pmu arm,spe-v1: profiling buffer inaccessible. Try passing  kpti=off  on the kernel command line",
-        "analyze": "information only, manually set and pass",
+        "content": ".*arm_spe_pmu arm,spe-v1: profiling buffer inaccessible.*",
+        "analyze": "please try boot with kpti=off",
         "branch": "rhel8",
         "status": "active",
         "link": "",
@@ -217,8 +217,8 @@
         "trigger": ""
     },
     "msg_26": {
-        "content": "arm_spe_pmu: probe of arm,spe-v1 failed with error -1",
-        "analyze": "information only, manually set and pass",
+        "content": ".*arm_spe_pmu.*probe.*failed with error -1.*",
+        "analyze": "please try boot with kpti=off",
         "branch": "rhel8",
         "status": "active",
         "link": "",
