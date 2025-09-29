@@ -310,8 +310,8 @@ class AlibabaSDK(object):
         else:
             disk_category = _disk_categories[0]
 
-        logging.info('Selected {} Category "{}" from {}'.format(
-            category, disk_category, _disk_categories))
+        # logging.info('Selected {} Category "{}" from {}'.format(
+        #     category, disk_category, _disk_categories))
 
         return disk_category
 
@@ -600,6 +600,9 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         This helps to create a VM
         """
         logging.info("Create VM")
+        if self.is_exist():
+            logging.info("Instance with name %s already exists. Deleting it first.", self.vm_name)
+            self.delete(wait=True)
         sshkey= sshkey or self.keypair
         authentication = "publickey"
         if sshkey is None or sshkey== "DoNotSet":
@@ -831,7 +834,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
     def create_cloud_disk(self, wait=False, **args):
         logging.info("Create cloud disk")
         output = self.ecs.create_disk()
-        diskid = output.get("DiskId").encode("ascii")
+        diskid = output.get("DiskId")
         if wait:
             for count in utils_lib.iterate_timeout(
                     300, "Timed out waiting for cloud disk to be created.",
@@ -844,7 +847,6 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
     def delete_cloud_disk(self, disk_id, wait=False):
         """Delete specified cloud disk."""
         logging.info("Delete a cloud disk")
-        disk_id = disk_id.encode('ascii')
         self.ecs.delete_disk(disk_id)
         if wait:
             for count in utils_lib.iterate_timeout(
@@ -862,9 +864,6 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
             self.delete_cloud_disk(disk['DiskId'], wait)
 
     def query_cloud_disks(self, disk_id=None, **args):
-        logging.info("Query cloud disks")
-        if disk_id is not None:
-            disk_id = disk_id.encode("ascii")
         output = self.ecs.describe_disks(diskids=disk_id, disk_type="data")
         if output:
             return output.get("Disks").get("Disk")
@@ -872,7 +871,6 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
 
     def attach_cloud_disks(self, disk_id, wait=False, **args):
         logging.info("Attach cloud disk to VM")
-        disk_id = disk_id.encode("ascii")
         output = self.ecs.attach_disk(self.instance_id, disk_id)
         if wait:
             for count in utils_lib.iterate_timeout(
@@ -886,7 +884,6 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
 
     def detach_cloud_disks(self, disk_id=None, wait=False, **args):
         logging.info("Detach cloud disk to VM")
-        disk_id = disk_id.encode("ascii")
         output = self.ecs.detach_disk(self.instance_id, disk_id)
         if wait:
             for count in utils_lib.iterate_timeout(
@@ -902,6 +899,7 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         self._data = None
         count = sum(1 for i in self.data)
         if count > 0:
+            logging.info("There are existing VMs.")
             return True
         else:
             return False
@@ -968,10 +966,10 @@ its status cannot be {0} rather than Stopping or Starting.'.format(
         raise NotImplementedError
 
     def attach_block(self, disk, target, wait=True, timeout=120):
-        raise NotImplementedError
+        return self.attach_cloud_disks(disk.id, wait=wait)
 
     def detach_block(self, disk, wait=True, force=False):
-        raise NotImplementedError
+        return self.detach_cloud_disks(disk.id, wait=wait)
 
     def attach_nic(self, nic, wait=True, timeout=120):
         raise NotImplementedError
@@ -1009,10 +1007,12 @@ class AlibabaVolume(StorageResource):
             return False
 
     def create(self):
-        raise NotImplementedError
+        disk = self.vm.create_cloud_disk(wait=True)
+        self.id = disk.get("DiskId")
+        return self.id
 
     def delete(self):
-        raise NotImplementedError
+        return self.vm.delete_cloud_disk(self.id, wait=True)
 
     def show(self):
         raise NotImplementedError
