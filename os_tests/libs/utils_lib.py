@@ -1386,8 +1386,8 @@ def enable_auto_registration(test_instance, cancel_case=False, timeout=600, rmt_
     interval = 60
     while True:
         cmd = "sudo subscription-manager status"
-        out = run_cmd(test_instance, cmd, msg='try to check subscription status', rmt_node=rmt_node, vm=vm)
-        if 'Red Hat Enterprise Linux' in out or 'Simple Content Access' in out:
+        status = run_cmd(test_instance, cmd, msg='try to check subscription status', rmt_node=rmt_node, vm=vm, ret_status=True)
+        if status == 0:
             test_instance.log.info("auto subscription registered completed")
             break
         end_time = time.time()
