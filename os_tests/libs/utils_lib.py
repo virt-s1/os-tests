@@ -1116,8 +1116,10 @@ def is_azure(test_instance, action=None):
         azure: return True
         other: return False
     '''
-    ret = run_cmd(test_instance, "ls /dev/disk/cloud/azure_root", ret_status=True)
-    if ret == 0:
+    ret1 = run_cmd(test_instance, "ls /dev/disk/cloud/azure_root", ret_status=True)
+    ret2 = run_cmd(test_instance, "ls /dev/disk/cloud/azure_*", ret_status=True)
+    ret3 = run_cmd(test_instance, "ls /dev/disk/azure/*", ret_status=True)
+    if ret1 == 0 or ret2 == 0 or ret3 == 0:
         test_instance.log.info("Azure system.")
         return True
     else:
