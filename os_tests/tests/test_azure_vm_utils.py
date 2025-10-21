@@ -253,7 +253,7 @@ class TestAzureVMUtils(unittest.TestCase):
             except PermissionError:
                 result = subprocess.run(['sudo', 'mkdir', '-p', '/tmp'], capture_output=True)
                 if result.returncode != 0:
-                    self.fail('Failed to create /root directory on local host')
+                    self.fail('Failed to create /tmp directory on local host')
 
             # Download the script using wget or curl on LOCAL HOST
             try:
