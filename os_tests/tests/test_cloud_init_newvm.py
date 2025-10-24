@@ -37,6 +37,20 @@ class TestCloudInitNewVM(unittest.TestCase):
         version = version_util.get_version(package_ver,'cloud-init-')
         self.cloudinit_version =  version
 
+    def _reboot_inside_vm(self, sleeptime=10):       
+        before = utils_lib.run_cmd(self, 'last reboot --time-format full')
+        utils_lib.run_cmd(self, 'sudo reboot')
+        time.sleep(sleeptime)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        output = utils_lib.run_cmd(self, 'whoami')
+        self.assertEqual(
+            self.vm.vm_username, output.strip(),
+            "Reboot VM error: output of cmd `who` unexpected -> %s" % output)
+        after = utils_lib.run_cmd(self, 'last reboot --time-format full')
+        self.assertNotEqual(
+            before, after,
+            "Reboot VM error: before -> %s; after -> %s" % (before, after))
+
     def check_cloudinit_version(self):
 
         user_data = """\
@@ -679,6 +693,211 @@ ssh_authorized_keys:
                     cmd,
                     expect_ret=expect_code,
                     msg="Check the return code of cloud-init status")
+
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') != 'openstack', 'skip as it is the specific case for openstack')
+    def test_cloudinit_package_upgrade(self):
+        '''
+        case_tag:
+            cloudinit,test_cloudinit_package_upgrade,cloudinit_tier3,vm_delete
+        case_name:
+            test_cloudinit_package_upgrade
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_package_upgrade
+        component:
+            cloudinit
+        bugzilla_id:
+        is_customer_case:
+            False
+        testplan:
+            VIRT-103841
+        maintainer:
+            xiachen@redhat.com
+        description:
+           test cloud-init package upgrade, this auto case only works for openstack now
+        key_steps: |
+            1. upgrade cloud-init to specific version
+            2. check cloud-init services status
+        debug_want:
+            N/A
+        '''
+
+        self.log.info("check cloud-init works well after package upgrade")
+        #for y stream   self.vm.rhel_ver=8.7  target_v=7  base_v=target_v-1
+        #for z stream   self.vm.rhel_ver=8.6   target_v=6   base_v=target_v
+        #if target_v=0, skip this case (or leapp upgrade)
+        self.rhel_branch=int(self.vm.rhel_ver.split('.')[0])
+        if self.vm.y_stream == '1' :   
+            self.base_v= int(self.vm.rhel_ver.split('.')[1])-1
+        else: 
+            self.base_v= int(self.vm.rhel_ver.split('.')[1])
+        if self.base_v <0 : self.cancel("need run leapp upgrade. Skip this case.") 
+
+        #For RHEL7
+        if self.rhel_branch == 7 :
+            self.composepath="Server"
+        #For RHEL8 RHEL9
+        else:
+            self.composepath="BaseOS"
+
+        #create VM
+        self.base_version=str(self.rhel_branch)+'.'+str(self.base_v)
+        self.vm.image_name='rhel-guest-image-'+self.base_version+'-base.qcow2'
+        self.log.info("create VM with image "+ self.vm.image_name)
+        if self.vm.exists():
+            self.vm.delete()
+            time.sleep(30)
+        self.vm.create()
+        time.sleep(30)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
+        self.assertEqual(
+            self.vm.vm_username, output,
+            "Login VM with publickey error: output of cmd `whoami` unexpected -> %s"
+            % output)
+
+        self._check_cloudinit_done()
+        #show old package version
+        cmd = "rpm -q {}".format(self.vm.package_name)
+        output = utils_lib.run_cmd(self, cmd).rstrip('\n')
+        self.log.info("old package version is "+output+", run successfully.")
+        #install/upgrade new version
+        #set base repo
+        utils_lib.run_cmd(self, """
+cat << EOF |sudo tee /etc/yum.repos.d/redhat.repo
+[rhel-base-upgrade]
+name=rhel-base-upgrade
+baseurl=http://download.eng.bos.redhat.com/rhel-{0}/rel-eng/RHEL-{0}/latest-RHEL-{1}/compose/{2}/x86_64/os/
+enabled=1
+gpgcheck=0
+[rhel-appstream-upgrade]
+name=rhel-appstream-upgrade
+baseurl=http://download.eng.bos.redhat.com/rhel-{0}/rel-eng/RHEL-{0}/latest-RHEL-{1}/compose/AppStream/x86_64/os/
+enabled=1
+gpgcheck=0
+EOF
+""".format(self.rhel_branch, self.base_version, self.composepath))
+        cmd = 'sudo yum install -y {}'.format(self.vm.package_url)
+        utils_lib.run_cmd(self, 
+                          cmd, 
+                          expect_ret=0,
+                          msg='upgrade successfully')
+        #check if version is correct, [:-4] not include '.rpm'
+        self.new_pkg = self.vm.package_url.split('/')[-1][:-4]
+        cmd = "rpm -q {}".format(self.vm.package_name)
+        output = utils_lib.run_cmd(self, cmd).rstrip('\n')
+        self.assertEqual(output, self.new_pkg, 
+            "Does not upgrade to expect version. Real: {}, Expect: {}".format(output, self.new_pkg))
+            #check cloud-init status is done, and no 'Traceback' in log
+        self._check_cloudinit_done()
+        self.log.info("Upgrade cloud-init package successfully for rhel " + self.base_version)
+            #reboot
+        self._reboot_inside_vm(sleeptime=30)
+            #check cloud-init status again, and no 'Traceback' in log
+        self._check_cloudinit_done()
+        self.log.info("Reboot successfully after upgrade cloud-init for" + self.base_version)
+
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') != 'openstack', 'skip as it is the specific case for openstack')
+    def test_cloudinit_os_upgrade(self):
+        '''
+        case_tag:
+            cloudinit,test_cloudinit_os_upgrade,cloudinit_tier3,vm_delete
+        case_name:
+            test_cloudinit_os_upgrade
+        case_file:
+            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_os_upgrade
+        component:
+            cloudinit
+        bugzilla_id:
+        is_customer_case:
+            False
+        testplan:
+            RHEL-187159
+        maintainer:
+            xiachen@redhat.com
+        description:
+           cloud-init works well after OS upgrade, this auto case only works for openstack now
+        key_steps: |
+            1. upgrade OS to specific version
+            2. check cloud-init services status
+        debug_want:
+            N/A
+        '''
+        self.log.info("check cloud-init works well after OS upgrade")
+        #for y stream   self.project=8.7  target_v=7  base_v=target_v-1
+        #for z stream   self.project=8.6   target_v=6   base_v=target_v
+        #if target_v=0, skip this case (or leapp upgrade)
+        #For RHEL7
+
+        self.rhel_branch=int(self.vm.rhel_ver.split('.')[0])
+        if self.vm.y_stream == '1' :   
+            self.base_v= int(self.vm.rhel_ver.split('.')[1])-1
+            self.repopath="nightly"
+        else: 
+            self.base_v= int(self.vm.rhel_ver.split('.')[1])
+            self.repopath="nightly/updates"
+        if self.base_v <0 : self.cancel("need run leapp upgrade. Skip this case.") 
+
+        #For RHEL7
+        if self.rhel_branch == 7 :
+            self.composepath="Server"
+        #For RHEL8 RHEL9
+        else:
+            self.composepath="BaseOS"
+            
+        #create VM and upgrade OS
+        self.base_version=str(self.rhel_branch)+'.'+str(self.base_v)
+        self.vm.image_name='rhel-guest-image-'+self.base_version+'-base.qcow2'
+        self.log.info("create VM with image "+ self.vm.image_name)
+        if self.vm.exists():
+            self.vm.delete()
+            time.sleep(30)
+        self.vm.create()
+        time.sleep(30)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
+        self.assertEqual(
+                self.vm.vm_username, output,
+                "Login VM with publickey error: output of cmd `whoami` unexpected -> %s"
+                % output)
+        self._check_cloudinit_done()
+        #show old package version
+        output = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
+        self.log.info("old cloud-init package version is "+output+", run successfully.")
+        #install/upgrade new version
+        #set target repo
+        utils_lib.run_cmd(self,"""
+cat << EOF |sudo tee /etc/yum.repos.d/redhat.repo
+[rhel-base-upgrade]
+name=rhel-base-upgrade
+baseurl=http://download.eng.bos.redhat.com/rhel-{0}/{1}/RHEL-{0}/latest-RHEL-{2}/compose/{3}/x86_64/os/
+enabled=1
+gpgcheck=0
+[rhel-appstream-upgrade]
+name=rhel-appstream-upgrade
+baseurl=http://download.eng.bos.redhat.com/rhel-{0}/{1}/RHEL-{0}/latest-RHEL-{2}/compose/AppStream/x86_64/os/
+enabled=1
+gpgcheck=0
+EOF
+""".format(self.rhel_branch, self.repopath, self.vm.rhel_ver, self.composepath))
+        cmd = 'sudo yum update -y --allowerasing'
+        utils_lib.run_cmd(self, 
+                          cmd, 
+                          expect_ret=0,
+                          msg='upgrade os successfully',
+                          timeout=600)
+        #check if version is correct, [:-4] not include '.rpm'
+        self.new_pkg = self.vm.package_url.split('/')[-1][:-4]
+        output = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
+        self.assertEqual(output, self.new_pkg, 
+            "cloud-init does not upgrade to expect version. Real: {}, Expect: {}".format(output, self.new_pkg))
+        #check cloud-init status is done, and no 'Traceback' in log
+        self._check_cloudinit_done()
+        self.log.info("Upgrade cloud-init successfully via OS upgrade for rhel " + self.base_version)
+        #reboot
+        self._reboot_inside_vm(sleeptime=120)
+        #check cloud-init status again, and no 'Traceback' in log
+        self._check_cloudinit_done()
+        self.log.info("Reboot successfully after upgrade OS for rhel " + self.base_version)
 
     def tearDown(self):
         utils_lib.finish_case(self)
