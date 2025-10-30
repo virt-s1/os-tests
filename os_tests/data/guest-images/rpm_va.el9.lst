@@ -27,3 +27,9 @@ S.5....T.  c /etc/ssh/sshd_config
 .M.......  g /root/.bashrc
 .M.......  g /root/.cshrc
 .M.......  g /root/.tcshrc
+.......T.    /boot/efi/EFI/BOOT/BOOTAA64.EFI
+.......T.    /boot/efi/EFI/BOOT/fbaa64.efi
+.......T.    /boot/efi/EFI/redhat/BOOTAA64.CSV
+.......T.    /boot/efi/EFI/redhat/mmaa64.efi
+.......T.    /boot/efi/EFI/redhat/shimaa64-redhat.efi
+.......T.    /boot/efi/EFI/redhat/shimaa64.efi
