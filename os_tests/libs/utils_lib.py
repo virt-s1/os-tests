@@ -2118,7 +2118,7 @@ def get_active_nic(test_instance=None, rmt_node=None, vm=None, ret_nic_name=Fals
     test_instance.log.info("Test which nic connects to public")
     nic_found = False
     for net in output.split('\n'):
-        if len(net) < 3:
+        if len(net) < 3 or net.startswith(('podman', 'veth', 'br')):
             continue
         cmd = "sudo ping {} -c 6 -I {}".format(test_instance.params.get('ping_server'), net)
         ret = run_cmd(test_instance, cmd, ret_status=True, rmt_node=rmt_node, vm=vm)
