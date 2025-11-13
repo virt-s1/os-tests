@@ -2088,6 +2088,34 @@ current_device"
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         utils_lib.save_file(self, file_dir=os.path.dirname(sosfile), file_name=os.path.basename(sosfile))
 
+    def test_check_acpidump_works(self):
+        """
+        case_name:
+            test_check_acpidump_works
+        component:
+            acpidump
+        bug_id:
+            N/A
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
+        description:
+            dump the acpi table which is useful for debugging infra problems
+        key_steps: |
+            acpidump -o /tmp/acpidump.hex
+            acpixtract -a acpidump.hex;x=$(ls *.dat);for i in $x;do iasl -d $i;done
+        expect_result:
+            retrive acpidump.hex successfully
+        debug_want:
+            acpidump.hex
+        """
+        utils_lib.is_cmd_exist(self, 'acpidump')
+        acpidump_file = '/tmp/acpidump.hex'
+        cmd = 'sudo acpidump -o {}'.format(acpidump_file)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="run acpidump")
+        utils_lib.save_file(self, file_dir=os.path.dirname(acpidump_file), file_name=os.path.basename(acpidump_file))
+
     def test_check_dmesg_sev(self):
         """
         case_name:
