@@ -325,7 +325,7 @@ cat secret.dec'''
         importance:
             low
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:

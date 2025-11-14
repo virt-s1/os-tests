@@ -39,7 +39,7 @@ class TestImageMode(unittest.TestCase):
         importance:
             critical
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:
