@@ -150,7 +150,7 @@ class TestGeneralTest(unittest.TestCase):
         importance:
             low
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -425,7 +425,7 @@ int main(int argc, char *argv[])
         importance:
             medium
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -964,7 +964,7 @@ grep -i pci|grep n1' % boot_pci
         importance:
             low
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
            automated
         linked_work_items:
@@ -1301,7 +1301,7 @@ if __name__ == "__main__":
         importance:
             medium
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -1405,7 +1405,7 @@ if __name__ == "__main__":
         importance:
             medium
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -1462,7 +1462,7 @@ if __name__ == "__main__":
         importance:
             medium
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -1518,7 +1518,7 @@ if __name__ == "__main__":
         importance:
             medium
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:
