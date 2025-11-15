@@ -350,7 +350,7 @@ def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=N
             break
     return True
 
-def send_ssh_cmd(rmt_node, rmt_user, rmt_password, command, timeout=60,log=None):
+def send_ssh_cmd(rmt_node, rmt_user, rmt_password, command, timeout=60, log=None, **kwargs):
     if log is None:
         LOG_FORMAT = '%(levelname)s:%(message)s'
         log = logging.getLogger(__name__)
@@ -360,6 +360,7 @@ def send_ssh_cmd(rmt_node, rmt_user, rmt_password, command, timeout=60,log=None)
     ssh.rmt_user = rmt_user
     ssh.rmt_password = rmt_password
     ssh.log = log
+    ssh.rmt_keyfile = kwargs["rmt_keyfile"] if kwargs["rmt_keyfile"] is not None else None
     ssh.create_connection()
     status, outputs = ssh.remote_excute(command, timeout)
     log.info('\n command: %s \n status %s \n outputs %s \n' % (command, status, outputs))
@@ -828,6 +829,7 @@ def run_cmd(test_instance,
                     test_instance.log.info('reconnect to remote because it acheived certain number of packets or bytes sent or received using this session')
                     test_instance.SSHs[ssh_index].create_connection()
                     SSH = test_instance.SSHs[ssh_index]
+                # TODO: Check why there is two SSH remote_execute calls. This result in two executions & affects idempotency
                 status, output = SSH.remote_excute(test_cmd, timeout)
                 status, output = SSH.remote_excute(cmd, timeout, is_log_cmd, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty)
             else:
@@ -2338,3 +2340,33 @@ def is_ostree_system(test_instance):
     else:
         test_instance.log.info("The system is not ostree booted.")
         return False
+
+def restart_ssh_connection(test_instance, rmt_node=None, vm=None):
+    '''
+    :param test_instance:
+    :param rmt_node:
+    :param vm:
+    :return:
+
+    Closes the current ssh connection and opens a new connection in place.
+    Useful in cases where shell session (ssh session) needs to be restarted to reflect new changes in environment,
+    and system reboot is unnecessary
+    '''
+
+    if test_instance.is_rmt:
+        if not test_instance.params['remote_node'] and not rmt_node and not vm:
+            return
+        rmt_node = rmt_node or test_instance.params['remote_node'] or None
+        if vm:
+            if hasattr(vm, 'floating_ip'):
+                rmt_node = vm.floating_ip
+        SSH = None
+        for i, ssh in enumerate(test_instance.SSHs):
+            ssh.log = test_instance.log
+            if ssh.rmt_node == rmt_node:
+                SSH = ssh
+                break
+        if SSH.is_active():
+            SSH.close()
+        SSH.create_connection()
+
