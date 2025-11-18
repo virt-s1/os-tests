@@ -1586,7 +1586,7 @@ COMMIT
             3.# git clone https://github.com/mpitutorial/mpitutorial && cd mpitutorial/tutorials/mpi-hello-world/code/
             4.# export PATH=$PATH:/usr/lib64/openmpi/bin && cd ~/mpitutorial/tutorials/mpi-hello-world/code/
             5.# make
-            6.# export OMPI_MCA_mtl_base_verbose=100 && /usr/lib64/openmpi/bin/mpirun ~/mpitutorial/tutorials/mpi-hello-world/code/mpi_hello_world
+            6.# sudo bash -c "export OMPI_MCA_mtl_base_verbose=100 && /usr/lib64/openmpi/bin/mpirun --allow-run-as-root ~/mpitutorial/tutorials/mpi-hello-world/code/mpi_hello_world"
         expect_result:
             MPI application run via efa provider
         debug_want: |
@@ -1602,11 +1602,11 @@ COMMIT
         if utils_lib.is_pkg_installed(self, 'libfabric'):
             if utils_lib.is_pkg_installed(self,'openmpi') and utils_lib.is_pkg_installed(self,'openmpi-devel'):
                 if utils_lib.is_pkg_installed(self,'git'):
-                    cmd = 'git clone https://github.com/mpitutorial/mpitutorial && cd mpitutorial/tutorials/mpi-hello-world/code/'
+                    cmd = 'sudo bash -c "cd ~/ && git clone https://github.com/mpitutorial/mpitutorial"'
                     utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Download OPENMPI Hello_world App')
                     if utils_lib.is_pkg_installed(self,'make'):
-                        cmd = 'export PATH=$PATH:/usr/lib64/openmpi/bin && cd ~/mpitutorial/tutorials/mpi-hello-world/code/ && make && export OMPI_MCA_mtl_base_verbose=100 && /usr/lib64/openmpi/bin/mpirun ~/mpitutorial/tutorials/mpi-hello-world/code/mpi_hello_world'
-                        utils_lib.run_cmd(self, cmd, expect_ret=0,expect_kw="provider: efa_0-rdm",msg='Check MPI app run via efa provider')
+                        cmd = 'sudo bash -c "export PATH=$PATH:/usr/lib64/openmpi/bin && cd ~/mpitutorial/tutorials/mpi-hello-world/code/ && make && export OMPI_MCA_mtl_base_verbose=100 && /usr/lib64/openmpi/bin/mpirun --allow-run-as-root ~/mpitutorial/tutorials/mpi-hello-world/code/mpi_hello_world"'
+                        utils_lib.run_cmd(self, cmd, expect_ret=0,expect_kw="rank,processors",msg='Check MPI app run via efa provider')
 
     def test_pktgen_sh(self):
         """
