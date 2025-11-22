@@ -737,7 +737,7 @@ class TestGuestImage(unittest.TestCase):
             N/A
         """
         for count in utils_lib.iterate_timeout(
-                600, "Timed out waiting for getting IP address."):
+                600, "Timed out waiting for kdump service to activate"):
             cmd = 'sudo systemctl is-active kdump'
             ret = utils_lib.run_cmd(self,
                                     cmd,
