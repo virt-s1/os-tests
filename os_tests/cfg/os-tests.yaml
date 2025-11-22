@@ -19,13 +19,13 @@ mem_utils: 30
 # remote_nodes specify remote ip
 remote_nodes: []
 # default node to run the test on, it is the first node in remote_nodes
-remote_node: 
+remote_node:
 # open port for ssh connection
 remote_port: 22
 # remote_user: user to login remote
 remote_user: ec2-user
 # ssh key file location for remote access
-remote_keyfile: 
+remote_keyfile:
 # or password for remote access
 remote_password:
 # username for RHSM register
@@ -41,7 +41,7 @@ is_listcase: False
 # filter case by name and run it in specified order, add --strict for matching exactly
 pattern:
 # run subtests only in 3rd party test tools, eg. rhcert cases
-subtests: 
+subtests:
 # skip cases
 skip_pattern:
 # match exactly if pattern or skip_pattern specified
@@ -57,18 +57,18 @@ filter_by: 'case_name'
 # specify azure to run azure image check only
 image:
 # params in yaml file
-params_profile: 
+params_profile:
 # specify platform profile if enable os-tests provison vms self, [alicloud, aws, azure, gcp, openstack, libvirt, nutanix, openshift, openstack]
 # the file is not required if you put content in params_profile
-platform_profile: 
+platform_profile:
 # debug purpose, skip cleanup phase at exit, do not use it in normal test
 no_cleanup: False
 # specify it if pkg/repo url is internal only, format IP:PORT
-proxy_url: 
-# fips_enable,fips_disable,debugkernel_enable,debugkernel_disable,commands or a bash file 
+proxy_url:
+# fips_enable,fips_disable,debugkernel_enable,debugkernel_disable,commands or a bash file
 # before running into case steps,can add timeout:XXX if default 600 is not enough for operation done
 case_setup:
-# collect_kmemleak, other args are similar as case_setup, 
+# collect_kmemleak, other args are similar as case_setup,
 # usually for collecting temporary debug information, can add timeout:XXX if default 600 is not enough for operation done
 case_post:
 # specify it when using the internal repos for dnf update, can pass more seperated by ","
@@ -81,7 +81,7 @@ comment: ""
 # below options are params for building bootc system images
 ###################################
 # specify the disk image format to build disk image for image mode testing, e.g., 9.4
-disk_image_format: 
+disk_image_format:
 # specify the path of container file
 containerfile:
 # specify the base rhel bootc container image repo
@@ -96,3 +96,9 @@ bootc_base_image_digest:
 config_toml_file:
 # specify login info of the custom container disk image
 config_toml_info:
+# gemini api key and model name for gemini related configures
+enable_gemini_check: False
+gemini_api_key: ""
+gemini_http_proxy: ""
+gemini_https_proxy: ""
+gemini_model_name: "gemini-2.5-flash"

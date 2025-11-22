@@ -1,6 +1,7 @@
 from unittest import TextTestResult
 from unittest.signals import registerResult
 from . import utils_lib
+from os_tests.libs import gemini_lib
 import sys
 import time
 import warnings
@@ -223,6 +224,19 @@ class HTMLTestRunner(object):
                                         src_content = fh.read()
                                     ret, _ = utils_lib.find_word(ts, src_content, case=ts.id())
                                     case_reason = "{} IS_KNOWN:{} Please check auto analyze details in debug log".format(case_reason, not ret)
+                                is_gemini_enabled = str(ts_finished.params.get('enable_gemini_check')).lower() == 'true'
+                                if status in ['ERROR', 'FAIL'] and hasattr(ts, 'log') and is_gemini_enabled:
+                                    ts.log.info("-----enable_gemini_check enabled, auto analyze result with Gemini--------")
+                                    src_content = ''
+                                    if os.path.exists(debug_log):
+                                        with open(debug_log, 'r') as fh:
+                                            src_content = fh.read()
+                                    api_key = ts_finished.params.get('gemini_api_key')
+                                    http_proxy = ts_finished.params.get('gemini_http_proxy')
+                                    https_proxy = ts_finished.params.get('gemini_https_proxy')
+                                    gemini_analysis = gemini_lib.analyze_failure(src_content, api_key, http_proxy=http_proxy, https_proxy=https_proxy)
+                                    ts.log.info("Gemini Analysis:\n{}".format(gemini_analysis))
+                                    case_reason = "{} \nGemini Analysis: {}".format(case_reason, gemini_analysis)
                                 break
                     if not case_status:
                         test_result_summary.case_pass += 1
@@ -268,7 +282,7 @@ class HTMLTestRunner(object):
         if tc_json_path and os.path.exists(tc_json_path):
             # Parse node_info to fill in some Polarion fields
             if os.path.exists(node_info_file):
-                with open(node_info_file) as fh:                    
+                with open(node_info_file) as fh:
                     node_info_content = fh.read()
                     test_result_summary.node_info = node_info_content
                     # Parse the release_version in node_info
