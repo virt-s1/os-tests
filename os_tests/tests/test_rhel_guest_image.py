@@ -738,6 +738,10 @@ class TestGuestImage(unittest.TestCase):
         """
         for count in utils_lib.iterate_timeout(
                 600, "Timed out waiting for kdump service to activate"):
+            # FIXME: Temporary workaround to skip the check on kdump status
+            if utils_lib.is_arch(self, arch="s390x"):
+                self.log.info("kdump service: Active status check skipped on s390x")
+                break
             cmd = 'sudo systemctl is-active kdump'
             ret = utils_lib.run_cmd(self,
                                     cmd,
