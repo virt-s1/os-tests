@@ -25,6 +25,7 @@ There is a known pynacl issue while installing paramiko on RHEL-8.6. Please inst
 ```bash
 # git clone https://github.com/virt-s1/os-tests.git
 # cd os-tests
+# python -m venv venv && source venv/bin/activate
 # pip3 install --upgrade setuptools
 # pip3 install build installer
 # python -m build
