@@ -123,6 +123,16 @@ def init_args():
                         help='show the detail log during running')
     parser.add_argument('--tc', dest='tc_file', default=None,
                         help='Path to tc_file.json file for generating sum_polarion.xml which could be uploaded to Polarion')
+    parser.add_argument('--enable_gemini_check', dest='enable_gemini_check', action='store',
+                    help='enable case result analysis using google gemini', required=False)
+    parser.add_argument('--gemini_api_key', dest='gemini_api_key', default=None, action='store',
+                    help='google gemini api key', required=False)
+    parser.add_argument('--gemini_http_proxy', dest='gemini_http_proxy', default=None, action='store',
+                    help='http proxy for gemini api', required=False)
+    parser.add_argument('--gemini_https_proxy', dest='gemini_https_proxy', default=None, action='store',
+                    help='https proxy for gemini api', required=False)
+    parser.add_argument('--gemini_model_name', dest='gemini_model_name', default=None, action='store',
+                    help='google gemini model name, default is gemini-2.5-flash', required=False)
     args = parser.parse_args()
     return args
 
@@ -452,7 +462,7 @@ def init_case(test_instance):
     test_instance.log.info("Case Doc: {}".format(eval(test_instance.id()).__doc__))
     test_instance.log.info("Case Params:")
     for key in test_instance.params.keys():
-        if key in ['password', 'subscription_username', 'subscription_password', 'quay_io_data', 'bootc_io_data', 'config_toml_info', 'aws_info'] or 'password' in key:
+        if key in ['password', 'subscription_username', 'subscription_password', 'gemini_api_key', 'gemini_http_proxy', 'quay_io_data', 'bootc_io_data', 'config_toml_info', 'aws_info'] or 'password' in key:
             test_instance.log.info("key:{}, val:*******".format(key))
         else:
             test_instance.log.info("key:{}, val:{}".format(key, test_instance.params[key]))
@@ -2369,4 +2379,3 @@ def restart_ssh_connection(test_instance, rmt_node=None, vm=None):
         if SSH.is_active():
             SSH.close()
         SSH.create_connection()
-
