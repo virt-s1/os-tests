@@ -2252,7 +2252,7 @@ current_device"
                     v = utils_lib.get_product_id(self)
                     x = int(v.split(".")[0])
                     y = int(v.split(".")[1])
-                    if x<9:
+                    if x<9 or (x == 9 and y < 5):
                         utils_lib.run_cmd(self, 'sudo dmesg | grep -v os_tests | grep -i tdx', expect_ret=0,
                                         expect_kw='Intel TDX',
                                         msg="Check there is 'Intel TDX' in dmesg before run 'perf top'")
