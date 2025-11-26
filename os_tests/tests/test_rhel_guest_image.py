@@ -784,6 +784,7 @@ class TestGuestImage(unittest.TestCase):
                 crash_kernel = [x for x in output.split() if x.startswith("crashkernel=")]
                 self.assertTrue(crash_kernel, "crashkernel= is not in boot parameters")
                 line = crash_kernel[0]
+                self.log.info("%s is present in boot parameters" % line)
             else:
                 cmd = "sudo kdumpctl get-default-crashkernel"
                 tmp_output = utils_lib.run_cmd(
