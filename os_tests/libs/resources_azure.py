@@ -122,16 +122,30 @@ class AzureVM(VMResource):
             authentication_type = self.authentication_type
         vm_password = None
         vm_username = None
+
+        # Check resouce group exists or not 
         cmd = 'az group show --name "{}" --query "location==\'{}\'" -o tsv'.format(self.resource_group, self.region)
+
+        print ("Resource_group:")
+        print(self.resource_group)
+        print ("Region:")
+        print(self.region)
         ret, out = run_cmd_local(cmd, is_log_ret=True)
+
         if out.strip().lower() == "true":
             print(f"Resource group '{self.resource_group}' already exists in region '{self.region}'.")
         else:
-            print(f"Resource group '{self.resource_group}' does not exist in region '{self.region}'. Creating...")
-            self.resource_group = self.resource_group + self.region
-            cmd = 'az group create --name "{}"  --location "{}"' \
-            .format(self.resource_group, self.region)
-            ret, out = run_cmd_local(cmd, is_log_ret=True)
+            print(f"Resource group '{self.resource_group}' does not exist in region '{self.region}'.")
+            print(f"Check whether '{self.resource_group}' already exists under the subscription.")
+            cmd ='az group exists --name "{}"'.format(self.resource_group)
+            ret_group, out_group = run_cmd_local(cmd, is_log_ret=True)
+            if  out_group.strip().lower() == "true":
+                LOG.error("{self.resource_group} already exists, but not in region {self.region}")
+                sys.exit(1)
+            else:
+                cmd = 'az group create --name "{}"  --location "{}"' \
+                .format(self.resource_group, self.region)
+                ret, out = run_cmd_local(cmd, is_log_ret=True)
 
         cmd = 'az vm create --name "{}" --resource-group "{}" --image "{}" '\
             '--size "{}" --authentication-type "{}" --location "{}" '\
@@ -183,7 +197,7 @@ class AzureVM(VMResource):
             cmd += ' --disk-controller-type {}'.format(self.disk_controller_type)
         if not wait:
             cmd += " --no-wait"
-        _, out = run_cmd_local(cmd, timeout=720, is_log_ret=True)
+        _, out = run_cmd_local(cmd, timeout=14400, is_log_ret=True)
         if len(out):
             return self.show()
 
