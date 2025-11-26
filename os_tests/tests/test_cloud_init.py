@@ -20,6 +20,12 @@ class TestCloudInit(unittest.TestCase):
         for case_name in case_list:
             if case_name in self.id() and 'bootc' in out:
                 self.skipTest('skip run as this case is not supported for image mode')
+        # Skip some cases for CentOS Stream
+        case_list = ['test_cloudinit_verify_rh_subscription_enablerepo_disablerepo']
+        out = utils_lib.run_cmd(self, 'cat /etc/redhat-release | grep -i CentOS')
+        for case_name in case_list:
+            if case_name in self.id() and 'CentOS Stream' in out:
+                self.skipTest('skip run as this case is not supported for CentOS Stream')
 
     @property
     def rhel_x_version(self):
@@ -72,7 +78,7 @@ class TestCloudInit(unittest.TestCase):
             xiliang@redhat.com
         description:
             check if ds-identify can run and ret is found
-        key_steps:
+        key_steps: |
             1.rpm -q cloud-init
             2.check cloud-init-generator log 
         expect_result:
@@ -145,7 +151,7 @@ class TestCloudInit(unittest.TestCase):
             xiliang@redhat.com
         description:
             Check cloud-init use imdsv2 in aws
-        key_steps:
+        key_steps: |
             1.#sudo grep -Ri amazon /sys/devices/virtual/dmi/id/bios*
             2.#sudo rpm -ql cloud-init|grep -w DataSourceEc2.py
             3.#sudo cat "output of step2"|grep IMDSv2
@@ -169,6 +175,7 @@ class TestCloudInit(unittest.TestCase):
                     expect_kw='Fetching Ec2 IMDSv2 API Token,X-aws-ec2-metadata-token',
                     msg='check /var/log/cloud-init.log')
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') == 'azure', 'azure uses another specific case to check the log')
     def test_check_cloudinit_log_unexpected(self):
         """
         case_tag:
@@ -205,6 +212,7 @@ class TestCloudInit(unittest.TestCase):
                         expect_not_kw='unexpected',
                         msg='check /var/log/cloud-init-output.log')
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') == 'azure', 'azure uses another specific case to check the log')
     def test_check_cloudinit_log_critical(self):
         """
         case_tag:
@@ -243,6 +251,7 @@ class TestCloudInit(unittest.TestCase):
                         expect_not_kw='CRITICAL',
                         msg='check /var/log/cloud-init-output.log')
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') == 'azure', 'azure uses another specific case to check the log')
     def test_check_cloudinit_log_attributeerror(self):
         """
         case_tag:
@@ -258,7 +267,7 @@ class TestCloudInit(unittest.TestCase):
             False
         maintainer:
             xiachen@redhat.com
-        description:
+        description: |
             check if there is AttributeError, TypeError or NameError in log file
             this case is useful when backport upstream patch, if there is code dependency, it would show these kinds of Error.
         key_steps:
@@ -319,6 +328,7 @@ class TestCloudInit(unittest.TestCase):
                         expect_not_kw='WARNING',
                         msg='check /var/log/cloud-init-output.log')
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') == 'azure', 'azure uses another specific case to check the log')
     def test_check_cloudinit_log_error(self):
         """
         case_tag:
@@ -396,15 +406,63 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
                         expect_not_kw='Traceback',
                         msg='check /var/log/cloud-init-output.log')
 
+    def _check_cloudinit_log(self, additional_ignore_msg=None):
+        ignore_message_list = [
+            r"cc_rightscale_userdata.*Failed to get raw userdata in module rightscale_userdata",
+            r"util.py.DEBUG.. Failed mount of ./dev/sd.1. as .ntfs.. Unexpected error while running command",
+            r"util.py.DEBUG.. Failed to mount device: ./dev/sd.1. with type: .ntfs. using mount command: .* which caused exception: Unexpected error while running command",
+            r"Failed mounting /dev/sd.1 to .* due to: Unexpected error while running command",
+            r"nofail",
+            r"Ran .* modules with 0 failures",
+            r"DEBUG.: Fetched.*mounts from proc",
+            r"finish: azure-ds/load_azure_ds_dir: FAIL: load_azure_ds_dir",
+            r"dhclient error stream: Internet Systems Consortium DHCP Client",
+        ]
+        if additional_ignore_msg and isinstance(additional_ignore_msg, list):
+            ignore_message_list += additional_ignore_msg
+        output = utils_lib.run_cmd(
+            self,
+            "sudo grep -iE -w 'err.*|fail.*|warn.*|unexpected.*|traceback.*|critical.*' /var/log/cloud-init.log | grep -vE '{0}'"
+            .format('|'.join(ignore_message_list))
+        )
+        self.assertEqual("", output, "There're error logs: {0}".format(output))        
+    
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') == 'azure', 'azure specific case')        
+    def test_check_cloudinit_log_azure(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier1
+        case_name:
+            test_check_cloudinit_log_azure
+        case_file:
+            https://github.com/virt-s1/os-tests/blob/master/os_tests/tests/test_cloud_init.py
+        component:
+            cloud-init
+        bugzilla_id:
+        is_customer_case:
+            False
+        maintainer:
+            huzhao@redhat.com
+        description: |
+            check if there is 'err.*|fail.*|warn.*|unexpected.*|traceback.*|critical.*' in log file
+        key_steps:
+            1. check cloud init log file
+        expect_result:
+            no 'err.*|fail.*|warn.*|unexpected.*|traceback.*|critical.*' in log file
+        debug_want:
+            cloud init log file
+        """
+        self._check_cloudinit_log()
+
     @unittest.skipIf(os.getenv('INFRA_PROVIDER') == 'nutanix', 'nutanix platform on which use config drive to fetch metadata but not http service')
     def test_check_metadata(self):
-        '''
+        """
         case_tag:
             cloudinit,cloudinit_tier2
         polarion_id:
         description:
             https://cloudinit.readthedocs.io/en/latest/topics/datasources/ec2.html
-        '''
+        """
         if utils_lib.is_ali(self):
             cmd = r"curl http://100.100.100.200/latest/meta-data"
         else:
@@ -412,14 +470,14 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_not_kw="Not Found")
 
     def test_check_output_isexist(self):
-        '''
+        """
         case_tag:
             cloudinit,cloudinit_tier1
         polarion_id:
         bz: 1626117
         description:
             check whether /var/log/cloud-init-output.log exists
-        '''
+        """
         utils_lib.run_cmd(self,
                     'uname -r',
                     cancel_not_kw='el7,el6',
@@ -475,7 +533,7 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
             utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='active', msg = "check %s status" % service)
 
     def test_cloudinit_sshd_keypair(self):
-        '''
+        """
         case_tag:
             cloudinit,cloudinit_tier2,vm_delete,cloudinit_clean
         case_file:
@@ -503,7 +561,7 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
             No 'SSH credentials failed' found
         debug_want:
             Please attach /var/log/cloud-init.log
-        '''
+        """
         product_id = utils_lib.get_os_release_info(self, field='VERSION_ID')
         if float(product_id) >= 9.0:
             self.skipflag = True
@@ -558,7 +616,7 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
             N/A
         maintainer:
             xiachen@redhat.com
-        description:
+        description: |
             RHEL-188669 - CLOUDINIT-TC:[cloud-utils-growpart]resize partition during VM first boot
             RHEL-36093 - Remove cloud-init dependency on obsolete gdisk
         key_steps: |
@@ -598,7 +656,7 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
             N/A
         maintainer:
             xiachen@redhat.com
-        description:
+        description: |
             RHEL7-103839 - CLOUDINIT-TC: Auto extend root partition and filesystem
             RHEL-36093 - Remove cloud-init dependency on obsolete gdisk
         key_steps: |
@@ -721,13 +779,13 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
             VIRT-297993
         maintainer:
             xiachen@redhat.com
-        description:
+        description: |
             check previous-hostname is written/read correctly
             support version is begin since cloud-init-23.1.1-2.el8 and cloud-init-23.1.1-2.el9
-        key_steps:
+        key_steps: |
             1. cat /var/lib/cloud/data/previous-hostname
             2. checking /var/log/cloud-init.log
-        expect_result:
+        expect_result: |
             1. previous-hostname is equal to hostname by default
             2. by default, no key words "previous-hostname differs from" in log
         debug_want:
@@ -1087,7 +1145,8 @@ EOF""".format(device, size), expect_ret=0)
         datasource={'openstack':'OpenStack',
                     'aws':'Ec2',
                     'nutanix':'ConfigDrive',
-                    'ali':'AliYun'}
+                    'ali':'AliYun',
+                    'kvm':'NoCloud'}
         if self.vm.provider not in datasource.keys():
             self.skipTest('skip run as no such provider in datasource list')
         for provider,name in datasource.items():
@@ -1139,6 +1198,7 @@ EOF""".format(device, size), expect_ret=0)
                           expect_not_kw='No such file or directory',
                           msg='check /run/cloud-init/instance-data.json')
 
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') in ['azure','kvm'], 'default network is ipv4 only')
     def test_cloudinit_check_config_ipv6(self):        
         """
         case_tag:
@@ -1209,8 +1269,8 @@ EOF""".format(device, size), expect_ret=0)
         #AWS rhel image dev/console to tty0, not ttyS0
         #libvirt has some problem when using assertIn console log file
         #alicloud sometimes SDK-Version:2.14.0 ClientException:SDK.HttpError
-        #so we only run below steps on openstack
-        if utils_lib.is_openstack(self):
+        #so we only run below steps on openstack and kvm
+        if utils_lib.is_openstack(self) or self.vm.provider == "kvm":
             output= self.vm.get_console_log(silent=True)
             if isinstance(output,Exception):
                 self.fail("Failed to get console log!")
@@ -1422,8 +1482,9 @@ EOF""".format(device, size), expect_ret=0)
             "Swap size is 0 before cloud-init config")
         self.assertEqual(old_swap, new_swap,
             "Swap size is not same before and after cloud-init config. There was issue BIFROST-598 for image mode")
-        self.assertEqual(old_fstab, new_fstab,
-            "The /etc/fstab is not same before and after cloud-init config")
+        if self.vm.provider != 'azure':
+            self.assertEqual(old_fstab, new_fstab,
+                "The /etc/fstab is not same before and after cloud-init config")
 
     def _verify_authorizedkeysfile(self, keyfiles):
         # 1. Modify /etc/ssh/sshd_config
@@ -1528,7 +1589,7 @@ EOF""".format(device, size), expect_ret=0)
             4. Verify can login successfully and AuthorizedKeysFile has correct authority
         """
         cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')        
-        cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
+        cloudinit_ver = float(re.search(r'cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
         if cloudinit_ver < 21.1:
             self.skipTest('skip run as this case is suitable for rhel higher than rhel-8.5 and rhel-9.0, bz1862967')
         self.log.info(
@@ -1612,7 +1673,7 @@ EOF""".format(device, size), expect_ret=0)
                           expect_kw='echo;sleep 10;exit 142',
                           msg='check if the exit code correct')
 
-    @unittest.skipIf(os.getenv('INFRA_PROVIDER') in ['nutanix','aws'], 'skip run on {} platform which there is no ip route append command used'.format(os.getenv('INFRA_PROVIDER')))
+    @unittest.skipIf(os.getenv('INFRA_PROVIDER') in ['nutanix','aws','kvm'], 'skip run on {} platform which there is no ip route append command used'.format(os.getenv('INFRA_PROVIDER')))
     def test_cloudinit_ip_route_append(self):        
         """
         case_tag:
@@ -1718,7 +1779,7 @@ EOF""".format(device, size), expect_ret=0)
             huzhao@redhat.com
         description:
             RHEL-189225 - CLOUDINIT-TC: launch vm with config drive
-        key_steps:
+        key_steps: |
             basic case of config drive
             1. Create a VM with datasource 'Config Drive'
             2. Login and check user sudo privilege
@@ -1783,10 +1844,10 @@ EOF""".format(device, size), expect_ret=0)
             True
         maintainer:
             huzhao@redhat.com
-        description:
+        description: |
             RHEL-196518 - CLOUDINIT-TC: check dns configuration on openstack instance
             RHEL-182309 - CLOUDINIT-TC: /etc/resolv.conf will not lose config after reboot
-        key_steps:
+        key_steps: |
             1. check dns configuration in /etc/resolv.conf
             2. check /etc/NetworkManager/conf.d/99-cloud-init.conf
             3. run hostnamectl command and then check resolv.conf again
@@ -2046,8 +2107,6 @@ EOF""".format(device, size), expect_ret=0)
             if 'state UP' in line:
                 active_num = active_num + 1
         self.assertEqual(active_num, 2, "There should be 2 active network interfaces")
-        cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')        
-        cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
         # Check ping gateway successful
         cmd = "ping6 {} -c 3".format(gateway)
         utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='0% packet loss')
@@ -2067,7 +2126,7 @@ EOF""".format(device, size), expect_ret=0)
             huzhao@redhat.com
         description:
             RHEL-186180 - CLOUDINIT-TC: correct config for dhcp-stateless openstack subnets
-        key_steps:
+        key_steps: |
             1. Create a VM with two nics, the second nic is stateless ipv6 mode
             2. Login and check user
             3. check network config file
@@ -2097,7 +2156,7 @@ EOF""".format(device, size), expect_ret=0)
                 active_num = active_num + 1
         self.assertEqual(active_num, 2, "There should be 2 active network interfaces")
         cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')        
-        cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
+        cloudinit_ver = float(re.search(r'cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
         if cloudinit_ver < 22.1:
             cmd = 'sudo cat /etc/sysconfig/network-scripts/ifcfg-eth1'
             utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='DHCPV6C_OPTIONS=-S,IPV6_AUTOCONF=yes')
@@ -2118,9 +2177,9 @@ EOF""".format(device, size), expect_ret=0)
             cloud-init
         maintainer:
             huzhao@redhat.com
-        description:
+        description: |
             RHEL-186181 - CLOUDINIT-TC: correct config for dhcp-stateful openstack subnets
-        key_steps:
+        key_steps: |
             1. Create a VM with two nics, the second nic is dhcp-stateful ipv6 mode
             2. Login and check user
             3. check network config file
@@ -2150,7 +2209,7 @@ EOF""".format(device, size), expect_ret=0)
                 active_num = active_num + 1
         self.assertEqual(active_num, 2, "There should be 2 active network interfaces")
         cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')        
-        cloudinit_ver = float(re.search('cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
+        cloudinit_ver = float(re.search(r'cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
         if cloudinit_ver < 22.1:
             cmd = 'sudo cat /etc/sysconfig/network-scripts/ifcfg-eth1'
             utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw='IPV6_FORCE_ACCEPT_RA=yes')
@@ -2340,7 +2399,20 @@ swap:
             "test4": base_pw,
             "test5": "RANDOM"
         }
-        CONFIG='''\
+        cloudinit_ver = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
+        cloudinit_ver = float(re.search(r'cloud-init-(\d+.\d+)', cloudinit_ver).group(1))
+        if cloudinit_ver < 22.3: #using list before 22.3, else using users
+            CONFIG='''\
+chpasswd:
+  list:
+    - test1:{test1}
+    - test2:{test2}
+    - test3:{test3}
+    - test4:{test4}
+    - test5:{test5}
+ssh_pwauth: True '''.format(**pw_config_dict)
+        else:
+            CONFIG='''\
 chpasswd:
   users:
     - name: test1
@@ -2359,10 +2431,11 @@ ssh_pwauth: True '''.format(**pw_config_dict)
         utils_lib.run_cmd(self, "sudo rm -f /var/lib/cloud/instance/sem/config_set_passwords /var/log/cloud-init*.log")
         output = utils_lib.run_cmd(self, "sudo cloud-init single --name set_passwords")
         # check password login
-        for i in range(1,5):
-            testuser = "test{}".format(str(i))
-            test_login = utils_lib.send_ssh_cmd(self.vm.floating_ip, testuser, base_pw, "whoami", log=self.log)
-            self.assertTrue(test_login,"Fail to login with password" )
+        if self.vm.provider != 'azure':
+            for i in range(1,5):
+                testuser = "test{}".format(str(i))
+                test_login = utils_lib.send_ssh_cmd(self.vm.floating_ip, testuser, base_pw, "whoami", log=self.log)
+                self.assertTrue(test_login,"Fail to login with password" )
 
        #Move this step after checking test4 pwd
         for line in output.split('\n'):
@@ -2377,8 +2450,8 @@ ssh_pwauth: True '''.format(**pw_config_dict)
         #AWS rhel image dev/console to tty0, not ttyS0
         #libvirt has some problem when using assertIn console log file
         #alicloud sometimes SDK-Version:2.14.0 ClientException:SDK.HttpError
-        #so we only run below steps on openstack
-        if utils_lib.is_openstack(self):
+        #so we only run below steps on openstack and kvm
+        if utils_lib.is_openstack(self) or self.vm.provider == "kvm":
             output= self.vm.get_console_log(silent=False)
             if isinstance(output,Exception):
                 self.fail("Failed to get console log!")
@@ -2507,6 +2580,7 @@ ssh_pwauth: True '''.format(**pw_config_dict)
         # Verify cloud-init.log
         utils_lib.run_cmd(self, "sudo grep 'Permission denied' /var/log/cloud-init.log",expect_ret=1, msg="BZ#1857309. Should not have 'Permission denied'")
 
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['openstack','kvm'], 'skip run as this case need connect rhsm stage server, not suitable for public cloud')
     def test_cloudinit_no_networkmanager(self):
         """
         case_tag:
@@ -2540,7 +2614,7 @@ ssh_pwauth: True '''.format(**pw_config_dict)
             self.skipflag = True
             self.skipTest('skip run this case, network-script is not be supported by rhel 9 any more')
         pkg_install_check = utils_lib.is_pkg_installed(self,"network-scripts")
-        if not pkg_install_check and self.vm.provider == 'openstack':
+        if not pkg_install_check:
             # Register to rhsm stage
             reg_cmd = "sudo subscription-manager register --username {0} --password {1} --serverurl {2} --baseurl {3}".format(
                 self.vm.subscription_username, 
@@ -2691,7 +2765,7 @@ ssh_authorized_keys:
            Cloud-init should place the puppet, power-state-change modules in cloud_final_modules
         key_steps: |
             1. Check /etc/cloud/cloud.cfg
-        expect_result:
+        expect_result: |
             The puppet, chef, salt-minion, mcollective, package-update-upgrade-install, power-state-change 
             should be in cloud_final_modules
         debug_want:
@@ -2779,7 +2853,7 @@ ssh_authorized_keys:
     def test_cloudinit_config_ipv6(self):
         '''
         case_tag:
-            cloudinit
+            cloudinit,cloudinit_tier2
         description:
             Check the IPv6 is configured by default for guests.
         testplan:
@@ -2794,7 +2868,7 @@ ssh_authorized_keys:
             0
         case_component: 
             cloud-init
-        key_steps:
+        key_steps: |
             1. Launch an instance which support IPv6 with IPv6 auto assigned.
             2. Check the IPv6 is configured and auto assigned for NIC and can be connected via IPv6 address after system boot up.
         pass_criteria: 
@@ -2820,7 +2894,7 @@ ssh_authorized_keys:
     def test_cloudinit_lineoverwrite(self):
         '''
         case_tag:
-            cloudinit,cloudinit_clean
+            cloudinit,cloudinit_tier2,cloudinit_clean
         description: |
             This is a specific case of openstack, because the cloud guest images need to have "NOZEROCONF=yes" in /etc/sysconfig/network so that it works well as an openstack guest. (Bug 983611 - Cloud guest images needs to have "NOZEROCONF=yes" in /etc/sysconfig/network)
             cloud-init removed user configuration in /etc/sysconfig/network and rewrite the default configuration in every prevision before cloud-init-18.2-4.el7, after this version, certain lines in network configuration isn't removed after re-provision. linked case RHEL-152730
@@ -2890,7 +2964,7 @@ ssh_authorized_keys:
     def test_cloudinit_userdata(self):
         '''
         case_tag:
-            cloudinit
+            cloudinit,cloudinit_tier2
         description:
             Check the userdata can be passed when creating instance. Linked case RHEL7-87120
         testplan:
@@ -2943,7 +3017,7 @@ ssh_authorized_keys:
         maintainer:
             xiachen@redhat.com
         description:
-           test cloud-init package upgrade, this auto case only works for openstack now
+           test cloud-init query instance metadata tags, this auto case only works for aws now
         key_steps: |
             1. Enable tags on metadata when launch the EC2 instance
             2. verify that tags are available: cloud-init query ds.meta_data.tags
@@ -2970,211 +3044,6 @@ ssh_authorized_keys:
         utils_lib.run_cmd(self, cmd, expect_ret=0)
 
     @unittest.skipIf(os.getenv('INFRA_PROVIDER') != 'openstack', 'skip as it is the specific case for openstack')
-    def test_cloudinit_package_upgrade(self):
-        '''
-        case_tag:
-            cloudinit,cloudinit_tier3,vm_delete
-        case_name:
-            test_cloudinit_package_upgrade
-        case_file:
-            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_package_upgrade
-        component:
-            cloudinit
-        bugzilla_id:
-        is_customer_case:
-            False
-        testplan:
-            VIRT-103841
-        maintainer:
-            xiachen@redhat.com
-        description:
-           test cloud-init package upgrade, this auto case only works for openstack now
-        key_steps: |
-            1. upgrade cloud-init to specific version
-            2. check cloud-init services status
-        debug_want:
-            N/A
-        '''
-
-        self.log.info("check cloud-init works well after package upgrade")
-        #for y stream   self.vm.rhel_ver=8.7  target_v=7  base_v=target_v-1
-        #for z stream   self.vm.rhel_ver=8.6   target_v=6   base_v=target_v
-        #if target_v=0, skip this case (or leapp upgrade)
-        self.rhel_branch=int(self.vm.rhel_ver.split('.')[0])
-        if self.vm.y_stream == '1' :   
-            self.base_v= int(self.vm.rhel_ver.split('.')[1])-1
-        else: 
-            self.base_v= int(self.vm.rhel_ver.split('.')[1])
-        if self.base_v <0 : self.cancel("need run leapp upgrade. Skip this case.") 
-
-        #For RHEL7
-        if self.rhel_branch == 7 :
-            self.composepath="Server"
-        #For RHEL8 RHEL9
-        else:
-            self.composepath="BaseOS"
-
-        #create VM
-        self.base_version=str(self.rhel_branch)+'.'+str(self.base_v)
-        self.vm.image_name='rhel-guest-image-'+self.base_version+'-base.qcow2'
-        self.log.info("create VM with image "+ self.vm.image_name)
-        if self.vm.exists():
-            self.vm.delete()
-            time.sleep(30)
-        self.vm.create()
-        time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
-        output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
-        self.assertEqual(
-            self.vm.vm_username, output,
-            "Login VM with publickey error: output of cmd `whoami` unexpected -> %s"
-            % output)
-
-        self._check_cloudinit_done_and_service_isactive()
-        #show old package version
-        cmd = "rpm -q {}".format(self.vm.package_name)
-        output = utils_lib.run_cmd(self, cmd).rstrip('\n')
-        self.log.info("old package version is "+output+", run successfully.")
-        #install/upgrade new version
-        #set base repo
-        utils_lib.run_cmd(self, """
-cat << EOF |sudo tee /etc/yum.repos.d/redhat.repo
-[rhel-base-upgrade]
-name=rhel-base-upgrade
-baseurl=http://download.eng.bos.redhat.com/rhel-{0}/rel-eng/RHEL-{0}/latest-RHEL-{1}/compose/{2}/x86_64/os/
-enabled=1
-gpgcheck=0
-[rhel-appstream-upgrade]
-name=rhel-appstream-upgrade
-baseurl=http://download.eng.bos.redhat.com/rhel-{0}/rel-eng/RHEL-{0}/latest-RHEL-{1}/compose/AppStream/x86_64/os/
-enabled=1
-gpgcheck=0
-EOF
-""".format(self.rhel_branch, self.base_version, self.composepath))
-        cmd = 'sudo yum install -y {}'.format(self.vm.package_url)
-        utils_lib.run_cmd(self, 
-                          cmd, 
-                          expect_ret=0,
-                          msg='upgrade successfully')
-        #check if version is correct, [:-4] not include '.rpm'
-        self.new_pkg = self.vm.package_url.split('/')[-1][:-4]
-        cmd = "rpm -q {}".format(self.vm.package_name)
-        output = utils_lib.run_cmd(self, cmd).rstrip('\n')
-        self.assertEqual(output, self.new_pkg, 
-            "Does not upgrade to expect version. Real: {}, Expect: {}".format(output, self.new_pkg))
-            #check cloud-init status is done, and no 'Traceback' in log
-        self._check_cloudinit_done_and_service_isactive()
-        self.log.info("Upgrade package successfully for rhel " + self.base_version)
-            #reboot
-        self._reboot_inside_vm(sleeptime=30)
-            #check cloud-init status again, and no 'Traceback' in log
-        self._check_cloudinit_done_and_service_isactive()
-        self.log.info("Reboot successfully after upgrade package" + self.base_version)
-
-    @unittest.skipIf(os.getenv('INFRA_PROVIDER') != 'openstack', 'skip as it is the specific case for openstack')
-    def test_cloudinit_os_upgrade(self):
-        '''
-        case_tag:
-            cloudinit,cloudinit_tier3,vm_delete
-        case_name:
-            test_cloudinit_os_upgrade
-        case_file:
-            os_tests.tests.test_cloud_init.TestCloudInit.test_cloudinit_os_upgrade
-        component:
-            cloudinit
-        bugzilla_id:
-        is_customer_case:
-            False
-        testplan:
-            RHEL-187159
-        maintainer:
-            xiachen@redhat.com
-        description:
-           cloud-init works well after OS upgrade, this auto case only works for openstack now
-        key_steps: |
-            1. upgrade OS to specific version
-            2. check cloud-init services status
-        debug_want:
-            N/A
-        '''
-        self.log.info("check cloud-init works well after OS upgrade")
-        #for y stream   self.project=8.7  target_v=7  base_v=target_v-1
-        #for z stream   self.project=8.6   target_v=6   base_v=target_v
-        #if target_v=0, skip this case (or leapp upgrade)
-        #For RHEL7
-
-        self.rhel_branch=int(self.vm.rhel_ver.split('.')[0])
-        if self.vm.y_stream == '1' :   
-            self.base_v= int(self.vm.rhel_ver.split('.')[1])-1
-            self.repopath="nightly"
-        else: 
-            self.base_v= int(self.vm.rhel_ver.split('.')[1])
-            self.repopath="nightly/updates"
-        if self.base_v <0 : self.cancel("need run leapp upgrade. Skip this case.") 
-
-        #For RHEL7
-        if self.rhel_branch == 7 :
-            self.composepath="Server"
-        #For RHEL8 RHEL9
-        else:
-            self.composepath="BaseOS"
-            
-        #create VM and upgrade OS
-        self.base_version=str(self.rhel_branch)+'.'+str(self.base_v)
-        self.vm.image_name='rhel-guest-image-'+self.base_version+'-base.qcow2'
-        self.log.info("create VM with image "+ self.vm.image_name)
-        if self.vm.exists():
-            self.vm.delete()
-            time.sleep(30)
-        self.vm.create()
-        time.sleep(30)
-        utils_lib.init_connection(self, timeout=self.ssh_timeout)
-        output = utils_lib.run_cmd(self, 'whoami').rstrip('\n')
-        self.assertEqual(
-                self.vm.vm_username, output,
-                "Login VM with publickey error: output of cmd `whoami` unexpected -> %s"
-                % output)
-        self._check_cloudinit_done_and_service_isactive()
-        #show old package version
-        output = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
-        self.log.info("old cloud-init package version is "+output+", run successfully.")
-        #install/upgrade new version
-        #set target repo
-        utils_lib.run_cmd(self,"""
-cat << EOF |sudo tee /etc/yum.repos.d/redhat.repo
-[rhel-base-upgrade]
-name=rhel-base-upgrade
-baseurl=http://download.eng.bos.redhat.com/rhel-{0}/{1}/RHEL-{0}/latest-RHEL-{2}/compose/{3}/x86_64/os/
-enabled=1
-gpgcheck=0
-[rhel-appstream-upgrade]
-name=rhel-appstream-upgrade
-baseurl=http://download.eng.bos.redhat.com/rhel-{0}/{1}/RHEL-{0}/latest-RHEL-{2}/compose/AppStream/x86_64/os/
-enabled=1
-gpgcheck=0
-EOF
-""".format(self.rhel_branch, self.repopath, self.vm.rhel_ver, self.composepath))
-        cmd = 'sudo yum update -y --allowerasing'
-        utils_lib.run_cmd(self, 
-                          cmd, 
-                          expect_ret=0,
-                          msg='upgrade os successfully',
-                          timeout=600)
-        #check if version is correct, [:-4] not include '.rpm'
-        self.new_pkg = self.vm.package_url.split('/')[-1][:-4]
-        output = utils_lib.run_cmd(self, "rpm -q cloud-init").rstrip('\n')
-        self.assertEqual(output, self.new_pkg, 
-            "cloud-init does not upgrade to expect version. Real: {}, Expect: {}".format(output, self.new_pkg))
-        #check cloud-init status is done, and no 'Traceback' in log
-        self._check_cloudinit_done_and_service_isactive()
-        self.log.info("Upgrade cloud-init successfully for rhel " + self.base_version)
-        #reboot
-        self._reboot_inside_vm(sleeptime=120)
-        #check cloud-init status again, and no 'Traceback' in log
-        self._check_cloudinit_done_and_service_isactive()
-        self.log.info("Reboot successfully after upgrade cloud-init for rhel " + self.base_version)
-
-    @unittest.skipIf(os.getenv('INFRA_PROVIDER') != 'openstack', 'skip as it is the specific case for openstack')
     def test_cloudinit_create_vm_login_repeatedly(self):
         '''
         case_tag:
@@ -3192,7 +3061,7 @@ EOF
             RHEL-188320
         maintainer:
             xiachen@redhat.com
-        description:
+        description: |
            create vm and login with ssh-key, run 50 times or set the number of cycles (run_loop)
            because of the race condition issue on openstack, this auto case only run on openstack now
         key_steps: |
@@ -3514,8 +3383,6 @@ ssh_authorized_keys:
             Check cloud-init clean configs options
         importance:
             medium
-        subsystem_team:
-            rhel-sst-virtualization-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -3622,7 +3489,7 @@ ssh_authorized_keys:
         utils_lib.finish_case(self)
         casegroup = ('test_cloudinit_no_networkmanager',
                      'test_cloudinit_verify_rh_subscription_enablerepo_disablerepo')
-        if self.id().endswith(casegroup) and not self.skipflag:
+        if self.id().endswith(casegroup):
             utils_lib.run_cmd(self, "sudo subscription-manager unregister")
 
         casegroup = ('test_cloudinit_create_vm_config_drive',

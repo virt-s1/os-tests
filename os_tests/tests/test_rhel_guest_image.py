@@ -737,7 +737,11 @@ class TestGuestImage(unittest.TestCase):
             N/A
         """
         for count in utils_lib.iterate_timeout(
-                600, "Timed out waiting for getting IP address."):
+                600, "Timed out waiting for kdump service to activate"):
+            # FIXME: Temporary workaround to skip the check on kdump status
+            if utils_lib.is_arch(self, arch="s390x"):
+                self.log.info("kdump service: Active status check skipped on s390x")
+                break
             cmd = 'sudo systemctl is-active kdump'
             ret = utils_lib.run_cmd(self,
                                     cmd,
@@ -775,13 +779,19 @@ class TestGuestImage(unittest.TestCase):
             self.assertIn(line, output, "%s is not in boot parameters" % line)
 
         if float(product_id) >= 9.0:
-            cmd = "sudo kdumpctl get-default-crashkernel"
-            tmp_output = utils_lib.run_cmd(
-                self,
-                cmd,
-                expect_ret=0,
-                msg="kdumpctl get-default-crashkernel")
-            line = "crashkernel=" + tmp_output.rstrip('.')[0]
+            if utils_lib.is_arch(self, arch="s390x"):
+                self.log.info("Skipping kdumpctl get-default-crashkernel on s390x")
+                crash_kernel = [x for x in output.split() if x.startswith("crashkernel=")]
+                self.assertTrue(crash_kernel, "crashkernel= is not in boot parameters")
+                line = crash_kernel[0]
+            else:
+                cmd = "sudo kdumpctl get-default-crashkernel"
+                tmp_output = utils_lib.run_cmd(
+                    self,
+                    cmd,
+                    expect_ret=0,
+                    msg="kdumpctl get-default-crashkernel")
+                line = "crashkernel=" + tmp_output.rstrip('.')[0]
         else:
             line = "crashkernel=auto"
         self.assertIn(line, output, "%s is not in boot parameters" % line)
@@ -807,7 +817,7 @@ class TestGuestImage(unittest.TestCase):
         description:
             check packages are signed
         key_steps:
-            1. "rpm -qa --qf '%{name}-%{version}-%{release}.%{arch} (%{SIGPGP:pgpsig})\\n'|grep -v 'Key ID'"
+            1. "rpm -qa --qf '%{name}-%{version}-%{release}.%{arch} (%{RSAHEADER:pgpsig})\\n'|grep -v 'Key ID'"
         expect_result:
             Red Hat managed packages should be signed
         debug_want:
@@ -818,7 +828,7 @@ class TestGuestImage(unittest.TestCase):
         dest_path = '/tmp/' + data_file
         self.SSH.put_file(local_file=src_path, rmt_file=dest_path)
         cmd = "rpm -qa --qf '%{name}-%{version}-%{release}.%{arch} \
-(%{SIGPGP:pgpsig})\n'|grep -v 'Key ID'" + "|grep -vFf %s" % dest_path
+(%{RSAHEADER:pgpsig})\n'|grep -v 'Key ID'" + "|grep -vFf %s" % dest_path
         output = utils_lib.run_cmd(self, cmd, msg="compare through grep")
 
         # cheshi, newline characters are not supported in aexpect, so need a

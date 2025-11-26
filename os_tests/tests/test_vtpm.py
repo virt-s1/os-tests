@@ -232,10 +232,10 @@ cat secret.dec'''
             rmt_node = self.params['remote_node'] or self.vm.floating_ip
         self._check_vtpm_log_and_version()
         #basic validation
-        for cmd in ["clevis", "tpm2-abrmd", "tpm2-tools"]:
+        for cmd in ["clevis", "tpm2-abrmd", "tpm2_getrandom"]:
             utils_lib.is_cmd_exist(self, cmd=cmd, cancel_case=True)
-        utils_lib.run_cmd(self, "sudo systemctl enable tpm2-abrmd")
-        utils_lib.run_cmd(self, "tpm2_getrandom 20", expect_ret=0)
+        utils_lib.run_cmd(self, "sudo systemctl enable --now tpm2-abrmd")
+        utils_lib.run_cmd(self, "sudo tpm2_getrandom 20 -o /tmp/tpm2_getrandom_20", expect_ret=0)
         utils_lib.run_cmd(self, "echo 'hello world!' > input.txt && \
             sudo clevis encrypt tpm2 '{}' < input.txt > secret.jwe", expect_ret=0)
         utils_lib.run_cmd(self, "ls secret.jwe", expect_ret=0)
@@ -325,7 +325,7 @@ cat secret.dec'''
         importance:
             low
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:

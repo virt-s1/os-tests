@@ -24,7 +24,7 @@ class TestCollectBootTime(unittest.TestCase):
         importance:
             low
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:

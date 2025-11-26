@@ -18,6 +18,7 @@ import argparse
 import tempfile
 import string
 import shutil
+import psutil
 from tipset.libs import rmt_ssh
 from functools import wraps
 from itertools import chain
@@ -28,6 +29,7 @@ except ImportError:
     from yaml import Loader, Dumper
 
 LOG = logging.getLogger('os_tests.os_tests_run')
+HTTP_PORT = 8000
 
 def init_args():
     parser = argparse.ArgumentParser(
@@ -119,6 +121,18 @@ def init_args():
                     help='specify the ca configure information, e.g., ca_url,ca_path', required=False)
     parser.add_argument('--verbose', action='store_true', default=False,
                         help='show the detail log during running')
+    parser.add_argument('--tc', dest='tc_file', default=None,
+                        help='Path to tc_file.json file for generating sum_polarion.xml which could be uploaded to Polarion')
+    parser.add_argument('--enable_gemini_check', dest='enable_gemini_check', action='store',
+                    help='enable case result analysis using google gemini', required=False)
+    parser.add_argument('--gemini_api_key', dest='gemini_api_key', default=None, action='store',
+                    help='google gemini api key', required=False)
+    parser.add_argument('--gemini_http_proxy', dest='gemini_http_proxy', default=None, action='store',
+                    help='http proxy for gemini api', required=False)
+    parser.add_argument('--gemini_https_proxy', dest='gemini_https_proxy', default=None, action='store',
+                    help='https proxy for gemini api', required=False)
+    parser.add_argument('--gemini_model_name', dest='gemini_model_name', default=None, action='store',
+                    help='google gemini model name, default is gemini-2.5-flash', required=False)
     args = parser.parse_args()
     return args
 
@@ -200,6 +214,14 @@ def init_provider_from_guest(test_instance):
     if is_gcp(test_instance):
         provider = 'google'
     os.environ['INFRA_PROVIDER'] = provider
+
+def stop_httpserver(port=HTTP_PORT):
+    for conn in psutil.net_connections(kind='inet'):
+        if conn.laddr.port == port and conn.status == psutil.CONN_LISTEN:
+            pid = conn.pid
+            if pid:
+                proc = psutil.Process(pid)
+                proc.terminate()
 
 def update_cfgs(base_cfg={}, new_cfg={}, keep_base = False, only_update_exists_keys = False):
     '''
@@ -338,7 +360,7 @@ def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=N
             break
     return True
 
-def send_ssh_cmd(rmt_node, rmt_user, rmt_password, command, timeout=60,log=None):
+def send_ssh_cmd(rmt_node, rmt_user, rmt_password, command, timeout=60, log=None, **kwargs):
     if log is None:
         LOG_FORMAT = '%(levelname)s:%(message)s'
         log = logging.getLogger(__name__)
@@ -348,6 +370,7 @@ def send_ssh_cmd(rmt_node, rmt_user, rmt_password, command, timeout=60,log=None)
     ssh.rmt_user = rmt_user
     ssh.rmt_password = rmt_password
     ssh.log = log
+    ssh.rmt_keyfile = kwargs["rmt_keyfile"] if kwargs["rmt_keyfile"] is not None else None
     ssh.create_connection()
     status, outputs = ssh.remote_excute(command, timeout)
     log.info('\n command: %s \n status %s \n outputs %s \n' % (command, status, outputs))
@@ -439,7 +462,7 @@ def init_case(test_instance):
     test_instance.log.info("Case Doc: {}".format(eval(test_instance.id()).__doc__))
     test_instance.log.info("Case Params:")
     for key in test_instance.params.keys():
-        if key in ['password', 'subscription_username', 'subscription_password', 'quay_io_data', 'bootc_io_data', 'config_toml_info', 'aws_info'] or 'password' in key:
+        if key in ['password', 'subscription_username', 'subscription_password', 'gemini_api_key', 'gemini_http_proxy', 'quay_io_data', 'bootc_io_data', 'config_toml_info', 'aws_info'] or 'password' in key:
             test_instance.log.info("key:{}, val:*******".format(key))
         else:
             test_instance.log.info("key:{}, val:{}".format(key, test_instance.params[key]))
@@ -570,6 +593,8 @@ def filter_case_doc(case=None, patterns=None, skip_patterns=None, filter_field='
     yaml_fail = None
     try:
         src_content = case._testMethodDoc
+        # remove the line added by @parameterized.expand()
+        src_content = "\n".join(l for l in src_content.splitlines() if not l.startswith("with parameter: [with"))
         yaml_data = load(src_content, Loader=Loader)
         if not hasattr(yaml_data,'get'):
             yaml_data = {}
@@ -814,6 +839,7 @@ def run_cmd(test_instance,
                     test_instance.log.info('reconnect to remote because it acheived certain number of packets or bytes sent or received using this session')
                     test_instance.SSHs[ssh_index].create_connection()
                     SSH = test_instance.SSHs[ssh_index]
+                # TODO: Check why there is two SSH remote_execute calls. This result in two executions & affects idempotency
                 status, output = SSH.remote_excute(test_cmd, timeout)
                 status, output = SSH.remote_excute(cmd, timeout, is_log_cmd, redirect_stdout=rmt_redirect_stdout, redirect_stderr=rmt_redirect_stderr,rmt_get_pty=rmt_get_pty)
             else:
@@ -1102,8 +1128,10 @@ def is_azure(test_instance, action=None):
         azure: return True
         other: return False
     '''
-    ret = run_cmd(test_instance, "ls /dev/disk/cloud/azure_root", ret_status=True)
-    if ret == 0:
+    ret1 = run_cmd(test_instance, "ls /dev/disk/cloud/azure_root", ret_status=True)
+    ret2 = run_cmd(test_instance, "ls /dev/disk/cloud/azure_*", ret_status=True)
+    ret3 = run_cmd(test_instance, "ls /dev/disk/azure/*", ret_status=True)
+    if ret1 == 0 or ret2 == 0 or ret3 == 0:
         test_instance.log.info("Azure system.")
         return True
     else:
@@ -1348,8 +1376,8 @@ def is_rhsm_registered(test_instance, cancel_case=False, timeout=600, rmt_node=N
         test_instance {Test instance} -- test instance
     '''
     cmd = "sudo subscription-manager status"
-    out = run_cmd(test_instance, cmd, msg='try to check subscription status', rmt_node=rmt_node, vm=vm)
-    if 'Red Hat Enterprise Linux' in out or 'Simple Content Access' in out:
+    status = run_cmd(test_instance, cmd, msg='try to check subscription status', rmt_node=rmt_node, vm=vm, ret_status=True, ret_out=False)
+    if status == 0:
         return True
     else:
         if cancel_case: test_instance.skipTest("Unable to register")
@@ -1370,8 +1398,8 @@ def enable_auto_registration(test_instance, cancel_case=False, timeout=600, rmt_
     interval = 60
     while True:
         cmd = "sudo subscription-manager status"
-        out = run_cmd(test_instance, cmd, msg='try to check subscription status', rmt_node=rmt_node, vm=vm)
-        if 'Red Hat Enterprise Linux' in out or 'Simple Content Access' in out:
+        status = run_cmd(test_instance, cmd, msg='try to check subscription status', rmt_node=rmt_node, vm=vm, ret_status=True)
+        if status == 0:
             test_instance.log.info("auto subscription registered completed")
             break
         end_time = time.time()
@@ -2102,7 +2130,7 @@ def get_active_nic(test_instance=None, rmt_node=None, vm=None, ret_nic_name=Fals
     test_instance.log.info("Test which nic connects to public")
     nic_found = False
     for net in output.split('\n'):
-        if len(net) < 3:
+        if len(net) < 3 or net.startswith(('podman', 'veth', 'br')):
             continue
         cmd = "sudo ping {} -c 6 -I {}".format(test_instance.params.get('ping_server'), net)
         ret = run_cmd(test_instance, cmd, ret_status=True, rmt_node=rmt_node, vm=vm)
@@ -2322,3 +2350,32 @@ def is_ostree_system(test_instance):
     else:
         test_instance.log.info("The system is not ostree booted.")
         return False
+
+def restart_ssh_connection(test_instance, rmt_node=None, vm=None):
+    '''
+    :param test_instance:
+    :param rmt_node:
+    :param vm:
+    :return:
+
+    Closes the current ssh connection and opens a new connection in place.
+    Useful in cases where shell session (ssh session) needs to be restarted to reflect new changes in environment,
+    and system reboot is unnecessary
+    '''
+
+    if test_instance.is_rmt:
+        if not test_instance.params['remote_node'] and not rmt_node and not vm:
+            return
+        rmt_node = rmt_node or test_instance.params['remote_node'] or None
+        if vm:
+            if hasattr(vm, 'floating_ip'):
+                rmt_node = vm.floating_ip
+        SSH = None
+        for i, ssh in enumerate(test_instance.SSHs):
+            ssh.log = test_instance.log
+            if ssh.rmt_node == rmt_node:
+                SSH = ssh
+                break
+        if SSH.is_active():
+            SSH.close()
+        SSH.create_connection()

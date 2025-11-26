@@ -48,6 +48,7 @@ class EC2VM(VMResource):
         LOG.info('Use subnet: {}'.format(self.subnet_id))
         self.security_group_ids = params.get('security_group_ids')
         self.placement_group_name = params.get('placement_group_name')
+        self.capacity_reservation_id = params.get('capacity_reservation_id')
         self.region = params.get('region')
         self.subnet = self.resource.Subnet(self.subnet_id)
         self.additionalinfo = params.get('additionalinfo')
@@ -203,6 +204,18 @@ class EC2VM(VMResource):
                 LOG.info("placement groups are not supported by the {} instance type.".format(not_support_placement))
             else:
                 vm_kwargs["Placement"] = {"GroupName":self.placement_group_name}
+
+        if self.capacity_reservation_id:
+            vm_kwargs["CapacityReservationSpecification"] = {
+                'CapacityReservationPreference': 'capacity-reservations-only',
+                'CapacityReservationTarget': {
+                    'CapacityReservationId': self.capacity_reservation_id,
+                    #'CapacityReservationResourceGroupArn': 'string'
+                }
+            }
+            vm_kwargs["InstanceMarketOptions"] = {
+                'MarketType': 'capacity-block'
+            }
 
         if enable_sev_snp or self.sev_snp_enable_cfg:
             LOG.info("try to create instance with sev-snp enabled")

@@ -1656,7 +1656,7 @@ in cmdline as bug1859088")
         importance:
             low
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -2088,6 +2088,34 @@ current_device"
         utils_lib.run_cmd(self, cmd, expect_ret=0)
         utils_lib.save_file(self, file_dir=os.path.dirname(sosfile), file_name=os.path.basename(sosfile))
 
+    def test_check_acpidump_works(self):
+        """
+        case_name:
+            test_check_acpidump_works
+        component:
+            acpidump
+        bug_id:
+            N/A
+        is_customer_case:
+            False
+        maintainer:
+            xiliang@redhat.com
+        description:
+            dump the acpi table which is useful for debugging infra problems
+        key_steps: |
+            acpidump -o /tmp/acpidump.hex
+            acpixtract -a acpidump.hex;x=$(ls *.dat);for i in $x;do iasl -d $i;done
+        expect_result:
+            retrive acpidump.hex successfully
+        debug_want:
+            acpidump.hex
+        """
+        utils_lib.is_cmd_exist(self, 'acpidump')
+        acpidump_file = '/tmp/acpidump.hex'
+        cmd = 'sudo acpidump -o {}'.format(acpidump_file)
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="run acpidump")
+        utils_lib.save_file(self, file_dir=os.path.dirname(acpidump_file), file_name=os.path.basename(acpidump_file))
+
     def test_check_dmesg_sev(self):
         """
         case_name:
@@ -2224,7 +2252,7 @@ current_device"
                     v = utils_lib.get_product_id(self)
                     x = int(v.split(".")[0])
                     y = int(v.split(".")[1])
-                    if x<9:
+                    if x<9 or (x == 9 and y < 5):
                         utils_lib.run_cmd(self, 'sudo dmesg | grep -v os_tests | grep -i tdx', expect_ret=0,
                                         expect_kw='Intel TDX',
                                         msg="Check there is 'Intel TDX' in dmesg before run 'perf top'")

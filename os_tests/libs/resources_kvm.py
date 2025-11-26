@@ -38,7 +38,7 @@ class KvmVM(VMResource):
         self.ssh_pubkey = utils_lib.get_public_key()
         self.interface_name = params['VM'].get('interface_name')
         self.properties = {}
-        self.httpport = 8000
+        self.httpport = utils_lib.HTTP_PORT
         self.static_ip = None
 
         # VM creation parameter user_data
@@ -98,23 +98,29 @@ class KvmVM(VMResource):
                     cmd2 += "--network bridge={},model=virtio,mac={} ".format(network,mac)
                 else:
                     cmd2 += "--network bridge={},model=virtio ".format(network)
-        #userdata, using this way to compatible with other cloud platform
-        #--cloud-init and cdrom can not set at the same time, now it supports user-data, meta-data, network-config and clouduser-ssh-key and so on.'
-        userdata = userdata or self.user_data
-        if userdata:
-            userdatafilename = self.files_path+"/user-data"
-            with open(userdatafilename, 'w') as userdatafile:
-                userdatafile.write(userdata)
-            cmd2 += "--cloud-init user-data={} ".format(userdatafilename)
-            #clear up the vm.user_data as it may cause data conflicts between different cases
-            self.user_data = None
-
-        #--cloud-init user-data and clouduser-ssh-key can not use at the same time     
+        #--cloud-init user-data and clouduser-ssh-key can not use at the same time
+        #--cloud-init do not support reboot because of missing the one time cloud-init media
+        # meant for initial VM configuration,
+        # that is, virt-install forcing shutdown for the first reboot is intended behavior,
+        # so we cannot use --cloud-init as we have mutiple cases with reboot.
+        # solution: using cdrom instead of --cloud-init
 
         if datasource == "cdrom":
             cmd2 += "--disk path={}/{},device=cdrom ".format(self.disk_path,self.nocloud_iso_name)
         elif datasource == "smbios":
             cmd2 += "--sysinfo system.serial='ds=nocloud;s=http://10.0.2.1:8000/' "
+        else:
+            #userdata, using this way to compatible with other cloud platform
+            #--cloud-init,cdrom and smbios can not set at the same time,
+            #now it supports user-data, meta-data, network-config and clouduser-ssh-key and so on.'
+            userdata = userdata or self.user_data
+            if userdata:
+                self.create_datafile(
+                    datasource="cdrom",
+                    userdata=userdata,
+                    metadata=""
+                )
+                cmd2 += "--disk path={}/{},device=cdrom ".format(self.disk_path,self.nocloud_iso_name)
 
         cmd2 += "--graphics none  --import --noautoconsole"
         run_cmd_local(cmd2, is_log_ret=True)
@@ -258,17 +264,7 @@ class KvmVM(VMResource):
         run_cmd_local(cmd,is_log_ret=True)
         cmd = "rm {}/*".format(self.files_path)
         run_cmd_local(cmd,is_log_ret=True)
-        #stop http server
-        self.stop_httpserver()
         return True
-
-    def stop_httpserver(self):
-        for conn in psutil.net_connections(kind='inet'):
-            if conn.laddr.port == self.httpport and conn.status == psutil.CONN_LISTEN:
-                pid = conn.pid
-                if pid:
-                    proc = psutil.Process(pid)
-                    proc.terminate()
 
     def is_httpserver_running(self):
         """Check if a process is using the given port."""

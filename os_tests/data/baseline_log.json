@@ -208,8 +208,8 @@
         "trigger": ""
     },
     "msg_25": {
-        "content": "arm_spe_pmu arm,spe-v1: profiling buffer inaccessible. Try passing  kpti=off  on the kernel command line",
-        "analyze": "information only, manually set and pass",
+        "content": ".*arm_spe_pmu arm,spe-v1: profiling buffer inaccessible.*",
+        "analyze": "please try boot with kpti=off",
         "branch": "rhel8",
         "status": "active",
         "link": "",
@@ -217,8 +217,8 @@
         "trigger": ""
     },
     "msg_26": {
-        "content": "arm_spe_pmu: probe of arm,spe-v1 failed with error -1",
-        "analyze": "information only, manually set and pass",
+        "content": ".*arm_spe_pmu.*probe.*failed with error -1.*",
+        "analyze": "please try boot with kpti=off",
         "branch": "rhel8",
         "status": "active",
         "link": "",
@@ -2559,5 +2559,101 @@
         "cases": "os_tests.tests.test_storage.TestStorage.test_storage_blktests_block",
         "addedby": "xiliang@redhat.com",
         "addeddate": "20250714"
+    },
+    "msg_270": {
+        "content": ".*x86/amd: Previous system reset reason.*",
+        "analyze": "known issue",
+        "branch": "rhel9.7,rhel10.1",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-RHEL-103591,https://issues.redhat.com/browse/RHEL-101301",
+        "path": "",
+        "trigger": "",
+        "cases": "os_tests.tests.test_general_check.TestGeneralCheck.test_check_dmesg_error,os_tests.tests.test_general_check.TestGeneralCheck.test_check_dmesg_fail,os_tests.tests.test_general_check.TestGeneralCheck.test_check_journalctl_error,os_tests.tests.test_general_check.TestGeneralCheck.test_check_journalctl_fail",
+        "addedby": "linl@redhat.com",
+	"addeddate": "20250716"
+    },
+    "msg_271": {
+        "content": ".*blk_mq_submit_bio.*",
+        "analyze": "known issue when run blktests block/040",
+        "branch": "rhel9",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-102593",
+        "path": "",
+        "trigger": "",
+        "cases": "os_tests.tests.test_storage.TestStorage.test_storage_blktests_block",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250723"
+    },
+    "msg_272": {
+        "content": ".*Missing required option.*",
+        "analyze": "known issue in xdp-tools xdp-trafficgen",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-105793",
+        "path": "",
+        "trigger": "",
+        "cases": "os_tests.tests.test_network_test.TestNetworkTest.test_xdp_tools_run_tests",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250728"
+    },
+    "msg_273": {
+        "content": ".*leapp3.*",
+        "analyze": "known issue in leapp upgrade",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-1771",
+        "path": "",
+        "trigger": "",
+        "cases": "os_tests.tests.test_azure_upgrade_check.TestAzureUpgradeCheck.test_check_no_avc_denials",
+        "addedby": "yuxisun@redhat.com",
+        "addeddate": "20250730"
+    },
+    "msg_274": {
+        "content": ".*x86/tme.*Unknown policy is active.*",
+        "analyze": "known issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-111095",
+        "path": "",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250826"
+    },
+    "msg_275": {
+        "content": ".*x86/split lock detection.*warning on user-space bus_locks.*",
+        "analyze": "information level log, harmless",
+        "branch": "rhel",
+        "status": "active",
+        "link": "",
+        "path": "",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250826"
+    },
+    "msg_276": {
+        "content": ".*Failed to find VA.*",
+        "analyze": "please try boot with uefi, please report a bug if it persists",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://issues.redhat.com/browse/RHEL-107449",
+        "path": "",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250908"
+    },
+    "msg_277": {
+        "content": ".*SELinux:  Context system_u:object_r:invalid_bootcinstall_testlabel_t:s0 is not valid.*",
+        "analyze": "kown issue",
+        "branch": "rhel",
+        "status": "active",
+        "link": "https://github.com/bootc-dev/bootc/issues/1434,https://issues.redhat.com/browse/BIFROST-688",
+        "path": "",
+        "trigger": "",
+        "cases": "",
+        "addedby": "xiliang@redhat.com",
+        "addeddate": "20250911"
     }
 }

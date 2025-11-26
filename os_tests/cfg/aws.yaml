@@ -13,8 +13,10 @@ subnet_id_ipv4 :
 #subnet_id_ipv6only is an id of subnet which only contains ipv6
 subnet_id_ipv6only :
 security_group_ids : 
-#placement_group_id :
-placement_group_name : 
+# more stable network performance when put two instances in one placement group
+placement_group_name :
+# For p6 or p6e instances launch, must have a capacity block(CapacityReservationId)
+capacity_reservation_id:
 ssh_key_name : 
 username: ec2-user
 vm_password:

@@ -155,7 +155,7 @@ class TestNetworkTest(unittest.TestCase):
         importance:
             low
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -232,7 +232,7 @@ class TestNetworkTest(unittest.TestCase):
         importance:
             low
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -295,7 +295,7 @@ class TestNetworkTest(unittest.TestCase):
         importance:
             high
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -961,7 +961,8 @@ COMMIT
         cmd = "ip addr show {}".format(self.active_nic )
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, \
             msg='try to get {} ipv4 address'.format(self.active_nic ),rmt_node=self.params['remote_nodes'][-1])
-        srv_ipv4 = re.findall('[\d.]{7,16}', output)[0]
+        ipv4_regex = r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
+        srv_ipv4 = re.findall(ipv4_regex, output)[0]
         iperf_cli_cmd = 'iperf3 -P 10 -c {} -t 60'.format(srv_ipv4)
         res = utils_lib.run_cmd(self, iperf_cli_cmd, expect_ret=0, timeout=120)
         if not re.search('(\d+)\s+Mbits/sec.+sender', res):
@@ -1009,7 +1010,7 @@ COMMIT
         importance:
             low
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -1088,7 +1089,8 @@ COMMIT
         cmd = "ip addr show {}".format(self.active_nic )
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, \
             msg='try to get {} ipv4 address'.format(self.active_nic ),rmt_node=self.params['remote_nodes'][-1])
-        srv_ipv4 = re.findall('[\d.]{7,16}', output)[0]
+        ipv4_regex = r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
+        srv_ipv4 = re.findall(ipv4_regex, output)[0]
         testfile_s = "/tmp/test_tcp_checksum_offload_s.data"
         testfile_c = "/tmp/test_tcp_checksum_offload_c.data"
         for i in [False, True]:
@@ -1361,7 +1363,7 @@ COMMIT
         key_steps: |
             1.# sudo yum install libfabric
             2.# fi_info -p efa
-            3.# fi_pingpong -e rdm -p efa -I 100 & sleep 2; fi_pingpong -e rdm -p efa localhost -I 100
+            3.# fi_pingpong -e rdm -p efa -f efa -I 100 & sleep 2; fi_pingpong -e rdm -p efa -f efa localhost -I 100
         expect_result:
             libfabric package is installed successfully and fi_info command should return information about the Libfabric EFA interfaces.
         debug_want:
@@ -1374,7 +1376,7 @@ COMMIT
         if utils_lib.is_pkg_installed(self,'libfabric'):
             cmd = 'fi_info -p efa'
             utils_lib.run_cmd(self, cmd, expect_ret=0, expect_kw="provider: efa", msg='Check the Libfabric EFA interfaces')
-            cmd = "sudo  bash -c 'fi_pingpong -e rdm -p efa -I 100 & sleep 2; fi_pingpong -e rdm -p efa localhost -I 100'"
+            cmd = "sudo  bash -c 'fi_pingpong -e rdm -p efa -f efa -I 100 & sleep 2; fi_pingpong -e rdm -p efa -f efa localhost -I 100'"
             utils_lib.run_cmd(self, cmd, expect_ret=0, msg='run pingpong test')
         if utils_lib.is_pkg_installed(self,'infiniband-diags'):
             utils_lib.run_cmd(self,'ibstatus',expect_ret=0)
@@ -1584,7 +1586,7 @@ COMMIT
             3.# git clone https://github.com/mpitutorial/mpitutorial && cd mpitutorial/tutorials/mpi-hello-world/code/
             4.# export PATH=$PATH:/usr/lib64/openmpi/bin && cd ~/mpitutorial/tutorials/mpi-hello-world/code/
             5.# make
-            6.# export OMPI_MCA_mtl_base_verbose=100 && /usr/lib64/openmpi/bin/mpirun ~/mpitutorial/tutorials/mpi-hello-world/code/mpi_hello_world
+            6.# sudo bash -c "export OMPI_MCA_mtl_base_verbose=100 && /usr/lib64/openmpi/bin/mpirun --allow-run-as-root ~/mpitutorial/tutorials/mpi-hello-world/code/mpi_hello_world"
         expect_result:
             MPI application run via efa provider
         debug_want: |
@@ -1600,11 +1602,11 @@ COMMIT
         if utils_lib.is_pkg_installed(self, 'libfabric'):
             if utils_lib.is_pkg_installed(self,'openmpi') and utils_lib.is_pkg_installed(self,'openmpi-devel'):
                 if utils_lib.is_pkg_installed(self,'git'):
-                    cmd = 'git clone https://github.com/mpitutorial/mpitutorial && cd mpitutorial/tutorials/mpi-hello-world/code/'
+                    cmd = 'sudo bash -c "cd ~/ && git clone https://github.com/mpitutorial/mpitutorial"'
                     utils_lib.run_cmd(self, cmd, expect_ret=0, msg='Download OPENMPI Hello_world App')
                     if utils_lib.is_pkg_installed(self,'make'):
-                        cmd = 'export PATH=$PATH:/usr/lib64/openmpi/bin && cd ~/mpitutorial/tutorials/mpi-hello-world/code/ && make && export OMPI_MCA_mtl_base_verbose=100 && /usr/lib64/openmpi/bin/mpirun ~/mpitutorial/tutorials/mpi-hello-world/code/mpi_hello_world'
-                        utils_lib.run_cmd(self, cmd, expect_ret=0,expect_kw="provider: efa_0-rdm",msg='Check MPI app run via efa provider')
+                        cmd = 'sudo bash -c "export PATH=$PATH:/usr/lib64/openmpi/bin && cd ~/mpitutorial/tutorials/mpi-hello-world/code/ && make && export OMPI_MCA_mtl_base_verbose=100 && /usr/lib64/openmpi/bin/mpirun --allow-run-as-root ~/mpitutorial/tutorials/mpi-hello-world/code/mpi_hello_world"'
+                        utils_lib.run_cmd(self, cmd, expect_ret=0,expect_kw="rank,processors",msg='Check MPI app run via efa provider')
 
     def test_pktgen_sh(self):
         """
@@ -1837,7 +1839,7 @@ COMMIT
         importance:
             medium
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -2060,7 +2062,7 @@ COMMIT
         importance:
             low
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -2123,7 +2125,7 @@ COMMIT
         importance:
             low
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -2198,7 +2200,7 @@ COMMIT
         importance:
             low
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:

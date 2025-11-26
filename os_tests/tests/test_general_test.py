@@ -150,7 +150,7 @@ class TestGeneralTest(unittest.TestCase):
         importance:
             low
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -425,7 +425,7 @@ int main(int argc, char *argv[])
         importance:
             medium
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -532,9 +532,7 @@ int main(int argc, char *argv[])
             out = utils_lib.run_cmd(self, cmd, msg='try to check subscription identity')
             cmd = "sudo subscription-manager list --installed"
             out = utils_lib.run_cmd(self, cmd, msg='try to list currently installed on the system')
-            cmd = "sudo subscription-manager status"
-            out = utils_lib.run_cmd(self, cmd, msg='try to check subscription status')
-            if 'Red Hat Enterprise Linux' in out or 'Simple Content Access' in out:
+            if utils_lib.is_rhsm_registered(self, cancel_case=True):
                 self.log.info("auto subscription registered completed")
                 cmd = "sudo insights-client --register"
                 utils_lib.run_cmd(self, cmd, msg='check if insights-client can register successfully')
@@ -966,7 +964,7 @@ grep -i pci|grep n1' % boot_pci
         importance:
             low
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
            automated
         linked_work_items:
@@ -1130,6 +1128,44 @@ if __name__ == "__main__":
         cmd = 'sudo cat /tmp/grub.cfg'
         utils_lib.run_cmd(self,cmd,msg="check if there is saved_entry",expect_kw="{saved_entry"+"}")
 
+    def test_serial_port_check(self):
+        """
+        case_name:
+            test_serial_port_check
+        component:
+            kernel
+        bug_id:
+            jira_RHEL-69911
+        maintainer:
+            xiliang@redhat.com
+        description:
+            Check the serial port specified in /proc/cmdline are working.
+        key_steps: |
+            1. check "/proc/cmdline" and pick up the ttySn setting, if no ttySn setting, skip the case
+            2. check ttyS mapping during boot by "sudo dmesg|grep -i ttyS"
+            3. if the vm has get_console_log(), call it to get the console log.
+            4. If the return string over 200 characters, the test PASS.
+            5. If it is too short less than 200, we set the test fail.
+        """
+        cmd = "cat /proc/cmdline"
+        cmdline = utils_lib.run_cmd(self, cmd, expect_ret=0)
+        match = re.search(r'console=(ttyS[0-9]+)', cmdline)
+        if not match:
+            self.skipTest("No ttySn setting found in /proc/cmdline")
+        
+        ttyS = match.group(1)
+        cmd = "sudo dmesg|grep -i %s" % ttyS
+        utils_lib.run_cmd(self, cmd, expect_ret=0, msg="check %s mapping" % ttyS)
+
+        if not (self.vm and hasattr(self.vm, 'get_console_log')):
+            self.skipTest("VM does not support get_console_log")
+
+        console_log = self.vm.get_console_log()
+        if len(console_log) > 200:
+            self.log.info("Console log is long enough (%d characters)." % len(console_log))
+        else:
+            self.fail("Console log is too short (%d characters)." % len(console_log))
+
     def test_z_nitro_enclaves(self):
         '''
         case_name:
@@ -1265,7 +1301,7 @@ if __name__ == "__main__":
         importance:
             medium
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -1369,7 +1405,7 @@ if __name__ == "__main__":
         importance:
             medium
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -1426,7 +1462,7 @@ if __name__ == "__main__":
         importance:
             medium
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:
@@ -1482,7 +1518,7 @@ if __name__ == "__main__":
         importance:
             medium
         subsystem_team:
-            rhel-sst-virtualization-cloud
+            rhel-virt-cloud
         automation_drop_down:
             automated
         linked_work_items:

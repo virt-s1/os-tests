@@ -74,3 +74,14 @@ $ os-tests --user ec2-user --keyfile /home/xxx.pem --platform_profile /home/aws.
 ```bash
 $ os-tests --user ec2-user --keyfile /home/xxx.pem --platform_profile /home/aws.yaml -p test_network_device_hotplug  --case_setup 'sudo nmcli general logging level TRACE domains ALL' --case_post "journalctl -u NetworkManager"
 ```
+
+## Generate Polarion log file by passing "--tc"
+
+This allows user to generate additional Polarion specific log file sum_polarion.xml, which could be uploaded to Polarion as a test run. 
+Note: The tc file is located in the os_tests/data/polarion_tc.json  
+The command uploading sum_polarion.xml to Polarion: "curl -k -u <polarion_user>:<polarion_password> -X POST -F file=@/<path to sum_polarion.xml>/sum_polarion.xml https://polarion.engineering.redhat.com/polarion/import/xunit"
+
+#### Example-1: run the case and generate additional Polarion log file
+```bash
+$ os-tests --user ec2-user --keyfile /home/xxx.pem --platform_profile /home/aws.yaml -p ltp --tc /home/os-tests/os_tests/data/polarion_tc.json
+```

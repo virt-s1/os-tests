@@ -25,6 +25,7 @@ There is a known pynacl issue while installing paramiko on RHEL-8.6. Please inst
 ```bash
 # git clone https://github.com/virt-s1/os-tests.git
 # cd os-tests
+# python -m venv venv && source venv/bin/activate
 # pip3 install --upgrade setuptools
 # pip3 install build installer
 # python -m build
@@ -98,11 +99,11 @@ os_tests
 os-tests will try to install required pkgs from default repo during run, but it would be better to have them if no repo is provided.
 List RHEL only because CentOS Stream and Fedora usually have public repo available.
 
-**RHEL-9/10**: make automake autoconf sysstat gcc unzip wget quota bzip2 iperf3 pciutils fio psmisc expect perf nvme-cli pciutils fio libaio-devel blktrace fio nvme-cli git tar nfs-utils libvirt qemu-kvm python3 dracut-fips kernel-debug python3-pip hostname podman xdp-tools openssl-devel glibc-all-langpacks strace sos acpid mokutil kernel-modules-extra iproute-tc wireshark-cli tcpdump nmap-ncat net-tools tpm2-abrmd tpm2-tools socat
+**RHEL-9/10**: make automake autoconf sysstat gcc unzip wget quota bzip2 iperf3 pciutils fio psmisc expect perf libaio-devel blktrace nvme-cli git tar nfs-utils libvirt qemu-kvm python3 dracut-fips kernel-debug python3-pip hostname podman xdp-tools openssl-devel glibc-all-langpacks strace sos acpid mokutil kernel-modules-extra iproute-tc wireshark-cli tcpdump nmap-ncat net-tools tpm2-abrmd tpm2-tools clevis socat acpica-tools
 
-**RHEL-8**: make automake autoconf sysstat gcc unzip wget quota bzip2 iperf3 pciutils fio psmisc expect perf nvme-cli pciutils fio php-cli php-xml php-json libaio-devel blktrace fio nvme-cli git tar nfs-utils libvirt qemu-kvm kernel-debug python3 dracut-fips podman xdp-tools openssl-devel strace sos acpid mokutil kernel-modules-extra iproute-tc wireshark-cli tcpdump nmap-ncat net-tools
+**RHEL-8**: make automake autoconf sysstat gcc unzip wget quota bzip2 iperf3 fio psmisc expect perf nvme-cli pciutils php-cli php-xml php-json libaio-devel blktrace git tar nfs-utils libvirt qemu-kvm kernel-debug python3 dracut-fips podman xdp-tools openssl-devel strace sos acpid mokutil kernel-modules-extra iproute-tc wireshark-cli tcpdump nmap-ncat net-tools acpica-tools
 
-**RHEL-7**: install automake autoconf sysstat gcc unzip wget quota bzip2 iperf3 pciutils fio psmisc expect ntpdate perf nvme-cli pciutils fio git tar nfs-utils libvirt qemu-kvm kernel-debug python3 dracut-fips podman strace sos
+**RHEL-7**: install automake autoconf sysstat gcc unzip wget quota bzip2 iperf3 pciutils fio psmisc expect ntpdate perf nvme-cli git tar nfs-utils libvirt qemu-kvm kernel-debug python3 dracut-fips podman strace sos
 
 ### The log file
 
