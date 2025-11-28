@@ -220,7 +220,7 @@ class TestRHELCert(unittest.TestCase):
                     self.vm.disk_attach(data_disk_name, 4)
         if self.id().endswith(('test_rhcert_ethernet')):
             if os.getenv('INFRA_PROVIDER') == 'azure':
-                # Extend /tmp for 90% of free space to avoid out of memory during test
+                # Extend /tmp for 90% of free space to avoid out of space during test
                 VG_NAME = "rootvg"                         
                 LV_PATH = "/dev/mapper/rootvg-tmplv"       
                 PERCENT = 0.9               
