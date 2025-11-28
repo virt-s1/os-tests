@@ -218,6 +218,28 @@ class TestRHELCert(unittest.TestCase):
                     time_filename = datetime.now().strftime("%Y%m%d_%H%M%S")
                     data_disk_name ='date_disk_{}_{}'.format(self.vm.vm_name,time_filename)
                     self.vm.disk_attach(data_disk_name, 4)
+        if self.id().endswith(('test_rhcert_ethernet')):
+            if os.getenv('INFRA_PROVIDER') == 'azure':
+                # Extend /tmp for 90% of free space to avoid out of memory during test
+                VG_NAME = "rootvg"                         
+                LV_PATH = "/dev/mapper/rootvg-tmplv"       
+                PERCENT = 0.9               
+
+                # Get free space from VG in GB
+                cmd="sudo vgs --noheadings -o vg_free --units g --nosuffix rootvg"
+                vgs_output = utils_lib.run_cmd(self, cmd)
+                match = re.findall(r"[\d.]+", vgs_output)
+                if not match:
+                    self.log.info("Could not get free VG space.")
+                else:
+                    free_space= float(match[0])
+                    extend_size = round(free_space * PERCENT, 2)
+                    cmd="sudo lvextend -L +{}G {}".format(extend_size, LV_PATH)
+                    
+                    utils_lib.run_cmd(self,cmd)
+                    utils_lib.run_cmd(self,"sudo xfs_growfs /tmp")
+                    df_output_after=utils_lib.run_cmd(self,"sudo df -T /tmp")
+                    self.log.info(df_output_after)
  
     def test_rhcert_non_interactive(self):
         """
