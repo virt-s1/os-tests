@@ -9,6 +9,8 @@ except ImportError:
     HAS_GEMINI = False
 
 log = logging.getLogger(__name__)
+# Ensure INFO messages from this logger are always processed
+log.setLevel(logging.INFO)
 
 from os_tests.libs.utils_lib import get_cfg
 
@@ -17,13 +19,25 @@ def analyze_failure(failure_content, api_key=None, model_name=None, http_proxy=N
         params = get_cfg()
         model_name = params.get('gemini_model_name', 'gemini-2.5-flash')
     if "AssertionError" not in failure_content:
-        return "No AssertionError found in failure logs, skip analysis."
+        return {
+            "category": "N/A",
+            "confidence": "N/A",
+            "analysis": "No AssertionError found in failure logs, skip analysis."
+        }
 
     if not HAS_GEMINI:
-        return "Google Gemini SDK not installed. Please install 'google-generativeai' (pip install google-generativeai)."
+        return {
+            "category": "N/A",
+            "confidence": "N/A",
+            "analysis": "Google Gemini SDK not installed. Please install 'google-generativeai' (pip install google-generativeai)."
+        }
 
     if not api_key:
-        return "Gemini API key not provided."
+        return {
+            "category": "N/A",
+            "confidence": "N/A",
+            "analysis": "Gemini API key not provided."
+        }
 
     # Store original environment variables
     original_http_proxy = os.environ.get('http_proxy')
@@ -74,13 +88,55 @@ Error Log:
 {assertion_content}
 
 Please analyze the failure in the context of the steps and expected result. Explain what the AssertionError means and suggest possible root causes and solutions.
+Finally, categorize the issue as one of the following: 'Environment Issue', 'Test Code Issue', or 'Product Issue'. Also, indicate your confidence level (0-100%) in this assessment.
+Format your answer as:
+Category: [Category]
+Confidence: [Confidence%]
+Analysis: [Your detailed analysis]
 """
 
         response = model.generate_content(prompt)
-        return response.text
+        analysis_text = response.text
+
+        category = "Unknown"
+        confidence = 0
+        analysis = analysis_text
+
+        category_match = re.search(r"Category: (.*)", analysis_text)
+        if category_match:
+            category = category_match.group(1).strip()
+
+        confidence_match = re.search(r"Confidence: (\d+)%", analysis_text)
+        if confidence_match:
+            confidence = int(confidence_match.group(1))
+
+        # Try to find a specific "Analysis:" section
+        analysis_match = re.search(r"Analysis:\s*\n(.*)", analysis_text, re.DOTALL)
+        if analysis_match:
+            analysis = analysis_match.group(1).strip()
+        else:
+            # Fallback to previous logic if no "Analysis:" header
+            analysis_parts = re.split(r"Category:.*|Confidence:.*", analysis_text, flags=re.DOTALL)
+            if len(analysis_parts) > 2:
+                analysis = analysis_parts[2].strip()
+            elif len(analysis_parts) > 0:
+                analysis = analysis_parts[-1].strip()
+            # If still empty, ensure it's not just whitespace from before
+            if not analysis:
+                analysis = '' # Explicitly empty if nothing found by fallback
+
+        return {
+            "category": category,
+            "confidence": confidence,
+            "analysis": analysis
+        }
     except Exception as e:
         log.error(f"Error analyzing with Gemini: {e}")
-        return f"Error analyzing with Gemini: {e}"
+        return {
+            "category": "N/A",
+            "confidence": "N/A",
+            "analysis": f"Error analyzing with Gemini: {e}"
+        }
     finally:
         # Restore original environment variables
         if original_http_proxy is None:
