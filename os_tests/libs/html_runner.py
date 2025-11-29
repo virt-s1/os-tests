@@ -32,6 +32,8 @@ class ResultSummary:
         self.run_title = None
         self.run_date = time.asctime()
         self.comment = ''
+        self.gemini_category = 'N/A'
+        self.gemini_confidence = 'N/A'
 
     def compute_totals(self):
         self.total = self.case_pass + self.case_error + self.case_fail + self.case_skip
@@ -167,6 +169,10 @@ class HTMLTestRunner(object):
             all_case_name = [ ts.id() for ts in test ]
             result.planned = len(all_case_name)
             for ts in test:
+                # Reset Gemini analysis fields for each new test case
+                test_result_summary.gemini_category = 'N/A'
+                test_result_summary.gemini_confidence = 'N/A'
+
                 logdir = ts.params['results_dir']
                 test_result_summary.comment = ts.params.get('comment')
                 if not os.path.exists(logdir):
@@ -234,9 +240,31 @@ class HTMLTestRunner(object):
                                     api_key = ts_finished.params.get('gemini_api_key')
                                     http_proxy = ts_finished.params.get('gemini_http_proxy')
                                     https_proxy = ts_finished.params.get('gemini_https_proxy')
-                                    gemini_analysis = gemini_lib.analyze_failure(src_content, api_key, http_proxy=http_proxy, https_proxy=https_proxy)
-                                    ts.log.info("Gemini Analysis:\n{}".format(gemini_analysis))
-                                    case_reason = "{} \nGemini Analysis: {}".format(case_reason, gemini_analysis)
+                                    gemini_analysis_result = gemini_lib.analyze_failure(src_content, api_key, http_proxy=http_proxy, https_proxy=https_proxy)
+
+                                    gemini_output_lines = ["Gemini Analysis:"]
+                                    if isinstance(gemini_analysis_result, dict):
+                                        category = gemini_analysis_result.get('category', 'Unknown')
+                                        confidence = gemini_analysis_result.get('confidence', 0)
+                                        analysis_text = gemini_analysis_result.get('analysis', '(No detailed analysis provided by Gemini)').strip()
+                                        if not analysis_text:
+                                            analysis_text = '(No detailed analysis provided by Gemini)'
+
+                                        gemini_output_lines.append(f"Categorization: This issue is assessed as a '{category}' (Confidence: {confidence}%)")
+                                        gemini_output_lines.append(f"Detailed Analysis: {analysis_text}")
+
+                                        case_reason = f"{case_reason} \nCategorization: This issue is assessed as a '{category}' (Confidence: {confidence}%) \nDetailed Analysis: {analysis_text}"
+
+                                        test_result_summary.gemini_category = category
+                                        test_result_summary.gemini_confidence = confidence
+                                    else:
+                                        # Fallback if Gemini analysis returns a string (e.g., error message)
+                                        gemini_output_lines.append(str(gemini_analysis_result))
+                                        case_reason = f"{case_reason} \nGemini Analysis: {gemini_analysis_result}"
+                                        test_result_summary.gemini_category = "Error/Skipped"
+                                        test_result_summary.gemini_confidence = 0 # or some error indicator
+
+                                    ts.log.info("\n".join(gemini_output_lines))
                                 break
                     if not case_status:
                         test_result_summary.case_pass += 1
@@ -244,7 +272,7 @@ class HTMLTestRunner(object):
                             fh.write('{} - PASS'.format(ts.id()))
                         case_status = 'PASS'
                         case_reason = ''
-                test_result_summary.table_rows.append([id, ts.id(), case_status, case_reason, ts.duration, debug_log, test_class_name])
+                test_result_summary.table_rows.append([id, ts.id(), case_status, case_reason, ts.duration, debug_log, test_class_name, test_result_summary.gemini_category, test_result_summary.gemini_confidence])
                 with open(sum_txt, 'a+') as fh:
                     fh.write('case: {} - {}\n'.format(ts.id(),case_status))
                     if case_reason:
