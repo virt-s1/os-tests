@@ -2,11 +2,7 @@ import logging
 import os
 import re
 
-try:
-    import google.generativeai as genai
-    HAS_GEMINI = True
-except ImportError:
-    HAS_GEMINI = False
+import google.generativeai as genai
 
 log = logging.getLogger(__name__)
 # Ensure INFO messages from this logger are always processed
@@ -23,13 +19,6 @@ def analyze_failure(failure_content, api_key=None, model_name=None, http_proxy=N
             "category": "N/A",
             "confidence": "N/A",
             "analysis": "No AssertionError found in failure logs, skip analysis."
-        }
-
-    if not HAS_GEMINI:
-        return {
-            "category": "N/A",
-            "confidence": "N/A",
-            "analysis": "Google Gemini SDK not installed. Please install 'google-generativeai' (pip install google-generativeai)."
         }
 
     if not api_key:
