@@ -31,8 +31,7 @@ setuptools.setup(
         'markupsafe<=1.1.1',
         'packaging<=21.3',
         'psutil',
-        'parameterized',
-        'google-generativeai'
+        'parameterized'
     ],
     license="GPLv3+",
     classifiers=[
