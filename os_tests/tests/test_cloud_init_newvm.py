@@ -7,6 +7,11 @@ from os_tests.libs import utils_lib
 from os_tests.libs import version_util
 from os_tests.libs.resources import UnSupportedAction
 from parameterized import parameterized
+from os_tests.libs.resources_azure import AzurePublicIP
+from os_tests.libs.resources_azure import AzureNIC
+from os_tests.libs.resources_azure import AzureNicIpConfig
+from os_tests.libs.resources_azure import AzureImage
+from os_tests.libs.resources_azure import AzureNSG
 
 #this class is the collection of cases that require new vm
 class TestCloudInitNewVM(unittest.TestCase):
@@ -899,6 +904,121 @@ EOF
         self._check_cloudinit_done()
         self.log.info("Reboot successfully after upgrade OS for rhel " + self.base_version)
 
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['azure'], 'skip as it is the specific case for azure')
+    def test_cloudinit_provision_vm_with_ipv6(self):        
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-176198 - CLOUDINIT-TC: [Azure]Provision VM with IPv6 address
+        key_steps: | 
+            1. Create a VM with NIC in IPv6 subnet
+            2. Check if can provision and connect to the VM successfully
+            3. Restart the VM. Check if this NIC is up and can get ip address
+        """ 
+        # 1. Create a VM with NIC in IPv6 subnet
+        if self.vm.exists():
+            self.vm.delete()
+        # Save original VM name to restore later (in tearDown)
+        self._original_vm_name = self.vm.vm_name
+        self.vm.vm_name += "ipv6"        
+        publicip_name = self.vm.vm_name + "publicip"
+        publicip = AzurePublicIP(self.params,
+                                name=publicip_name)
+        if not publicip.exists():
+            if not publicip.create():
+                self.fail("Failed to create public IP: {}".format(publicip_name))
+        # Verify public IP exists
+        if not publicip.exists():
+            self.fail("Public IP does not exist after creation: {}".format(publicip_name))
+        
+        # Create NSG with SSH rule
+        nsg_name = self.vm.vm_name + "nsg"
+        nsg = AzureNSG(self.params, name=nsg_name)
+        if not nsg.exists():
+            if not nsg.create():
+                self.fail("Failed to create NSG: {}".format(nsg_name))
+            # Wait a moment for NSG to be fully provisioned
+            time.sleep(2)
+        # Verify NSG exists
+        if not nsg.exists():
+            self.fail("NSG does not exist after creation: {}".format(nsg_name))
+        # Add SSH rule to NSG
+        if not nsg.add_ssh_rule():
+            self.fail("Failed to add SSH rule to NSG: {}".format(nsg_name))
+        
+        self.vm.nics = "{}nic".format(self.vm.vm_name)
+        nic = AzureNIC(self.params,
+                        name=self.vm.nics,
+                        subnet=self.vm.subnet,
+                        vnet=self.vm.vnet_name,
+                        publicip=publicip_name,
+                        nsg=nsg_name)
+        if not nic.exists():
+            if not nic.create():
+                self.fail("Failed to create NIC: {}".format(self.vm.nics))
+        # Verify NIC exists
+        if not nic.exists():
+            self.fail("NIC does not exist after creation: {}".format(self.vm.nics))
+        
+        ipv6_config = AzureNicIpConfig(self.params,
+                                       name=self.vm.nics+"ipv6",
+                                       nic_name=self.vm.nics,
+                                       ip_version="IPv6")
+        if not ipv6_config.exists():
+            if not ipv6_config.create():
+                self.fail("Failed to create IPv6 config for NIC: {}".format(self.vm.nics))
+        # Verify IPv6 config exists
+        if not ipv6_config.exists():
+            self.fail("IPv6 config does not exist after creation for NIC: {}".format(self.vm.nics))
+
+        if not self.vm.create():
+            self.fail("Failed to create VM: {}".format(self.vm.vm_name))
+        utils_lib.init_connection(self, timeout=60)
+        utils_lib.run_cmd(self, "sudo su -")
+        # 2. Verify can get IPv6 IP
+        # Get IPv6 IP from Azure properties (second IP should be IPv6)
+        self.vm.show()
+        azure_ip = self.vm.properties.get("privateIps")
+        if azure_ip:
+            azure_ip = azure_ip.split(',')[1] if ',' in azure_ip else azure_ip
+        # Get IPv6 IP from VM
+        cmd = "ip addr|grep global|grep -Po 'inet6 \\K.*(?=/)'"
+        vm_ip = utils_lib.run_cmd(self, cmd).strip()
+        if azure_ip:
+            self.assertEqual(
+                vm_ip, azure_ip,
+                "The private IPv6 address is wrong.\n"
+                "Expect: {}\nReal: {}".format(azure_ip, vm_ip))
+        # Test ping6 connectivity
+        # cmd = "ping6 ace:cab:deca::fe -c 1"
+        # utils_lib.run_cmd(self,
+        #                   cmd,
+        #                   expect_ret=0,
+        #                   msg='Cannot ping6 though vnet')
+        # 3. Restart VM
+        self._reboot_inside_vm(sleeptime=10)
+        # Verify IPv6 IP after restart
+        vm_ip_list = utils_lib.run_cmd(self,
+                                      "ip addr|grep global|grep -Po 'inet6 \\K.*(?=/)'").strip()
+        if azure_ip:
+            self.assertEqual(
+                vm_ip_list, azure_ip,
+                "The private IPv6 address is wrong after restart.\n"
+                "Expect: {}\nReal: {}".format(azure_ip, vm_ip_list))
+        # Test ping6 connectivity after restart
+        # cmd = "ping6 ace:cab:deca::fe -c 1"
+        # utils_lib.run_cmd(self,
+        #                   cmd,
+        #                   expect_ret=0,
+        #                   msg='Cannot ping6 though vnet after restart')
+
     def tearDown(self):
         utils_lib.finish_case(self)
         casegroup = ('test_cloudinit_auto_install_package_with_subscription_manager')
@@ -908,6 +1028,11 @@ EOF
         if not self.params.get('no_cleanup') and self.vm.exists():
             self.vm.static_ip = None
             self.vm.delete(wait=True)
+        # Restore VM name if it was modified (e.g., by test_cloudinit_provision_vm_with_ipv6)
+        if hasattr(self, '_original_vm_name'):
+            self.vm.vm_name = self._original_vm_name
+            self.vm.nics = None  # Clear nics to avoid reusing deleted NIC
+            delattr(self, '_original_vm_name')
 
 if __name__ == '__main__':
     unittest.main()
