@@ -2,15 +2,27 @@ import logging
 import os
 import re
 
-import google.generativeai as genai
-
 log = logging.getLogger(__name__)
-# Ensure INFO messages from this logger are always processed
 log.setLevel(logging.INFO)
+
+genai = None
+_GEMINI_AVAILABLE = False
+try:
+    import google.generativeai as genai
+    _GEMINI_AVAILABLE = True
+except ImportError:
+    log.error("google-generativeai is not installed. Gemini analysis will be skipped.")
 
 from os_tests.libs.utils_lib import get_cfg
 
 def analyze_failure(failure_content, api_key=None, model_name=None, http_proxy=None, https_proxy=None):
+    if not _GEMINI_AVAILABLE:
+        return {
+            "category": "N/A",
+            "confidence": "N/A",
+            "analysis": "google-generativeai dependency is not met for this platform."
+        }
+
     if model_name is None:
         params = get_cfg()
         model_name = params.get('gemini_model_name', 'gemini-2.5-flash')
