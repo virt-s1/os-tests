@@ -2379,3 +2379,20 @@ def restart_ssh_connection(test_instance, rmt_node=None, vm=None):
         if SSH.is_active():
             SSH.close()
         SSH.create_connection()
+
+def export_environment_variable(test_instance, environment_vars=None):
+    """
+    exports the environment variable in current ssh session, so future command executions can use the env vars
+
+    :param test_instance:
+    :param environment_vars: dict
+    :return:
+    """
+    if environment_vars is None or test_instance is None:
+        return
+
+    cmd = 'export '
+    for name,value in environment_vars.items():
+        cmd += name + '=' + value + ' '
+
+    run_cmd(test_instance, cmd)
