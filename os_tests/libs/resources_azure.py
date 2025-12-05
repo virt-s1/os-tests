@@ -59,6 +59,7 @@ class AzureAccount(object):
 class AzureVM(VMResource):
     def __init__(self, params, **kwargs):
         super(AzureVM, self).__init__(params)
+        self.rhel_ver = params.get('VM').get('rhel_ver')
         vm_name_prefix = params.get('VM').get("vm_name_prefix")
         self.vm_size = kwargs.get("size") if "size" in kwargs else params.get('VM').get("vm_size")
         self.vm_name = vm_name_prefix + re.sub("[_-]", "", self.vm_size.lower())

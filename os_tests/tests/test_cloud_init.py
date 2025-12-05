@@ -3484,6 +3484,60 @@ ssh_authorized_keys:
         else:
             self.skipflag = True
             self.skipTest("Skip test_cloudinit_clean_configs because it does not support "+package_ver)
+
+    def _check_in_link(self, device, links):
+        """Helper method to check if a device is in the disk links"""
+        self.assertIn(device, links,
+                      "No {} link in disk links".format(device))
+        self.log.info("{} is in disk links. Pass.".format(device))
+
+    def _verify_storage_rule(self):
+        """Verify storage rule: check /dev/disk/cloud/ has correct links"""
+        links = utils_lib.run_cmd(self, "ls -l /dev/disk/cloud")
+        devices_list = re.findall(r"\w+",
+                                  utils_lib.run_cmd(self, "cd /dev;ls sd*"))
+        for device in devices_list:
+            self._check_in_link(device, links)
+        # There should be azure_root and azure_resource links
+        self._check_in_link('azure_root', links)
+        self._check_in_link('azure_resource', links)
+        # Verify the azure_root and azure_resource link to the correct disks
+        root_disk_output = utils_lib.run_cmd(self, "df|grep boot").strip()
+        root_disk = root_disk_output[:8] if len(root_disk_output) >= 8 else root_disk_output
+        resource_disk_output = utils_lib.run_cmd(self,
+            "find /dev/sd*|grep -v '{}'".format(root_disk)).strip()
+        resource_disk = resource_disk_output[:8] if len(resource_disk_output) >= 8 else resource_disk_output
+        self.log.info("Root disk: {}".format(root_disk))
+        self.log.info("Resource disk: {}".format(resource_disk))
+        azure_root_path = utils_lib.run_cmd(self, "realpath /dev/disk/cloud/azure_root").strip()
+        azure_resource_path = utils_lib.run_cmd(self, "realpath /dev/disk/cloud/azure_resource").strip()
+        self.assertEqual(azure_root_path, root_disk,
+                         "The azure_root link disk is incorrect. Expected: {}, Got: {}".format(root_disk, azure_root_path))
+        self.assertEqual(azure_resource_path, resource_disk,
+                         "The azure_resource link disk is incorrect. Expected: {}, Got: {}".format(resource_disk, azure_resource_path))
+
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['azure'], 'skip as it is the specific case for azure')
+    def test_cloudinit_verify_storage_rule_gen1(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-188923 - CLOUDINIT-TC: [Azure]Verify storage rule - Gen1
+        key_steps: |
+            1. Use existing Gen1 VM (created in setUp)
+            2. Check /dev/disk/cloud/, there should be azure_root and azure_resource
+               soft links to sda and sdb
+            3. Verify the links point to the correct disks
+        """
+        self.log.info("RHEL-188923 - CLOUDINIT-TC: [Azure]Verify storage rule - Gen1")
+        # Verify storage rule using existing VM (no need to create new VM)
+        self._verify_storage_rule()
     
     def tearDown(self):
         utils_lib.finish_case(self)

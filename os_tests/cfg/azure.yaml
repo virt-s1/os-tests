@@ -14,6 +14,7 @@ Subscription:
     password:
 VM:
     # create vm with name format vm_name_prefix + vm_size
+    rhel_ver: 'x.y'
     vm_name_prefix: os_tests_azure
     vm_size: Standard_DS1_v2
     vm_image: RHEL75.vhd
@@ -21,7 +22,7 @@ VM:
     #vm_password: 111111
     generate_ssh_keys: True
     # pub key used to import to target system
-    #ssh_key_value: /home/xiliang/.ssh/id_rsa.pub
+    ssh_key_value: /home/xiliang/.ssh/id_rsa.pub
     use_unmanaged_disk: True
     custom_data: 
     resource_group: 'xxxxxx'
