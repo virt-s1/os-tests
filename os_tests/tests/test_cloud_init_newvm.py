@@ -23,7 +23,7 @@ class TestCloudInitNewVM(unittest.TestCase):
 
     @property
     def rhel_x_version(self):
-        #not all resources support this parameter now, only openstack and kvm
+        #not all resources support this parameter rhel_ver now, only openstack, kvm and azure
         if self.vm.rhel_ver:
             return int(self.vm.rhel_ver.split('.')[0])
 
@@ -1019,6 +1019,466 @@ EOF
         #                   expect_ret=0,
         #                   msg='Cannot ping6 though vnet after restart')
 
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['azure'], 'skip as it is the specific case for azure')
+    def test_cloudinit_provision_vm_with_multiple_nics_azure(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-176196 - CLOUDINIT-TC: [Azure]Provision VM with multiple NICs
+        key_steps: |
+            1. Create a VM with 2 NICs
+            2. Check if can provision and connect to the VM successfully
+            3. Verify all private IP addresses match Azure properties
+        """
+        # 1. Create a VM with 2 NICs
+        if self.vm.exists():
+            self.vm.delete()
+        # Save original VM name to restore later (in tearDown)
+        self._original_vm_name = self.vm.vm_name
+        self.vm.vm_name += "2nics"
+        
+        # Create public IP
+        publicip_name = self.vm.vm_name + "publicip"
+        publicip = AzurePublicIP(self.params,
+                                name=publicip_name)
+        if not publicip.exists():
+            if not publicip.create():
+                self.fail("Failed to create public IP: {}".format(publicip_name))
+        # Verify public IP exists
+        if not publicip.exists():
+            self.fail("Public IP does not exist after creation: {}".format(publicip_name))
+        
+        # Create NSG with SSH rule
+        nsg_name = self.vm.vm_name + "nsg"
+        nsg = AzureNSG(self.params, name=nsg_name)
+        if not nsg.exists():
+            if not nsg.create():
+                self.fail("Failed to create NSG: {}".format(nsg_name))
+            # Wait a moment for NSG to be fully provisioned
+            time.sleep(2)
+        # Verify NSG exists
+        if not nsg.exists():
+            self.fail("NSG does not exist after creation: {}".format(nsg_name))
+        # Add SSH rule to NSG
+        if not nsg.add_ssh_rule():
+            self.fail("Failed to add SSH rule to NSG: {}".format(nsg_name))
+        
+        # Create 2 NICs
+        nic_name_list = []
+        for n in range(0, 2):
+            nic_name = "{}nic{}".format(self.vm.vm_name, n)
+            # First NIC uses default subnet, second NIC uses subnet + "1"
+            subnet = self.vm.subnet if n == 0 else self.vm.subnet + str(n)
+            # Only first NIC gets the public IP
+            n_publicip = publicip_name if n == 0 else None
+            
+            nic = AzureNIC(self.params,
+                          name=nic_name,
+                          subnet=subnet,
+                          vnet=self.vm.vnet_name,
+                          publicip=n_publicip,
+                          nsg=nsg_name)
+            if not nic.exists():
+                if not nic.create():
+                    self.fail("Failed to create NIC: {}".format(nic_name))
+            # Verify NIC exists
+            if not nic.exists():
+                self.fail("NIC does not exist after creation: {}".format(nic_name))
+            nic_name_list.append(nic_name)
+        
+        # Set VM to use both NICs (space-separated)
+        self.vm.nics = ' '.join(nic_name_list)
+        
+        if not self.vm.create():
+            self.fail("Failed to create VM: {}".format(self.vm.vm_name))
+        
+        time.sleep(30)  # Give some time for cloud-init/SSH to be ready
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        utils_lib.run_cmd(self, "sudo su -")
+        
+        # 2. Verify all private IP addresses match Azure properties
+        self.vm.show()
+        azure_ip_list = self.vm.properties.get("privateIps")
+        if azure_ip_list:
+            # Split and sort Azure IPs
+            azure_ips = sorted([ip.strip() for ip in azure_ip_list.split(',')])
+        else:
+            azure_ips = []
+        
+        # Get IPs from VM (excluding loopback)
+        cmd = "ip addr|grep -Po 'inet \\K.*(?=/)'|grep -v '127.0.0.1'"
+        vm_ip_output = utils_lib.run_cmd(self, cmd).strip()
+        if vm_ip_output:
+            vm_ips = sorted([ip.strip() for ip in vm_ip_output.split('\n') if ip.strip()])
+        else:
+            vm_ips = []
+        
+        self.assertEqual(
+            vm_ips, azure_ips,
+            "The private IP addresses are wrong.\n"
+            "Expect: {}\nReal: {}".format(azure_ips, vm_ips))
+
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['azure'], 'skip as it is the specific case for azure')
+    def test_cloudinit_provision_vm_with_sriov_nic(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-171394 - CLOUDINIT-TC: [Azure]Provision VM with SR-IOV NIC
+        key_steps: |
+            1. Create a VM with 1 SR-IOV NIC
+            2. Check if can provision and connect to the VM successfully
+            3. Verify private IP address matches Azure properties
+        """
+        # 1. Create a VM with SR-IOV NIC
+        if self.vm.exists():
+            self.vm.delete()
+        # Save original VM name to restore later (in tearDown)
+        self._original_vm_name = self.vm.vm_name
+        self.vm.vm_name += "sriov"
+        
+        # Create public IP
+        publicip_name = self.vm.vm_name + "publicip"
+        publicip = AzurePublicIP(self.params,
+                                name=publicip_name)
+        if not publicip.exists():
+            if not publicip.create():
+                self.fail("Failed to create public IP: {}".format(publicip_name))
+        # Verify public IP exists
+        if not publicip.exists():
+            self.fail("Public IP does not exist after creation: {}".format(publicip_name))
+        
+        # Create NSG with SSH rule
+        nsg_name = self.vm.vm_name + "nsg"
+        nsg = AzureNSG(self.params, name=nsg_name)
+        if not nsg.exists():
+            if not nsg.create():
+                self.fail("Failed to create NSG: {}".format(nsg_name))
+            # Wait a moment for NSG to be fully provisioned
+            time.sleep(2)
+        # Verify NSG exists
+        if not nsg.exists():
+            self.fail("NSG does not exist after creation: {}".format(nsg_name))
+        # Add SSH rule to NSG
+        if not nsg.add_ssh_rule():
+            self.fail("Failed to add SSH rule to NSG: {}".format(nsg_name))
+        
+        # Create NIC with SR-IOV enabled
+        self.vm.nics = "{}nic".format(self.vm.vm_name)
+        nic = AzureNIC(self.params,
+                      name=self.vm.nics,
+                      subnet=self.vm.subnet,
+                      vnet=self.vm.vnet_name,
+                      publicip=publicip_name,
+                      nsg=nsg_name,
+                      sriov=True)
+        if not nic.exists():
+            if not nic.create():
+                self.fail("Failed to create NIC: {}".format(self.vm.nics))
+        # Verify NIC exists
+        if not nic.exists():
+            self.fail("NIC does not exist after creation: {}".format(self.vm.nics))
+        
+        # Set VM size to Standard_D3_v2 (required for SR-IOV)
+        original_vm_size = self.vm.vm_size
+        self.vm.vm_size = "Standard_D3_v2"
+        
+        if not self.vm.create():
+            self.fail("Failed to create VM: {}".format(self.vm.vm_name))
+        
+        time.sleep(30)  # Give some time for cloud-init/SSH to be ready
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        utils_lib.run_cmd(self, "sudo su -")
+        
+        # 2. Verify private IP address matches Azure properties
+        self.vm.show()
+        azure_ip = self.vm.properties.get("privateIps")
+        if azure_ip:
+            azure_ip = azure_ip.strip()
+        
+        # Get IP from VM (excluding loopback)
+        cmd = "ip addr|grep -Po 'inet \\K.*(?=/)'|grep -v '127.0.0.1'"
+        vm_ip = utils_lib.run_cmd(self, cmd).strip()
+        
+        if azure_ip:
+            self.assertEqual(
+                vm_ip, azure_ip,
+                "The private IP address is wrong.\n"
+                "Expect: {}\nReal: {}".format(azure_ip, vm_ip))
+        
+        # Restore original VM size
+        self.vm.vm_size = original_vm_size
+
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['azure'], 'skip as it is the specific case for azure')
+    def test_cloudinit_provision_gen2_vm(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-176836 - CLOUDINIT-TC: [Azure]Provision UEFI VM (Gen2)
+        key_steps: |
+            1. Create a Gen2 VM image and VM
+            2. Check if can provision and connect to the VM successfully
+            3. Verify hostname, DNS publishing, and resource disk mount
+        """
+        # Skip if RHEL version is less than 7.8 (Gen2 not supported)
+        # Check version from VM params (available before VM creation)
+        if self.vm.rhel_ver:
+            try:
+                rhel_major = int(self.vm.rhel_ver.split('.')[0])
+                rhel_minor = int(self.vm.rhel_ver.split('.')[1]) if '.' in self.vm.rhel_ver else 0
+                rhel_version_float = float("{}.{}".format(rhel_major, rhel_minor))
+                if rhel_version_float < 7.8:
+                    self.skipTest("Skip case because RHEL-{} ondemand image doesn't support gen2".format(self.vm.rhel_ver))
+            except (ValueError, AttributeError):
+                # If version parsing fails, skip the check
+                pass
+        
+        # 1. Create a Gen2 VM
+        if self.vm.exists():
+            self.vm.delete()
+        # Save original VM name and settings to restore later (in tearDown)
+        # Ensure we're starting with the base VM name (remove any previous suffixes)
+        base_vm_name = self.vm.vm_name
+        # Remove common suffixes that might have been added by previous tests
+        for suffix in ['-gen2', 'sriov', '2nics', 'ipv6']:
+            if base_vm_name.endswith(suffix):
+                base_vm_name = base_vm_name[:-len(suffix)]
+                break
+        self._original_vm_name = base_vm_name
+        self._original_vm_size = self.vm.vm_size
+        self._original_use_unmanaged_disk = self.vm.use_unmanaged_disk
+        # Set VM name with -gen2 suffix
+        self.vm.vm_name = base_vm_name + "-gen2"
+        self.vm.vm_size = "Standard_DS2_v2"
+        self.vm.use_unmanaged_disk = False
+        
+        # Create Gen2 image
+        gen2_image = AzureImage(self.params, generation="V2")
+        if not gen2_image.exists():
+            if not gen2_image.create():
+                self.fail("Failed to create Gen2 image: {}".format(gen2_image.name))
+        # Verify image exists
+        if not gen2_image.exists():
+            self.fail("Gen2 image does not exist after creation: {}".format(gen2_image.name))
+        
+        # Set VM to use the Gen2 image (use image name, Azure will resolve it)
+        # Save original image to restore later
+        self._original_vm_image = self.vm.vm_image
+        self.vm.vm_image = gen2_image.name
+        
+        # Create NSG with SSH rule (needed for SSH access)
+        nsg_name = self.vm.vm_name + "nsg"
+        nsg = AzureNSG(self.params, name=nsg_name)
+        if not nsg.exists():
+            if not nsg.create():
+                self.fail("Failed to create NSG: {}".format(nsg_name))
+            # Wait a moment for NSG to be fully provisioned
+            time.sleep(2)
+        # Verify NSG exists
+        if not nsg.exists():
+            self.fail("NSG does not exist after creation: {}".format(nsg_name))
+        # Add SSH rule to NSG
+        if not nsg.add_ssh_rule():
+            self.fail("Failed to add SSH rule to NSG: {}".format(nsg_name))
+        
+        # Set NSG for VM (when creating VM without pre-existing NIC)
+        self.vm.nsg = nsg_name
+        
+        # Set user_data with fqdn to ensure hostname matches VM name (with -gen2 suffix)
+        # Always update user_data to ensure fqdn matches the current VM name
+        from os_tests.libs.utils_lib import get_public_key
+        self.vm.user_data = """#cloud-config
+fqdn: {}
+ssh_authorized_keys:
+  - {}
+""".format(self.vm.vm_name, get_public_key())
+        
+        if not self.vm.create():
+            self.fail("Failed to create VM: {}".format(self.vm.vm_name))
+        
+        time.sleep(30)  # Give some time for cloud-init/SSH to be ready
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        utils_lib.run_cmd(self, "sudo su -")
+        
+        # 2. Verify hostname is correct
+        error_msg = ""
+        try:
+            vm_hostname = utils_lib.run_cmd(self, "hostname").strip()
+            self.assertEqual(
+                vm_hostname, self.vm.vm_name,
+                "Hostname is not the one we set. Expected: {}, Got: {}".format(self.vm.vm_name, vm_hostname))
+        except Exception as e:
+            error_msg += "Verify hostname failed: {}\n".format(str(e))
+        
+        # 3. Verify hostname is published to DNS
+        try:
+            nslookup_output = utils_lib.run_cmd(self, "nslookup {}".format(self.vm.vm_name))
+            self.assertNotIn(
+                "NXDOMAIN", nslookup_output,
+                "Fail to publish hostname to DNS")
+        except Exception as e:
+            error_msg += "Verify publish to DNS failed: {}\n".format(str(e))
+        
+        # 4. Verify resource disk is mounted at /mnt
+        try:
+            mount_output = utils_lib.run_cmd(self, "mount|grep /mnt")
+            self.assertNotEqual(
+                "", mount_output.strip(),
+                "Resource Disk is not mounted after provisioning")
+        except Exception as e:
+            error_msg += "Verify mountpoint failed: {}\n".format(str(e))
+        
+        if error_msg:
+            self.fail(error_msg)
+        
+        # Restore original settings
+        self.vm.vm_size = self._original_vm_size
+        self.vm.use_unmanaged_disk = self._original_use_unmanaged_disk
+        if hasattr(self, '_original_vm_image'):
+            self.vm.vm_image = self._original_vm_image
+
+    def _check_in_link(self, device, links):
+        """Helper method to check if a device is in the disk links"""
+        self.assertIn(device, links,
+                      "No {} link in disk links".format(device))
+        self.log.info("{} is in disk links. Pass.".format(device))
+
+    def _verify_storage_rule(self):
+        """Verify storage rule: check /dev/disk/cloud/ has correct links"""
+        links = utils_lib.run_cmd(self, "ls -l /dev/disk/cloud")
+        devices_list = re.findall(r"\w+",
+                                  utils_lib.run_cmd(self, "cd /dev;ls sd*"))
+        for device in devices_list:
+            self._check_in_link(device, links)
+        # There should be azure_root and azure_resource links
+        self._check_in_link('azure_root', links)
+        self._check_in_link('azure_resource', links)
+        # Verify the azure_root and azure_resource link to the correct disks
+        root_disk_output = utils_lib.run_cmd(self, "df|grep boot").strip()
+        root_disk = root_disk_output[:8] if len(root_disk_output) >= 8 else root_disk_output
+        resource_disk_output = utils_lib.run_cmd(self,
+            "find /dev/sd*|grep -v '{}'".format(root_disk)).strip()
+        resource_disk = resource_disk_output[:8] if len(resource_disk_output) >= 8 else resource_disk_output
+        self.log.info("Root disk: {}".format(root_disk))
+        self.log.info("Resource disk: {}".format(resource_disk))
+        azure_root_path = utils_lib.run_cmd(self, "realpath /dev/disk/cloud/azure_root").strip()
+        azure_resource_path = utils_lib.run_cmd(self, "realpath /dev/disk/cloud/azure_resource").strip()
+        self.assertEqual(azure_root_path, root_disk,
+                         "The azure_root link disk is incorrect. Expected: {}, Got: {}".format(root_disk, azure_root_path))
+        self.assertEqual(azure_resource_path, resource_disk,
+                         "The azure_resource link disk is incorrect. Expected: {}, Got: {}".format(resource_disk, azure_resource_path))
+
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['azure'], 'skip as it is the specific case for azure')
+    def test_cloudinit_verify_storage_rule_gen2(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-188924 - CLOUDINIT-TC: [Azure]Verify storage rule - Gen2
+        key_steps: |
+            1. Prepare Gen2 VM
+            2. Check /dev/disk/cloud/, there should be azure_root and azure_resource
+               soft links to sda and sdb
+            3. Verify the links point to the correct disks
+        """
+        # Skip if RHEL version is less than 7.8 (Gen2 not supported)
+        # Check version from VM params (available before VM creation)
+        if self.vm.rhel_ver:
+            try:
+                rhel_major = int(self.vm.rhel_ver.split('.')[0])
+                rhel_minor = int(self.vm.rhel_ver.split('.')[1]) if '.' in self.vm.rhel_ver else 0
+                rhel_version_float = float("{}.{}".format(rhel_major, rhel_minor))
+                if rhel_version_float < 7.8:
+                    self.skipTest("Skip case because RHEL-{} ondemand image doesn't support gen2".format(self.vm.rhel_ver))
+            except (ValueError, AttributeError):
+                # If version parsing fails, skip the check
+                pass
+        
+        # 1. Prepare Gen2 VM (same setup as test_cloudinit_provision_gen2_vm)
+        if self.vm.exists():
+            self.vm.delete()
+        # Save original VM name and settings to restore later (in tearDown)
+        self._original_vm_name = self.vm.vm_name
+        self._original_vm_size = self.vm.vm_size
+        self._original_use_unmanaged_disk = self.vm.use_unmanaged_disk
+        self.vm.vm_name += "-gen2"
+        self.vm.vm_size = "Standard_DS2_v2"
+        self.vm.use_unmanaged_disk = False
+        
+        # Create Gen2 image
+        gen2_image = AzureImage(self.params, generation="V2")
+        if not gen2_image.exists():
+            if not gen2_image.create():
+                self.fail("Failed to create Gen2 image: {}".format(gen2_image.name))
+        # Verify image exists
+        if not gen2_image.exists():
+            self.fail("Gen2 image does not exist after creation: {}".format(gen2_image.name))
+        
+        # Set VM to use the Gen2 image (use image name, Azure will resolve it)
+        # Save original image to restore later
+        self._original_vm_image = self.vm.vm_image
+        self.vm.vm_image = gen2_image.name
+        
+        # Create NSG with SSH rule (needed for SSH access)
+        nsg_name = self.vm.vm_name + "nsg"
+        nsg = AzureNSG(self.params, name=nsg_name)
+        if not nsg.exists():
+            if not nsg.create():
+                self.fail("Failed to create NSG: {}".format(nsg_name))
+            # Wait a moment for NSG to be fully provisioned
+            time.sleep(2)
+        # Verify NSG exists
+        if not nsg.exists():
+            self.fail("NSG does not exist after creation: {}".format(nsg_name))
+        # Add SSH rule to NSG
+        if not nsg.add_ssh_rule():
+            self.fail("Failed to add SSH rule to NSG: {}".format(nsg_name))
+        
+        # Set NSG for VM (when creating VM without pre-existing NIC)
+        self.vm.nsg = nsg_name
+        
+        if not self.vm.create():
+            self.fail("Failed to create VM: {}".format(self.vm.vm_name))
+        
+        time.sleep(30)  # Give some time for cloud-init/SSH to be ready
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        utils_lib.run_cmd(self, "sudo su -")
+        
+        # 2. Verify storage rule
+        self._verify_storage_rule()
+        
+        # Restore original settings
+        self.vm.vm_size = self._original_vm_size
+        self.vm.use_unmanaged_disk = self._original_use_unmanaged_disk
+        if hasattr(self, '_original_vm_image'):
+            self.vm.vm_image = self._original_vm_image
+
     def tearDown(self):
         utils_lib.finish_case(self)
         casegroup = ('test_cloudinit_auto_install_package_with_subscription_manager')
@@ -1028,11 +1488,22 @@ EOF
         if not self.params.get('no_cleanup') and self.vm.exists():
             self.vm.static_ip = None
             self.vm.delete(wait=True)
-        # Restore VM name if it was modified (e.g., by test_cloudinit_provision_vm_with_ipv6)
+        # Restore VM name and settings if they were modified
         if hasattr(self, '_original_vm_name'):
             self.vm.vm_name = self._original_vm_name
             self.vm.nics = None  # Clear nics to avoid reusing deleted NIC
             delattr(self, '_original_vm_name')
+        if hasattr(self, '_original_vm_size'):
+            self.vm.vm_size = self._original_vm_size
+            delattr(self, '_original_vm_size')
+        if hasattr(self, '_original_use_unmanaged_disk'):
+            self.vm.use_unmanaged_disk = self._original_use_unmanaged_disk
+            delattr(self, '_original_use_unmanaged_disk')
+        if hasattr(self, '_original_vm_image'):
+            self.vm.vm_image = self._original_vm_image
+            delattr(self, '_original_vm_image')
+        # Clear user_data to avoid carrying over fqdn from previous test
+        self.vm.user_data = None
 
 if __name__ == '__main__':
     unittest.main()
