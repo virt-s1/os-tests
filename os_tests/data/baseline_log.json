@@ -2135,7 +2135,7 @@
         "addeddate": "20240510"
     },
     "msg_233": {
-        "content": ".*cfg80211: failed to load regulatory.db.*;.*platform regulatory.0: Direct firmware load for regulatory.db failed with error.*",
+        "content": ".*cfg80211: failed to load regulatory.db.*;.*Direct firmware load for regulatory.db failed with error.*",
         "analyze": "expected when wireless-regdb is not installed",
         "branch": "rhel10",
         "status": "active",
