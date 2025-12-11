@@ -370,7 +370,7 @@ def send_ssh_cmd(rmt_node, rmt_user, rmt_password, command, timeout=60, log=None
     ssh.rmt_user = rmt_user
     ssh.rmt_password = rmt_password
     ssh.log = log
-    ssh.rmt_keyfile = kwargs["rmt_keyfile"] if kwargs["rmt_keyfile"] is not None else None
+    ssh.rmt_keyfile = kwargs.get("rmt_keyfile")
     ssh.create_connection()
     status, outputs = ssh.remote_excute(command, timeout)
     log.info('\n command: %s \n status %s \n outputs %s \n' % (command, status, outputs))
