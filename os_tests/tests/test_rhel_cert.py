@@ -338,7 +338,7 @@ class TestRHELCert(unittest.TestCase):
         Not support in xen instance, https://access.redhat.com/solutions/2890881
         """
         cmd = 'sudo bash -c "yes|rhcert-cli plan"'
-        utils_lib.run_cmd(self,cmd, timeout=1800, msg='create test plan')
+        auto_plan = utils_lib.run_cmd(self,cmd, timeout=1800, msg='create test plan')
         utils_lib.run_cmd(self, 'lscpu', expect_ret=0, cancel_not_kw="Xen", msg="Not support in xen instance")
         run_local = True
         run_nfs = True
@@ -350,6 +350,8 @@ class TestRHELCert(unittest.TestCase):
                 run_nfs = False
         if run_local:
             cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device local"'
+            if 'kdump_local' in auto_plan:
+                cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump_local"'
             utils_lib.run_cmd(self,cmd, timeout=3600, msg='run kdump local test')
             if not self.SSH.is_active():
                 utils_lib.init_connection(self, timeout=self.ssh_timeout*2)
@@ -361,8 +363,12 @@ class TestRHELCert(unittest.TestCase):
             if kdump_nfs_server:
                 self.log.info('Found kdump_nfs_server in params:{}'.format(kdump_nfs_server))
                 cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device nfs --server {}"'.format(kdump_nfs_server)
+                if 'kdump_remote' in auto_plan:
+                    cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump_remote --server {}"'.format(kdump_nfs_server)
             else:
                 cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device nfs --server {}"'.format(self.rmt_ipv4)
+                if 'kdump_remote' in auto_plan:
+                    cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump_remote --server {}"'.format(self.rmt_ipv4)
             utils_lib.run_cmd(self,cmd, timeout=3600, msg='run kdump nfs test')
             if not self.SSH.is_active():
                 utils_lib.init_connection(self, timeout=self.ssh_timeout*2)
@@ -409,8 +415,10 @@ class TestRHELCert(unittest.TestCase):
             cmd = 'sudo systemctl restart kdump'
             utils_lib.run_cmd(self, cmd, msg='restart kdump')
         cmd = 'sudo bash -c "yes|rhcert-cli plan"'
-        utils_lib.run_cmd(self,cmd, timeout=1800, msg='create test plan')
+        auto_plan = utils_lib.run_cmd(self,cmd, timeout=1800, msg='create test plan')
         cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device local"'
+        if 'kdump_local' in auto_plan:
+            cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump_local"'
         utils_lib.run_cmd(self,cmd, timeout=3600, msg='run kdump local test')
         if not self.SSH.is_active():
             utils_lib.init_connection(self, timeout=self.ssh_timeout*8)
@@ -418,6 +426,8 @@ class TestRHELCert(unittest.TestCase):
         self._wait_cert_done(prefix='local_irqpoll')
         utils_lib.is_pkg_installed(self,'nfs-utils')
         cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump --device nfs --server {}"'.format(self.rmt_ipv4)
+        if 'kdump_remote' in auto_plan:
+            cmd = 'sudo bash -c "yes|rhcert-cli run --test kdump_remote --server {}"'.format(self.rmt_ipv4)
         utils_lib.run_cmd(self,cmd, timeout=3600, msg='run kdump nfs test')
         if not self.SSH.is_active():
             utils_lib.init_connection(self, timeout=self.ssh_timeout*2)
