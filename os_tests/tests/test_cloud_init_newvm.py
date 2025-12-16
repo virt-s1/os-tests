@@ -771,12 +771,12 @@ ssh_authorized_keys:
 cat << EOF |sudo tee /etc/yum.repos.d/redhat.repo
 [rhel-base-upgrade]
 name=rhel-base-upgrade
-baseurl=http://download.eng.bos.redhat.com/rhel-{0}/rel-eng/RHEL-{0}/latest-RHEL-{1}/compose/{2}/x86_64/os/
+baseurl=http://download.devel.redhat.com/rhel-{0}/rel-eng/RHEL-{0}/latest-RHEL-{1}/compose/{2}/x86_64/os/
 enabled=1
 gpgcheck=0
 [rhel-appstream-upgrade]
 name=rhel-appstream-upgrade
-baseurl=http://download.eng.bos.redhat.com/rhel-{0}/rel-eng/RHEL-{0}/latest-RHEL-{1}/compose/AppStream/x86_64/os/
+baseurl=http://download.devel.redhat.com/rhel-{0}/rel-eng/RHEL-{0}/latest-RHEL-{1}/compose/AppStream/x86_64/os/
 enabled=1
 gpgcheck=0
 EOF
@@ -874,12 +874,12 @@ EOF
 cat << EOF |sudo tee /etc/yum.repos.d/redhat.repo
 [rhel-base-upgrade]
 name=rhel-base-upgrade
-baseurl=http://download.eng.bos.redhat.com/rhel-{0}/{1}/RHEL-{0}/latest-RHEL-{2}/compose/{3}/x86_64/os/
+baseurl=http://download.devel.redhat.com/rhel-{0}/{1}/RHEL-{0}/latest-RHEL-{2}/compose/{3}/x86_64/os/
 enabled=1
 gpgcheck=0
 [rhel-appstream-upgrade]
 name=rhel-appstream-upgrade
-baseurl=http://download.eng.bos.redhat.com/rhel-{0}/{1}/RHEL-{0}/latest-RHEL-{2}/compose/AppStream/x86_64/os/
+baseurl=http://download.devel.redhat.com/rhel-{0}/{1}/RHEL-{0}/latest-RHEL-{2}/compose/AppStream/x86_64/os/
 enabled=1
 gpgcheck=0
 EOF
@@ -1479,6 +1479,515 @@ ssh_authorized_keys:
         if hasattr(self, '_original_vm_image'):
             self.vm.vm_image = self._original_vm_image
 
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['azure'], 'skip as it is the specific case for azure')
+    def test_cloudinit_save_and_handle_customdata_script_azure(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL7-103837 - CLOUDINIT-TC: Save and handle customdata(script)
+        key_steps: |
+            1. Create VM with custom data (script)
+            2. Get CustomData from ovf-env.xml, decode it and compare with user-data.txt
+            3. Check if custom data script is executed
+        """
+        self.log.info("RHEL7-103837 - CLOUDINIT-TC: Save and handle customdata(script)")
+        
+        # Prepare custom script
+        script = """#!/bin/bash
+echo 'teststring' >> /var/log/test.log
+"""
+        customdata_file = "/tmp/customdata.sh"
+        with open(customdata_file, 'w') as f:
+            f.write(script)
+        
+        # 1. Create VM with custom data
+        if self.vm.exists():
+            self.vm.delete()
+        
+        # Set custom_data and create VM with the pre-existing NIC
+        self.vm.custom_data = customdata_file
+        if not self.vm.create():
+            self.fail("Failed to create VM: {}".format(self.vm.vm_name))
+        
+        time.sleep(30)  # Give some time for cloud-init/SSH to be ready
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        
+        # 2. Compare custom data
+        # Get CustomData from ovf-env.xml and decode it
+        custom_data_from_ovf = utils_lib.run_cmd(
+            self,
+            "sudo grep -o -P '(?<=CustomData>).*(?=<.*CustomData>)' /var/lib/waagent/ovf-env.xml | base64 -d"
+        ).strip()
+        
+        # Get user-data.txt content
+        user_data_content = utils_lib.run_cmd(
+            self,
+            "sudo cat /var/lib/cloud/instance/user-data.txt"
+        ).strip()
+        
+        self.assertEqual(
+            custom_data_from_ovf,
+            user_data_content,
+            "Custom data in ovf-env.xml is not equal to user-data.txt"
+        )
+        
+        # 3. Check if custom data script is executed
+        # Wait for the script to execute (retry up to 10 times, 10 seconds each)
+        script_executed = False
+        for retry in range(1, 11):
+            # Check if file exists using ls command (non-fatal)
+            result = utils_lib.run_cmd(
+                self,
+                "ls /var/log/test.log 2>/dev/null && echo 'exists' || echo 'not_exists'",
+                msg="Checking if /var/log/test.log exists (attempt {}/10)".format(retry)
+            )
+            if 'exists' in result:
+                script_executed = True
+                break
+            self.log.info("/var/log/test.log doesn't exist. Wait for 10s and retry...({}/10)".format(retry))
+            time.sleep(10)
+        
+        if not script_executed:
+            self.fail("The custom data script was not executed - /var/log/test.log does not exist after 100 seconds")
+        
+        # Verify the content of test.log
+        test_log_content = utils_lib.run_cmd(
+            self,
+            "cat /var/log/test.log"
+        ).strip()
+        
+        self.assertEqual(
+            "teststring",
+            test_log_content,
+            "The custom data script is not executed correctly. Expected 'teststring', got: {}".format(test_log_content)
+        )
+
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['azure'], 'skip as it is the specific case for azure')
+    def test_cloudinit_save_and_handle_customdata_cloudinit_config(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL7-103838 - CLOUDINIT-TC: Save and handle customdata(cloud-init configuration)
+        key_steps: |
+            1. Create VM with custom data (cloud-config)
+            2. Get CustomData from ovf-env.xml, decode it and compare with user-data.txt
+            3. Check if the new cloud-init configuration is handled correctly
+        """
+        self.log.info("RHEL7-103838 - CLOUDINIT-TC: Save and handle customdata(cloud-init configuration)")
+        
+        # Prepare custom data (cloud-config)
+        customdata_content = """#cloud-config
+cloud_config_modules:
+ - mounts
+ - locale
+ - set-passwords
+ - yum-add-repo
+ - disable-ec2-metadata
+ - runcmd
+"""
+        customdata_file = "/tmp/customdata.conf"
+        with open(customdata_file, 'w') as f:
+            f.write(customdata_content)
+        
+        # 1. Create VM with custom data
+        if self.vm.exists():
+            self.vm.delete()
+        self.vm.custom_data = customdata_file
+        if not self.vm.create():
+            self.fail("Failed to create VM: {}".format(self.vm.vm_name))
+        
+        time.sleep(30)  # Give some time for cloud-init/SSH to be ready
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        
+        # 2. Compare custom data
+        # Get CustomData from ovf-env.xml and decode it
+        custom_data_from_ovf = utils_lib.run_cmd(
+            self,
+            "sudo grep -o -P '(?<=CustomData>).*(?=<.*CustomData>)' /var/lib/waagent/ovf-env.xml | base64 -d"
+        ).strip()
+        
+        # Get user-data.txt content
+        user_data_content = utils_lib.run_cmd(
+            self,
+            "sudo cat /var/lib/cloud/instance/user-data.txt"
+        ).strip()
+        
+        self.assertEqual(
+            custom_data_from_ovf,
+            user_data_content,
+            "Custom data in ovf-env.xml is not equal to user-data.txt"
+        )
+        
+        # 3. Check if the new cloud-init configuration is handled correctly
+        # (There should be 6 modules ran in cloud-init.log for versions < 23.1, or 3 modules for >= 23.1)
+        output = utils_lib.run_cmd(
+            self,
+            "sudo grep 'running modules for config' /var/log/cloud-init.log -B 100"
+        )
+        version_output = utils_lib.run_cmd(self, "cloud-init -v|awk '{print $2}'").strip()
+        
+        # Compare version - check if version >= 23.1
+        version_parts = version_output.split('.')
+        version_major = int(version_parts[0]) if version_parts[0].isdigit() else 0
+        version_minor = int(version_parts[1]) if len(version_parts) > 1 and version_parts[1].isdigit() else 0
+        
+        if version_major < 23 or (version_major == 23 and version_minor < 1):
+            # For versions < 23.1, expect 6 modules
+            self.assertIn(
+                "Ran 6 modules",
+                output,
+                "The user data is not handled correctly. Expected 'Ran 6 modules' for version < 23.1"
+            )
+        else:
+            # For versions >= 23.1, expect 3 modules and skipping message
+            self.assertIn(
+                "Ran 3 modules",
+                output,
+                "The user data is not handled correctly. Expected 'Ran 3 modules' for version >= 23.1"
+            )
+            self.assertIn(
+                "Skipping modules 'yum-add-repo,disable-ec2-metadata,runcmd' because no applicable config is provided",
+                output,
+                "The user data is not handled correctly. Expected skipping message for version >= 23.1"
+            )
+
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['azure'], 'skip as it is the specific case for azure')
+    def test_cloudinit_save_and_handle_userdata_script(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-286797 - CLOUDINIT-TC: Save and handle userdata(script)
+        key_steps: |
+            1. Create VM with user data (script)
+            2. Check if user data script is executed
+        """
+        self.log.info("RHEL-286797 - CLOUDINIT-TC: Save and handle userdata(script)")
+        
+        # Prepare user script
+        script = """#!/bin/bash
+echo 'teststring' >> /var/log/test.log
+"""
+        userdata_file = "/tmp/userdata.sh"
+        with open(userdata_file, 'w') as f:
+            f.write(script)
+        
+        # 1. Create VM with user data
+        if self.vm.exists():
+            self.vm.delete()
+        # Read the script file content and set as user_data (AzureVM expects string, not file path)
+        with open(userdata_file, 'r') as f:
+            self.vm.user_data = f.read()
+        if not self.vm.create():
+            self.fail("Failed to create VM: {}".format(self.vm.vm_name))
+        
+        time.sleep(30)  # Give some time for cloud-init/SSH to be ready
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        
+        # 2. Check if user data script is executed
+        # Wait for the script to execute (retry up to 10 times, 10 seconds each)
+        script_executed = False
+        for retry in range(1, 11):
+            # Check if file exists using ls command (non-fatal)
+            result = utils_lib.run_cmd(
+                self,
+                "ls /var/log/test.log 2>/dev/null && echo 'exists' || echo 'not_exists'",
+                msg="Checking if /var/log/test.log exists (attempt {}/10)".format(retry)
+            )
+            if 'exists' in result:
+                script_executed = True
+                break
+            self.log.info("/var/log/test.log doesn't exist. Wait for 10s and retry...({}/10)".format(retry))
+            time.sleep(10)
+        
+        if not script_executed:
+            self.fail("The user data script was not executed - /var/log/test.log does not exist after 100 seconds")
+        
+        # Verify the content of test.log
+        test_log_content = utils_lib.run_cmd(
+            self,
+            "cat /var/log/test.log"
+        ).strip()
+        
+        self.assertEqual(
+            "teststring",
+            test_log_content,
+            "The user data script is not executed correctly. Expected 'teststring', got: {}".format(test_log_content)
+        )
+
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['azure'], 'skip as it is the specific case for azure')
+    def test_cloudinit_save_and_handle_userdata_cloudinit_config(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-286798 - CLOUDINIT-TC: Save and handle userdata(cloud-init configuration)
+        key_steps: |
+            1. Create VM with user data (cloud-config)
+            2. Check if the new cloud-init configuration is handled correctly
+        """
+        self.log.info("RHEL-286798 - CLOUDINIT-TC: Save and handle userdata(cloud-init configuration)")
+        
+        # Prepare user data (cloud-config)
+        userdata_content = """#cloud-config
+cloud_config_modules:
+ - mounts
+ - locale
+ - set-passwords
+ - yum-add-repo
+ - disable-ec2-metadata
+ - runcmd
+"""
+        userdata_file = "/tmp/userdata.conf"
+        with open(userdata_file, 'w') as f:
+            f.write(userdata_content)
+        
+        # 1. Create VM with user data
+        if self.vm.exists():
+            self.vm.delete()
+        # Read the file content and set as user_data (AzureVM expects string, not file path)
+        with open(userdata_file, 'r') as f:
+            self.vm.user_data = f.read()
+        if not self.vm.create():
+            self.fail("Failed to create VM: {}".format(self.vm.vm_name))
+        
+        time.sleep(30)  # Give some time for cloud-init/SSH to be ready
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        
+        # 2. Check if the new cloud-init configuration is handled correctly
+        # (There should be 6 modules ran in cloud-init.log for versions < 23.1, or 3 modules for >= 23.1)
+        output = utils_lib.run_cmd(
+            self,
+            "sudo grep 'running modules for config' /var/log/cloud-init.log -B 100"
+        )
+        version_output = utils_lib.run_cmd(self, "cloud-init -v|awk '{print $2}'").strip()
+        
+        # Compare version - check if version >= 23.1
+        version_parts = version_output.split('.')
+        version_major = int(version_parts[0]) if version_parts[0].isdigit() else 0
+        version_minor = int(version_parts[1]) if len(version_parts) > 1 and version_parts[1].isdigit() else 0
+        
+        if version_major < 23 or (version_major == 23 and version_minor < 1):
+            # For versions < 23.1, expect 6 modules
+            self.assertIn(
+                "Ran 6 modules",
+                output,
+                "The user data is not handled correctly. Expected 'Ran 6 modules' for version < 23.1"
+            )
+        else:
+            # For versions >= 23.1, expect 3 modules and skipping message
+            self.assertIn(
+                "Ran 3 modules",
+                output,
+                "The user data is not handled correctly. Expected 'Ran 3 modules' for version >= 23.1"
+            )
+            self.assertIn(
+                "Skipping modules 'yum-add-repo,disable-ec2-metadata,runcmd' because no applicable config is provided",
+                output,
+                "The user data is not handled correctly. Expected skipping message for version >= 23.1"
+            )
+
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['azure'], 'skip as it is the specific case for azure')
+    def test_cloudinit_remove_cache_and_reboot_password(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-189049 - CLOUDINIT-TC: Reboot with no instance cache - password authentication
+        key_steps: |
+            1. Create a VM on Azure with password authentication
+            2. Remove the instance cache folder and reboot
+            3. Verify can login successfully with password
+        """
+        self.log.info("RHEL-189049 - CLOUDINIT-TC: Reboot with no instance cache - password authentication")
+        
+        # Save original VM name to restore later (in tearDown)
+        self._original_vm_name = self.vm.vm_name
+        # Add "-pw" suffix to VM name (following avocado-cloud pattern)
+        self.vm.vm_name += "-pw"
+        
+        # Configure password authentication (disable SSH key)
+        original_ssh_key_value = self.vm.ssh_key_value
+        original_generate_ssh_keys = self.vm.generate_ssh_keys
+        self.vm.ssh_key_value = None
+        self.vm.generate_ssh_keys = None
+        self.vm.authentication_type = "password"
+        
+        # Create VM with password authentication if it doesn't exist
+        if self.vm.exists():
+            self.vm.delete()
+        if not self.vm.create(wait=True, sshkey="DoNotSet"):
+            self.fail("Failed to create VM: {}".format(self.vm.vm_name))
+        
+        # Wait for VM to be ready
+        time.sleep(30)
+        
+        # Verify password is set
+        if not self.vm.vm_password:
+            self.fail("VM password is not set. This test requires password authentication.")
+        
+        # Connect using password authentication to remove cache
+        self.params['remote_node'] = self.vm.floating_ip
+        utils_lib.send_ssh_cmd(
+            self.vm.floating_ip,
+            self.vm.vm_username,
+            self.vm.vm_password,
+            "sudo rm -rf /var/lib/cloud/instances/*",
+            log=self.log
+        )
+        
+        # Reboot VM
+        self.vm.reboot(wait=True)
+        
+        # Wait for VM to be running
+        self.vm.show()
+        error_message = "Timed out waiting for VM to be running after reboot."
+        for count in utils_lib.iterate_timeout(100, error_message, wait=10):
+            self.vm.show()  # Refresh VM state
+            if self.vm.is_started():
+                break
+        
+        # Wait for SSH to be ready
+        time.sleep(30)
+        
+        # Verify can login with password authentication
+        if not self.vm.vm_password:
+            self.fail("VM password is not set. This test requires password authentication.")
+        
+        self.params['remote_node'] = self.vm.floating_ip
+        test_login = utils_lib.send_ssh_cmd(
+            self.vm.floating_ip,
+            self.vm.vm_username,
+            self.vm.vm_password,
+            "whoami",
+            log=self.log
+        )
+        self.assertEqual(
+            self.vm.vm_username,
+            test_login[1].strip(),
+            "Fail to login with password after reboot: {}".format(test_login[1].strip())
+        )
+        
+        # Restore original settings (for tearDown)
+        self.vm.ssh_key_value = original_ssh_key_value
+        self.vm.generate_ssh_keys = original_generate_ssh_keys
+        self.vm.authentication_type = "ssh"
+
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['azure'], 'skip as it is the specific case for azure')
+    def test_cloudinit_update_existing_password(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-198376: [Azure]Update existing user password
+        key_steps: |
+            1. Create a VM with user azuredebug and new password (different from password in image)
+            2. Login with the new password, should have sudo privilege
+        """
+        self.log.info("RHEL-198376: [Azure]Update existing user password")
+        
+        # Save original VM name to restore later (in tearDown)
+        self._original_vm_name = self.vm.vm_name
+        # Add "-pw" suffix to VM name (following avocado-cloud pattern)
+        self.vm.vm_name += "-pw"
+        
+        # 1. Create a VM with password authentication (not SSH key)
+        if self.vm.exists():
+            self.vm.delete()
+        
+        # Set password authentication (disable SSH key)
+        original_ssh_key_value = self.vm.ssh_key_value
+        original_generate_ssh_keys = self.vm.generate_ssh_keys
+        self.vm.ssh_key_value = None
+        self.vm.generate_ssh_keys = None
+        self.vm.authentication_type = "password"
+        
+        # Set username and password
+        original_vm_username = self.vm.vm_username
+        original_vm_password = self.vm.vm_password
+        self.vm.vm_username = "azuredebug"
+        self.vm.vm_password = "RHEL99@Azure"
+        
+        if not self.vm.create(wait=True, sshkey="DoNotSet"):
+            self.fail("Failed to create VM: {}".format(self.vm.vm_name))
+        
+        # Wait for VM to be ready
+        time.sleep(30)
+        
+        # 2. Login with the new password
+        self.params['remote_node'] = self.vm.floating_ip
+        test_login = utils_lib.send_ssh_cmd(
+            self.vm.floating_ip,
+            self.vm.vm_username,
+            self.vm.vm_password,
+            "whoami",
+            log=self.log
+        )
+        self.assertEqual(
+            self.vm.vm_username,
+            test_login[1].strip(),
+            "Fail to login with password: {}".format(test_login[1].strip())
+        )
+        
+        # Verify sudo privilege
+        test_sudo = utils_lib.send_ssh_cmd(
+            self.vm.floating_ip,
+            self.vm.vm_username,
+            self.vm.vm_password,
+            "sudo cat /etc/sudoers.d/90-cloud-init-users",
+            log=self.log
+        )
+        self.assertIn(
+            "{} ALL=(ALL) NOPASSWD:ALL".format(self.vm.vm_username),
+            test_sudo[1].strip(),
+            "No sudo privilege"
+        )
+        
+        # Restore original settings (for tearDown)
+        self.vm.ssh_key_value = original_ssh_key_value
+        self.vm.generate_ssh_keys = original_generate_ssh_keys
+        self.vm.vm_username = original_vm_username
+        self.vm.vm_password = original_vm_password
+        self.vm.authentication_type = "ssh"
+
     def tearDown(self):
         utils_lib.finish_case(self)
         casegroup = ('test_cloudinit_auto_install_package_with_subscription_manager')
@@ -1504,6 +2013,8 @@ ssh_authorized_keys:
             delattr(self, '_original_vm_image')
         # Clear user_data to avoid carrying over fqdn from previous test
         self.vm.user_data = None
+        # Clear custom_data to avoid carrying over from previous test
+        self.vm.custom_data = None
 
 if __name__ == '__main__':
     unittest.main()

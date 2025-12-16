@@ -19,7 +19,7 @@ VM:
     vm_size: Standard_DS1_v2
     vm_image: RHEL75.vhd
     vm_username: azureuser
-    #vm_password: 111111
+    vm_password: ABCD11@abcde
     generate_ssh_keys: True
     # pub key used to import to target system
     ssh_key_value: /home/xiliang/.ssh/id_rsa.pub

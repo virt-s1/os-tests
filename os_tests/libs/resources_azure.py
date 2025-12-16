@@ -246,8 +246,15 @@ class AzureVM(VMResource):
             self.vm_name, self.resource_group)
         if not wait:
             cmd += " --no-wait"
-        run_cmd_local(cmd, is_log_ret=True)
+        run_cmd_local(cmd, timeout=720, is_log_ret=True)
         self.show()
+        # Wait for VM to be running after redeploy
+        if wait:
+            error_message = "Timed out waiting for VM to be running after redeploy."
+            for count in utils_lib.iterate_timeout(100, error_message, wait=10):
+                self.show()  # Refresh VM state
+                if self.is_started():
+                    break
 
     def exists(self):
         return self.show()
