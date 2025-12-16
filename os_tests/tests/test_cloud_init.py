@@ -3538,6 +3538,49 @@ ssh_authorized_keys:
         self.log.info("RHEL-188923 - CLOUDINIT-TC: [Azure]Verify storage rule - Gen1")
         # Verify storage rule using existing VM (no need to create new VM)
         self._verify_storage_rule()
+
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['azure'], 'skip as it is the specific case for azure')
+    def test_cloudinit_verify_temporary_disk_mount_point(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            1
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-131780: WALA-TC: [Cloudinit] Check temporary disk mount point
+        key_steps: |
+            1. Use existing VM (created in setUp)
+            2. Check if temporary disk is mounted to /mnt
+            3. Redeploy VM (move to another host. The ephemeral disk will be new)
+            4. Reconnect SSH and check mount point again
+        """
+        self.log.info("RHEL-131780: WALA-TC: [Cloudinit] Check temporary disk mount point")
+        
+        # 1. Check if temporary disk is mounted to /mnt after VM creation
+        utils_lib.run_cmd(
+            self,
+            "mount|grep '/mnt '",
+            expect_ret=0,
+            msg="After create VM, temporary disk is not mounted to /mnt"
+        )
+        
+        # 2. Redeploy VM (move to another host. The ephemeral disk will be new)
+        self.vm.redeploy(wait=True)
+        
+        # 3. Reconnect SSH after redeploy
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        
+        # 4. Check again if temporary disk is mounted to /mnt
+        utils_lib.run_cmd(
+            self,
+            "mount|grep '/mnt '",
+            expect_ret=0,
+            msg="After redeploy VM, temporary disk is not mounted to /mnt"
+        )
     
     def tearDown(self):
         utils_lib.finish_case(self)
