@@ -181,6 +181,7 @@ class TestRHELCert(unittest.TestCase):
                 root_vol.id = root_id
                 root_vol.size = root_size
                 self._parted_swap_partition(root_vol)
+    
             if os.getenv('INFRA_PROVIDER') == 'azure':
                 # Add 1G swap
                 # dd if=/dev/zero of=/root/swapfile01 bs=1M count=1024
@@ -218,28 +219,49 @@ class TestRHELCert(unittest.TestCase):
                     time_filename = datetime.now().strftime("%Y%m%d_%H%M%S")
                     data_disk_name ='date_disk_{}_{}'.format(self.vm.vm_name,time_filename)
                     self.vm.disk_attach(data_disk_name, 4)
-        if self.id().endswith(('test_rhcert_ethernet')):
+        if self.id().endswith(('test_rhcert_ethernet')) or self.id().endswith(('test_rhcert_kdump')):
             if os.getenv('INFRA_PROVIDER') == 'azure':
-                # Extend /tmp for 90% of free space to avoid out of space during test
-                VG_NAME = "rootvg"                         
-                LV_PATH = "/dev/mapper/rootvg-tmplv"       
-                PERCENT = 0.9               
+                # In order to expand /var/ and /tmp for big memory size for vm-1 and vm-2, reuse the temp disk
+                # umount /mnt
+                # pvcreate /dev/sdb1
+                # vgextend rootvg /dev/sdb1
+                # lvextend -L +100G /dev/mapper/rootvg-tmplv
+                # lvextend -L +100G /dev/mapper/rootvg-varlv
+                # xfs_growfs /tmp
+                # xfs_growfs /var
+                # Extend VG, LV
 
-                # Get free space from VG in GB
-                cmd="sudo vgs --noheadings -o vg_free --units g --nosuffix rootvg"
-                vgs_output = utils_lib.run_cmd(self, cmd)
-                match = re.findall(r"[\d.]+", vgs_output)
-                if not match:
-                    self.log.info("Could not get free VG space.")
-                else:
-                    free_space= float(match[0])
-                    extend_size = round(free_space * PERCENT, 2)
-                    cmd="sudo lvextend -L +{}G {}".format(extend_size, LV_PATH)
-                    
-                    utils_lib.run_cmd(self,cmd)
-                    utils_lib.run_cmd(self,"sudo xfs_growfs /tmp")
-                    df_output_after=utils_lib.run_cmd(self,"sudo df -T /tmp")
-                    self.log.info(df_output_after)
+                for vid in (0, -1):
+                    rmt_vnode = self.params['remote_nodes'][vid]
+
+                    cmd="sudo df -BG | grep '/mnt' | awk '{print $2}' | sed 's/G//'"
+                    mnt_size_gb = utils_lib.run_cmd(self, cmd, rmt_node=rmt_vnode)
+                    if not mnt_size_gb:
+                        self.log.info("/mnt is not mounted or size not found")
+                    else:
+                        mnt_size_gb = int(mnt_size_gb)
+                        self.log.info("/mnt disk total size: {mnt_size_gb}G")
+
+                        if mnt_size_gb > 200:
+                            device = utils_lib.run_cmd(self,"df -h /mnt | tail -1 | awk '{print $1}'", rmt_node=rmt_vnode)
+                            self.log.info(f"/mnt mounted on {device}")
+                            # Unmount /mnt which is mounted from temp disk
+                            utils_lib.run_cmd(self,"sudo umount /mnt", rmt_node=rmt_vnode)
+
+                            # Create PV and extend VG
+                            utils_lib.run_cmd(self,f"echo y | sudo pvcreate {device}", rmt_node=rmt_vnode)
+                            utils_lib.run_cmd(self,f"echo y | sudo vgextend rootvg {device}", rmt_node=rmt_vnode)
+
+                            # Extend /tmp LV and filesystem
+                            utils_lib.run_cmd(self,"sudo lvextend -L +100G /dev/mapper/rootvg-tmplv", rmt_node=rmt_vnode)
+                            utils_lib.run_cmd(self,"sudo xfs_growfs /tmp", rmt_node=rmt_vnode)
+
+                            # Extend /var LV and filesystem
+                            utils_lib.run_cmd(self,"sudo lvextend -L +100G /dev/mapper/rootvg-varlv", rmt_node=rmt_vnode)
+                            utils_lib.run_cmd(self,"sudo xfs_growfs /var ", rmt_node=rmt_vnode)
+    
+                            df_output_after=utils_lib.run_cmd(self,"sudo df -h", rmt_node=rmt_vnode)
+                            self.log.info(df_output_after)
  
     def test_rhcert_non_interactive(self):
         """
