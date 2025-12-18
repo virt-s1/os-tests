@@ -247,7 +247,7 @@ class TestRHELCert(unittest.TestCase):
                             self.log.info(f"/mnt mounted on {device}")
                             # Unmount /mnt which is mounted from temp disk
                             utils_lib.run_cmd(self,"sudo umount /mnt", rmt_node=rmt_vnode)
-
+                            utils_lib.run_cmd(self,"sudo sed -i '/\\/mnt/ s/^/#/' /etc/fstab", rmt_node=rmt_vnode)
                             # Create PV and extend VG
                             utils_lib.run_cmd(self,f"echo y | sudo pvcreate {device}", rmt_node=rmt_vnode)
                             utils_lib.run_cmd(self,f"echo y | sudo vgextend rootvg {device}", rmt_node=rmt_vnode)
