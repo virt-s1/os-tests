@@ -26,6 +26,14 @@ class TestCloudInit(unittest.TestCase):
         for case_name in case_list:
             if case_name in self.id() and 'CentOS Stream' in out:
                 self.skipTest('skip run as this case is not supported for CentOS Stream')
+        if "test_cloudinit_auto_register_with_subscription_manager_azure" in self.id():
+            # Remove rhui-azure package to allow subscription manager registration
+            rhel_ver = self.rhel_x_version
+            utils_lib.run_cmd(
+                self,
+                "sudo rpm -e rhui-azure-rhel{} || true".format(rhel_ver),
+                msg="Remove rhui-azure package for subscription manager test"
+            )
 
     @property
     def rhel_x_version(self):
@@ -3581,11 +3589,630 @@ ssh_authorized_keys:
             expect_ret=0,
             msg="After redeploy VM, temporary disk is not mounted to /mnt"
         )
+
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['azure'], 'skip as it is the specific case for azure')
+    def test_cloudinit_auto_extend_root_partition_and_filesystem_azure(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier1,cloud_utils_growpart
+        case_priority:
+            1
+        component:
+            cloud-init,cloud_utils_growpart
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL7-103839 - CLOUDINIT-TC: Auto extend root partition and filesystem (Azure)
+        key_steps: |
+            1. Install cloud-utils-growpart gdisk if not installed (bug 1447177)
+            2. Check os disk and fs capacity
+            3. Stop VM. Enlarge os disk
+            4. Start VM and login. Check os disk and fs capacity
+        note: |
+            cloud-utils removes dependency gdisk since rhel-10.0 (RHEL-36095)
+        """
+        self.log.info("RHEL7-103839 - CLOUDINIT-TC: Auto extend root partition and filesystem (Azure)")        
+        # Skip the case if this is LVM root partition, as not support it currently
+        boot_dev = self._get_boot_temp_devices()
+        boot_dev_name = boot_dev.split('/')[-1] if '/' in boot_dev else boot_dev
+        lvm_check = utils_lib.run_cmd(
+            self,
+            "lsblk /dev/{} --output NAME,TYPE -r|grep 'lvm'".format(boot_dev_name),
+            ret_status=True
+        )
+        if lvm_check == 0:
+            utils_lib.run_cmd(self, "lsblk /dev/{}".format(boot_dev_name))
+            self.skipTest("Skip this case as cloud-init not support LVM root partition")        
+        # 1. Install cloud-utils-growpart gdisk
+        if self.rhel_x_version < 10:
+            # For RHEL < 10, need both cloud-utils-growpart and gdisk
+            packages_check = utils_lib.run_cmd(
+                self,
+                "rpm -q cloud-utils-growpart gdisk",
+                ret_status=True
+            )
+            if packages_check != 0:
+                # Install RHUI Azure RPM if available
+                utils_lib.run_cmd(
+                    self,
+                    "sudo rpm -ivh /root/rhui-azure-*.rpm 2>/dev/null || true",
+                    msg="Install RHUI Azure RPM if available"
+                )
+                utils_lib.run_cmd(
+                    self,
+                    "sudo yum install -y cloud-utils-growpart gdisk",
+                    expect_ret=0,
+                    msg="Install cloud-utils-growpart and gdisk"
+                )
+                # Verify installation
+                packages_check_after = utils_lib.run_cmd(
+                    self,
+                    "rpm -q cloud-utils-growpart gdisk",
+                    ret_status=True
+                )
+                if packages_check_after != 0:
+                    self.fail("Cannot install cloud-utils-growpart gdisk packages")
+        else:
+            # For RHEL >= 10, only need cloud-utils-growpart (gdisk dependency removed)
+            package_check = utils_lib.run_cmd(
+                self,
+                "rpm -q cloud-utils-growpart",
+                ret_status=True
+            )
+            if package_check != 0:
+                # Install RHUI Azure RPM if available
+                utils_lib.run_cmd(
+                    self,
+                    "sudo rpm -ivh /root/rhui-azure-*.rpm 2>/dev/null || true",
+                    msg="Install RHUI Azure RPM if available"
+                )
+                utils_lib.run_cmd(
+                    self,
+                    "sudo yum install -y cloud-utils-growpart",
+                    expect_ret=0,
+                    msg="Install cloud-utils-growpart"
+                )
+                # Verify installation
+                package_check_after = utils_lib.run_cmd(
+                    self,
+                    "rpm -q cloud-utils-growpart",
+                    ret_status=True
+                )
+                if package_check_after != 0:
+                    self.fail("Cannot install cloud-utils-growpart packages")        
+        # 2. Check os disk and fs capacity
+        boot_dev = self._get_boot_temp_devices()
+        boot_dev_name = boot_dev.split('/')[-1] if '/' in boot_dev else boot_dev
+        partition = utils_lib.run_cmd(
+            self,
+            "find /dev/ -name {}[0-9]|sort|tail -n 1".format(boot_dev_name)
+        ).strip()
+        
+        dev_size_output = utils_lib.run_cmd(
+            self,
+            "lsblk /dev/{} --output NAME,SIZE -r".format(boot_dev_name)
+        )
+        # Extract size in GB using grep
+        dev_size = utils_lib.run_cmd(
+            self,
+            "lsblk /dev/{} --output NAME,SIZE -r|grep -o -P '(?<={} ).*(?=G)'".format(boot_dev_name, boot_dev_name)
+        ).strip()
+        
+        fs_size = utils_lib.run_cmd(
+            self,
+            "df {} --output=size -h|grep -o '[0-9.]\+'".format(partition)
+        ).strip()        
+        # Get OS disk size from Azure VM properties
+        self.vm.show()
+        os_disk_size = self.vm.properties.get("storageProfile", {}).get("osDisk", {}).get("diskSizeGB")
+        if not os_disk_size:
+            self.fail("Cannot get OS disk size from VM properties")        
+        # Compare device size with Azure OS disk size
+        self.assertAlmostEqual(
+            float(dev_size),
+            float(os_disk_size),
+            delta=1,
+            msg="Device size is incorrect. Raw disk: {}, real: {}".format(dev_size, os_disk_size)
+        )        
+        # Compare filesystem size with Azure OS disk size
+        self.assertAlmostEqual(
+            float(fs_size),
+            float(os_disk_size),
+            delta=1.5,
+            msg="Filesystem size is incorrect. FS: {}, real: {}".format(fs_size, os_disk_size)
+        )        
+        # 3. Enlarge os disk size
+        self.vm.stop(wait=True)
+        new_os_disk_size = int(os_disk_size) + 2
+        self.vm.osdisk_resize(new_os_disk_size, wait=True)        
+        # 4. Start VM and login. Check os disk and fs capacity
+        self.vm.start(wait=True)      
+        # Wait for SSH to be ready
+        time.sleep(30)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)        
+        # Get boot device again after restart
+        boot_dev = self._get_boot_temp_devices()
+        boot_dev_name = boot_dev.split('/')[-1] if '/' in boot_dev else boot_dev
+        partition = utils_lib.run_cmd(
+            self,
+            "find /dev/ -name {}[0-9]|sort|tail -n 1".format(boot_dev_name)
+        ).strip()        
+        new_dev_size_output = utils_lib.run_cmd(
+            self,
+            "lsblk /dev/{} --output NAME,SIZE -r".format(boot_dev_name)
+        )
+        # Extract size in GB
+        new_dev_size = utils_lib.run_cmd(
+            self,
+            "lsblk /dev/{} --output NAME,SIZE -r|grep -o -P '(?<={} ).*(?=G)'".format(boot_dev_name, boot_dev_name)
+        ).strip()        
+        new_fs_size = utils_lib.run_cmd(
+            self,
+            "df {} --output=size -h|grep -o '[0-9]\+'".format(partition)
+        ).strip()        
+        # Verify new device size
+        self.assertEqual(
+            int(new_dev_size),
+            int(new_os_disk_size),
+            "New device size is incorrect. Device: {}, real: {}".format(new_dev_size, new_os_disk_size)
+        )        
+        # Verify new filesystem size
+        self.assertAlmostEqual(
+            float(new_fs_size),
+            float(new_os_disk_size),
+            delta=1.5,
+            msg="New filesystem size is incorrect. FS: {}, real: {}".format(new_fs_size, new_os_disk_size)
+        )
+
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['azure'], 'skip as it is the specific case for azure')
+    def test_cloudinit_create_ovfenv_under_waagent_folder(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier1
+        case_priority:
+            1
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL7-103834 - CLOUDINIT-TC: [Azure]Create ovf-env.xml under /var/lib/waagent folder
+        key_steps: |
+            1. Check if file "/var/lib/waagent/ovf-env.xml" exists
+        """
+        self.log.info("RHEL7-103834 - CLOUDINIT-TC: [Azure]Create ovf-env.xml "
+                      "under /var/lib/waagent folder")
+        utils_lib.run_cmd(
+            self,
+            "sudo ls /var/lib/waagent/ovf-env.xml",
+            expect_ret=0,
+            msg="Check if file /var/lib/waagent/ovf-env.xml exists"
+        )
+
+    def test_cloudinit_publish_hostname_to_dns(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL7-103835 - CLOUDINIT-TC: [Azure]Publish VM hostname to DNS server
+        key_steps: |
+            1. Get FQDN hostname (RHEL-9+ not support)
+            2. Check FQDN name can be resolved by DNS server
+        """
+        self.log.info("RHEL7-103835 - CLOUDINIT-TC: [Azure]Publish VM hostname to DNS server")
+        if self.rhel_x_version < 9:
+            hostname_f = utils_lib.run_cmd(
+                self,
+                "hostname -f",
+                msg="Get FQDN hostname"
+            )
+            self.assertIn(
+                ".internal.cloudapp.net",
+                hostname_f,
+                "Cannot get whole FQDN"
+            )
+        else:
+            self.log.info("For RHEL-{}, skip checking hostname -f".format(self.rhel_x_version))
+        nslookup_output = utils_lib.run_cmd(
+            self,
+            "nslookup %s" % self.vm.vm_name,
+            msg="Check if VM hostname can be resolved by DNS"
+        )
+        self.assertNotIn(
+            "NXDOMAIN",
+            nslookup_output,
+            "Fail to publish hostname to DNS"
+        )
+
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['azure'], 'skip as it is the specific case for azure')
+    def test_cloudinit_check_networkmanager_dispatcher(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-170749 - CLOUDINIT-TC: [Azure]Check NetworkManager dispatcher
+        bugzilla_id:
+            1707725
+        key_steps: |
+            1. Check cloud-init is enabled - verify /run/cloud-init/enabled exists
+            2. Remove dhclient hooks JSON files and restart NetworkManager
+            3. Verify dhclient hooks JSON files are recreated when cloud-init is enabled
+            4. Disable cloud-init by moving /run/cloud-init/enabled
+            5. Remove dhclient hooks JSON files and restart NetworkManager
+            6. Verify dhclient hooks JSON files are NOT recreated when cloud-init is disabled
+        """
+        version_output = utils_lib.run_cmd(self, "cloud-init -v|awk '{print $2}'").strip()        
+        # Compare version - check if version >= 23.2
+        version_parts = version_output.split('.')
+        version_major = int(version_parts[0]) if version_parts[0].isdigit() else 0
+        version_minor = int(version_parts[1]) if len(version_parts) > 1 and version_parts[1].isdigit() else 0        
+        if version_major > 23 or (version_major == 23 and version_minor >= 2):
+            self.skipTest("Skip case because cloud-init-{} doesn't support this feature".format(version_output))
+        
+        self.log.info(
+            "RHEL-170749 - CLOUDINIT-TC: [Azure]Check NetworkManager dispatcher"
+        )        
+        # 1. cloud-init is enabled
+        utils_lib.run_cmd(
+            self,
+            "ls /run/cloud-init/enabled",
+            expect_ret=0,
+            msg="Check if /run/cloud-init/enabled exists when cloud-init is enabled"
+        )
+        utils_lib.run_cmd(
+            self,
+            "sudo rm -rf /run/cloud-init/dhclient.hooks/*.json",
+            msg="Remove existing dhclient hooks JSON files"
+        )
+        utils_lib.run_cmd(
+            self,
+            "sudo systemctl restart NetworkManager",
+            expect_ret=0,
+            msg="Restart NetworkManager"
+        )
+        time.sleep(3)
+        utils_lib.run_cmd(
+            self,
+            "ls /run/cloud-init/dhclient.hooks/*.json",
+            expect_ret=0,
+            msg="Verify dhclient hooks JSON files are recreated when cloud-init is enabled"
+        )        
+        # 2. cloud-init is disabled
+        utils_lib.run_cmd(
+            self,
+            "sudo mv /run/cloud-init/enabled /tmp/enabled",
+            expect_ret=0,
+            msg="Disable cloud-init by moving /run/cloud-init/enabled"
+        )
+        utils_lib.run_cmd(
+            self,
+            "sudo rm -f /run/cloud-init/dhclient.hooks/*.json",
+            msg="Remove dhclient hooks JSON files"
+        )
+        utils_lib.run_cmd(
+            self,
+            "sudo systemctl restart NetworkManager",
+            expect_ret=0,
+            msg="Restart NetworkManager"
+        )
+        time.sleep(3)
+        utils_lib.run_cmd(
+            self,
+            "sudo ls /run/cloud-init/dhclient.hooks/*.json",
+            expect_not_ret=0,
+            msg="Verify dhclient hooks JSON files are NOT recreated when cloud-init is disabled"
+        )
+
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['azure'], 'skip as it is the specific case for azure')
+    def test_cloudinit_regenerate_sshd_keypairs(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL7-103836 - CLOUDINIT-TC: Default configuration can regenerate sshd keypairs
+        key_steps: |
+            1. Verify cloud.cfg: ssh_deletekeys: 1
+            2. Copy SSH keys to root and switch to root user
+            3. Get MD5 of SSH host keys
+            4. Deprovision VM using waagent
+            5. Delete VM and create new VM from the deprovisioned image
+            6. Compare MD5 of new SSH host keys with old ones - should be different
+        """
+        # Save original username and image
+        origin_username = self.vm.vm_username
+        origin_vm_image = self.vm.vm_image
+        # Copy SSH keys to root and switch to root user
+        utils_lib.run_cmd(
+            self,
+            "sudo /usr/bin/cp -a /home/{}/.ssh /root/".format(origin_username),
+            expect_ret=0,
+            msg="Copy SSH keys to root"
+        )
+        utils_lib.run_cmd(
+            self,
+            "sudo chown -R root:root /root/.ssh",
+            expect_ret=0,
+            msg="Change ownership of root SSH keys"
+        )        
+        # Switch to root user for subsequent operations
+        self.vm.vm_username = "root"
+        # Reconnect with root user
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)        
+        # Verify cloud.cfg ssh_deletekeys: 1
+        utils_lib.run_cmd(
+            self,
+            "grep -E '(ssh_deletekeys: *1)|(ssh_deletekeys: *true)' /etc/cloud/cloud.cfg",
+            expect_ret=0,
+            msg="Verify ssh_deletekeys: 1 is in cloud.cfg"
+        )        
+        # Get MD5 of SSH host keys
+        old_md5 = utils_lib.run_cmd(
+            self,
+            "md5sum /etc/ssh/ssh_host_rsa_key /etc/ssh/ssh_host_ecdsa_key /etc/ssh/ssh_host_ed25519_key 2>/dev/null || md5sum /etc/ssh/ssh_host_rsa_key /etc/ssh/ssh_host_ecdsa_key",
+            msg="Get MD5 of SSH host keys"
+        )        
+        # Determine deprovision mode based on waagent status
+        waagent_status = utils_lib.run_cmd(
+            self,
+            "systemctl is-enabled waagent",
+            ret_status=True
+        )        
+        # Deprovision VM using waagent
+        if waagent_status == 0:
+            # waagent is enabled, use waagent deprovision
+            utils_lib.run_cmd(
+                self,
+                "sudo waagent -deprovision+user -force",
+                expect_ret=0,
+                msg="Deprovision VM using waagent"
+            )
+        else:
+            # waagent not enabled, just clean up cloud-init data
+            utils_lib.run_cmd(
+                self,
+                "sudo cloud-init clean --logs",
+                expect_ret=0,
+                msg="Clean cloud-init data"
+            )        
+        # Get osDisk URI from VM properties before deletion
+        self.vm.show()
+        osdisk_uri = self.vm.properties.get("storageProfile", {}).get("osDisk", {}).get("vhd", {}).get("uri")
+        if not osdisk_uri:
+            self.fail("Cannot get osDisk URI from VM properties")        
+        # Delete VM
+        self.vm.delete(wait=True)        
+        # Create new VM from the deprovisioned image
+        self.vm.vm_image = osdisk_uri
+        self.vm.vm_username = origin_username
+        # Generate new os_disk_name to avoid conflicts
+        self.vm.os_disk_name = self.vm.vm_name + "_os" + time.strftime('%Y%m%d%H%M%S', time.localtime())        
+        if not self.vm.create(wait=True):
+            self.fail("Failed to create new VM from deprovisioned image")        
+        # Wait for VM to be ready
+        time.sleep(30)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)        
+        # Get MD5 of new SSH host keys
+        new_md5 = utils_lib.run_cmd(
+            self,
+            "sudo md5sum /etc/ssh/ssh_host_rsa_key /etc/ssh/ssh_host_ecdsa_key /etc/ssh/ssh_host_ed25519_key 2>/dev/null || sudo md5sum /etc/ssh/ssh_host_rsa_key /etc/ssh/ssh_host_ecdsa_key",
+            msg="Get MD5 of new SSH host keys"
+        )        
+        # Verify SSH host keys are regenerated (MD5 should be different)
+        self.assertNotEqual(
+            old_md5.strip(),
+            new_md5.strip(),
+            "The ssh host keys are not regenerated. Old: {}, New: {}".format(old_md5.strip(), new_md5.strip())
+        )        
+        # Restore original vm_image and vm_username
+        self.vm.vm_image = origin_vm_image
+        self.vm.vm_username = origin_username
+
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['azure'], 'skip as it is the specific case for azure')
+    def test_cloudinit_auto_register_with_subscription_manager_azure(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-181761 CLOUDINIT-TC: auto register by cloud-init
+        key_steps: |
+            1. Add content to /etc/cloud/cloud.cfg.d/test_rh_subscription.cfg
+            2. Run rh_subscription module
+            3. Verify can register with subscription-manager
+            4. Verify can auto-attach manually
+        """        
+        # Get subscription credentials from params
+        subscription_username = self.params.get('Subscription', {}).get('username')
+        subscription_password = self.params.get('Subscription', {}).get('password')
+        if not subscription_username or not subscription_password:
+            self.skipTest("Subscription username and password are required for this test")        
+        # Prepare config
+        config = '''rh_subscription:
+  username: {}
+  password: {}'''.format(subscription_username, subscription_password)        
+        # Unregister from subscription manager if already registered
+        utils_lib.run_cmd(
+            self,
+            "sudo subscription-manager unregister || true",
+            msg="Unregister from subscription manager"
+        )        
+        # Remove cloud-init semaphore files and logs
+        utils_lib.run_cmd(
+            self,
+            "sudo rm -f /var/lib/cloud/instance/sem/config_rh_subscription /var/log/cloud-init*.log",
+            msg="Remove cloud-init semaphore files and logs"
+        )        
+        # Create config file
+        utils_lib.run_cmd(
+            self,
+            "sudo bash -c \"echo '''{}''' > /etc/cloud/cloud.cfg.d/test_rh_subscription.cfg\"".format(config),
+            expect_ret=0,
+            msg="Create rh_subscription config file"
+        )        
+        # Run rh_subscription module
+        utils_lib.run_cmd(
+            self,
+            "sudo cloud-init single -n rh_subscription",
+            expect_ret=0,
+            timeout=600,
+            msg="Run rh_subscription module"
+        )        
+        # Verify registration
+        utils_lib.run_cmd(
+            self,
+            "sudo grep 'Registered successfully' /var/log/cloud-init.log",
+            expect_ret=0,
+            expect_kw='Registered successfully',
+            msg="Verify 'Registered successfully' log in cloud-init.log"
+        )        
+        utils_lib.run_cmd(
+            self,
+            "sudo subscription-manager identity",
+            expect_ret=0,
+            msg="Verify can register with subscription-manager"
+        )        
+        # Check cloud-init log for errors (ignore WARNING)
+        self._check_cloudinit_log(additional_ignore_msg=["WARNING"])
     
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') in ['azure'], 'skip as it is the specific case for azure')
+    def test_cloudinit_enable_swap_in_temporary_disk(self):
+        """
+        case_tag:
+            cloudinit,cloudinit_tier2
+        case_priority:
+            2
+        component:
+            cloud-init
+        maintainer:
+            huzhao@redhat.com
+        description:
+            RHEL-189229 CLOUDINIT-TC: [Azure]Enable swap in temporary disk
+        key_steps: |
+            1. Verify /mnt is mounted
+            2. Clear old swap by cloud-init
+            3. Configure cloud-config with swap on /mnt/swapfile
+            4. Run mounts module
+            5. Check the swap size, verify /mnt/swapfile exists, verify swap in /etc/fstab
+            6. Verify no error logs in cloud-init.log
+        """        
+        # Verify /mnt is mounted
+        utils_lib.run_cmd(
+            self,
+            "mount|grep /mnt",
+            expect_ret=0,
+            msg="Verify /mnt is mounted"
+        )        
+        # Clear old swap by cloud-init
+        utils_lib.run_cmd(
+            self,
+            "sudo swapoff /mnt/swapfile || true",
+            msg="Disable swap on /mnt/swapfile if exists"
+        )
+        utils_lib.run_cmd(
+            self,
+            "sudo rm -f /mnt/swapfile",
+            msg="Remove old swapfile if exists"
+        )
+        utils_lib.run_cmd(
+            self,
+            "sudo sed -i '/.*swapfile.*/d' /etc/fstab",
+            msg="Remove swapfile entries from /etc/fstab"
+        )        
+        # Get previous swap size
+        old_swap = utils_lib.run_cmd(
+            self,
+            "free -m|grep Swap|awk '{print $2}'",
+            msg="Get previous swap size"
+        )        
+        # Prepare config
+        config = '''swap:
+  filename: /mnt/swapfile
+  size: 2048M'''        
+        # Create config file
+        utils_lib.run_cmd(
+            self,
+            "sudo bash -c \"echo '''{}''' > /etc/cloud/cloud.cfg.d/test_swap.cfg\"".format(config),
+            expect_ret=0,
+            msg="Create swap config file"
+        )        
+        # Remove cloud-init semaphore files and logs
+        utils_lib.run_cmd(
+            self,
+            "sudo rm -f /var/lib/cloud/instance/sem/config_mounts /var/log/cloud-init*.log",
+            msg="Remove cloud-init semaphore files and logs"
+        )        
+        # Run mounts module
+        utils_lib.run_cmd(
+            self,
+            "sudo cloud-init single --name mounts",
+            expect_ret=0,
+            msg="Run cloud-init mounts module"
+        )        
+        # Get new swap size
+        new_swap = utils_lib.run_cmd(
+            self,
+            "free -m|grep Swap|awk '{print $2}'",
+            msg="Get new swap size"
+        )        
+        # Verify swap size increased
+        self.assertAlmostEqual(
+            int(old_swap) + 2047,
+            int(new_swap),
+            delta=1,
+            msg="The enabled swap size does not correct. Old: {}, New: {}".format(old_swap, new_swap)
+        )        
+        # Verify /mnt/swapfile exists
+        utils_lib.run_cmd(
+            self,
+            "sudo ls /mnt/swapfile",
+            expect_ret=0,
+            msg="Verify /mnt/swapfile exists"
+        )        
+        # Verify swapfile is in /etc/fstab
+        utils_lib.run_cmd(
+            self,
+            "sudo grep swapfile /etc/fstab",
+            expect_ret=0,
+            msg="Verify swapfile is added to /etc/fstab"
+        )        
+        # Check cloud-init log for errors
+        self._check_cloudinit_log()        
+        # Verify no Permission denied logs in cloud-init-output.log
+        utils_lib.run_cmd(
+            self,
+            "sudo grep 'Permission denied' /var/log/cloud-init-output.log",
+            expect_ret=1,
+            msg="Verify no Permission denied logs in cloud-init-output.log"
+        )    
+
     def tearDown(self):
         utils_lib.finish_case(self)
         casegroup = ('test_cloudinit_no_networkmanager',
-                     'test_cloudinit_verify_rh_subscription_enablerepo_disablerepo')
+                     'test_cloudinit_verify_rh_subscription_enablerepo_disablerepo',
+                     'test_cloudinit_auto_register_with_subscription_manager_azure')
         if self.id().endswith(casegroup):
             utils_lib.run_cmd(self, "sudo subscription-manager unregister")
 
@@ -3595,7 +4222,10 @@ ssh_authorized_keys:
                      'test_cloudinit_no_networkmanager',
                      'test_cloudinit_verify_rh_subscription_enablerepo_disablerepo',
                      'test_cloudinit_mount_with_noexec_option',
-                     'test_cloudinit_disable_cloudinit')
+                     'test_cloudinit_disable_cloudinit',
+                     'test_cloudinit_auto_register_with_subscription_manager_azure',
+                     'test_cloudinit_regenerate_sshd_keypairs',
+                     'test_cloudinit_check_networkmanager_dispatcher')
         if self.id().endswith(casegroup) and not self.skipflag and not self.params.get('no_cleanup'):
             self.vm.delete(wait=True)
             #self.vm.create(wait=True) # remove this line of create cannot save time because init_case still create one
@@ -3613,6 +4243,14 @@ ssh_authorized_keys:
             self._reboot_inside_vm()          
         if "test_cloudinit_clean_configs" in self.id() and not self.skipflag:
             self._reboot_inside_vm()
+        if "test_cloudinit_auto_register_with_subscription_manager_azure" in self.id() and not self.skipflag:
+            utils_lib.run_cmd(self, "sudo rm -f /etc/cloud/cloud.cfg.d/test_*.cfg", msg="Remove test config files")
+        if "test_cloudinit_enable_swap_in_temporary_disk" in self.id() and not self.skipflag:
+            # Cleanup swap configuration
+            utils_lib.run_cmd(self, "sudo swapoff -a", msg="Disable all swap")
+            utils_lib.run_cmd(self, "sudo rm -f /mnt/swapfile", msg="Remove swapfile")
+            utils_lib.run_cmd(self, "sudo sed -i '/.*swapfile.*/d' /etc/fstab", msg="Remove swapfile entries from /etc/fstab")
+            utils_lib.run_cmd(self, "sudo rm -f /etc/cloud/cloud.cfg.d/test_*.cfg", msg="Remove test config files")
 
 
 if __name__ == '__main__':
