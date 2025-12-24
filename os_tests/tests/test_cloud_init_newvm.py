@@ -1849,12 +1849,7 @@ cloud_config_modules:
         original_generate_ssh_keys = self.vm.generate_ssh_keys
         self.vm.ssh_key_value = None
         self.vm.generate_ssh_keys = None
-        self.vm.authentication_type = "password"        
-        # Set username and password
-        original_vm_username = self.vm.vm_username
-        original_vm_password = self.vm.vm_password
-        self.vm.vm_username = "azuredebug"
-        self.vm.vm_password = "RHEL99@Azure"        
+        self.vm.authentication_type = "password"                
         if not self.vm.create(wait=True, sshkey="DoNotSet"):
             self.fail("Failed to create VM: {}".format(self.vm.vm_name))        
         # Wait for VM to be ready
@@ -1889,8 +1884,6 @@ cloud_config_modules:
         # Restore original settings (for tearDown)
         self.vm.ssh_key_value = original_ssh_key_value
         self.vm.generate_ssh_keys = original_generate_ssh_keys
-        self.vm.vm_username = original_vm_username
-        self.vm.vm_password = original_vm_password
         self.vm.authentication_type = "ssh"
 
     def tearDown(self):
