@@ -425,6 +425,7 @@ grep -Pzv "stages.py\\",\s+line\s+[1088|1087]|util.py\\",\s+line\s+[399|400]"'''
             r"DEBUG.: Fetched.*mounts from proc",
             r"finish: azure-ds/load_azure_ds_dir: FAIL: load_azure_ds_dir",
             r"dhclient error stream: Internet Systems Consortium DHCP Client",
+            r"dhclient error stream",
         ]
         if additional_ignore_msg and isinstance(additional_ignore_msg, list):
             ignore_message_list += additional_ignore_msg
