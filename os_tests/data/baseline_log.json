@@ -2664,7 +2664,7 @@
         "link": "https://issues.redhat.com/browse/RHEL-130572",
         "path": "dmesg",
         "addeddate": "20250911",
-	"trigger": "",
+        "trigger": "",
         "cases": "os_tests.tests.test_general_check.TestGeneralCheck.test_check_dmesg_calltrace,os_tests.tests.test_lifecycle.TestLifeCycle.test_boot_debugkernel",
         "addedby": "linl@redhat.com",
         "addeddate": "20251229"
