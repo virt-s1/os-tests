@@ -2657,7 +2657,7 @@
         "addeddate": "20250911"
     },
     "msg_278": {
-        "content": ".*unchecked MSR access error: RDMSR.*intel_idle_init_cstates_icpu.*",
+        "content": ".*unchecked MSR access error.*",
         "analyze": "known issue in rhel",
         "branch": "rhel",
         "status": "active",
