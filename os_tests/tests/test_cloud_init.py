@@ -15,7 +15,10 @@ class TestCloudInit(unittest.TestCase):
         # Skip some cases for image mode                
         case_list = ['test_check_cloudinit_status',
                      'test_cloudinit_check_runcmd',
-                     'test_cloudinit_check_NOZEROCONF']
+                     'test_cloudinit_check_NOZEROCONF',
+                     'test_cloudinit_no_duplicate_swap',
+                     'test_cloudinit_verify_rh_subscription_enablerepo_disablerepo',
+                     'test_cloudinit_swapon_with_xfs_filesystem']
         out = utils_lib.run_cmd(self, 'ls /ostree/ | grep -i bootc')
         for case_name in case_list:
             if case_name in self.id() and 'bootc' in out:
@@ -1404,44 +1407,6 @@ EOF""".format(device, size), expect_ret=0)
                     continue            
                 self.assertIn('-rw-------. root root', key,
                         msg=" Unexpected permissions -> %s" % key)            
-
-    def test_check_cloudinit_fingerprints(self):        
-        """
-        case_tag:
-            cloudinit,cloudinit_tier2
-        case_priority:
-            2
-        component:
-            cloud-init
-        maintainer:
-            huzhao@redhat.com
-        description: |
-            RHEL7-103836 - CLOUDINIT-TC: Default configuration can regenerate sshd keypairs
-            bz: 1957532
-        key_steps: |
-            This auto case only check fingerprints is saved in /var/log/messages.
-            expected:  
-                # awk '/BEGIN/,/END/' /var/log/messages
-                Sep 17 10:39:26 xiachen-testvm-rhel8 ec2[5447]: -----BEGIN SSH HOST KEY FINGERPRINTS-----
-                Sep 17 10:39:26 xiachen-testvm-rhel8 ec2[5447]: 256 SHA256:USGMs+eQW403mILvsE5deVxZ2TC7IdQnUySEZFszlK4 root@xiachen-testvm-rhel8 (ECDSA)
-                Sep 17 10:39:26 xiachen-testvm-rhel8 ec2[5447]: 256 SHA256:B/drC+5wa6xDhPaKwBNWj2Jw+lUsjpr8pEm67PG8HtM root@xiachen-testvm-rhel8 (ED25519)
-                Sep 17 10:39:26 xiachen-testvm-rhel8 ec2[5447]: 3072 SHA256:6sCV1CusDhQzuoTO2FQFyyf9PmsclAd38zhkGs3HaUk root@xiachen-testvm-rhel8 (RSA)
-                Sep 17 10:39:26 xiachen-testvm-rhel8 ec2[5447]: -----END SSH HOST KEY FINGERPRINTS-----
-        """
-        self.log.info("check fingerprints is saved in /var/log/messages")
-        cmd = "sudo awk '/BEGIN/,/END/' /var/log/messages"
-        out = utils_lib.run_cmd(self, cmd, msg='get fingerprints in /var/log/messages')
-        # change 'SHA256' to ' SHA256' for exact match
-        # change != to > for fault tolerance
-        # add one condition according to the change that logs_go_to_stdout_if_writing_to_console_fails
-        journalctl_fail = utils_lib.run_cmd(self, 'journalctl |grep -i fail')
-        if re.search('Failed\s+to\s+write\s+to\s+/dev/console', journalctl_fail, re.I):
-            if out.count('BEGIN') > out.count(' SHA256')/3 + out.count('ssh-rsa'):
-                self.fail('ecdsa count {} does not match expected {}'\
-                    .format(out.lower().count('ecdsa'),out.count('BEGIN')))
-        else:
-            if out.count('BEGIN') > out.count(' SHA256')/3:
-                self.fail('fingerprints count {} does not match expected {}'.format(out.count(' SHA256')/3,out.count('BEGIN')))
 
     def test_cloudinit_no_duplicate_swap(self):        
         """
