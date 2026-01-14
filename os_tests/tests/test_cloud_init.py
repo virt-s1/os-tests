@@ -17,7 +17,6 @@ class TestCloudInit(unittest.TestCase):
                      'test_cloudinit_check_runcmd',
                      'test_cloudinit_check_NOZEROCONF',
                      'test_cloudinit_no_duplicate_swap',
-                     'test_cloudinit_verify_rh_subscription_enablerepo_disablerepo',
                      'test_cloudinit_swapon_with_xfs_filesystem']
         out = utils_lib.run_cmd(self, 'ls /ostree/ | grep -i bootc')
         for case_name in case_list:
