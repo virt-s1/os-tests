@@ -160,6 +160,10 @@ def init_provider(params=None):
         nics.extend([EC2NIC(params),EC2NIC(params),EC2NIC(params),EC2NIC(params)])
         if params.get('instance_type') and ',' in params.get('instance_type'):
             vms[1].instance_type = params.get('instance_type').split(',')[-1] or params.get('instance_type').split(',')[0]
+        if params.get('instance_ids'):
+            vms[0].id = params.get('instance_ids').split(',')[0]
+            if ',' in params.get('instance_ids'):
+                vms[1].id = params.get('instance_ids').split(',')[1]
     if 'openstack' in provider:
         from .resources_openstack import OpenstackVM
         vms.append(OpenstackVM(params))
