@@ -7,6 +7,11 @@ Cloud:
 profile_name : default
 ami_id : 
 region : 
+# run test on existing instances, vm1_instance_id,vm2_instance_id
+# eg. i-0a19c6b33ed4a7xxx,i-0a19c6b33ed4a7yyy
+instance_ids:
+# please set it to False if you do not want recreate it by test framework
+is_allow_delete: True
 #subnet_id_ipv6 is an id of subnet which contains both ipv4 and ipv6
 subnet_id_ipv6 : 
 subnet_id_ipv4 : 
