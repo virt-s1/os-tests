@@ -124,7 +124,6 @@ class TestAzureVMUtils(unittest.TestCase):
                         expect_ret=0,
                         expect_not_kw='error,failed,critical',
                         msg='check system logs for azure-vm-utils errors')   
-          
     def test_azure_disk_rules_in_initramfs(self):
         """
         case_tag:
@@ -140,15 +139,35 @@ class TestAzureVMUtils(unittest.TestCase):
         maintainer:
             xxiong@redhat.com
         description:
-            Check if 80-azure-disk.rules is included in initramfs after dracut rebuild
+            Check if 80-azure-disk.rules is included in initramfs after dracut rebuild.
+            For azure-vm-utils >= 0.7, also check for 10-azure-unmanaged-sriov.rules
         key_steps:
-            1. Rebuild initramfs with dracut -f
-            2. Check if 80-azure-disk.rules is present in initramfs using lsinitrd
+            1. Check azure-vm-utils version
+            2. Rebuild initramfs with dracut -f
+            3. Check if 80-azure-disk.rules is present in initramfs using lsinitrd
+            4. For version >= 0.7, also check for 10-azure-unmanaged-sriov.rules
         expect_result:
-            80-azure-disk.rules should be present in the initramfs
+            80-azure-disk.rules should be present in the initramfs.
+            For version >= 0.7, 10-azure-unmanaged-sriov.rules should also be present
         debug_want:
-            initramfs contents and dracut process
+            azure-vm-utils version, initramfs contents and dracut process
         """
+        # Check azure-vm-utils version first
+        cmd = 'rpm -q azure-vm-utils --qf "%{VERSION}"'
+        package_version = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='get azure-vm-utils version').strip()
+        self.log.info(f'azure-vm-utils version: {package_version}')
+
+        # Parse version to check if >= 0.7
+        try:
+            # Extract major.minor version (e.g., "0.7.0" -> (0, 7, 0))
+            version_parts = [int(x) for x in package_version.split('.')]
+            major, minor = version_parts[0], version_parts[1] if len(version_parts) > 1 else 0
+            is_version_ge_07 = (major > 0) or (major == 0 and minor >= 7)
+            self.log.info(f'Version >= 0.7: {is_version_ge_07}')
+        except (ValueError, IndexError) as e:
+            self.log.warning(f'Could not parse version {package_version}: {e}. Assuming version < 0.7')
+            is_version_ge_07 = False
+
         # Get current kernel version
         cmd = 'uname -r'
         kernel_version = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='get current kernel version').strip()
@@ -158,7 +177,7 @@ class TestAzureVMUtils(unittest.TestCase):
         cmd = 'sudo dracut -f'
         utils_lib.run_cmd(self, cmd, expect_ret=0, timeout=300, msg='rebuild initramfs with dracut -f')
 
-        # Check if 80-azure-disk.rules is present in initramfs
+        # Check if azure rules are present in initramfs
         initramfs_path = f'/boot/initramfs-{kernel_version}.img'
 
         # First verify the initramfs file exists
@@ -177,16 +196,24 @@ class TestAzureVMUtils(unittest.TestCase):
         output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='list azure-related files in initramfs')
         self.log.info(f'Azure-related files found in initramfs: {output}')
 
-        # Check specifically for 80-azure-disk.rules
+        # Check specifically for 80-azure-disk.rules (required for all versions)
         if '80-azure-disk.rules' not in output:
             self.fail(f'80-azure-disk.rules not found in initramfs. Found azure files: {output.strip()}')
 
         self.log.info('80-azure-disk.rules successfully found in initramfs')
 
-        # Log the specific rules entry for verification
-        rules_lines = [line for line in output.split('\n') if '80-azure-disk.rules' in line]
+        # For version >= 0.7, also check for 10-azure-unmanaged-sriov.rules
+        if is_version_ge_07:
+            if '10-azure-unmanaged-sriov.rules' not in output:
+                self.fail(f'10-azure-unmanaged-sriov.rules not found in initramfs for azure-vm-utils >= 0.7. Found azure files: {output.strip()}')
+            self.log.info('10-azure-unmanaged-sriov.rules successfully found in initramfs')
+        else:
+            self.log.info('Skipping 10-azure-unmanaged-sriov.rules check for azure-vm-utils < 0.7')
+
+        # Log the specific rules entries for verification
+        rules_lines = [line for line in output.split('\n') if 'azure' in line and 'rules' in line]
         for rule_line in rules_lines:
-            self.log.info(f'Found 80-azure-disk.rules entry: {rule_line.strip()}')
+            self.log.info(f'Found azure rules entry: {rule_line.strip()}')
     
     def test_azure_vm_utils_selftest(self):
         """
@@ -247,7 +274,7 @@ class TestAzureVMUtils(unittest.TestCase):
             github_url = 'https://github.com/Azure/azure-vm-utils/blob/main/selftest/selftest.py'
             raw_url = 'https://raw.githubusercontent.com/Azure/azure-vm-utils/main/selftest/selftest.py'
 
-            # Create /root directory if it doesn't exist on LOCAL HOST
+            # Create /tmp directory if it doesn't exist on LOCAL HOST
             try:
                 local_os.makedirs('/tmp', exist_ok=True)
             except PermissionError:
@@ -444,7 +471,7 @@ class TestAzureVMUtils(unittest.TestCase):
         # Subtest 4: Check /dev/disk/azure symlinks
         with self.subTest('/dev/disk/azure symlinks'):
             # First perform disk partitioning
-            disks = ['/dev/sda', '/dev/sdb', '/dev/sdc', '/dev/sdd']
+            disks = ['/dev/sda', '/dev/sdb', '/dev/sdc', '/dev/sdd', '/dev/sde']
 
             for disk in disks:
                 self.log.info(f'Partitioning {disk}...')
@@ -1022,11 +1049,13 @@ class TestAzureVMUtils(unittest.TestCase):
             2. Test azure-nvme-id --format command
             3. Test azure-nvme-id --debug command
             4. Test azure-nvme-id command
-            5. Check /dev/disk/azure symlinks
+            5. Check NVMe io_timeout values set by 80-azure-disk.rules
+            6. Check /dev/disk/azure symlinks
         expect_result:
             All azure-nvme-id commands should work properly on Standard_D16alds_v6--MSFT NVMe Accelerator v1.0/Microsoft NVMe Direct Disk v2
+            NVMe io_timeout values should be correctly set (nvme0n1: 240000, nvme1n1: 30000)
         debug_want:
-            azure-nvme-id command outputs and disk symlinks
+            azure-nvme-id command outputs, NVMe io_timeout values, and disk symlinks
         """
         # Check VM size via Azure metadata service
         cmd = 'curl -s -H "Metadata: true" "http://169.254.169.254/metadata/instance/compute/vmSize?api-version=2021-02-01&format=text"'
@@ -1039,38 +1068,48 @@ class TestAzureVMUtils(unittest.TestCase):
 
         self.log.info('VM size is Standard_D16alds_v6, proceeding with azure-nvme-id tests')
 
+        # Initialize subtest results tracking
+        subtest_results = []
+
         # Subtest 1: Check azure-nvme-id --format
-        with self.subTest('azure-nvme-id --format'):
-            # Test azure-nvme-id --format json (should include NVMe device info)
-            cmd = 'sudo azure-nvme-id --format json'
-            output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='test sudo azure-nvme-id --format json command')
-            self.log.info(f'sudo azure-nvme-id --format json output: {output}')
+        subtest_name = 'azure-nvme-id --format'
+        try:
+            with self.subTest(subtest_name):
+                # Test azure-nvme-id --format json (should include NVMe device info)
+                cmd = 'sudo azure-nvme-id --format json'
+                output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='test sudo azure-nvme-id --format json command')
+                self.log.info(f'sudo azure-nvme-id --format json output: {output}')
 
-            # Check if required strings are present in the JSON output
-            if '/dev/nvme0n1' not in output:
-                self.fail(f'sudo azure-nvme-id --format json should include "/dev/nvme0n1", but output was: {output}')
+                # Check if required strings are present in the JSON output
+                if '/dev/nvme0n1' not in output:
+                    self.fail(f'sudo azure-nvme-id --format json should include "/dev/nvme0n1", but output was: {output}')
 
-            if 'MSFT NVMe Accelerator v1.0' not in output:
-                self.fail(f'sudo azure-nvme-id --format json should include "MSFT NVMe Accelerator v1.0", but output was: {output}')
+                if 'MSFT NVMe Accelerator v1.0' not in output:
+                    self.fail(f'sudo azure-nvme-id --format json should include "MSFT NVMe Accelerator v1.0", but output was: {output}')
 
-            if 'Microsoft NVMe Direct Disk v2' not in output:
-                self.fail(f'sudo azure-nvme-id --format json should include "Microsoft NVMe Direct Disk v2", but output was: {output}')
+                if 'Microsoft NVMe Direct Disk v2' not in output:
+                    self.fail(f'sudo azure-nvme-id --format json should include "Microsoft NVMe Direct Disk v2", but output was: {output}')
 
-            self.log.info('Found required device path and model in JSON output')
+                self.log.info('Found required device path and model in JSON output')
 
-            # Test azure-nvme-id --format plain (should include OS disk info)
-            cmd = 'sudo azure-nvme-id --format plain'
-            output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='test sudo azure-nvme-id --format plain command')
-            self.log.info(f'azure-nvme-id --format plain output:\n{output}')
+                # Test azure-nvme-id --format plain (should include OS disk info)
+                cmd = 'sudo azure-nvme-id --format plain'
+                output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='test sudo azure-nvme-id --format plain command')
+                self.log.info(f'azure-nvme-id --format plain output:\n{output}')
 
-            # Check if required OS disk line is in the output
-            expected_line = "/dev/nvme0n1: type=os"
-            if expected_line not in output:
-                self.fail(f'azure-nvme-id --format plain should include "{expected_line}", but output was:\n{output}')
+                # Check if required OS disk line is in the output
+                expected_line = "/dev/nvme0n1: type=os"
+                if expected_line not in output:
+                    self.fail(f'azure-nvme-id --format plain should include "{expected_line}", but output was:\n{output}')
 
-            self.log.info('Found required OS disk line in plain format output')
+                self.log.info('Found required OS disk line in plain format output')
+                self.log.info('azure-nvme-id --format commands validated successfully')
 
-            self.log.info('azure-nvme-id --format commands validated successfully')
+            # If we reach here, subtest passed
+            subtest_results.append({'name': subtest_name, 'status': 'PASS', 'error': None})
+        except Exception as e:
+            # Subtest failed
+            subtest_results.append({'name': subtest_name, 'status': 'FAIL', 'error': str(e)})
 
         # Subtest 2: Check azure-nvme-id --debug
         with self.subTest('azure-nvme-id --debug'):
@@ -1114,7 +1153,47 @@ class TestAzureVMUtils(unittest.TestCase):
 
             self.log.info('azure-nvme-id command validated successfully')
 
-        # Subtest 4: Check /dev/disk/azure symlinks
+        # Subtest 4: Check NVMe io_timeout values set by 80-azure-disk.rules
+        subtest_name = 'NVMe io_timeout validation'
+        try:
+            with self.subTest(subtest_name):
+                # Check that nvme_core.io_timeout is NOT set in kernel command line
+                cmd = 'cat /proc/cmdline'
+                cmdline_output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check kernel command line')
+                self.log.info(f'Kernel command line content: {cmdline_output}')
+
+                # Check for the specific parameter
+                self.assertNotIn('nvme_core.io_timeout=240', cmdline_output,
+                     'nvme_core.io_timeout=240 should NOT be present in kernel command line')
+
+                self.log.info('Verified nvme_core.io_timeout=240 is not present in kernel command line')
+
+                # Check nvme0n1 io_timeout (should be 240000)
+                cmd = 'cat /sys/class/block/nvme0n1/queue/io_timeout'
+                output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check nvme0n1 io_timeout value')
+                expected_timeout = '240000'
+                if output.strip() != expected_timeout:
+                    self.fail(f'nvme0n1 io_timeout should be {expected_timeout}, but got: {output.strip()}')
+
+                self.log.info(f'nvme0n1 io_timeout correctly set to {output.strip()}')
+
+                # Check nvme1n1 io_timeout (should be 30000)
+                cmd = 'cat /sys/class/block/nvme1n1/queue/io_timeout'
+                output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check nvme1n1 io_timeout value')
+                expected_timeout = '30000'
+                if output.strip() != expected_timeout:
+                    self.fail(f'nvme1n1 io_timeout should be {expected_timeout}, but got: {output.strip()}')
+
+                self.log.info(f'nvme1n1 io_timeout correctly set to {output.strip()}')
+                self.log.info('NVMe io_timeout values validated successfully')
+
+            # If we reach here, subtest passed
+            subtest_results.append({'name': subtest_name, 'status': 'PASS', 'error': None})
+        except Exception as e:
+            # Subtest failed
+            subtest_results.append({'name': subtest_name, 'status': 'FAIL', 'error': str(e)})
+
+        # Subtest 5: Check /dev/disk/azure symlinks
         with self.subTest('/dev/disk/azure symlinks'):
             # First perform disk partitioning on NVMe data disks
             disks = ['/dev/nvme0n2', '/dev/nvme0n3', '/dev/nvme0n4', '/dev/nvme0n5', '/dev/nvme1n1', '/dev/nvme2n1']
@@ -1237,10 +1316,730 @@ class TestAzureVMUtils(unittest.TestCase):
                     self.log.warning(f'No symlinks found matching pattern: {pattern}')
 
             self.log.info('Azure disk symlinks validation completed')
-    
+
+        # Dynamic Subtest Summary for Standard_D16alds_v6
+        passed_count = len([r for r in subtest_results if r['status'] == 'PASS'])
+        failed_count = len([r for r in subtest_results if r['status'] == 'FAIL'])
+        total_count = len(subtest_results)
+
+        self.log.info('='*80)
+        self.log.info('SUBTEST SUMMARY for test_azure_vm_utils_standard_d16alds_v6')
+        self.log.info('='*80)
+        self.log.info(f'Total Subtests: {total_count}')
+        self.log.info(f'Passed: {passed_count}')
+        self.log.info(f'Failed: {failed_count}')
+        self.log.info('='*80)
+
+        for i, result in enumerate(subtest_results, 1):
+            status_icon = '✓' if result['status'] == 'PASS' else '✗'
+            self.log.info(f'{i}. {status_icon} {result["name"]}: {result["status"]}')
+            if result['error']:
+                self.log.error(f'   Error: {result["error"]}')
+
+        self.log.info('='*80)
+        if failed_count == 0:
+            self.log.info('All subtests PASSED for Standard_D16alds_v6 VM')
+        else:
+            self.log.error(f'{failed_count} subtest(s) FAILED for Standard_D16alds_v6 VM')
+        self.log.info('='*80)
+
+    def test_azure_vm_utils_arm_standard_d2ps_v5(self):
+        """
+        case_tag:
+            azure_vm_utils,azure_vm_utils_tier2
+        case_name:
+            test_azure_vm_utils_standard_d2ps_v5
+        component:
+            azure-vm-utils
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        maintainer:
+            xxiong@redhat.com
+        description:
+            Test azure-vm-utils functionality on Standard_D2ps_v5 VMs
+        key_steps:
+            1. Check VM size is Standard_D2ps_v5 via metadata service
+            2. Test azure-nvme-id --format command
+            3. Test azure-nvme-id --debug command
+            4. Test azure-nvme-id command
+            5. Check /dev/disk/azure symlinks
+        expect_result:
+            All azure-nvme-id commands should work properly on Standard_D2ps_v5
+        debug_want:
+            azure-nvme-id command outputs and disk symlinks
+        """
+        # Check VM size via Azure metadata service
+        cmd = 'curl -s -H "Metadata: true" "http://169.254.169.254/metadata/instance/compute/vmSize?api-version=2021-02-01&format=text"'
+        vm_size = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='get VM size from Azure metadata service').strip()
+
+        self.log.info(f'Current VM size: {vm_size}')
+
+        if vm_size != 'Standard_D2ps_v5':
+            self.skipTest(f'This test is only for ARM Standard_D2ps_v5 VMs. Current VM size is {vm_size}')
+
+        self.log.info('VM size is Standard_D2ps_v5, proceeding with azure-nvme-id tests')
+
+        # Subtest 1: Check azure-nvme-id --format
+        with self.subTest('azure-nvme-id --format'):
+            # Test azure-nvme-id --format json (should output [])
+            cmd = 'azure-nvme-id --format json'
+            output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='test azure-nvme-id --format json command')
+            self.log.info(f'azure-nvme-id --format json output: {output}')
+
+            output_stripped = output.strip()
+            if output_stripped != '[]':
+                self.fail(f'azure-nvme-id --format json should output "[]", but got: "{output_stripped}"')
+
+            # Test azure-nvme-id --format plain (should output empty)
+            cmd = 'azure-nvme-id --format plain'
+            output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='test azure-nvme-id --format plain command')
+            self.log.info(f'azure-nvme-id --format plain output: "{output}"')
+
+            if output.strip():
+                self.fail(f'azure-nvme-id --format plain should output empty, but got: "{output.strip()}"')
+
+            self.log.info('azure-nvme-id --format commands validated successfully')
+
+        # Subtest 2: Check azure-nvme-id --debug
+        with self.subTest('azure-nvme-id --debug'):
+            cmd = 'azure-nvme-id --debug'
+            output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='test azure-nvme-id --debug command')
+            self.log.info(f'azure-nvme-id --debug output: {output}')
+
+            expected_text = "DEBUG: found 0 controllers"
+            if expected_text not in output:
+                self.fail(f'azure-nvme-id --debug should include "{expected_text}", but output was: {output}')
+
+            self.log.info('azure-nvme-id --debug command validated successfully')
+
+        # Subtest 3: Check azure-nvme-id (should output empty)
+        with self.subTest('azure-nvme-id'):
+            cmd = 'azure-nvme-id'
+            output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='test azure-nvme-id command')
+            self.log.info(f'azure-nvme-id output: "{output}"')
+
+            if output.strip():
+                self.fail(f'azure-nvme-id should output empty, but got: "{output.strip()}"')
+
+            self.log.info('azure-nvme-id command validated successfully')
+
+        # Subtest 4: Check /dev/disk/azure symlinks
+        with self.subTest('/dev/disk/azure symlinks'):
+            # First perform disk partitioning
+            disks = ['/dev/sda', '/dev/sdb', '/dev/sdc', '/dev/sdd', '/dev/sde']
+
+            for disk in disks:
+                self.log.info(f'Partitioning {disk}...')
+
+                # Check if disk exists before partitioning
+                cmd = f'test -b {disk}'
+                ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg=f'check if {disk} exists')
+                if ret != 0:
+                    self.log.info(f'Disk {disk} does not exist, skipping')
+                    continue
+
+                # Create GPT partition table
+                cmd = f'sudo parted --script {disk} mklabel gpt'
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg=f'create GPT partition table on {disk}')
+
+                # Create first partition (0% - 50%)
+                cmd = f'sudo parted --script {disk} mkpart primary xfs 0% 50%'
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg=f'create first partition on {disk}')
+
+                # Create second partition (50% - 100%)
+                cmd = f'sudo parted --script {disk} mkpart primary xfs 50% 100%'
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg=f'create second partition on {disk}')
+
+                # Wait for partitions to appear
+                cmd = f'sudo partprobe {disk}'
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg=f'refresh partition table for {disk}')
+
+                self.log.info(f'Successfully partitioned {disk}')
+
+            # Wait a bit for udev to process the new partitions
+            cmd = 'sleep 2'
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='wait for udev to process new partitions')
+
+            # Now check the azure disk symlinks
+            cmd = 'find /dev/disk/azure -type l | sort'
+            output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='list azure disk symlinks')
+            self.log.info(f'/dev/disk/azure symlinks:\n{output}')
+
+            # Expected symlinks after partitioning
+            expected_symlinks = [
+                "/dev/disk/azure/data/by-lun/0",
+                "/dev/disk/azure/data/by-lun/0-part1",
+                "/dev/disk/azure/data/by-lun/0-part2",
+                "/dev/disk/azure/data/by-lun/1",
+                "/dev/disk/azure/data/by-lun/1-part1",
+                "/dev/disk/azure/data/by-lun/1-part2",
+                "/dev/disk/azure/data/by-lun/2",
+                "/dev/disk/azure/data/by-lun/2-part1",
+                "/dev/disk/azure/data/by-lun/2-part2",
+                "/dev/disk/azure/data/by-lun/3",
+                "/dev/disk/azure/data/by-lun/3-part1",
+                "/dev/disk/azure/data/by-lun/3-part2",
+                "/dev/disk/azure/os",
+                "/dev/disk/azure/os-part1",
+                "/dev/disk/azure/os-part2",
+                "/dev/disk/azure/os-part3",
+                "/dev/disk/azure/root",
+                "/dev/disk/azure/root-part1",
+                "/dev/disk/azure/root-part2",
+                "/dev/disk/azure/root-part3",
+                "/dev/disk/azure/scsi1/lun0",
+                "/dev/disk/azure/scsi1/lun0-part1",
+                "/dev/disk/azure/scsi1/lun0-part2",
+                "/dev/disk/azure/scsi1/lun1",
+                "/dev/disk/azure/scsi1/lun1-part1",
+                "/dev/disk/azure/scsi1/lun1-part2",
+                "/dev/disk/azure/scsi1/lun2",
+                "/dev/disk/azure/scsi1/lun2-part1",
+                "/dev/disk/azure/scsi1/lun2-part2",
+                "/dev/disk/azure/scsi1/lun3",
+                "/dev/disk/azure/scsi1/lun3-part1",
+                "/dev/disk/azure/scsi1/lun3-part2"
+            ]
+
+            # Parse actual symlinks
+            actual_symlinks = [link.strip() for link in output.strip().split('\n') if link.strip()]
+
+            # Validate that we have the expected symlinks
+            self.log.info(f'Found {len(actual_symlinks)} azure disk symlinks')
+
+            # Check for missing expected symlinks
+            missing_symlinks = []
+            for expected in expected_symlinks:
+                if expected not in actual_symlinks:
+                    missing_symlinks.append(expected)
+
+            if missing_symlinks:
+                self.log.warning(f'Missing expected symlinks: {missing_symlinks}')
+
+            # Check for unexpected symlinks
+            unexpected_symlinks = []
+            for actual in actual_symlinks:
+                if actual not in expected_symlinks:
+                    unexpected_symlinks.append(actual)
+
+            if unexpected_symlinks:
+                self.log.info(f'Additional symlinks found: {unexpected_symlinks}')
+
+            # Basic validation: should have at least some core symlinks
+            core_symlinks = [link for link in actual_symlinks if '/dev/disk/azure/' in link]
+            if not core_symlinks:
+                self.fail('No azure disk symlinks found in /dev/disk/azure')
+
+            # Validate critical symlinks exist
+            critical_patterns = [
+                '/dev/disk/azure/data/by-lun/',
+                '/dev/disk/azure/scsi1/lun'
+            ]
+
+            for pattern in critical_patterns:
+                matching_links = [link for link in actual_symlinks if pattern in link]
+                if not matching_links:
+                    self.log.warning(f'No symlinks found matching pattern: {pattern}')
+
+            self.log.info('Azure disk symlinks validation completed')
+
+    def test_azure_vm_utils_arm_standard_d2pds_v6(self):
+        """
+        case_tag:
+            azure_vm_utils,azure_vm_utils_tier2
+        case_name:
+            test_azure_vm_utils_standard_d2pds_v6
+        component:
+            azure-vm-utils
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        maintainer:
+            xxiong@redhat.com
+        description:
+            Test azure-vm-utils functionality on Standard_D2pds_v6 VMs
+        key_steps:
+            1. Check VM size is Standard_D2pds_v6 via metadata service
+            2. Test azure-nvme-id --format command
+            3. Test azure-nvme-id --debug command
+            4. Test azure-nvme-id command
+            5. Check NVMe io_timeout values and kernel parameters
+            6. Check /dev/disk/azure symlinks
+        expect_result:
+            All azure-nvme-id commands should work properly on Standard_D2pds_v6--MSFT NVMe Accelerator v1.0/Microsoft NVMe Direct Disk v2
+            NVMe io_timeout should be 30000 and nvme_core.io_timeout=240 should not be in kernel cmdline
+        debug_want:
+            azure-nvme-id command outputs, NVMe io_timeout values, kernel parameters, and disk symlinks
+        """
+        # Check VM size via Azure metadata service
+        cmd = 'curl -s -H "Metadata: true" "http://169.254.169.254/metadata/instance/compute/vmSize?api-version=2021-02-01&format=text"'
+        vm_size = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='get VM size from Azure metadata service').strip()
+
+        self.log.info(f'Current VM size: {vm_size}')
+
+        if vm_size != 'Standard_D2pds_v6':
+            self.skipTest(f'This test is only for ARM Standard_D2pds_v6 VMs. Current VM size is {vm_size}')
+
+        self.log.info('VM size is Standard_D2pds_v6, proceeding with azure-nvme-id tests')
+
+        # Subtest 1: Check azure-nvme-id --format
+        with self.subTest('azure-nvme-id --format'):
+            # Test azure-nvme-id --format json (should include NVMe device info)
+            cmd = 'sudo azure-nvme-id --format json'
+            output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='test sudo azure-nvme-id --format json command')
+            self.log.info(f'sudo azure-nvme-id --format json output: {output}')
+
+            # Check if required strings are present in the JSON output
+            if '/dev/nvme0n1' not in output:
+                self.fail(f'sudo azure-nvme-id --format json should include "/dev/nvme0n1", but output was: {output}')
+
+            if 'Microsoft NVMe Direct Disk v2' not in output:
+                self.fail(f'sudo azure-nvme-id --format json should include "Microsoft NVMe Direct Disk v2", but output was: {output}')
+
+            self.log.info('Found required device path and model in JSON output')
+
+            # Test azure-nvme-id --format plain (should include OS disk info)
+            cmd = 'sudo azure-nvme-id --format plain'
+            output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='test sudo azure-nvme-id --format plain command')
+            self.log.info(f'azure-nvme-id --format plain output:\n{output}')
+
+            # Check if required OS disk line is in the output
+            expected_line = "/dev/nvme0n1: type=local"
+            if expected_line not in output:
+                self.fail(f'azure-nvme-id --format plain should include "{expected_line}", but output was:\n{output}')
+
+            self.log.info('Found required OS disk line in plain format output')
+
+            self.log.info('azure-nvme-id --format commands validated successfully')
+
+        # Subtest 2: Check azure-nvme-id --debug
+        with self.subTest('azure-nvme-id --debug'):
+            cmd = 'sudo azure-nvme-id --debug'
+            output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='test azure-nvme-id --debug command')
+            self.log.info(f'azure-nvme-id --debug output:\n{output}')
+
+            # Check for required debug message 1: controllers found
+            expected_text1 = "DEBUG: found 1 controllers"
+            if expected_text1 not in output:
+                self.fail(f'azure-nvme-id --debug should include "{expected_text1}", but output was:\n{output}')
+
+            self.log.info('Found expected controller count in debug output')
+
+            # Check for required debug message 2: model name and device info
+            expected_device_text = '/dev/nvme0n1: type=local'
+
+            if expected_device_text not in output:
+                self.fail(f'azure-nvme-id --debug should include "{expected_device_text}", but output was:\n{output}')
+            self.log.info('Found expected device info in debug output')
+            self.log.info('azure-nvme-id --debug command validated successfully')
+
+        # Subtest 3: Check azure-nvme-id (should include OS disk info)
+        with self.subTest('azure-nvme-id'):
+            cmd = 'sudo azure-nvme-id'
+            output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='test azure-nvme-id command')
+            self.log.info(f'azure-nvme-id output:\n{output}')
+
+            # Check if required OS disk line is in the output
+            expected_line = "/dev/nvme0n1: type=local"
+            if expected_line not in output:
+                self.fail(f'azure-nvme-id should include "{expected_line}", but output was:\n{output}')
+
+            self.log.info('Found required OS disk line in azure-nvme-id output')
+
+            self.log.info('azure-nvme-id command validated successfully')
+
+        # Subtest 4: Check NVMe io_timeout values and kernel parameters
+        with self.subTest('NVMe io_timeout and kernel parameters'):
+            # Check nvme0n1 io_timeout (should be 30000 for Standard_D2pds_v6)
+            cmd = 'cat /sys/class/block/nvme0n1/queue/io_timeout'
+            output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check nvme0n1 io_timeout value')
+            expected_timeout = '30000'
+            if output.strip() != expected_timeout:
+                self.fail(f'nvme0n1 io_timeout should be {expected_timeout}, but got: {output.strip()}')
+
+            self.log.info(f'nvme0n1 io_timeout correctly set to {output.strip()}')
+
+            # Check that nvme_core.io_timeout is NOT set in kernel command line
+            cmd = 'cat /proc/cmdline'
+            cmdline_output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='check kernel command line')
+            if 'nvme_core.io_timeout=240' in cmdline_output:
+                self.fail(f'nvme_core.io_timeout=240 should NOT be present in kernel command line. Found in: {cmdline_output}')
+
+            self.log.info('Verified nvme_core.io_timeout=240 is not present in kernel command line')
+            self.log.info('NVMe io_timeout and kernel parameters validated successfully')
+
+        # Subtest 5: Check /dev/disk/azure symlinks
+        with self.subTest('/dev/disk/azure symlinks'):
+            # First perform disk partitioning on NVMe data disks
+            disks = ['/dev/nvme0n2', '/dev/nvme0n3', '/dev/nvme0n4', '/dev/nvme1n1']
+
+            for disk in disks:
+                self.log.info(f'Partitioning {disk}...')
+
+                # Check if disk exists before partitioning
+                cmd = f'sudo test -b {disk}'
+                ret = utils_lib.run_cmd(self, cmd, ret_status=True, msg=f'check if {disk} exists')
+                if ret != 0:
+                    self.log.info(f'Disk {disk} does not exist, skipping')
+                    continue
+
+                # Create GPT partition table
+                cmd = f'sudo parted --script {disk} mklabel gpt'
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg=f'create GPT partition table on {disk}')
+
+                # Create first partition (0% - 50%)
+                cmd = f'sudo parted --script {disk} mkpart primary xfs 0% 50%'
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg=f'create first partition on {disk}')
+
+                # Create second partition (50% - 100%)
+                cmd = f'sudo parted --script {disk} mkpart primary xfs 50% 100%'
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg=f'create second partition on {disk}')
+
+                # Wait for partitions to appear
+                cmd = f'sudo partprobe {disk}'
+                utils_lib.run_cmd(self, cmd, expect_ret=0, msg=f'refresh partition table for {disk}')
+
+                self.log.info(f'Successfully partitioned {disk}')
+
+            # Wait a bit for udev to process the new partitions
+            cmd = 'sleep 2'
+            utils_lib.run_cmd(self, cmd, expect_ret=0, msg='wait for udev to process new partitions')
+
+            # Now check the azure disk symlinks
+            cmd = 'find /dev/disk/azure -type l | sort'
+            output = utils_lib.run_cmd(self, cmd, expect_ret=0, msg='list azure disk symlinks')
+            self.log.info(f'/dev/disk/azure symlinks:\n{output}')
+
+            # Expected symlinks after partitioning
+            expected_symlinks = [
+                "/dev/disk/azure/data/by-lun/0",
+                "/dev/disk/azure/data/by-lun/0-part1",
+                "/dev/disk/azure/data/by-lun/0-part2",
+                "/dev/disk/azure/data/by-lun/1",
+                "/dev/disk/azure/data/by-lun/1-part1",
+                "/dev/disk/azure/data/by-lun/1-part2",
+                "/dev/disk/azure/data/by-lun/2",
+                "/dev/disk/azure/data/by-lun/2-part1",
+                "/dev/disk/azure/data/by-lun/2-part2",
+                "/dev/disk/azure/local/by-index/1",
+                "/dev/disk/azure/local/by-index/1-part1",
+                "/dev/disk/azure/local/by-index/1-part2",
+                "/dev/disk/azure/local/by-name/nvme-75G-1",
+                "/dev/disk/azure/local/by-name/nvme-75G-1-part1",
+                "/dev/disk/azure/local/by-name/nvme-75G-1-part2",
+                "/dev/disk/azure/local/by-serial/*",
+                "/dev/disk/azure/os"
+            ]
+
+            # Parse actual symlinks
+            actual_symlinks = [link.strip() for link in output.strip().split('\n') if link.strip()]
+
+            # Validate that we have the expected symlinks
+            self.log.info(f'Found {len(actual_symlinks)} azure disk symlinks')
+
+            # Check for missing expected symlinks (excluding wildcard patterns)
+            missing_symlinks = []
+            for expected in expected_symlinks:
+                if '*' in expected:
+                    # For wildcard patterns, check if any actual symlink matches the pattern
+                    pattern_prefix = expected.replace('*', '')
+                    matching = [link for link in actual_symlinks if link.startswith(pattern_prefix)]
+                    if not matching:
+                        missing_symlinks.append(expected)
+                else:
+                    if expected not in actual_symlinks:
+                        missing_symlinks.append(expected)
+
+            if missing_symlinks:
+                self.log.warning(f'Missing expected symlinks: {missing_symlinks}')
+
+            # Check for unexpected symlinks (excluding local NVMe serial patterns)
+            unexpected_symlinks = []
+            for actual in actual_symlinks:
+                # Skip local NVMe serial symlinks as they vary by hardware
+                if '/dev/disk/azure/local/by-serial/' in actual:
+                    continue
+                if actual not in expected_symlinks:
+                    unexpected_symlinks.append(actual)
+
+            if unexpected_symlinks:
+                self.log.info(f'Additional symlinks found: {unexpected_symlinks}')
+
+            # Basic validation: should have at least some core symlinks
+            core_symlinks = [link for link in actual_symlinks if '/dev/disk/azure/' in link]
+            if not core_symlinks:
+                self.fail('No azure disk symlinks found in /dev/disk/azure')
+
+            # Validate critical symlinks exist
+            critical_patterns = [
+                '/dev/disk/azure/data',
+                '/dev/disk/azure/local',
+                '/dev/disk/azure/os'
+            ]
+
+            for pattern in critical_patterns:
+                matching_links = [link for link in actual_symlinks if pattern in link]
+                if not matching_links:
+                    self.log.warning(f'No symlinks found matching pattern: {pattern}')
+
+            self.log.info('Azure disk symlinks validation completed')
+
+    def test_azure_sriov_rules_unmanaged(self):
+        """
+        case_tag:
+            azure_vm_utils,azure_vm_utils_tier2
+        case_name:
+            test_azure_sriov_rules_unmanaged
+        component:
+            azure-vm-utils
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        maintainer:
+            xxiong@redhat.com
+        description:
+            Check if SR-IOV VFs are in unmanaged status when VFs exist
+        key_steps:
+            1. Check for SR-IOV VF existence using ip link show
+            2. Get VF device names using pattern matching
+            3. Check NetworkManager status for each VF device
+            4. Verify VFs are in unmanaged state
+        expect_result:
+            All SR-IOV VF devices should be in unmanaged state
+        debug_want:
+            VF device names and NetworkManager status information
+        """
+        # Get SR-IOV VF names using the specified pattern
+        kernel_version = utils_lib.run_cmd(self, "uname -r", ret_status=False, msg='get kernel version')
+        if kernel_version.startswith("5.14"):
+            vf_name = "eth1"
+        else:
+            cmd = "ip -o link show | grep -o 'enP[^:]*s1'"
+            vf_name = utils_lib.run_cmd(self, cmd, ret_status=False, msg='search for SR-IOV VF devices')
+
+            if vf_name == '':
+                # No VF devices found - this is a failure according to requirements
+                self.fail('No SR-IOV VF devices found. Expected to find VF devices matching pattern "enP*s1"')
+
+            # Check each VF device status
+            self.log.info(f'Checking NetworkManager status for VF device: {vf_name}')
+        # Get the device status using the specified command
+        cmd_status = f"nmcli device show {vf_name}"
+        vf_status = utils_lib.run_cmd(self, cmd_status, expect_ret=False, msg=f'get NetworkManager status for {vf_name}')
+        #vf_status = vf_status.strip()
+
+        self.log.info(f'VF device {vf_name} status: "{vf_status}"')
+
+        # Check if the device is in unmanaged state
+        if 'GENERAL.STATE:                          10 (unmanaged)' in vf_status:
+            self.log.info(f'✓ VF device {vf_name} is correctly in unmanaged state')
+        else:
+            self.fail(f'✗ VF device {vf_name} is NOT in unmanaged state: {vf_status}')
+
     def tearDown(self):
+        """
+        Clean up Azure resources after test execution using framework classes
+        """
+        try:
+            # If we have a VM object and it supports data disk cleanup
+            if hasattr(self, 'vm') and self.vm is not None:
+                self.log.info(f'=== Cleaning up Azure resources for VM: {self.vm.vm_name} ===')
+
+                # Check if VM has data disk management capabilities
+                if hasattr(self.vm, 'resource_group') and hasattr(self.vm, 'vm_name'):
+                    resource_group = self.vm.resource_group
+                    vm_name = self.vm.vm_name
+
+                    # Use our custom cleanup for data disks, NICs, NSGs, and Public IPs
+                    # (since the framework doesn't have built-in cleanup for these)
+                    self._display_and_delete_data_disks(resource_group, vm_name)
+                    cmd = f'az vm delete --name {vm_name}  --resource-group {resource_group} --yes'
+                    run_cmd_local(cmd, is_log_ret=True)
+                    time.sleep(60)
+                    cmd = f'az network nsg delete --resource-group {resource_group} --name {vm_name}NSG'
+                    run_cmd_local(cmd, is_log_ret=True)
+                    time.sleep(30)
+                    cmd = f'az network public-ip delete --resource-group {resource_group} --name {vm_name}PublicIP'
+                    run_cmd_local(cmd, is_log_ret=True)
+
+                else:
+                    self.log.info('VM object does not have resource group information for cleanup')
+            else:
+                # Fallback to params-based cleanup if VM object not available
+                resource_group = self.params.get('resource_group_name') if hasattr(self, 'params') else None
+                vm_name = self.params.get('vm_name') if hasattr(self, 'params') else None
+
+                if resource_group and vm_name:
+                    self.log.info(f'=== Cleaning up Azure resources for VM: {vm_name} in RG: {resource_group} ===')
+                    self._display_and_delete_data_disks(resource_group, vm_name)
+                    cmd = f'az vm delete --name {vm_name}  --resource-group {resource_group} --yes'
+                    run_cmd_local(cmd, is_log_ret=True)
+                    time.sleep(60)
+                    cmd = f'az network nsg delete --resource-group {resource_group} --name {vm_name}NSG'
+                    run_cmd_local(cmd, is_log_ret=True)
+                    time.sleep(30)
+                    cmd = f'az network public-ip delete --resource-group {resource_group} --name {vm_name}PublicIP'
+                    run_cmd_local(cmd, is_log_ret=True)
+                else:
+                    self.log.info('No VM resource information available for cleanup')
+
+        except Exception as e:
+            self.log.warning(f'Error during Azure resource cleanup: {str(e)}')
+
+        # Always call the parent tearDown method
         utils_lib.finish_case(self)
 
+    def _display_and_delete_data_disks(self, resource_group, vm_name):
+        """Display and delete attached data disks"""
+        try:
+            from os_tests.libs.utils_lib import run_cmd_local
+            self.log.info('--- Attached Data Disks ---')
+
+            # List attached data disks
+            cmd = f'az vm show --resource-group {resource_group} --name {vm_name} --query "storageProfile.dataDisks" --output json'
+            ret, disk_output = run_cmd_local(cmd, is_log_ret=True)
+
+            if ret == 0:
+
+                if disk_output.strip() and disk_output.strip() != '[]':
+                    import json
+                    try:
+                        data_disks = json.loads(disk_output)
+                        if data_disks:
+                            disks_to_delete = []
+                            for i, disk in enumerate(data_disks):
+                                disk_name = disk.get('managedDisk', {}).get('id', '').split('/')[-1] if disk.get('managedDisk') else 'Unknown'
+                                disk_size = disk.get('diskSizeGb', 'Unknown')
+                                disk_lun = disk.get('lun', 'Unknown')
+                                disk_caching = disk.get('caching', 'Unknown')
+
+                                self.log.info(f'  Data Disk {i+1}:')
+                                self.log.info(f'    Name: {disk_name}')
+                                self.log.info(f'    Size: {disk_size} GB')
+                                self.log.info(f'    LUN: {disk_lun}')
+                                self.log.info(f'    Caching: {disk_caching}')
+
+                                if disk_name != 'Unknown':
+                                    disks_to_delete.append(disk_name)
+
+                            # Delete the data disks
+                            if disks_to_delete:
+                                self.log.info('  Deleting data disks...')
+                                for disk_name in disks_to_delete:
+                                    self.log.info(f'    Detaching and deleting: {disk_name}')
+
+                                    # Detach the disk first
+                                    cmd_detach = f'az vm disk detach --resource-group {resource_group} --vm-name {vm_name} --name {disk_name}'
+                                    run_cmd_local(cmd_detach, is_log_ret=True)
+
+                                    # Delete the disk
+                                    cmd_delete = f'az disk delete --resource-group {resource_group} --name {disk_name} --yes --no-wait'
+                                    run_cmd_local(cmd_delete, is_log_ret=True)
+
+                                self.log.info(f'  Initiated cleanup for {len(disks_to_delete)} data disks')
+                        else:
+                            self.log.info('  No data disks attached to VM')
+                    except json.JSONDecodeError:
+                        self.log.warning('  Could not parse data disk information')
+                else:
+                    self.log.info('  No data disks attached to VM')
+            else:
+                self.log.info('  Could not retrieve data disk information')
+
+        except Exception as e:
+            self.log.warning(f'Error displaying/deleting data disk information: {str(e)}')
+        """Display and delete Public IPs"""
+        try:
+            from os_tests.libs.utils_lib import run_cmd_local
+            self.log.info('--- Public IP Addresses ---')
+
+            # Get network interfaces associated with the VM
+            cmd = f'az vm show --resource-group {resource_group} --name {vm_name} --query "networkProfile.networkInterfaces[].id" --output tsv'
+            ret, nic_output = run_cmd_local(cmd, is_log_ret=True)
+
+            if ret == 0:
+
+                if nic_output.strip():
+                    nic_ids = [nic_id.strip() for nic_id in nic_output.strip().split('\n') if nic_id.strip()]
+                    public_ip_found = False
+                    pips_to_delete = []
+
+                    for nic_id in nic_ids:
+                        nic_name = nic_id.split('/')[-1]
+                        self.log.info(f'  Network Interface: {nic_name}')
+
+                        # Get Public IPs associated with this NIC
+                        cmd_pip = f'az network nic show --resource-group {resource_group} --name {nic_name} --query "ipConfigurations" --output json'
+                        ret_pip, pip_output = run_cmd_local(cmd_pip, is_log_ret=True)
+
+                        if ret_pip == 0:
+
+                            if pip_output.strip():
+                                import json
+                                try:
+                                    ip_configs = json.loads(pip_output)
+                                    for config in ip_configs:
+                                        if 'publicIpAddress' in config and config['publicIpAddress']:
+                                            pip_id = config['publicIpAddress']['id']
+                                            pip_name = pip_id.split('/')[-1]
+
+                                            # Get detailed Public IP information
+                                            cmd_pip_details = f'az network public-ip show --resource-group {resource_group} --name {pip_name} --output json'
+                                            ret_pip_details, pip_details_output = run_cmd_local(cmd_pip_details, is_log_ret=True)
+
+                                            if ret_pip_details == 0:
+                                                try:
+                                                    pip_details = json.loads(pip_details_output)
+                                                    pip_address = pip_details.get('ipAddress', 'Not allocated')
+                                                    pip_allocation = pip_details.get('publicIpAllocationMethod', 'Unknown')
+                                                    pip_sku = pip_details.get('sku', {}).get('name', 'Unknown')
+
+                                                    self.log.info(f'    Public IP: {pip_name}')
+                                                    self.log.info(f'      IP Address: {pip_address}')
+                                                    self.log.info(f'      Allocation: {pip_allocation}')
+                                                    self.log.info(f'      SKU: {pip_sku}')
+                                                    public_ip_found = True
+                                                    pips_to_delete.append(pip_name)
+                                                except json.JSONDecodeError:
+                                                    self.log.info(f'    Public IP: {pip_name} (could not parse details)')
+                                                    public_ip_found = True
+                                                    pips_to_delete.append(pip_name)
+                                            else:
+                                                self.log.info(f'    Public IP: {pip_name} (could not get details)')
+                                                public_ip_found = True
+                                                pips_to_delete.append(pip_name)
+                                        else:
+                                            self.log.info('    No Public IP attached to this IP configuration')
+                                except json.JSONDecodeError:
+                                    self.log.info('    Could not parse IP configuration information')
+
+                    # Delete identified Public IPs
+                    if pips_to_delete:
+                        self.log.info('  Deleting Public IP addresses...')
+                        for pip_name in pips_to_delete:
+                            self.log.info(f'    Deleting Public IP: {pip_name}')
+                            cmd_delete_pip = f'az network public-ip delete --resource-group {resource_group} --name {pip_name}'
+                            run_cmd_local(cmd_delete_pip, is_log_ret=True)
+                            self.log.info(f'    Waiting 30 seconds for Public IP {pip_name} deletion to complete...')
+                            import time
+                            time.sleep(30)
+
+                        self.log.info(f'  Initiated cleanup for {len(pips_to_delete)} Public IP addresses')
+                    elif public_ip_found:
+                        self.log.info('  No Public IP addresses to delete')
+                    else:
+                        self.log.info('  No Public IP addresses found')
+                else:
+                    self.log.info('  No network interfaces found')
+            else:
+                self.log.info('  Could not retrieve network interface information')
+
+        except Exception as e:
+            self.log.warning(f'Error displaying/deleting Public IP information: {str(e)}')
 
 if __name__ == '__main__':
     unittest.main()
