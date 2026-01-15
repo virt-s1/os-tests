@@ -274,13 +274,13 @@ class TestAzureVMUtils(unittest.TestCase):
             github_url = 'https://github.com/Azure/azure-vm-utils/blob/main/selftest/selftest.py'
             raw_url = 'https://raw.githubusercontent.com/Azure/azure-vm-utils/main/selftest/selftest.py'
 
-            # Create /root directory if it doesn't exist on LOCAL HOST
+            # Create /tmp directory if it doesn't exist on LOCAL HOST
             try:
                 local_os.makedirs('/tmp', exist_ok=True)
             except PermissionError:
                 result = subprocess.run(['sudo', 'mkdir', '-p', '/tmp'], capture_output=True)
                 if result.returncode != 0:
-                    self.fail('Failed to create /root directory on local host')
+                    self.fail('Failed to create /tmp directory on local host')
 
             # Download the script using wget or curl on LOCAL HOST
             try:
