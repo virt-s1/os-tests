@@ -217,7 +217,7 @@ class TestLifeCycle(unittest.TestCase):
         component:
             kernel
         bug_id:
-            bugzilla_1787270, bugzilla_1973106
+            bugzilla_1787270, bugzilla_1973106, jira_RHEL-65652
         is_customer_case:
             True
         testplan:
@@ -237,6 +237,8 @@ class TestLifeCycle(unittest.TestCase):
                e.g., "sudo grubby --update-kernel=ALL --args="fips=1""
                For RHEL8, RHEL9,
                To switch the system to FIPS mode via command "sudo fips-mode-setup --enable"
+               RHEL-10: recommends enable fips during system installation, this case enable it
+               in live system only for test purpose.
             2. Reboot system to enable FIPS mode in system.
             3. Check if the FIPS mode enabled.
                For RHEL7, there is "fips=1" in /proc/cmdline.
@@ -293,6 +295,7 @@ class TestLifeCycle(unittest.TestCase):
                 cmd = cmd + ' --no-bootcfg'
             utils_lib.run_cmd(self, cmd, msg='Disable fips!')
         else:
+            # this branch is the default method for RHEL-10+
             if utils_lib.is_ostree_system(self):
                 fips_enable_cmd = 'sudo rpm-ostree kargs --append=fips=1'
             else:
