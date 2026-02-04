@@ -2232,9 +2232,9 @@
     },
     "msg_241": {
         "content": ".kernel: audit: type=140.*avc.*denied.*systemd-hwdb.*",
-        "analyze": "known issue",
+        "analyze": "known issue was fixed by errata",
         "branch": "rhel10",
-        "status": "active",
+        "status": "fixed",
         "link": "https://issues.redhat.com/browse/RHEL-50810",
         "path": "journal",
         "trigger": "",
