@@ -8,6 +8,7 @@ VM:
   username: cloud-user
   password: RedHatTest1@
   vm_name: rhel-guest-image-9-1-20220606-1
+  image_project: 
   image_name: rhel-guest-image-9-1-20220606-1
 Flavor:
   name: n2-standard-2

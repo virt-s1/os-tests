@@ -117,6 +117,9 @@ class GCPVM(VMResource):
         # VM creation parameters
         self.vm_name = params['VM'].get('vm_name')
         self.image_name = params['VM'].get('image_name')
+        self.image_project = params['VM'].get('image_project')
+        if self.image_project is None:
+            self.image_project = self.project
         self.rhel_ver = params['VM'].get('rhel_ver')
 
         self.flavor = params.get('Flavor').get('name')
@@ -155,7 +158,7 @@ class GCPVM(VMResource):
 
     @property
     def is_uefi_boot(self):
-        guestOsFeatures = get_image(self.service_v1, self.project,
+        guestOsFeatures = get_image(self.service_v1, self.image_project,
                                     self.image_name)['guestOsFeatures']
         if {'type': 'UEFI_COMPATIBLE'} in guestOsFeatures:
             return True
@@ -163,7 +166,7 @@ class GCPVM(VMResource):
 
     def create(self, wait=False):
         # Get image.
-        source_disk_image = get_image(self.service_v1, self.project,
+        source_disk_image = get_image(self.service_v1, self.image_project,
                                       self.image_name)['selfLink']
 
         # Configure the machine
