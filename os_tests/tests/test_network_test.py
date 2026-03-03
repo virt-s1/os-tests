@@ -173,7 +173,7 @@ class TestNetworkTest(unittest.TestCase):
         bug_id:
             N/A
         is_customer_case:
-            False 
+            False
         testplan:
             N/A
         maintainer:
@@ -1338,7 +1338,7 @@ COMMIT
         cmd = 'lspci|grep EFA && lsmod|grep efa'
         run_cmd(self, cmd, expect_ret=0, msg='check if EFA device exist and efa module is loaded')
         self.log.info('EFA device is found and efa driver is loaded on the instance ' + self.vm.instance_type)
-            
+
     @unittest.skipUnless(os.getenv('INFRA_PROVIDER') == 'aws', 'aws dedicated feature')
     def test_install_libfabric_check_efa_provider(self):
         """
@@ -1381,7 +1381,7 @@ COMMIT
         if utils_lib.is_pkg_installed(self,'infiniband-diags'):
             utils_lib.run_cmd(self,'ibstatus',expect_ret=0)
 
-    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') == 'aws', 'aws dedicated feature')        
+    @unittest.skipUnless(os.getenv('INFRA_PROVIDER') == 'aws', 'aws dedicated feature')
     def test_load_unload_efa_driver(self):
         """
         case_tag:
@@ -1733,11 +1733,11 @@ COMMIT
             bugzilla_1623084,bugzilla_1642461,bugzilla_2179718
         is_customer_case:
             True
-        maintainer: 
+        maintainer:
             xiliang
-        case_priority: 
+        case_priority:
             0
-        case_component: 
+        case_component:
             network
         key_steps: |
             1. Launch an instance on AWS EC2/Alicloud/Azure/GCP.
@@ -1946,15 +1946,15 @@ COMMIT
         self.vm.remove_secondary_ips()
         ip_count = len(tmp_ips)
         while ip_count > 0:
-            time.sleep(25) 
+            time.sleep(25)
             out = utils_lib.run_cmd(self, cmd)
-            for ip in tmp_ips:  
-                for network in out.split('\n'):  
-                    if ip == network:    
-                        break  
-                else:  
-                    ip_count -= 1   
-                    continue   
+            for ip in tmp_ips:
+                for network in out.split('\n'):
+                    if ip == network:
+                        break
+                else:
+                    ip_count -= 1
+                    continue
             if ip_count == 0:
                 self.log.info("All ips are removed")
                 break
@@ -1996,7 +1996,7 @@ COMMIT
             When multiple network interfaces are attached in step 2, there are multiple Elastic Network Adapters displays in PCI devices, and the IP address are auto assigned to the device.
             When multiple network interfaces are detached in step 3, there are 1 Elastic Network Adapters displays in PCI devices, and only 1 NIC displays when showing ip information.
             No crash or panic in system, no related error message or call trace in dmesg.
-            No network connection lost when attach network interfaces 
+            No network connection lost when attach network interfaces
         debug_want: |
             network driver type and version
             nm-cloud-setup
@@ -2004,9 +2004,9 @@ COMMIT
         """
         if not self.nics:
             self.skipTest('nic device not init')
-        
+
         i = 1
-        for nic in self.nics: 
+        for nic in self.nics:
             try:
                 if not nic.is_exist():
                     if not nic.create():
@@ -2025,7 +2025,7 @@ COMMIT
                 break
             else:
                 i = i + 1
-            
+
             for j in range(1, 4):
                 time.sleep(5)
                 self.log.info('Check network in guest, loop {}'.format(j))
@@ -2237,9 +2237,9 @@ COMMIT
             there is xdp traffic between 2 nodes
             eg. [root@ip-10-116-1-146 ec2-user]# timeout 60 xdp-trafficgen tcp -p 5000 -i eth0 2600:1f14:5b3:ec11:a63:5c40:1ab4:bc45
               Connected to 2600:1f14:5b3:ec11:a63:5c40:1ab4:bc45 port 5000 from 2600:1f14:5b3:ec11:43ad:1e65:2e34:41fa port 45492
-              lo->eth0                        0 err/s             2,648 xmit/s       
-              lo->eth0                        0 err/s                37 xmit/s       
-              lo->eth0                        0 err/s                 0 xmit/s         
+              lo->eth0                        0 err/s             2,648 xmit/s
+              lo->eth0                        0 err/s                37 xmit/s
+              lo->eth0                        0 err/s                 0 xmit/s
         debug_want: |
             1. # uname -r
             2. # ethtool -i $nic
@@ -2360,6 +2360,45 @@ COMMIT
                     utils_lib.run_cmd(self, 'sudo dmesg | grep -i gve', expect_ret=0,
                                     expect_kw='Driver is running with',
                                     msg="Check the gve driver queue format")
+
+    def test_check_rdma_info(self):
+        """
+        case_tag:
+            Network,Network_tier1
+        case_name:
+            test_check_rdma_info
+        case_file:
+            os_tests.tests.test_netwrok_test.TestNetworkTest.test_check_rdma_info
+        component:
+            network
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            yunyang@redhat.com
+        description:
+            Check the information from the rdma command.
+        key_steps:
+            1. Check if there are supported PCI devices by lspci.
+            2. Check the rdma command results.
+        expect_result:
+            The rdma command run correctly without errors.
+        debug_want:
+            N/A
+        """
+        # check supported devices by lspci
+        output = utils_lib.run_cmd(self, "lspci", expect_ret=0)
+        if "EFA" not in output or "Infiniband" not in output:
+            self.skipTest("Skip the case since no supported devices")
+
+        utils_lib.run_cmd(self, "rdma dev", expect_ret=0)
+        utils_lib.run_cmd(self, "rdma link", expect_ret=0)
+        utils_lib.run_cmd(self, "rdma statistic", expect_ret=0)
+        utils_lib.run_cmd(self, "rdma resource", expect_ret=0)
+
     def tearDown(self):
         utils_lib.finish_case(self)
         if 'test_mtu_min_max_set' in self.id():
