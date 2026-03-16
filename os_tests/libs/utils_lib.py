@@ -17,6 +17,7 @@ import logging
 import argparse
 import tempfile
 import string
+import shlex
 import shutil
 import psutil
 from tipset.libs import rmt_ssh
@@ -1903,13 +1904,13 @@ def core_file_check(test_instance=None):
             core_file = core_file.strip('\n')
             if not core_file:
                 continue
-            cmd = 'sudo chmod 766 {}'.format(core_file)
+            cmd = 'sudo chmod 766 {}'.format(shlex.quote(core_file))
             run_cmd(test_instance, cmd, expect_ret=0)
             if test_instance.params.get('remote_node') is not None:
                 test_instance.log.info('retrive {} from remote to {}'.format(core_file, test_instance.log_dir))
                 test_instance.SSH.get_file(rmt_file=core_file,local_file='{}/attachments/{}'.format(test_instance.log_dir,os.path.basename(core_file)))
             else:
-                cmd = "cp {} {}/attachments/{}".format(core_file, test_instance.log_dir,os.path.basename(core_file) )
+                cmd = "cp {} {}/attachments/{}".format(shlex.quote(core_file), shlex.quote(test_instance.log_dir),shlex.quote(os.path.basename(core_file)) )
                 run_cmd(test_instance, cmd, msg='save {} to {}'.format(core_file, test_instance.log_dir))
         run_cmd(test_instance, 'sudo rm -rf /var/lib/systemd/coredump/core*', msg='clean up core files')
         cmd = 'sudo journalctl -b0'
