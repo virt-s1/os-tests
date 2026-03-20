@@ -70,7 +70,7 @@ def init_args():
     parser.add_argument('--params_profile', dest='params_profile', default=None, action='store',
                     help='params in yaml file, you can also put platform_profile content in this file', required=False)
     parser.add_argument('--platform_profile', dest='platform_profile', default=None, action='store',
-                    help='specify platform profile if enable os-tests provison vms self, [alicloud, aws, azure, gcp, openstack, libvirt, nutanix, openshift, openstack]', required=False)
+                    help='specify platform profile if enable os-tests provison vms self, [alicloud, aws, azure, gcp, oci, openstack, libvirt, nutanix, openshift]', required=False)
     parser.add_argument('--no-cleanup', dest='no_cleanup', action='store_true',
                     help='debug purpose, skip cleanup phase at exit, do not use it in normal test', required=False)
     parser.add_argument('--proxy_url', dest='proxy_url', default=None, action='store',
@@ -143,7 +143,7 @@ def init_provider(params=None):
     disks = []
     nics = []
     nets = []
-    supported_platforms = ['aws', 'openstack', 'ali', 'nutanix', 'google', 'libvirt', 'openshift', 'azure', 'kvm']
+    supported_platforms = ['aws', 'openstack', 'ali', 'nutanix', 'google', 'libvirt', 'openshift', 'azure', 'kvm', 'oci']
     provider = params['Cloud']['provider']
     os.environ['INFRA_PROVIDER'] = provider
     if not provider:
@@ -200,6 +200,14 @@ def init_provider(params=None):
         for net in nets:
             if not net.exists():
                 net.create()
+    if 'oci' in provider:
+        from .resources_oci import OCIVM,OCIVolume
+        vms.extend([OCIVM(params),OCIVM(params)])
+        disks.append(OCIVolume(params))
+        if params.get('instance_ids'):
+            vms[0].id = params.get('instance_ids').split(',')[0]
+            if ',' in params.get('instance_ids'):
+                vms[1].id = params.get('instance_ids').split(',')[1]
     return vms, disks, nics, nets
 
 def init_provider_from_guest(test_instance):
@@ -218,6 +226,8 @@ def init_provider_from_guest(test_instance):
         provider = 'nutanix'
     if is_gcp(test_instance):
         provider = 'google'
+    if is_oci(test_instance):
+        provider = 'oci'
     os.environ['INFRA_PROVIDER'] = provider
 
 def stop_httpserver(port=HTTP_PORT):
@@ -1231,6 +1241,26 @@ def is_gcp(test_instance, action=None):
         if action == "cancel":
             test_instance.skipTest("Cancel it in non gcp system.")
         test_instance.log.info("Not an gcp system.")
+    return False
+
+def is_oci(test_instance, action=None):
+    '''
+    Check whether system is an OCI (Oracle Cloud Infrastructure) system.
+    Arguments:
+        test_instance {Test instance} -- unittest.TestCase instance
+        action {string} -- cancel case if it is not an OCI system
+    Return:
+        oci: return True
+        other: return False
+    '''
+    output = run_cmd(test_instance, "sudo cat /sys/devices/virtual/dmi/id/chassis_asset_tag", expect_ret=0)
+    if 'oraclecloud' in output.lower():
+        test_instance.log.info("OCI system.")
+        return True
+    else:
+        if action == "cancel":
+            test_instance.skipTest("Cancel it in non OCI system.")
+        test_instance.log.info("Not an OCI system.")
     return False
 
 def is_metal(test_instance, action=None):
