@@ -1,0 +1,50 @@
+# This is ONLY a template for provision OCI (Oracle Cloud Infrastructure) resources.
+# Please copy it to other place that you want to edit
+# Not recommend you edit it directly in case leaking sensitive information.
+Cloud:
+    provider: oci
+
+# OCI config file path, default is ~/.oci/config.
+# Identity --> My Profile --> Tokens and keys --> API keys --> View configuration file
+config_file: ~/.oci/config
+
+# OCI config profile name, default is DEFAULT
+profile_name: DEFAULT
+
+# Required: compartment OCID where resources will be created
+compartment_id:
+
+# Required: availability domain name, e.g. "Uocm:US-ASHBURN-AD-1"
+availability_domain:
+
+# Required: image OCID to launch the instance
+image_id:
+
+# Required: subnet OCID for instance networking
+subnet_id:
+
+# run test on existing instances, vm1_instance_id,vm2_instance_id
+# eg. ocid1.instance.oc1.iad.xxx,ocid1.instance.oc1.iad.yyy
+instance_ids:
+
+# please set it to False if you do not want recreate it by test framework
+is_allow_delete: True
+
+# Instance shape, e.g. VM.Standard.E4.Flex, VM.Standard2.1, BM.Standard3.64
+shape: VM.Standard.E5.Flex
+# For flexible shapes (e.g. VM.Standard.E4.Flex), specify OCPUs and memory
+# Leave empty for fixed shapes
+ocpus: 2
+memory_in_gbs: 8
+
+# Path to SSH public key for instance metadata injection
+ssh_pubkey_path: ~/.ssh/id_rsa.pub
+
+# Default login username
+username: cloud-user
+
+# optional, default is os_tests_oci
+tagname: os_tests_oci
+
+# Boot volume size in GBs, default is 50
+boot_volume_size_in_gbs: 50
