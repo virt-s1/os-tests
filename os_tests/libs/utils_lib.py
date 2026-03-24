@@ -201,9 +201,10 @@ def init_provider(params=None):
             if not net.exists():
                 net.create()
     if 'oci' in provider:
-        from .resources_oci import OCIVM,OCIVolume
+        from .resources_oci import OCIVM,OCIVolume,OCINIC
         vms.extend([OCIVM(params),OCIVM(params)])
         disks.append(OCIVolume(params))
+        nics.extend([OCINIC(params),OCINIC(params),OCINIC(params),OCINIC(params)])
         if params.get('instance_ids'):
             vms[0].id = params.get('instance_ids').split(',')[0]
             if ',' in params.get('instance_ids'):

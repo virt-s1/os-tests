@@ -1111,17 +1111,20 @@ class TestLifeCycle(unittest.TestCase):
         self.assertTrue(self.vm.is_stopped(),
                         "Stop VM error: VM status is not SHUTOFF")
         self._start_vm_and_check()
-        utils_lib.run_cmd(self, 'sudo shutdown now')
-        for count in utils_lib.iterate_timeout(180,
-                                               "Timed out waiting for VM to stop.",
-                                               wait=0):
-            time.sleep(30)
-            self.log.info(f"The {count} time 30 second waiting\n"
-                          f"The vm status is {self.vm.get_state()}")
-            if self.vm.is_stopped():
-                break
-        time.sleep(120)
-        self._start_vm_and_check()
+        if self.vm.provider == 'oci':
+            self.log.info("Skip 'sudo shutdown now' test on OCI as guest-initiated shutdown does not auto-stop the instance")
+        else:
+            utils_lib.run_cmd(self, 'sudo shutdown now')
+            for count in utils_lib.iterate_timeout(180,
+                                                   "Timed out waiting for VM to stop.",
+                                                   wait=0):
+                time.sleep(30)
+                self.log.info(f"The {count} time 30 second waiting\n"
+                              f"The vm status is {self.vm.get_state()}")
+                if self.vm.is_stopped():
+                    break
+            time.sleep(120)
+            self._start_vm_and_check()
 
     def _update_kernel_args(self, boot_param_required):
         if utils_lib.is_ostree_system(self):
