@@ -13,6 +13,7 @@ try:
         LaunchInstanceShapeConfigDetails,
         CreateVolumeDetails,
         AttachIScsiVolumeDetails,
+        AttachParavirtualizedVolumeDetails,
         CreateVcnDetails,
     )
 except ImportError:
@@ -438,11 +439,10 @@ class OCIVM(VMResource):
     def attach_block(self, disk, target, wait=True, timeout=120):
         try:
             LOG.info("try to attach {} to {}".format(disk.id, self.id))
-            attach_details = AttachIScsiVolumeDetails(
+            attach_details = AttachParavirtualizedVolumeDetails(
                 display_name=target,
                 instance_id=self.id,
-                volume_id=disk.id,
-                type='iscsi'
+                volume_id=disk.id
             )
             response = self.compute_client.attach_volume(attach_details)
             if wait:
@@ -485,11 +485,70 @@ class OCIVM(VMResource):
             LOG.error("Failed to detach volume: {}".format(err))
             return False
 
-    def attach_nic(self, nic, wait=True, timeout=120):
-        raise NotImplementedError
+    def attach_nic(self, nic, wait=True, timeout=120, **kwargs):
+        try:
+            LOG.info("try to attach nic to {}".format(self.id))
+            from oci.core.models import AttachVnicDetails, CreateVnicDetails
+            attach_vnic_details = AttachVnicDetails(
+                instance_id=self.id,
+                create_vnic_details=CreateVnicDetails(
+                    subnet_id=nic.subnet_id,
+                    assign_public_ip=False,
+                    display_name=nic.tag,
+                    freeform_tags={'Name': nic.tag}
+                )
+            )
+            response = self.compute_client.attach_vnic(attach_vnic_details)
+            nic.vnic_attachment_id = response.data.id
+            if wait:
+                get_response = oci.wait_until(
+                    self.compute_client,
+                    self.compute_client.get_vnic_attachment(nic.vnic_attachment_id),
+                    'lifecycle_state',
+                    'ATTACHED',
+                    max_wait_seconds=timeout
+                )
+                vnic_attachment = get_response.data
+                nic.id = vnic_attachment.vnic_id
+                LOG.info("nic attached, vnic_id: {}, attachment_id: {}".format(nic.id, nic.vnic_attachment_id))
+            return True
+        except Exception as err:
+            LOG.error("Failed to attach nic: {}".format(err))
+            return False
 
     def detach_nic(self, nic, wait=True, force=False):
-        raise NotImplementedError
+        try:
+            if not nic.vnic_attachment_id:
+                LOG.info("No vnic_attachment_id found, searching...")
+                vnic_attachments = self.compute_client.list_vnic_attachments(
+                    compartment_id=self.compartment_id,
+                    instance_id=self.id
+                ).data
+                for va in vnic_attachments:
+                    if va.vnic_id == nic.id and va.lifecycle_state == 'ATTACHED':
+                        nic.vnic_attachment_id = va.id
+                        break
+            if not nic.vnic_attachment_id:
+                LOG.info("No attached vnic found to detach")
+                return False
+            LOG.info("try to detach nic {} from {}".format(nic.vnic_attachment_id, self.id))
+            self.compute_client.detach_vnic(nic.vnic_attachment_id)
+            if wait:
+                oci.wait_until(
+                    self.compute_client,
+                    self.compute_client.get_vnic_attachment(nic.vnic_attachment_id),
+                    'lifecycle_state',
+                    'DETACHED',
+                    max_wait_seconds=120,
+                    succeed_on_not_found=True
+                )
+            nic.vnic_attachment_id = None
+            nic.id = None
+            LOG.info("nic detached successfully")
+            return True
+        except Exception as err:
+            LOG.error("Failed to detach nic: {}".format(err))
+            return False
     
     def is_paused(self):
         raise NotImplementedError
@@ -524,11 +583,20 @@ class OCIVolume(StorageResource):
         self.type = None
 
     def is_free(self):
-        self.volume = self.blockstorage_client.get_volume(self.id).data
-        if self.volume.lifecycle_state == 'AVAILABLE':
+        try:
+            volume_attachments = self.compute_client.list_volume_attachments(
+                compartment_id=self.compartment_id,
+                volume_id=self.id
+            ).data
+            for va in volume_attachments:
+                if va.lifecycle_state in ['ATTACHING', 'ATTACHED']:
+                    LOG.info("{} volume is attached (state: {})".format(self.id, va.lifecycle_state))
+                    return False
+            LOG.info("{} volume is free".format(self.id))
             return True
-        LOG.info("{} volume is in {} state".format(self.id, self.volume.lifecycle_state))
-        return False
+        except Exception as err:
+            LOG.info("Failed to check volume attachment: {}".format(err))
+            return True
 
     def create(self, wait=True):
         try:
@@ -625,8 +693,11 @@ class OCIVolume(StorageResource):
 class OCINIC(NetworkResource):
     '''
     OCI Network class
+    On OCI, secondary VNICs are created and attached in one API call
+    (attach_vnic) and detached and deleted in one call (detach_vnic).
+    So create() just marks the NIC as ready, and delete() is a no-op
+    since detach_vnic already removes the VNIC.
     '''
-    _vnic = None
 
     def __init__(self, params):
         super(OCINIC, self).__init__(params)
@@ -639,32 +710,39 @@ class OCINIC(NetworkResource):
 
         self.compartment_id = params.get('compartment_id')
         self.subnet_id = params.get('subnet_id') or params.get('subnet_id_ipv4')
-        self.tag = params.get('tagname') or 'os_tests_network_oci'
+        self.tag = params.get('tagname') or 'os_tests_nic_oci'
         self.id = None
+        self.vnic_attachment_id = None
 
     def show(self):
         if self.is_exist():
             LOG.info("VNIC ID: {}".format(self.id))
 
     def create(self):
-        LOG.info("VNIC creation is handled during instance launch on OCI")
-        raise NotImplementedError
+        LOG.info("OCINIC created (will be provisioned on attach_nic)")
+        return True
 
     def delete(self, wait=True):
-        LOG.info("VNIC deletion is handled during instance termination on OCI")
-        raise NotImplementedError
+        LOG.info("OCINIC delete (already handled by detach_vnic)")
+        self.id = None
+        self.vnic_attachment_id = None
+        return True
 
     def get_state(self):
+        if not self.id:
+            return 'unknown'
         try:
-            state = 'unknown'
             vnic = self.network_client.get_vnic(self.id).data
             state = vnic.lifecycle_state
             LOG.info("vnic state: {}".format(state))
-        except Exception as err:
             return state
-        return state
+        except Exception as err:
+            LOG.info("Failed to get vnic state: {}".format(err))
+            return 'unknown'
 
     def is_exist(self):
+        if not self.id:
+            return False
         try:
             vnic = self.network_client.get_vnic(self.id).data
             if vnic.lifecycle_state in ['TERMINATING', 'TERMINATED']:
@@ -677,10 +755,15 @@ class OCINIC(NetworkResource):
             return False
 
     def is_free(self):
+        if not self.id:
+            return True
+        if not self.vnic_attachment_id:
+            return True
         try:
-            vnic = self.network_client.get_vnic(self.id).data
-            if vnic.lifecycle_state == 'AVAILABLE':
-                return True
-        except Exception as err:
-            LOG.info("Failed to check VNIC state: {}".format(err))
-        return False
+            va = self.compute_client.get_vnic_attachment(self.vnic_attachment_id).data
+            if va.lifecycle_state in ['ATTACHED', 'ATTACHING']:
+                LOG.info("{} nic is in use (state: {})".format(self.id, va.lifecycle_state))
+                return False
+        except Exception:
+            pass
+        return True
