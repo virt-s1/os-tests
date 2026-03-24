@@ -95,7 +95,7 @@ class EC2VM(VMResource):
         # if vm does not support efa, it will be disabled
         self.is_created = False
         if self.id and not self.params.get("is_allow_delete"):
-            LOG.info(f"Use exists {self.id} which is_allow_delete is {self.params.get("is_allow_delete")}")
+            LOG.info(f"Use exists {self.id} which is_allow_delete is {self.params.get('is_allow_delete')}")
             self.ec2_instance = self.resource.Instance(self.id)
             self.is_created = True
             self.instance_type = self.ec2_instance.instance_type
@@ -483,7 +483,7 @@ class EC2VM(VMResource):
 
     def delete(self, wait=True, loops=4):
         if self.id and not self.params.get("is_allow_delete"):
-            LOG.info(f"Use exists {self.id} which is_allow_delete is {self.params.get("is_allow_delete")}")
+            LOG.info(f"Use exists {self.id} which is_allow_delete is {self.params.get('is_allow_delete')}")
             return True
         try:
             LOG.info("Deleting instance: %s" % self.ec2_instance.id)
