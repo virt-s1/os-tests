@@ -301,11 +301,22 @@ class TestLifeCycle(unittest.TestCase):
             else:
                 # Ouput all blkid for following debugging
                 utils_lib.run_cmd(self, 'sudo blkid')
-                boot_uuid = utils_lib.run_cmd(self,
-                                              'sudo blkid --output value --match-tag UUID -t LABEL="root"',
-                                              expect_ret=0,
-                                              msg='find boot partition uuid')
-                fips_enable_cmd = 'sudo grubby --update-kernel=ALL --args="fips=1 boot=UUID={}"'.format(boot_uuid.strip('\n'))
+                boot_device_out = utils_lib.run_cmd(self, 'sudo df -P /boot | tail -1')
+                if boot_device_out.strip().endswith(' /'):
+                    boot_device = '/'
+                else:
+                    boot_device = boot_device_out.split()[0]
+
+                if boot_device == '/':
+                    boot_device_opt = ""
+                else:
+                    boot_uuid = utils_lib.run_cmd(self,
+                                                  'sudo blkid -s UUID -o value {}'.format(boot_device),
+                                                  expect_ret=0,
+                                                  msg='find boot partition uuid').strip()
+                    boot_device_opt = " boot=UUID={}".format(boot_uuid)
+
+                fips_enable_cmd = 'sudo grubby --update-kernel=ALL --args="fips=1{}"'.format(boot_device_opt)
 
             out = utils_lib.run_cmd(self, fips_enable_cmd, msg='Enable fips!', timeout=600)
             utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
