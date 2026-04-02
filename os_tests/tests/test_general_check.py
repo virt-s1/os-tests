@@ -2427,7 +2427,7 @@ current_device"
         """
         ret = utils_lib.run_cmd(self, "sudo mokutil --sb-state")
         if "SecureBoot enabled" not in ret:
-            self.log.info("SecureBoot is not enabled")
+            self.skipTest("SecureBoot is not enabled")
 
         utils_lib.run_cmd(self, "sudo rpm -qa | grep shim", expect_ret=0, msg="Check installed shim package")
         utils_lib.run_cmd(self, "sudo mokutil --db --short", expect_ret=0, msg="Check default certs in DB")
