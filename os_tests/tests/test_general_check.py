@@ -2381,7 +2381,7 @@ current_device"
             Check there is only 1 product key in the system.
         key_steps:
             1. ls /etc/pki/product && ls /etc/pki/product-default/
-            2. subscription-manager release --set=8.10 
+            2. subscription-manager release --set=8.10
         expect_result:
             1. There is only 1 product key in the system.
             2. Release set to the target version.
@@ -2391,6 +2391,48 @@ current_device"
         self.log.info("Check rhel product key")
         #check product key before rhsm registration
         utils_lib.run_cmd(self, "sudo ls /etc/pki/product*", expect_ret=0)
+
+    def test_check_secureboot(self):
+        """
+        case_tag:
+            test_check_secureboot
+        case_name:
+            test_check_secureboot
+        case_file:
+            os_tests.tests.test_general_check.test_check_secureboot
+        component:
+            secureboot
+        bugzilla_id:
+            N/A
+        is_customer_case:
+            False
+        customer_case_id:
+            N/A
+        testplan:
+            N/A
+        maintainer:
+            linl@redhat.com
+        description: |
+            Check secure boot status and certs.
+        key_steps:
+            1. run command "sudo mokutil --sb-state" to check the secure boot status.
+            2. check the installed shim package with command: "sudo rpm -qa | grep shim"
+            3. check the default certs in DB: "sudo mokutil --db --short"
+            4. Check default PK value: "sudo mokutil --pk | grep -E '(Subject:|Not After)' | head -2"
+            5. check default KEK value: "sudo mokutil --kek --short"
+        expect_result:
+            Secure boot is enabled and certs are valid.
+        debug_want:
+            N/A
+        """
+        ret = utils_lib.run_cmd(self, "sudo mokutil --sb-state")
+        if "SecureBoot enabled" not in ret:
+            self.skipTest("SecureBoot is not enabled")
+
+        utils_lib.run_cmd(self, "sudo rpm -qa | grep shim", expect_ret=0, msg="Check installed shim package")
+        utils_lib.run_cmd(self, "sudo mokutil --db --short", expect_ret=0, msg="Check default certs in DB")
+        utils_lib.run_cmd(self, "sudo mokutil --pk | grep -E '(Subject:|Not After)' | head -2", expect_ret=0, msg="Check default PK value")
+        utils_lib.run_cmd(self, "sudo mokutil --kek --short", expect_ret=0, msg="Check default KEK value")
 
     def tearDown(self):
         utils_lib.finish_case(self)
