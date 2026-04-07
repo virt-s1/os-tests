@@ -924,6 +924,106 @@ class TestLifeCycle(unittest.TestCase):
             else:
                 self.assertIn("EFI variables are not supported on this system", secure_boot_check, msg='secure boot check error: %s' % secure_boot_check)
 
+    def test_uefi_enable_secureboot(self):
+        """
+        case_tag:
+            Lifecycle,Lifecycle_tier2,vm_delete
+        case_name:
+            test_uefi_enable_secureboot
+        case_file:
+            os_tests.tests.test_lifecycle.TestLifeCycle.test_uefi_enable_secureboot
+        component:
+            lifecycle
+        bugzilla_id:
+            jira_RHELOPC-1739
+        is_customer_case:
+            False
+        testplan:
+            N/A
+        maintainer:
+            adnair@redhat.com
+        description:
+            Test enabling Secure Boot in UEFI setup mode using virt-fw-vars
+            --enroll-redhat which enrolls Red Hat and Microsoft certificates.
+        key_steps:
+            1. Verify system is UEFI boot and in Setup Mode
+            2. Install required packages and generate custom db certificate
+            3. Use virt-fw-vars --enroll-redhat --output-auth to generate auth files 
+            4. Write UEFI variables via efivar
+            5. Reboot and verify Secure Boot enabled
+        expect_result:
+            Secure Boot is enabled with custom cert and Microsoft CAs in db
+        debug_want:
+            # mokutil --sb-state
+            # mokutil --db
+            # sudo keyctl list %:.platform
+        """
+        utils_lib.is_cmd_exist(self, cmd='mokutil')
+        ret = utils_lib.run_cmd(self, 'test -d /sys/firmware/efi/', ret_status=True)
+        if ret != 0:
+            self.skipTest('not uefi boot')
+
+        sb_state = utils_lib.run_cmd(self, 'sudo mokutil --sb-state', msg='Check initial Secure Boot state')
+        if 'Platform is in Setup Mode' not in sb_state:
+            self.skipTest('not in setup mode')
+
+        utils_lib.run_cmd(self,
+                          'sudo dnf install -y openssl efivar keyutils python3-virt-firmware edk2-ovmf',
+                          expect_ret=0, timeout=600, msg='Install required packages')
+
+        work_dir = '/tmp/secureboot_setup'
+        utils_lib.run_cmd(self, 'mkdir -p {}'.format(work_dir), expect_ret=0)
+
+        ovmf_dir = '/usr/share/edk2/ovmf'
+        dbx = utils_lib.run_cmd(self,
+                                'ls -t {}/DBXUpdate*.bin 2>/dev/null | head -1'.format(ovmf_dir),
+                                msg='Find DBXUpdate binary').strip()
+        if not dbx:
+            self.skipTest('DBXUpdate binary not found in {}'.format(ovmf_dir))
+
+        utils_lib.run_cmd(self,
+                          'cd {} && openssl req -quiet -newkey rsa:3072 -nodes -keyout custom_db.key -new -x509 -sha256 -days 3650 -subj "/CN=Signature Database key/" -outform DER -out custom_db.cer'.format(work_dir),
+                          expect_ret=0, msg='Generate custom db key and cert')
+
+        guid = utils_lib.run_cmd(self, 'uuidgen --random', expect_ret=0,
+                                 msg='Generate GUID for custom db cert').strip()
+        utils_lib.run_cmd(self,
+                          'cd {} && virt-fw-vars --enroll-redhat --add-db {} custom_db.cer --set-dbx {} --output-auth .'.format(work_dir, guid, dbx),
+                          expect_ret=0, timeout=300, msg='Create UEFI auth files with --enroll-redhat')
+        utils_lib.run_cmd(self,
+                          'cd {} && for f in PK KEK db dbx; do tail -c +41 $f.auth > $f.esl; done'.format(work_dir),
+                          expect_ret=0, msg='Convert auth to esl files')
+
+        efi_global = '8be4df61-93ca-11d2-aa0d-00e098032b8c'
+        efi_security = 'd719b2cb-3d3a-4596-a3bc-dad00e67656f'
+        utils_lib.run_cmd(self,
+                          'cd {} && sudo efivar -w -n {}-PK -f PK.esl'.format(work_dir, efi_global),
+                          expect_ret=0, msg='Write PK UEFI variable')
+        utils_lib.run_cmd(self,
+                          'cd {} && sudo efivar -w -n {}-KEK -f KEK.esl'.format(work_dir, efi_global),
+                          expect_ret=0, msg='Write KEK UEFI variable')
+        utils_lib.run_cmd(self,
+                          'cd {} && sudo efivar -w -n {}-db -f db.esl'.format(work_dir, efi_security),
+                          expect_ret=0, msg='Write db UEFI variable')
+        utils_lib.run_cmd(self,
+                          'cd {} && sudo efivar -w -n {}-dbx -f dbx.esl'.format(work_dir, efi_security),
+                          expect_ret=0, msg='Write dbx UEFI variable')
+
+        utils_lib.run_cmd(self, 'sudo reboot', msg='reboot system under test')
+        time.sleep(30)
+        utils_lib.init_connection(self, timeout=self.ssh_timeout)
+
+        sb_state_after = utils_lib.run_cmd(self, 'sudo mokutil --sb-state', expect_ret=0,
+                                           msg='Check Secure Boot state after reboot')
+        self.assertIn('SecureBoot enabled', sb_state_after,
+                      msg='Secure Boot should be enabled after reboot, got: {}'.format(sb_state_after))
+
+        utils_lib.run_cmd(self, 'sudo keyctl list %:.platform', expect_ret=0,
+                          expect_kw='Signature Database key',
+                          msg='Verify custom cert in kernel keyring')
+
+        utils_lib.run_cmd(self, 'sudo rm -rf {}'.format(work_dir))
+
     def test_reboot_vm(self):
         """
         case_tag:
@@ -1805,6 +1905,12 @@ class TestLifeCycle(unittest.TestCase):
         if "test_boot_sev_snp" in self.id():
             if self.vm and self.vm.provider == 'aws':
                 if self.vm.is_exist() and self.vm.sev_snp_enabled:
+                    self.vm.delete()
+                    self.vm.create()
+                utils_lib.init_connection(self, timeout=self.ssh_timeout)
+        if "test_uefi_enable_secureboot" in self.id():
+            if self.vm:
+                if self.vm.is_exist():
                     self.vm.delete()
                     self.vm.create()
                 utils_lib.init_connection(self, timeout=self.ssh_timeout)
