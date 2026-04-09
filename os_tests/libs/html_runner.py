@@ -13,6 +13,7 @@ from jinja2 import Template, FileSystemLoader, Environment, select_autoescape
 import json
 from os_tests.libs.utils_lib import init_args
 import re
+import logging
 
 class ResultSummary:
     '''
@@ -70,12 +71,23 @@ def generated_report(logfile, template_name, result):
 
 @contextlib.contextmanager
 def pushd(new_dir):
-    previous_dir = os.getcwd()
+    try:
+        previous_dir = os.getcwd()
+    except FileNotFoundError:
+        # Cwd was deleted (e.g. --result was inside the original cwd and rmtree removed it)
+        previous_dir = os.path.expanduser("~")
+        if not os.path.isdir(previous_dir):
+            previous_dir = os.path.dirname(os.path.abspath(new_dir))
+        if not os.path.isdir(previous_dir):
+            previous_dir = "/"
     os.chdir(new_dir)
     try:
         yield
     finally:
-        os.chdir(previous_dir)
+        try:
+            os.chdir(previous_dir)
+        except Exception:
+            pass
 
 class _WritelnDecorator(object):
     """Used to decorate file-like objects with a handy 'writeln' method"""
@@ -166,7 +178,7 @@ class HTMLTestRunner(object):
                             message=r'Please use assert\w+ instead.')
             startTime = time.perf_counter()
             id = 0
-            all_case_name = [ ts.id() for ts in test ]
+            all_case_name = [ts.id() for ts in test]
             result.planned = len(all_case_name)
             for ts in test:
                 # Reset Gemini analysis fields for each new test case
@@ -188,13 +200,62 @@ class HTMLTestRunner(object):
                 startTestRun = getattr(result, 'startTestRun', None)
                 if startTestRun is not None:
                     startTestRun()
+                # Run coverage right after the test method returns, *before* tearDown (which may delete the VM).
+                # Unittest calls the test method by name (not runTest), so we wrap the actual method.
+                def _run_per_test_coverage():
+                    if not ts.params.get('cloud_init_coverage') or not getattr(ts, 'vm', None):
+                        return
+                    coverage_data_dir = ts.params.get('cloud_init_coverage_data_dir')
+                    if not coverage_data_dir:
+                        return
+                    log = logging.getLogger(__name__)
+                    log.info("Cloud-init coverage: per-test collection starting for %s (VM %s)", ts.id(), getattr(ts.vm, 'floating_ip', None))
+                    try:
+                        os.makedirs(coverage_data_dir, exist_ok=True)
+                        safe_id = ts.id().replace('/', '_').replace('::', '_').replace(' ', '_').replace('[', '').replace(']', '')
+                        out_path = os.path.join(coverage_data_dir, '.coverage.{}'.format(safe_id))
+                        pulled = utils_lib.pull_cloudinit_coverage_from_vm(ts.params, ts.vm, out_path)
+                        if pulled:
+                            utils_lib.incremental_combine_cloudinit_coverage(ts.params, out_path)
+                            combined_file = os.path.join(coverage_data_dir, '.coverage')
+                            if os.path.isfile(combined_file) and os.path.getsize(combined_file) > 0:
+                                output_dir = ts.params.get('cloud_init_coverage_output') or os.path.join(
+                                    ts.params.get('results_dir') or '/tmp/os_tests_result', 'cloudinit-coverage-html')
+                                report_ok = utils_lib.generate_cloudinit_coverage_report_on_vm(
+                                    ts.params, ts.vm, combined_file, output_dir, log)
+                                if report_ok:
+                                    log.info("Cloud-init coverage: per-test collection succeeded for %s (data + report)", ts.id())
+                                else:
+                                    log.info("Cloud-init coverage: per-test collection succeeded for %s (data only; report generation failed)", ts.id())
+                            else:
+                                log.info("Cloud-init coverage: per-test collection succeeded for %s (data only; no combined file yet)", ts.id())
+                        else:
+                            log.info("Cloud-init coverage: per-test collection failed (pull failed) for %s", ts.id())
+                    except Exception as e:
+                        log.info("Cloud-init coverage: per-test collection failed for %s: %s", ts.id(), e)
+                    finally:
+                        # Restore default VM credentials so next test does not inherit stashed user/password (e.g. test5 from chpasswd)
+                        utils_lib.clear_coverage_stashed_credentials(getattr(ts, 'vm', None), ts.params)
+                # Wrap the test method by name so coverage runs after test body, before tearDown
+                _method_name = getattr(ts, '_testMethodName', None)
+                if _method_name and ts.params.get('cloud_init_coverage'):
+                    _original_method = getattr(ts, _method_name)
+                    def _test_with_coverage_after():
+                        _original_method()
+                        _run_per_test_coverage()
+                    setattr(ts, _method_name, _test_with_coverage_after)
                 try:
+                    if ts.params.get('cloud_init_coverage'):
+                        utils_lib.set_coverage_current_test(ts)
                     ts(result)
                 finally:
+                    if ts.params.get('cloud_init_coverage'):
+                        utils_lib.set_coverage_current_test(None)
                     stopTestRun = getattr(result, 'stopTestRun', None)
                     if stopTestRun is not None:
                         stopTestRun()
                     ts.duration = timeTaken = round(time.perf_counter() - case_startTime, 3)
+                # Per-test coverage runs only inside the wrapped test method (before tearDown); no second attempt here (VM may already be deleted)
                 test_class_name = ts.__class__.__name__
                 case_dir = '.'.join([test_class_name, ts.id()])
                 debug_dir = logdir + "/attachments/" + case_dir

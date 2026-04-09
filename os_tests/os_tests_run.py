@@ -21,6 +21,14 @@ log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 
 def main():
+    # If cwd was deleted (e.g. previous run did rmtree(--result) and shell stayed there), fix it
+    try:
+        os.getcwd()
+    except FileNotFoundError:
+        for _dir in (os.path.expanduser("~"), "/"):
+            if _dir and os.path.isdir(_dir):
+                os.chdir(_dir)
+                break
     args = init_args()
     params = get_cfg()
     params['run_uuid'] = str(uuid.uuid4())
@@ -48,6 +56,13 @@ def main():
     if os.path.exists(results_dir) and not params.get('is_listcase'):
         rmtree(results_dir)
         log.info("saving results to {}".format(results_dir))
+    # Recreate so it exists (avoids issues if cwd was inside results_dir and was removed)
+    if not params.get('is_listcase') and not params.get('verifydoc') and not params.get('dumpdoc'):
+        os.makedirs(results_dir, exist_ok=True)
+    # Per-test coverage copy dir: .coverage from each VM is copied here after each test (before VM may be destroyed)
+    if params.get('cloud_init_coverage'):
+        params['cloud_init_coverage_data_dir'] = os.path.join(results_dir, 'cloudinit_coverage_data')
+        os.makedirs(params['cloud_init_coverage_data_dir'], exist_ok=True)
     os_tests_dir = os.path.dirname(__file__)
     skip_patterns = params.get('skip_pattern')
     test_patterns = params.get('pattern')
@@ -141,6 +156,13 @@ def main():
         log.info("Total case num: %s"%final_ts.countTestCases())
     else:
         HTMLTestRunner(verbosity=2).run(final_ts)
+
+    if params.get('cloud_init_coverage'):
+        utils_lib.collect_cloudinit_coverage_from_vms(
+            params,
+            vms=vms,
+            pre_collected_dir=params.get('cloud_init_coverage_data_dir'),
+        )
 
     for res in chain(vms, disks, nics, nets):
         if params.get('no_cleanup'):
