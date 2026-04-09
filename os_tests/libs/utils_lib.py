@@ -126,6 +126,10 @@ def init_args():
                         help='Path to tc_file.json file for generating sum_polarion.xml which could be uploaded to Polarion')
     parser.add_argument('--enable_gemini_check', dest='enable_gemini_check', action='store',
                     help='enable case result analysis using google gemini', required=False)
+    parser.add_argument('--cloud-init-coverage', dest='cloud_init_coverage', action='store_true',
+                    help='collect cloud-init code coverage from VMs after tests; use a coverage-ready image (see docs)', required=False)
+    parser.add_argument('--cloud-init-coverage-output', dest='cloud_init_coverage_output', default=None, action='store',
+                    help='directory for cloud-init coverage HTML report (default: <results_dir>/cloudinit-coverage-html)', required=False)
     parser.add_argument('--gemini_api_key', dest='gemini_api_key', default=None, action='store',
                     help='google gemini api key', required=False)
     parser.add_argument('--gemini_http_proxy', dest='gemini_http_proxy', default=None, action='store',
@@ -376,11 +380,45 @@ def init_connection(test_instance, timeout=600, interval=10, rmt_node=None, vm=N
             break
     return True
 
+
+# Used by the runner to expose the current test so send_ssh_cmd can stash credentials for coverage collection
+_coverage_current_test = None
+
+
+def set_coverage_current_test(test_case):
+    """Set the current test case so send_ssh_cmd can attach VM credentials for coverage (no test changes needed)."""
+    global _coverage_current_test
+    _coverage_current_test = test_case
+
+
+def clear_coverage_stashed_credentials(vm, params):
+    """
+    Restore vm.vm_username and vm.vm_password to params defaults so the next test
+    does not inherit credentials stashed by a previous test (e.g. chpasswd setting test5).
+    Call after per-test coverage collection so subsequent tests see the default cloud-user.
+    """
+    if vm is None:
+        return
+    default_user = (params.get('VM') or {}).get('username') or params.get('remote_user') or 'cloud-user'
+    default_password = (params.get('VM') or {}).get('password') or params.get('remote_password')
+    vm.vm_username = default_user
+    vm.vm_password = default_password
+
+
 def send_ssh_cmd(rmt_node, rmt_user, rmt_password, command, timeout=60, log=None, **kwargs):
     if log is None:
         LOG_FORMAT = '%(levelname)s:%(message)s'
         log = logging.getLogger(__name__)
         logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
+    # Stash credentials on the current test's VM when password is used, so coverage collection can use them
+    if rmt_password and _coverage_current_test is not None:
+        vm = getattr(_coverage_current_test, 'vm', None)
+        if vm is not None:
+            vm_ip = getattr(vm, 'floating_ip', None)
+            if vm_ip is not None and str(vm_ip).strip() == str(rmt_node).strip():
+                vm.vm_username = rmt_user
+                vm.vm_password = rmt_password
+                log.info("Cloud-init coverage: stashed VM credentials for %s@%s (for later coverage pull)", rmt_user, rmt_node)
     ssh = rmt_ssh.RemoteSSH()
     ssh.rmt_node = rmt_node
     ssh.rmt_user = rmt_user
@@ -2432,3 +2470,524 @@ def export_environment_variable(test_instance, environment_vars=None):
         cmd += name + '=' + value + ' '
 
     run_cmd(test_instance, cmd)
+
+
+def _get_vm_ssh_auth(params, vm):
+    """
+    Get (user, keyfile, password) for SSH to this VM. Uses the same credentials
+    that os-tests uses to connect (e.g. send_ssh_cmd): VM-specific vm_username/vm_password
+    when set (e.g. by test_cloudinit_login_with_password_userdata or newvm tests), else
+    params remote_user, remote_keyfile, remote_password. At least one of keyfile or password
+    must be set for coverage collection to connect.
+    When the test stashed password (vm.vm_password), prefer password auth so keyfile is not
+    used (keyfile is often for the default user and would fail for test-created users).
+    """
+    user = (
+        getattr(vm, 'vm_username', None)
+        or (params.get('VM') or {}).get('username')
+        or params.get('remote_user')
+        or 'cloud-user'
+    )
+    keyfile = params.get('remote_keyfile')
+    if keyfile and not os.path.isfile(keyfile):
+        keyfile = None
+    password = getattr(vm, 'vm_password', None) or params.get('remote_password')
+    # Prefer password auth when test stashed credentials (e.g. chpasswd tests); keyfile may be for default user only
+    if password and getattr(vm, 'vm_password', None):
+        keyfile = None
+    return (user, keyfile, password)
+
+
+def _coverage_ssh_base(keyfile, password, user, ip):
+    """
+    Build SSH invocation for coverage operations. Uses keyfile if set, else password (sshpass).
+    Matches the same auth that os-tests uses (send_ssh_cmd). Returns (cmd_list, env) or (None, None).
+    """
+    if keyfile and os.path.isfile(keyfile):
+        return (
+            ['ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=10',
+             '-i', keyfile, '{}@{}'.format(user, ip)],
+            dict(os.environ),
+        )
+    if password:
+        env = dict(os.environ)
+        env['SSHPASS'] = str(password)
+        return (
+            ['sshpass', '-e', 'ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=10',
+             '{}@{}'.format(user, ip)],
+            env,
+        )
+    return (None, None)
+
+
+def _coverage_vm_user(params, vm):
+    """Return SSH user for coverage operations: VM-specific or params default."""
+    return (
+        getattr(vm, 'vm_username', None)
+        or (params.get('VM') or {}).get('username')
+        or params.get('remote_user')
+        or 'cloud-user'
+    )
+
+
+def _coverage_ssh_probe(base, env, ip, log):
+    """
+    Run debug commands over SSH to verify connection and check for .coverage files.
+    Logs results at INFO. Returns True if SSH connection works (whoami succeeded).
+    """
+    # 1) Verify SSH auth with a simple command
+    try:
+        cmd = base + ['whoami']
+        ret = subprocess.run(cmd, capture_output=True, timeout=15, env=env)
+        out = (ret.stdout or b'').decode('utf-8', errors='replace').strip()
+        err = (ret.stderr or b'').decode('utf-8', errors='replace').strip()
+        if ret.returncode == 0:
+            log.info("Cloud-init coverage: SSH probe to %s succeeded (whoami -> %s)", ip, out or "(empty)")
+        else:
+            log.info("Cloud-init coverage: SSH probe to %s failed (whoami exit %s). stdout: %s stderr: %s",
+                     ip, ret.returncode, out, err)
+            return False
+    except (subprocess.TimeoutExpired, OSError) as e:
+        log.info("Cloud-init coverage: SSH probe to %s failed (whoami): %s", ip, e)
+        return False
+    # 2) Check for .coverage files on the VM
+    for remote_path in ('/var/tmp/.coverage', '/.coverage'):
+        try:
+            cmd = base + ['ls -la {} 2>&1'.format(remote_path)]
+            ret = subprocess.run(cmd, capture_output=True, timeout=15, env=env)
+            out = (ret.stdout or b'').decode('utf-8', errors='replace').strip()
+            err = (ret.stderr or b'').decode('utf-8', errors='replace').strip()
+            log.info("Cloud-init coverage: SSH ls %s on %s -> exit %s. stdout: %s stderr: %s",
+                     remote_path, ip, ret.returncode, out or "(empty)", err or "(empty)")
+        except (subprocess.TimeoutExpired, OSError) as e:
+            log.info("Cloud-init coverage: SSH ls %s on %s failed: %s", remote_path, ip, e)
+    return True
+
+
+def _pull_coverage_via_ssh(keyfile, password, user, ip, local_f, log):
+    """
+    Pull .coverage from VM using ssh + cat. Uses keyfile or password (same auth as os-tests).
+    Tries /var/tmp/.coverage then /.coverage. Returns True if data was written to local_f.
+    Runs a debug probe first (whoami + ls) and logs results to distinguish SSH failures from missing file.
+    """
+    base, env = _coverage_ssh_base(keyfile, password, user, ip)
+    if not base:
+        return False
+    if not _coverage_ssh_probe(base, env, ip, log):
+        return False
+    # Use plain cat (no sudo): .coverage is often 0644 so the SSH user can read it. sudo in non-interactive SSH can fail (TTY/password).
+    for remote_path in ('/var/tmp/.coverage', '/.coverage'):
+        try:
+            cmd = base + ['cat {} 2>/dev/null'.format(remote_path)]
+            ret = subprocess.run(cmd, capture_output=True, timeout=30, env=env)
+            if ret.returncode == 0 and ret.stdout and len(ret.stdout.strip()) > 0:
+                with open(local_f, 'wb') as f:
+                    f.write(ret.stdout)
+                return True
+        except (subprocess.TimeoutExpired, OSError, IOError):
+            continue
+    return False
+
+
+def _push_file_via_ssh(keyfile, password, user, ip, local_path, remote_path, log):
+    """
+    Push a local file to the VM at remote_path using ssh + sudo tee. Uses keyfile or password.
+    """
+    if not os.path.isfile(local_path):
+        return False
+    base, env = _coverage_ssh_base(keyfile, password, user, ip)
+    if not base:
+        return False
+    try:
+        with open(local_path, 'rb') as f:
+            cmd = base + ['sudo tee {} > /dev/null'.format(remote_path)]
+            ret = subprocess.run(cmd, stdin=f, capture_output=True, timeout=60, env=env)
+        return ret.returncode == 0
+    except (subprocess.TimeoutExpired, OSError, IOError) as e:
+        log.debug("Push file to VM failed: %s", e)
+        return False
+
+
+def _run_coverage_html_on_vm(keyfile, password, user, ip, data_file, html_dir, log):
+    """
+    Run coverage html on the VM. Uses keyfile or password. data_file and html_dir are paths on the VM.
+    """
+    base, env = _coverage_ssh_base(keyfile, password, user, ip)
+    if not base:
+        return False
+    try:
+        remote_cmd = (
+            'sudo python3 -m coverage html '
+            '--data-file={} --directory={} --ignore-errors'
+        ).format(data_file, html_dir)
+        cmd = base + [remote_cmd]
+        ret = subprocess.run(cmd, capture_output=True, timeout=120, env=env)
+        if ret.returncode != 0:
+            err = (ret.stderr or b'').decode('utf-8', errors='replace').strip()
+            out = (ret.stdout or b'').decode('utf-8', errors='replace').strip()
+            log.warning("coverage html on VM failed (exit %s): %s", ret.returncode, err or out)
+        return ret.returncode == 0
+    except (subprocess.TimeoutExpired, OSError) as e:
+        log.debug("coverage html on VM failed: %s", e)
+        return False
+
+
+def _run_coverage_xml_on_vm(keyfile, password, user, ip, data_file, xml_path, log):
+    """
+    Run coverage xml on the VM. Uses keyfile or password. data_file and xml_path are paths on the VM.
+    """
+    base, env = _coverage_ssh_base(keyfile, password, user, ip)
+    if not base:
+        return False
+    try:
+        remote_cmd = (
+            'sudo python3 -m coverage xml '
+            '--data-file={} -o {} --ignore-errors'
+        ).format(data_file, xml_path)
+        cmd = base + [remote_cmd]
+        ret = subprocess.run(cmd, capture_output=True, timeout=120, env=env)
+        if ret.returncode != 0:
+            err = (ret.stderr or b'').decode('utf-8', errors='replace').strip()
+            out = (ret.stdout or b'').decode('utf-8', errors='replace').strip()
+            log.warning("coverage xml on VM failed (exit %s): %s", ret.returncode, err or out)
+        return ret.returncode == 0
+    except (subprocess.TimeoutExpired, OSError) as e:
+        log.debug("coverage xml on VM failed: %s", e)
+        return False
+
+
+def _pull_file_from_vm(keyfile, password, user, ip, remote_path, local_path, log):
+    """
+    Pull a single file from the VM via ssh (sudo cat). Uses keyfile or password.
+    """
+    base, env = _coverage_ssh_base(keyfile, password, user, ip)
+    if not base:
+        return False
+    try:
+        os.makedirs(os.path.dirname(local_path) or '.', exist_ok=True)
+        ssh_cmd = base + ['sudo cat {}'.format(remote_path)]
+        with open(local_path, 'wb') as f:
+            ret = subprocess.run(ssh_cmd, stdout=f, stderr=subprocess.PIPE, timeout=60, env=env)
+        if ret.returncode != 0 and ret.stderr:
+            log.debug("Pull file from VM: %s", (ret.stderr or b'').decode('utf-8', errors='replace'))
+        return ret.returncode == 0
+    except Exception as e:
+        log.debug("Pull file from VM failed: %s", e)
+        return False
+
+
+def _pull_report_dir_from_vm(keyfile, password, user, ip, remote_dir, local_dir, log):
+    """
+    Pull a directory from the VM into local_dir using tar over ssh. Uses keyfile or password.
+    """
+    base, env = _coverage_ssh_base(keyfile, password, user, ip)
+    if not base:
+        return False
+    try:
+        os.makedirs(local_dir, exist_ok=True)
+        parent = os.path.dirname(remote_dir.rstrip('/'))
+        name = os.path.basename(remote_dir.rstrip('/'))
+        ssh_cmd = base + ['sudo tar cf - -C {} {}'.format(parent, name)]
+        proc = subprocess.Popen(
+            ssh_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env
+        )
+        extract = subprocess.Popen(
+            ['tar', 'xf', '-', '-C', local_dir, '--strip-components=1'],
+            stdin=proc.stdout, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+        )
+        proc.stdout.close()
+        _, err = extract.communicate(timeout=90)
+        proc.wait(timeout=10)
+        if extract.returncode != 0 and err:
+            log.debug("tar extract: %s", err)
+        return extract.returncode == 0
+    except Exception as e:
+        log.debug("Pull report dir from VM failed: %s", e)
+        return False
+
+
+def _cloudinit_root_from_file_path(file_path):
+    """Return the cloudinit package root dir from a full file path, or None."""
+    path = file_path.replace(os.path.sep, '/')
+    if 'cloudinit' not in path:
+        return None
+    idx = path.rfind('cloudinit')
+    if idx == -1:
+        return None
+    return path[:idx + len('cloudinit')]
+
+
+def _get_cloudinit_path_mapping_from_files(data_files, log):
+    """
+    Build [paths] list from one or more .coverage data files for coverage combine.
+    Extracts cloudinit path prefixes from the data so combine merges VM paths correctly.
+    Returns list of path strings; uses _fallback_cloudinit_paths() if no paths found.
+    """
+    try:
+        from coverage.data import CoverageData
+    except ImportError:
+        try:
+            from coverage.sqldata import CoverageData
+        except ImportError:
+            return _fallback_cloudinit_paths()
+    data_paths = set()
+    for f in (data_files or []):
+        if not os.path.isfile(f) or os.path.getsize(f) == 0:
+            continue
+        try:
+            data = CoverageData(f)
+            for fp in data.measured_files():
+                root = _cloudinit_root_from_file_path(fp)
+                if root:
+                    data_paths.add(root)
+            data.close()
+            if data_paths:
+                break
+        except Exception as e:
+            log.debug("Reading coverage data %s for paths: %s", f, e)
+    if data_paths:
+        return sorted(data_paths)
+    return _fallback_cloudinit_paths()
+
+
+def _fallback_cloudinit_paths():
+    """Fallback path list when we cannot read .coverage (e.g. wrong schema). VM paths only."""
+    path_list = []
+    for ver in ('3.12', '3.11', '3.10', '3.9'):
+        path_list.append('/usr/lib/python{}/site-packages/cloudinit'.format(ver))
+    path_list.append('/usr/lib/python3/dist-packages/cloudinit')
+    return path_list
+
+
+def generate_cloudinit_coverage_report_on_vm(params, vm, combined_file, output_dir, log):
+    """
+    Generate the coverage HTML and XML reports on a remote VM (paths match VM environment),
+    then pull both report artifacts back to the controller. Uses the same SSH auth
+    as os-tests (keyfile or password from params/vm).
+    Returns True if both reports were generated and pulled successfully.
+    """
+    if not os.path.isfile(combined_file):
+        log.info("Cloud-init coverage: skip reports (combined file missing)")
+        return False
+    user, keyfile, password = _get_vm_ssh_auth(params, vm)
+    if not keyfile and not password:
+        log.info("Cloud-init coverage: skip reports (no auth for VM)")
+        return False
+    ip = getattr(vm, 'floating_ip', None) if vm else None
+    if not ip:
+        log.info("Cloud-init coverage: skip reports (no VM IP)")
+        return False
+    log.info("Cloud-init coverage: generating HTML and XML reports on VM %s (push combined -> run coverage html/xml -> pull reports)", ip)
+    remote_data = '/var/tmp/.coverage.os_tests_combined'
+    remote_html = '/var/tmp/cloudinit-coverage-html'
+    remote_xml = '/var/tmp/cloudinit-coverage.xml'
+    if not _push_file_via_ssh(keyfile, password, user, ip, combined_file, remote_data, log):
+        log.info("Cloud-init coverage: reports failed (push combined .coverage to VM %s failed)", ip)
+        return False
+    log.info("Cloud-init coverage: pushed combined .coverage to VM %s, running coverage html and xml on VM", ip)
+    if not _run_coverage_html_on_vm(keyfile, password, user, ip, remote_data, remote_html, log):
+        log.info("Cloud-init coverage: reports failed (coverage html on VM %s failed)", ip)
+        return False
+    if not _run_coverage_xml_on_vm(keyfile, password, user, ip, remote_data, remote_xml, log):
+        log.info("Cloud-init coverage: reports failed (coverage xml on VM %s failed)", ip)
+        return False
+    log.info("Cloud-init coverage: coverage html and xml done on VM %s, pulling reports to controller", ip)
+    # Overwrite any existing report: clear output_dir so pulled files replace old report
+    if os.path.isdir(output_dir):
+        shutil.rmtree(output_dir)
+    os.makedirs(output_dir, exist_ok=True)
+    if not _pull_report_dir_from_vm(keyfile, password, user, ip, remote_html, output_dir, log):
+        log.info("Cloud-init coverage: reports failed (pull HTML from VM %s failed)", ip)
+        return False
+    local_xml = os.path.join(output_dir, 'coverage.xml')
+    if not _pull_file_from_vm(keyfile, password, user, ip, remote_xml, local_xml, log):
+        log.info("Cloud-init coverage: reports failed (pull XML from VM %s failed)", ip)
+        return False
+    log.info("Cloud-init coverage: HTML and XML reports generated and saved to %s (index.html, coverage.xml)", output_dir)
+    return True
+
+
+def incremental_combine_cloudinit_coverage(params, new_file_path):
+    """
+    Incrementally combine new coverage data into the shared .coverage in the data dir.
+    Call after each test when you have pulled .coverage to new_file_path.
+    First call creates .coverage from the first file; later calls use coverage combine --append.
+    """
+    log = logging.getLogger(__name__)
+    data_dir = params.get('cloud_init_coverage_data_dir')
+    if not data_dir or not os.path.isfile(new_file_path) or os.path.getsize(new_file_path) == 0:
+        return
+    try:
+        work_dir = data_dir
+        combined = os.path.join(work_dir, '.coverage')
+        if os.path.isfile(combined) and os.path.getsize(combined) > 0:
+            cmd = [
+                sys.executable, '-m', 'coverage', 'combine', '--append', '--keep',
+                new_file_path,
+            ]
+        else:
+            cmd = [sys.executable, '-m', 'coverage', 'combine', '--keep', new_file_path]
+        ret = subprocess.run(cmd, cwd=work_dir, capture_output=True, timeout=60)
+        if ret.returncode != 0:
+            log.debug("Incremental combine failed: %s %s", ret.stdout, ret.stderr)
+    except Exception as e:
+        log.debug("Incremental combine: %s", e)
+
+
+def pull_cloudinit_coverage_from_vm(params, vm, local_path):
+    """
+    Pull .coverage from a single VM to local_path. Uses the same SSH auth as os-tests
+    (keyfile or password from params/vm, e.g. vm.vm_password for password-only tests).
+    Returns True if data was written to local_path.
+    """
+    log = logging.getLogger(__name__)
+    user, keyfile, password = _get_vm_ssh_auth(params, vm)
+    ip = getattr(vm, 'floating_ip', None) if vm else None
+    auth_desc = "keyfile=%s password=%s" % (bool(keyfile), bool(password))
+    if not keyfile and not password:
+        log.info("Cloud-init coverage: skip pull for %s (no auth: %s)", ip or "no-ip", auth_desc)
+        return False
+    if not ip:
+        log.info("Cloud-init coverage: skip pull (no VM floating_ip)")
+        return False
+    log.info("Cloud-init coverage: attempting pull from %s@%s (auth: %s)", user, ip, auth_desc)
+    try:
+        if _pull_coverage_via_ssh(keyfile, password, user, ip, local_path, log):
+            log.info("Cloud-init coverage: pull from %s succeeded, wrote %s", ip, local_path)
+            return True
+        log.info("Cloud-init coverage: pull from %s failed (no .coverage data; see above probe/ls output for details)", ip)
+        return False
+    except Exception as e:
+        log.info("Cloud-init coverage: pull from %s failed: %s", ip, e)
+        return False
+
+
+def collect_cloudinit_coverage_from_vms(params, vms=None, pre_collected_dir=None):
+    """
+    Combine .coverage data from all tests into a single .coverage file at end of run.
+
+    Report is generated per-test (pull, combine, push, generate on VM, pull report); this
+    function does not generate a report. It only re-combines pre-collected .coverage.*
+    files (and optionally pulls from any remaining vms when there are no pre-collected files)
+    so the combined .coverage is up to date. The report on the controller was already
+    updated after each test.
+
+    Data source: pre_collected_dir (.coverage.* from each test) and/or pull from vms.
+    """
+    import tempfile
+    import glob
+    log = logging.getLogger(__name__)
+    log.info("Cloud-init coverage: collect_cloudinit_coverage_from_vms started (pre_collected_dir=%s, vms_count=%s)",
+             pre_collected_dir, len(vms) if vms else 0)
+    results_dir = params.get('results_dir') or '/tmp/os_tests_result'
+    output_dir = params.get('cloud_init_coverage_output') or os.path.join(
+        results_dir, 'cloudinit-coverage-html')
+    collected = []
+    work_dir = pre_collected_dir if pre_collected_dir else os.path.join(results_dir, 'cloudinit_coverage_data')
+    combined_basename = os.path.join(work_dir, '.coverage')
+    # 1) Use pre-collected files (from per-test copy); exclude the combined .coverage itself
+    if pre_collected_dir and os.path.isdir(pre_collected_dir):
+        pre_files = glob.glob(os.path.join(pre_collected_dir, '.coverage*'))
+        log.info("Cloud-init coverage: pre_collected_dir=%s has %d .coverage* file(s): %s",
+                 pre_collected_dir, len(pre_files), [os.path.basename(p) for p in pre_files])
+        for f in pre_files:
+            if f == combined_basename:
+                continue
+            if os.path.isfile(f) and os.path.getsize(f) > 0:
+                collected.append(f)
+        if collected:
+            log.info("Cloud-init coverage: using %d pre-collected file(s) from %s", len(collected), pre_collected_dir)
+    else:
+        log.info("Cloud-init coverage: pre_collected_dir missing or not a dir: %s", pre_collected_dir)
+    # 2) Pull from remaining VMs only when we have no pre-collected data (VMs are often deleted in tearDown after per-test collection)
+    if vms and not collected:
+        os.makedirs(results_dir, exist_ok=True)
+        log.info("Cloud-init coverage: no pre-collected files, trying pull from %d remaining VM(s)", len(vms))
+        for i, vm in enumerate(vms):
+            try:
+                ip = getattr(vm, 'floating_ip', None)
+                if not ip:
+                    log.info("Cloud-init coverage: remaining VM[%d] has no floating_ip, skip", i)
+                    continue
+                u, kf, pw = _get_vm_ssh_auth(params, vm)
+                if not kf and not pw:
+                    log.info("Cloud-init coverage: remaining VM[%d] %s has no keyfile/password, skip", i, ip)
+                    continue
+                local_f = os.path.join(
+                    pre_collected_dir or tempfile.gettempdir(),
+                    '.coverage.vm_remaining_{}'.format(i)
+                )
+                if pre_collected_dir:
+                    os.makedirs(pre_collected_dir, exist_ok=True)
+                log.info("Cloud-init coverage: pulling from remaining VM %s (auth: keyfile=%s password=%s)", ip, bool(kf), bool(pw))
+                if _pull_coverage_via_ssh(kf, pw, u, ip, local_f, log):
+                    collected.append(local_f)
+                    log.info("Cloud-init coverage: collected from remaining VM %s", ip)
+                else:
+                    log.info("Cloud-init coverage: pull from remaining VM %s failed", ip)
+            except Exception as e:
+                log.info("Cloud-init coverage: pull from VM %s failed: %s", getattr(vm, 'floating_ip', vm), e)
+    elif vms and collected:
+        log.info("Cloud-init coverage: skipping pull from remaining VMs (already have %d pre-collected file(s))", len(collected))
+
+    log.info("Cloud-init coverage: total collected=%d files", len(collected))
+    if not collected:
+        reasons = []
+        if not (pre_collected_dir and os.path.isdir(pre_collected_dir)):
+            reasons.append("no pre_collected_dir or not a directory")
+        else:
+            pre_files = glob.glob(os.path.join(pre_collected_dir, '.coverage*'))
+            non_empty = [f for f in pre_files if os.path.isfile(f) and os.path.getsize(f) > 0]
+            if not non_empty:
+                reasons.append("no non-empty .coverage* files in pre_collected_dir (found: %s)" % [os.path.basename(p) for p in pre_files])
+            else:
+                reasons.append("pre_collected_dir had files but none matched (combined excluded)")
+        if vms:
+            reasons.append("pull failed for all VMs (no keyfile/password or SSH failed)")
+        log.warning("No cloud-init coverage data collected: %s", "; ".join(reasons) or "unknown")
+        return
+
+    os.makedirs(results_dir, exist_ok=True)
+    os.makedirs(work_dir, exist_ok=True)
+
+    # Path mapping for combine (same source from different paths get merged)
+    path_lines = _get_cloudinit_path_mapping_from_files(collected, log)
+    if not path_lines:
+        path_lines = _fallback_cloudinit_paths()
+    if not path_lines:
+        log.error("Cloud-init coverage: no path mapping from data files.")
+        return
+    coveragerc = os.path.join(work_dir, '.coveragerc')
+    with open(coveragerc, 'w') as f:
+        lines = ["    " + p.replace(os.sep, "/").rstrip("/") + "/" for p in path_lines]
+        f.write("[paths]\nsource =\n" + "\n".join(lines) + "\n")
+
+    # Combine all coverage data (--keep so we don't delete per-test files)
+    combine_cmd = [
+        sys.executable, '-m', 'coverage', 'combine',
+        '--rcfile={}'.format(coveragerc),
+        '--keep',
+    ] + collected
+    ret = subprocess.run(
+        combine_cmd,
+        cwd=work_dir,
+        capture_output=True,
+        timeout=60,
+    )
+    if ret.returncode != 0:
+        log.warning(
+            "coverage combine failed: %s %s", ret.stdout, ret.stderr
+        )
+        return
+    combined_file = os.path.join(work_dir, '.coverage')
+    if not os.path.isfile(combined_file) or os.path.getsize(combined_file) == 0:
+        log.warning("coverage combine did not produce .coverage")
+        return
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Report is already generated and pulled after each test (including the last); no end-of-run report generation.
+    log.info(
+        "Cloud-init coverage: combined data at %s. Report updated after each test: %s/index.html, %s/coverage.xml",
+        combined_file, output_dir, output_dir,
+    )
