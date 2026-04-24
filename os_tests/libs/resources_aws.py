@@ -4,6 +4,7 @@ import logging
 import time
 import sys
 import re
+import os
 try:
     import boto3
     from botocore.exceptions import ClientError
@@ -23,8 +24,9 @@ class EC2VM(VMResource):
         LOG.info('Init EC2VM resource')
         config = Config(retries=dict(max_attempts=10, ))
         self.profile_name = params.get('profile_name')
-        if self.profile_name is None:
-            LOG.info('No profile_name provided, leave boto3 to detect authentication methods')
+        # Let boto3 choose where it can source the auth credentials from
+        if self.profile_name is None or os.environ.get('AWS_ACCESS_KEY_ID') is not None:
+            LOG.info('Let boto3 detect authentication methods and source credentials')
             self.session = boto3.session.Session(region_name=params.get("region"))
         else:
             LOG.info('Load profile_name: {}'.format(self.profile_name))
@@ -687,8 +689,8 @@ class EC2Volume(StorageResource):
         LOG.info('Init EC2Volume resource')
         config = Config(retries=dict(max_attempts=10, ))
         self.profile_name = params.get('profile_name')
-        if self.profile_name is None:
-            LOG.info('No profile_name provided, leave boto3 to detect authentication methods')
+        if self.profile_name is None or os.environ.get('AWS_ACCESS_KEY_ID') is not None:
+            LOG.info('Let boto3 detect authentication methods and source credentials')
             self.session = boto3.session.Session(region_name=params.get("region"))
         else:
             LOG.info('Load profile_name: {}'.format(self.profile_name))
@@ -877,8 +879,8 @@ class EC2NIC(NetworkResource):
         LOG.info('Init EC2NIC resource')
         config = Config(retries=dict(max_attempts=10, ))
         self.profile_name = params.get('profile_name')
-        if self.profile_name is None:
-            LOG.info('No profile_name provided, leave boto3 to detect authentication methods')
+        if self.profile_name is None or os.environ.get('AWS_ACCESS_KEY_ID') is not None:
+            LOG.info('Let boto3 detect authentication methods and source credentials')
             self.session = boto3.session.Session(region_name=params.get("region"))
         else:
             LOG.info('Load profile_name: {}'.format(self.profile_name))
