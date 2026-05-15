@@ -1,5 +1,11 @@
 # os-tests
 
+This repo has moved to https://gitlab.com/virt-cloud/os-tests 
+
+
+
+
+
 ## Introduction
 
 os-tests is a lightweight, portable and customer focused test collection for Linux OS.
